@@ -11,9 +11,10 @@ export interface DerivedInsight {
   category: 'opportunity' | 'threat' | 'trend';
   impact: 'high' | 'medium' | 'low' | 'critical';
   timestamp: string;
-  source: 'AI' | 'Human' | 'Brainstorm';
+  source: 'AI' | 'Human' | 'Brainstorm' | 'Exa.ai' | 'Crunchbase';
   sourceIds?: string[];
   linkedInsightIds?: string[];
+  tags?: string[];
 }
 
 export type SourceType = 'website' | 'api' | 'screenshot' | 'database' | 'github' | 'linkedin' | 'crunchbase' | 'news' | 'gemini-grounding';
@@ -29,7 +30,7 @@ export interface DataSource {
   tags: string[];
   confidenceLevel: ConfidenceLevel;
   isDeduced: boolean;
-  source: 'AI' | 'Human' | 'Brainstorm' | 'Apollo.io' | 'Google Search';
+  source: 'AI' | 'Human' | 'Brainstorm' | 'Apollo.io' | 'Google Search' | 'Exa.ai' | 'Crunchbase';
   linkedInsightIds?: string[];
 }
 
@@ -89,4 +90,39 @@ export interface Competitor {
   headcountGrowth?: number;
   techStack?: string[];
   seoKeywords?: string[];
+  verifiedFields?: Record<string, boolean>;
+}
+
+export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
+
+export interface SyncDiff {
+  id: string;
+  entityId: string;
+  entityType: 'Competitor' | 'MyProduct' | 'Insight' | 'SystemContext';
+  field: string;
+  oldValue: any;
+  newValue: any;
+  description?: string;
+}
+
+export interface UserUsage {
+  lastSearchTimestamp: string | null;
+  searchCountToday: number;
+}
+
+export interface FeedbackMessage {
+  id: string;
+  type: 'Bug' | 'Feature' | 'General' | 'Limit Increase Request';
+  message: string;
+  timestamp: string;
+  userId: string;
+  userEmail?: string;
+}
+
+export interface RawDataRecord {
+  id: string;
+  source: string;
+  payload: any;
+  timestamp: string;
+  competitorId?: string;
 }

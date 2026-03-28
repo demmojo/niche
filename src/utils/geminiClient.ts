@@ -1,9 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { trackRequest } from './usageTracker';
+import { getCustomApiKey } from './apiKeys';
 
 export const getGeminiKeys = (): string[] => {
-  const key = process.env.GEMINI_API_KEY;
-  return key ? [key] : [];
+  const customKey = getCustomApiKey('gemini');
+  const envKey = process.env.GEMINI_API_KEY;
+  const keys = [];
+  if (customKey) keys.push(customKey);
+  if (envKey && !customKey) keys.push(envKey);
+  return keys;
 };
 
 export const addGeminiKey = (key: string) => {
@@ -23,7 +28,7 @@ export const setSelectedModel = (model: string) => {
 };
 
 export const getGeminiClient = () => {
-  const key = process.env.GEMINI_API_KEY;
+  const key = getCustomApiKey('gemini') || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('No Gemini API key available. Please configure it in the AI Studio Settings.');
   }
@@ -35,7 +40,7 @@ export const rotateGeminiKey = () => {
 };
 
 export const withKeyRotation = async <T>(operation: (ai: GoogleGenAI, model: string) => Promise<T>, timeoutMs: number = 120000): Promise<T> => {
-  const key = process.env.GEMINI_API_KEY;
+  const key = getCustomApiKey('gemini') || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('No Gemini API key available. Please configure it in the AI Studio Settings.');
   }
@@ -63,10 +68,10 @@ export const withKeyRotation = async <T>(operation: (ai: GoogleGenAI, model: str
   
   try {
     const result = await executeWithTimeout(currentModel);
-    trackRequest(key, false, currentModel);
+    trackRequest('gemini', key, false, currentModel);
     return result;
   } catch (error: any) {
-    trackRequest(key, true, currentModel);
+    trackRequest('gemini', key, true, currentModel);
     
     const errorStr = typeof error === 'string' ? error : JSON.stringify(error, Object.getOwnPropertyNames(error));
     const isRateLimit = error?.status === 429 || errorStr.includes('429') || errorStr.includes('quota') || errorStr.includes('rate limit') || errorStr.includes('Resource has been exhausted');
@@ -121,10 +126,10 @@ export const withKeyRotation = async <T>(operation: (ai: GoogleGenAI, model: str
       
       try {
         const result = await executeWithTimeout(currentModel);
-        trackRequest(key, false, currentModel);
+        trackRequest('gemini', key, false, currentModel);
         return result;
       } catch (fallbackError) {
-        trackRequest(key, true, currentModel);
+        trackRequest('gemini', key, true, currentModel);
         throw formatError(fallbackError);
       }
     } else if (isNotFound) {
@@ -133,10 +138,10 @@ export const withKeyRotation = async <T>(operation: (ai: GoogleGenAI, model: str
       
       try {
         const result = await executeWithTimeout(currentModel);
-        trackRequest(key, false, currentModel);
+        trackRequest('gemini', key, false, currentModel);
         return result;
       } catch (fallbackError) {
-        trackRequest(key, true, currentModel);
+        trackRequest('gemini', key, true, currentModel);
         throw formatError(fallbackError);
       }
     }
