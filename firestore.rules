@@ -1,0 +1,265 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // This security rules file assumes the following data structures:
+    //
+    // Collection: users/{userId}
+    // Document ID: {userId}
+    // Fields:
+    //   - geminiApiKey: string (optional)
+    //   - apolloApiKey: string (optional)
+    //   - autoSync: boolean (optional)
+    //   - syncInterval: number (optional)
+    //   - defaultConfidenceThreshold: string (optional)
+    //
+    // Collection: users/{userId}/competitors
+    // Document ID: {competitorId}
+    // Fields:
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - description: string (optional)
+    //   - websiteUrl: string (optional)
+    //   - features: list (optional)
+    //   - pricing: string (optional)
+    //   - targetAudience: string (optional)
+    //   - strengths: list (optional)
+    //   - weaknesses: list (optional)
+    //   - lastUpdated: string (optional)
+    //
+    // Collection: users/{userId}/dataSources
+    // Document ID: {dataSourceId}
+    // Fields:
+    //   - userId: string (required)
+    //   - competitorId: string (required)
+    //   - type: string (required)
+    //   - sourceUrl: string (required)
+    //   - rawContent: string (optional)
+    //   - extractedInsights: list (optional)
+    //   - confidenceScore: string (optional)
+    //   - dateAdded: string (optional)
+    //
+    // Collection: users/{userId}/derivedInsights
+    // Document ID: {insightId}
+    // Fields:
+    //   - userId: string (required)
+    //   - title: string (required)
+    //   - description: string (required)
+    //   - category: string (required)
+    //   - impact: string (required)
+    //   - timestamp: string (required)
+    //   - source: string (optional)
+    //   - sourceIds: list (optional)
+    //   - linkedInsightIds: list (optional)
+    //
+    // Collection: users/{userId}/mindmapNodes
+    // Document ID: {nodeId}
+    // Fields:
+    //   - userId: string (required)
+    //   - type: string (required)
+    //   - label: string (required)
+    //   - x: number (required)
+    //   - y: number (required)
+    //   - connections: list (optional)
+    //   - data: string (optional)
+    //
+    // Collection: users/{userId}/systemLogs
+    // Document ID: {logId}
+    // Fields:
+    //   - userId: string (required)
+    //   - timestamp: string (required)
+    //   - action: string (required)
+    //   - details: string (optional)
+    //   - status: string (required)
+    //   - duration: number (optional)
+    //   - error: string (optional)
+    //   - metadata: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidList(field, maxSize) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is list && request.resource.data[field].size() <= maxSize);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserSettings() {
+      return isValidOptionalString('geminiApiKey', 0, 1000) &&
+             isValidOptionalString('apolloApiKey', 0, 1000) &&
+             (!( 'autoSync' in request.resource.data ) || request.resource.data.autoSync is bool) &&
+             (!( 'syncInterval' in request.resource.data ) || request.resource.data.syncInterval is number) &&
+             isValidOptionalString('defaultConfidenceThreshold', 0, 100);
+    }
+
+    function isValidCompetitor() {
+      return hasRequiredFields(['userId', 'name']) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidString('name', 1, 200) &&
+             isValidOptionalString('description', 0, 10000) &&
+             isValidOptionalString('websiteUrl', 0, 1000) &&
+             isValidList('features', 1000) &&
+             isValidOptionalString('pricing', 0, 5000) &&
+             isValidOptionalString('targetAudience', 0, 5000) &&
+             isValidList('strengths', 100) &&
+             isValidList('weaknesses', 100) &&
+             isValidOptionalString('lastUpdated', 0, 100);
+    }
+
+    function isValidDataSource() {
+      return hasRequiredFields(['userId', 'competitorId', 'type', 'sourceUrl']) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidString('competitorId', 1, 100) &&
+             isValidString('type', 1, 100) &&
+             isValidString('sourceUrl', 0, 2000) &&
+             isValidOptionalString('rawContent', 0, 1048576) && // 1MB limit
+             isValidList('extractedInsights', 1000) &&
+             isValidOptionalString('confidenceScore', 0, 100) &&
+             isValidOptionalString('dateAdded', 0, 100);
+    }
+
+    function isValidDerivedInsight() {
+      return hasRequiredFields(['userId', 'title', 'description', 'category', 'impact', 'timestamp']) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidString('title', 1, 500) &&
+             isValidString('description', 1, 10000) &&
+             request.resource.data.category in ['opportunity', 'threat', 'trend'] &&
+             request.resource.data.impact in ['low', 'medium', 'high', 'critical'] &&
+             isValidString('timestamp', 1, 100) &&
+             isValidOptionalString('source', 0, 100) &&
+             isValidList('sourceIds', 100) &&
+             isValidList('linkedInsightIds', 100);
+    }
+
+    function isValidMindmapNode() {
+      return hasRequiredFields(['userId', 'type', 'label', 'x', 'y']) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidString('type', 1, 100) &&
+             isValidString('label', 1, 500) &&
+             request.resource.data.x is number &&
+             request.resource.data.y is number &&
+             isValidList('connections', 1000) &&
+             isValidOptionalString('data', 0, 1048576);
+    }
+
+    function isValidSystemLog() {
+      return hasRequiredFields(['userId', 'timestamp', 'action', 'status']) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidString('timestamp', 1, 100) &&
+             isValidString('action', 1, 500) &&
+             isValidOptionalString('details', 0, 1048576) &&
+             request.resource.data.status in ['success', 'error', 'pending', 'info'] &&
+             (!('duration' in request.resource.data) || request.resource.data.duration is number) &&
+             isValidOptionalString('error', 0, 10000) &&
+             isValidOptionalString('metadata', 0, 1048576);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /workspaces/{workspaceId} {
+      allow read, write: if true;
+      
+      match /appData/{dataId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserSettings();
+      allow update: if isOwner(userId) && isValidUserSettings();
+      allow delete: if isOwner(userId);
+
+      match /competitors/{competitorId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCompetitor() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidCompetitor() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /dataSources/{dataSourceId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDataSource() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidDataSource() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /derivedInsights/{insightId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDerivedInsight() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidDerivedInsight() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /mindmapNodes/{nodeId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMindmapNode() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidMindmapNode() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /systemLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSystemLog() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidSystemLog() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /appData/{dataId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

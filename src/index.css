@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=VT323&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-paper-light: #FFFFFF;
+  --color-paper-base: #F5F3ED;
+  --color-paper-card: #FFFFFF;
+  
+  --color-ink-dark: #1A1A1A;
+  --color-ink-muted: #555555;
+  --color-ink-faint: #4A5A4E;
+  
+  --color-moss: #3A6C49;
+  --color-sage: #68806E;
+  --color-terracotta: #C46A5A;
+  --color-ochre: #C9904B;
+  --color-sky: #6A94D8;
+
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: "VT323", monospace;
+
+  --shadow-storybook: 0px 4px 20px rgba(26, 46, 32, 0.15);
+  --shadow-storybook-hover: 0px 12px 30px rgba(26, 46, 32, 0.25);
+  --shadow-storybook-inner: inset 0px 2px 8px rgba(26, 46, 32, 0.1);
+
+  --radius-storybook: 24px;
+  --radius-storybook-sm: 16px;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-peek: peek 4s ease-in-out infinite;
+  --animate-scatter: scatter 0.3s ease-out forwards;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50% { transform: translateY(-15px) translateX(10px); }
+  }
+  @keyframes peek {
+    0%, 100% { transform: translateY(100%); }
+    10%, 90% { transform: translateY(0); }
+  }
+  @keyframes scatter {
+    0% { opacity: 1; transform: scale(1) translate(0, 0); }
+    100% { opacity: 0; transform: scale(0.5) translate(-20px, 20px); }
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[#F5F3ED] text-[#1A1A1A] font-sans overflow-x-hidden text-[16px] leading-relaxed;
+  }
+}
+
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.625rem;
+}
+
+
+
+@plugin "@tailwindcss/typography";
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+

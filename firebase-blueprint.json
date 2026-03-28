@@ -1,0 +1,153 @@
+{
+  "entities": {
+    "Competitor": {
+      "title": "Competitor",
+      "description": "A competitor company or product.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this competitor." },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "websiteUrl": { "type": "string" },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "category": { "type": "string" },
+              "score": { "type": "number" },
+              "status": { "type": "string" }
+            }
+          }
+        },
+        "pricing": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "strengths": { "type": "array", "items": { "type": "string" } },
+        "weaknesses": { "type": "array", "items": { "type": "string" } },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["userId", "name"]
+    },
+    "DataSource": {
+      "title": "DataSource",
+      "description": "A raw data source for a competitor.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "competitorId": { "type": "string" },
+        "type": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "rawContent": { "type": "string" },
+        "extractedInsights": { "type": "array", "items": { "type": "string" } },
+        "confidenceScore": { "type": "string" },
+        "dateAdded": { "type": "string" }
+      },
+      "required": ["userId", "competitorId", "type", "sourceUrl"]
+    },
+    "DerivedInsight": {
+      "title": "DerivedInsight",
+      "description": "An insight derived from data sources or brainstorming.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["opportunity", "threat", "trend"] },
+        "impact": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "timestamp": { "type": "string" },
+        "source": { "type": "string" },
+        "sourceIds": { "type": "array", "items": { "type": "string" } },
+        "linkedInsightIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "title", "description", "category", "impact", "timestamp"]
+    },
+    "MindmapNode": {
+      "title": "MindmapNode",
+      "description": "A node in the mindmap explorer.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "label": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "connections": { "type": "array", "items": { "type": "string" } },
+        "data": { "type": "string" }
+      },
+      "required": ["userId", "type", "label", "x", "y"]
+    },
+    "SystemLog": {
+      "title": "SystemLog",
+      "description": "A system log entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "error", "pending", "info"] },
+        "duration": { "type": "number" },
+        "error": { "type": "string" },
+        "metadata": { "type": "string" }
+      },
+      "required": ["userId", "timestamp", "action", "status"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences and settings.",
+      "type": "object",
+      "properties": {
+        "geminiApiKey": { "type": "string" },
+        "apolloApiKey": { "type": "string" },
+        "autoSync": { "type": "boolean" },
+        "syncInterval": { "type": "number" },
+        "defaultConfidenceThreshold": { "type": "string" }
+      }
+    },
+    "AppData": {
+      "title": "AppData",
+      "description": "Arbitrary application state synced from localStorage.",
+      "type": "object",
+      "properties": {
+        "value": { "type": "any", "description": "The stored value of any type." }
+      }
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}/appData/{dataId}": {
+      "schema": { "$ref": "#/entities/AppData" },
+      "description": "Application state synced to cloud for the workspace."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User settings document."
+    },
+    "/users/{userId}/appData/{dataId}": {
+      "schema": { "$ref": "#/entities/AppData" },
+      "description": "Application state synced to cloud for the user."
+    },
+    "/users/{userId}/competitors/{competitorId}": {
+      "schema": { "$ref": "#/entities/Competitor" },
+      "description": "Competitors owned by the user."
+    },
+    "/users/{userId}/dataSources/{dataSourceId}": {
+      "schema": { "$ref": "#/entities/DataSource" },
+      "description": "Data sources owned by the user."
+    },
+    "/users/{userId}/derivedInsights/{insightId}": {
+      "schema": { "$ref": "#/entities/DerivedInsight" },
+      "description": "Derived insights owned by the user."
+    },
+    "/users/{userId}/mindmapNodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/MindmapNode" },
+      "description": "Mindmap nodes owned by the user."
+    },
+    "/users/{userId}/systemLogs/{logId}": {
+      "schema": { "$ref": "#/entities/SystemLog" },
+      "description": "System logs owned by the user."
+    }
+  }
+}

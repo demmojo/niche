@@ -1,0 +1,2965 @@
+1:import React, { useState, useMemo, useEffect, useRef } from 'react';
+2:import { Radar as RechartsRadar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+3:import { 
+4: LayoutDashboard, 
+5: TableProperties, 
+6: Lightbulb, 
+7: Settings, 
+8: Search, 
+9: Download, 
+10: Sparkles,
+11: ArrowUpDown,
+12: ShieldAlert,
+13: GlobeLock,
+14: Zap,
+15: Users,
+16: Database,
+17: Archive,
+18: MessageSquare,
+19: Image as ImageIcon,
+20: Github,
+21: Send,
+22: Loader2,
+23: ArrowLeft,
+24: Target,
+25: DollarSign,
+26: Radar,
+27: ShieldCheck,
+28: RefreshCw,
+29: FileText,
+30: Copy,
+31: FileSpreadsheet,
+32: CheckCircle2,
+33: XCircle,
+34: X,
+35: Info,
+36: Maximize2,
+37: PieChart,
+38: TrendingUp,
+39: TrendingDown,
+40: AlertTriangle,
+41: Activity,
+42: ChevronRight,
+43: Play,
+44: Newspaper,
+45: Clock,
+46: Link as LinkIcon,
+47: ExternalLink,
+48:  Network
+49:} from 'lucide-react';
+50:import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
+51:import { withKeyRotation } from './utils/geminiClient';
+52:import { getErrorMessage } from './utils/errorHandler';
+53:import Markdown from 'react-markdown';
+54:import { InsightQuestModal } from './components/InsightQuestModal';
+55:import { InspiringRadioWidget } from './components/InspiringRadioWidget';
+56:import MarketAnalysis from './components/MarketAnalysis';
+57:import { MindmapExplorer, MindmapNode } from './components/MindmapExplorer';
+58:import { Settings as SettingsComponent } from './components/Settings';
+59:import { MarketValueNotebook } from './components/MarketValueNotebook';
+60:import { DataPointsTable } from './components/DataPointsTable';
+61:
+62:// --- Types ---
+63:
+64:interface Toast {
+65: id: string;
+66: message: string;
+67: type: 'success' | 'info' | 'error' | 'loading';
+68:}
+69:
+70:interface DerivedInsight {
+71: id: string;
+72: title: string;
+73: description: string;
+74: category: 'opportunity' | 'threat' | 'trend';
+75: impact: 'high' | 'medium' | 'low' | 'critical';
+76: timestamp: string;
+77: source: 'AI' | 'Human' | 'Brainstorm';
+78: sourceIds?: string[];
+79:}
+80:
+81:type SourceType = 'website' | 'api' | 'screenshot' | 'database' | 'github' | 'linkedin' | 'crunchbase' | 'news';
+82:type ConfidenceLevel = 'High' | 'Medium' | 'Low';
+83:
+84:interface DataSource {
+85: id: string;
+86: competitorId: string;
+87: type: SourceType;
+88: sourceUrl: string;
+89: excerpt: string;
+90: timestamp: string;
+91: tags: string[];
+92: confidenceLevel: ConfidenceLevel;
+93: isDeduced: boolean;
+94: source: 'AI' | 'Human' | 'Brainstorm';
+95: linkedInsightIds?: string[];
+96:}
+97:
+98:interface LogEntry {
+99: id: string;
+100: timestamp: string;
+101: action: string;
+102: details: string;
+103: status: 'success' | 'error' | 'pending' | 'info';
+104: retryAction?: () => void;
+105: contextData?: any;
+106:}
+107:
+108:interface ChatMessage {
+109: role: 'user' | 'assistant';
+110: content: string;
+111: suggestedInsight?: {
+112: title: string;
+113: description: string;
+114: category: 'opportunity' | 'threat' | 'trend';
+115: impact: 'low' | 'medium' | 'high' | 'critical';
+116: };
+117: insightAdded?: boolean;
+118:}
+119:
+120:type SortField = 'name' | 'freeTier' | 'spamProtection' | 'targetAudience' | 'dataSovereignty' | 'marketCommonalityIndex' | 'resourceSimilarityScore' | 'marketSegments';
+121:type SortOrder = 'asc' | 'desc';
+122:
+123:interface Competitor {
+124: id: string;
+125: name: string;
+126: website: string;
+127: freeTier: string;
+128: spamProtection: string;
+129: integrations: string[];
+130: targetAudience: string;
+131: marketSegments: string[];
+132: dataSovereignty: string;
+133: sovereigntyScore: 'low' | 'medium' | 'high'; // For badge coloring
+134: logoUrl: string;
+135: financialSnapshot: string;
+136: fundingStage?: string;
+137: estimatedARR?: string;
+138: coreFeatures: string[];
+139: howWeCompare: string;
+140: competitorScore: number; // Overall Threat Score
+141: trustScore: number;
+142: marketCommonalityIndex: number; // Academic metric for competitive overlap
+143: resourceSimilarityScore: number; // Academic metric for capability overlap
+144:}
+145:
+146:// --- Initial Data ---
+147:
+148:const initialRawDataSources: DataSource[] = [
+149: {
+150: id: 'src-1',
+151: competitorId: '1',
+152: type: 'website',
+153: sourceUrl: 'https://typeform.com/pricing',
+154: excerpt: '{\n "tier": "Basic",\n "price": 25,\n "limits": {\n "responses": 100,\n "users": 1\n }\n}',
+155: timestamp: '2026-03-10T14:22:00Z',
+156: tags: ['pricing', 'limits'],
+157: confidenceLevel: 'High',
+158: isDeduced: false,
+159: source: 'AI',
+160: linkedInsightIds: ['di-2']
+161: },
+162: {
+163: id: 'src-2',
+164: competitorId: '2',
+165: type: 'api',
+166: sourceUrl: 'GET api.jotform.com/v1/user/settings',
+167: excerpt: '{\n "hipaa_compliance": true,\n "eu_datacenter": true,\n "dedicated_server": "enterprise_only"\n}',
+168: timestamp: '2026-03-09T09:15:00Z',
+169: tags: ['compliance', 'infrastructure'],
+170: confidenceLevel: 'High',
+171: isDeduced: false,
+172: source: 'AI'
+173: },
+174: {
+175: id: 'src-3',
+176: competitorId: '3',
+177: type: 'github',
+178: sourceUrl: 'github.com/tallyforms/discussions',
+179: excerpt: '> User: "Can I self-host Tally?"\n> Maintainer: "Currently, we do not offer a self-hosted version. We are fully managed on AWS EU."\n// Opportunity: Strong demand for self-hosting ignored.',
+180: timestamp: '2026-03-11T11:05:00Z',
+181: tags: ['self-hosting', 'community'],
+182: confidenceLevel: 'Medium',
+183: isDeduced: true,
+184: source: 'Human',
+185: linkedInsightIds: ['di-1']
+186: },
+187: {
+188: id: 'src-4',
+189: competitorId: '1',
+190: type: 'screenshot',
+191: sourceUrl: 'https://picsum.photos/seed/tf-builder/800/600',
+192: excerpt: '[Image Analysis]\nUI is highly polished but relies heavily on client-side JS. Logic jumps are complex to configure for >50 steps. No native Postgres export visible.',
+193: timestamp: '2026-03-10T15:30:00Z',
+194: tags: ['ui/ux', 'features'],
+195: confidenceLevel: 'Medium',
+196: isDeduced: true,
+197: source: 'AI'
+198: }
+199:];
+200:
+201:const initialCompetitors: Competitor[] = [
+202: {
+203: id: '1',
+204: name: 'Typeform',
+205: website: 'typeform.com',
+206: freeTier: '10 responses/mo',
+207: spamProtection: 'Basic reCAPTCHA',
+208: integrations: ['Zapier', 'HubSpot', 'Salesforce', 'Slack'],
+209: targetAudience: 'Marketers, SMBs',
+210: marketSegments: ['SMB', 'Marketing', 'Agency'],
+211: dataSovereignty: 'US/EU Hosted (No Self-Host)',
+212: sovereigntyScore: 'low',
+213: logoUrl: 'https://picsum.photos/seed/typeform/200/200',
+214: financialSnapshot: 'Series C, $187M total funding. Est. $70M ARR.',
+215: fundingStage: 'Series C',
+216: estimatedARR: '$70M+',
+217: coreFeatures: ['Conversational UI', 'Logic Jumps', 'Templates', 'VideoAsk'],
+218: howWeCompare: 'We win on data sovereignty and self-hosting. They win on brand recognition and template variety. Their pricing scales poorly for high-volume enterprise.',
+219: competitorScore: 85,
+220: trustScore: 92,
+221: marketCommonalityIndex: 65,
+222: resourceSimilarityScore: 40,
+223: },
+224: {
+225: id: '2',
+226: name: 'Jotform',
+227: website: 'jotform.com',
+228: freeTier: '100 responses/mo',
+229: spamProtection: 'reCAPTCHA, Custom limits',
+230: integrations: ['PayPal', 'Google Sheets', 'Zoom', 'Salesforce'],
+231: targetAudience: 'Healthcare, Enterprise',
+232: marketSegments: ['Enterprise', 'Healthcare', 'Education'],
+233: dataSovereignty: 'US/EU, Dedicated Enterprise',
+234: sovereigntyScore: 'medium',
+235: logoUrl: 'https://picsum.photos/seed/jotform/200/200',
+236: financialSnapshot: 'Bootstrapped. Est. $100M+ ARR.',
+237: fundingStage: 'Bootstrapped',
+238: estimatedARR: '$100M+',
+239: coreFeatures: ['HIPAA Compliance', 'PDF Editor', 'Payment Integrations', 'Approvals'],
+240: howWeCompare: 'Jotform is feature-heavy but cluttered. We offer a cleaner, developer-first API and true cloud-agnostic deployment, whereas they lock you into their enterprise servers.',
+241: competitorScore: 78,
+242: trustScore: 88,
+243: marketCommonalityIndex: 80,
+244: resourceSimilarityScore: 60,
+245: },
+246: {
+247: id: '3',
+248: name: 'Tally',
+249: website: 'tally.so',
+250: freeTier: 'Unlimited (5% fee)',
+251: spamProtection: 'Basic',
+252: integrations: ['Notion', 'Airtable', 'Make', 'Slack'],
+253: targetAudience: 'Creators, Startups',
+254: marketSegments: ['Creators', 'Startups', 'Indie Hackers'],
+255: dataSovereignty: 'EU Hosted (No Self-Host)',
+256: sovereigntyScore: 'low',
+257: logoUrl: 'https://picsum.photos/seed/tally/200/200',
+258: financialSnapshot: 'Bootstrapped, highly profitable indie hacker team.',
+259: fundingStage: 'Bootstrapped',
+260: estimatedARR: '$2M+',
+261: coreFeatures: ['Notion-like UI', 'Generous Free Tier', 'Custom Domains', 'Calculator'],
+262: howWeCompare: 'Tally is great for creators, but lacks enterprise-grade data sovereignty and self-hosting. We target the mid-market/enterprise segment they ignore.',
+263: competitorScore: 65,
+264: trustScore: 75,
+265: marketCommonalityIndex: 30,
+266: resourceSimilarityScore: 25,
+267: },
+268: {
+269: id: '5',
+270: name: 'Formbricks',
+271: website: 'formbricks.com',
+272: freeTier: 'Generous Open Source',
+273: spamProtection: 'Basic',
+274: integrations: ['Slack', 'Notion', 'Zapier', 'Webhooks'],
+275: targetAudience: 'Developers, Product Teams',
+276: marketSegments: ['Developers', 'Product', 'SaaS'],
+277: dataSovereignty: 'Self-Hosted, Cloud',
+278: sovereigntyScore: 'high',
+279: logoUrl: 'https://picsum.photos/seed/formbricks/200/200',
+280: financialSnapshot: 'Seed funded. Open source model.',
+281: fundingStage: 'Seed',
+282: estimatedARR: 'Unknown',
+283: coreFeatures: ['Open Source', 'In-App Surveys', 'Link Surveys', 'Data Privacy'],
+284: howWeCompare: 'Formbricks is our closest open-source competitor. They focus heavily on in-app micro-surveys for product teams, while we focus on robust, complex data collection and headless forms for enterprise.',
+285: competitorScore: 82,
+286: trustScore: 85,
+287: marketCommonalityIndex: 90,
+288: resourceSimilarityScore: 85,
+289: },
+290: {
+291: id: '6',
+292: name: 'Feathery',
+293: website: 'feathery.io',
+294: freeTier: '100 submissions/mo',
+295: spamProtection: 'reCAPTCHA',
+296: integrations: ['Plaid', 'Stripe', 'Segment', 'Firebase'],
+297: targetAudience: 'Fintech, Healthcare, Product',
+298: marketSegments: ['Fintech', 'Healthcare', 'Enterprise'],
+299: dataSovereignty: 'US Hosted, SOC2',
+300: sovereigntyScore: 'medium',
+301: logoUrl: 'https://picsum.photos/seed/feathery/200/200',
+302: financialSnapshot: 'Series A, backed by top VCs.',
+303: fundingStage: 'Series A',
+304: estimatedARR: 'Unknown',
+305: coreFeatures: ['Advanced Logic', 'Developer SDKs', 'Native Integrations', 'White-label'],
+306: howWeCompare: 'Feathery targets the same complex use cases (Fintech/Health) but lacks true self-hosting. Their developer SDKs are strong, but KageForm\'s headless architecture is more flexible.',
+307: competitorScore: 88,
+308: trustScore: 90,
+309: marketCommonalityIndex: 95,
+310: resourceSimilarityScore: 75,
+311: },
+312: {
+313: id: '7',
+314: name: 'Fillout',
+315: website: 'fillout.com',
+316: freeTier: '1000 responses/mo',
+317: spamProtection: 'Turnstile',
+318: integrations: ['Airtable', 'Notion', 'Salesforce', 'Supabase'],
+319: targetAudience: 'Operations, SMBs',
+320: marketSegments: ['Operations', 'SMB', 'No-Code'],
+321: dataSovereignty: 'US Hosted',
+322: sovereigntyScore: 'low',
+323: logoUrl: 'https://picsum.photos/seed/fillout/200/200',
+324: financialSnapshot: 'Seed funded, rapid growth.',
+325: fundingStage: 'Seed',
+326: estimatedARR: 'Unknown',
+327: coreFeatures: ['Airtable Native', 'Update Records', 'Multi-page', 'Calculations'],
+328: howWeCompare: 'Fillout is excellent for Airtable/Notion power users. They are less focused on developer APIs and self-hosting, making them less of a threat in the enterprise data sovereignty space.',
+329: competitorScore: 70,
+330: trustScore: 82,
+331: marketCommonalityIndex: 45,
+332: resourceSimilarityScore: 50,
+333: },
+334: {
+335: id: '8',
+336: name: 'Qualtrics',
+337: website: 'qualtrics.com',
+338: freeTier: 'Very limited trial',
+339: spamProtection: 'Enterprise-grade',
+340: integrations: ['SAP', 'Salesforce', 'Adobe', 'Marketo'],
+341: targetAudience: 'Enterprise, Research',
+342: marketSegments: ['Enterprise', 'Research', 'CX'],
+343: dataSovereignty: 'Global Data Centers, FedRAMP',
+344: sovereigntyScore: 'high',
+345: logoUrl: 'https://picsum.photos/seed/qualtrics/200/200',
+346: financialSnapshot: 'Public/Acquired. Billions in revenue.',
+347: fundingStage: 'Public',
+348: estimatedARR: '$1B+',
+349: coreFeatures: ['Experience Management', 'Advanced Stats', 'Text iQ', 'Conjoint Analysis'],
+350: howWeCompare: 'Qualtrics is the legacy enterprise giant. They are extremely expensive and slow to implement. We offer a modern, developer-friendly alternative for data collection at a fraction of the cost, though we lack their advanced statistical analysis suite.',
+351: competitorScore: 95,
+352: trustScore: 98,
+353: marketCommonalityIndex: 70,
+354: resourceSimilarityScore: 30,
+355: },
+356: {
+357: id: '4',
+358: name: 'KageForm (Us)',
+359: website: 'kageform.com',
+360: freeTier: 'Generous Community Tier',
+361: spamProtection: 'Enterprise-grade, AI filtering',
+362: integrations: ['Webhooks', 'Postgres', 'Redis', 'Custom API'],
+363: targetAudience: 'Enterprise, Health, Research',
+364: marketSegments: ['Enterprise', 'Healthcare', 'Developers'],
+365: dataSovereignty: 'Any Cloud, Air-Gapped, Self-Hosted',
+366: sovereigntyScore: 'high',
+367: logoUrl: 'https://picsum.photos/seed/kageform/200/200',
+368: financialSnapshot: 'Pre-seed. Seeking initial funding/grants.',
+369: fundingStage: 'Pre-seed',
+370: estimatedARR: '$0',
+371: coreFeatures: ['Cloud-Agnostic', 'Self-Hosted', 'Developer-First API', 'Headless Mode'],
+372: howWeCompare: 'N/A - This is us.',
+373: competitorScore: 0,
+374: trustScore: 100,
+375: marketCommonalityIndex: 100,
+376: resourceSimilarityScore: 100,
+377: }
+378:];
+379:
+380:// --- Components ---
+381:
+382:function SyncNowButton({ isSyncing, syncTimeRemaining, handleGlobalSync, setShowSyncInfo }: any) {
+383: return (
+384: <div className="relative group">
+385: <button
+386: onClick={handleGlobalSync}
+387: disabled={isSyncing}
+388: className={`flex items-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300 ${
+389: isSyncing 
+390: ? 'opacity-50 cursor-not-allowed' 
+391: : ''
+392: }`}
+393: >
+394: <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+395: {isSyncing ? `Syncing... (${syncTimeRemaining}s)` : 'Sync Now'}
+396: </button>
+397: 
+398: {/* Tooltip */}
+399: <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+400: <p className="text-sm text-ink-dark mb-2">
+401: {isSyncing 
+402: ? `Sync in progress. Please wait approximately ${syncTimeRemaining} seconds for background tasks to complete.`
+403: : 'Fetch the latest data across all competitors and update insights.'}
+404: </p>
+405: <button 
+406: onClick={(e) => { e.stopPropagation(); setShowSyncInfo(true); }}
+407: className="text-xs text-[#8A8A8A] font-bold hover:underline pointer-events-auto"
+408: >
+409: Learn more about syncing
+410: </button>
+411: </div>
+412: </div>
+413: );
+414:}
+415:
+416:export default function App() {
+417: const [activeTab, setActiveTab] = useState('dashboard');
+418: const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors);
+419: const [rawDataSources, setRawDataSources] = useState<DataSource[]>(initialRawDataSources);
+420: 
+421: // Matrix State
+422: const [globalSearch, setGlobalSearch] = useState('');
+423: const [matrixFilter, setMatrixFilter] = useState<string>('All');
+424: const [sortField, setSortField] = useState<SortField>('name');
+425: const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+426: const [selectedCompetitorId, setSelectedCompetitorId] = useState<string | null>(null);
+427:
+428: // Discovery State
+429: const [isDiscovering, setIsDiscovering] = useState(false);
+430: const [isAnalyzingPage, setIsAnalyzingPage] = useState(false);
+431: 
+432: // System Context State
+433: const [systemContextSummary, setSystemContextSummary] = useState<string | null>(null);
+434: const [isUpdatingContext, setIsUpdatingContext] = useState(false);
+435:
+436: // Raw Data State
+437: const [sourceFilter, setSourceFilter] = useState<string>('all');
+438: const [rawDataSearch, setRawDataSearch] = useState('');
+439: const [rawDataTypeFilter, setRawDataTypeFilter] = useState('all');
+440: const [rawDataCompanyFilter, setRawDataCompanyFilter] = useState('all');
+441: const [rawDataVisibleCount, setRawDataVisibleCount] = useState(10);
+442: const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+443: const rawDataObserverRef = useRef<HTMLDivElement>(null);
+444:
+445: // Summary State
+446: const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(null);
+447:
+448: // Insight Engine State
+449: const [chatState, setChatState] = useState<'closed' | 'hover' | 'locked'>('closed');
+450: const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
+451: { role: 'assistant', content: 'Hello Founders. I am your KageForm Insight Engine. I am aware of the page you are currently viewing. How can I help you analyze this data?' }
+452: ]);
+453: const [chatInput, setChatInput] = useState('');
+454:  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+455:  const [mentionQuery, setMentionQuery] = useState('');
+456: const [isTyping, setIsTyping] = useState(false);
+457:
+458: React.useEffect(() => {
+459: const handleClickOutside = (e: MouseEvent) => {
+460: if (chatState === 'locked') {
+461: const chatEl = document.getElementById('insight-engine-chat');
+462: if (chatEl && !chatEl.contains(e.target as Node)) {
+463: setChatState('closed');
+464: }
+465: }
+466: };
+467: document.addEventListener('mousedown', handleClickOutside);
+468: return () => document.removeEventListener('mousedown', handleClickOutside);
+469: }, [chatState]);
+470:
+471: // Global State
+472: const [toasts, setToasts] = useState<Toast[]>([]);
+473: const [logs, setLogs] = useState<LogEntry[]>([]);
+474: const addLog = (action: string, details: string, status: LogEntry['status'] = 'info', retryAction?: () => void, contextData?: any) => {
+475: const id = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+476: setLogs(prev => [{
+477: id,
+478: timestamp: new Date().toISOString(),
+479: action,
+480: details,
+481: status,
+482: retryAction,
+483: contextData
+484: }, ...prev]);
+485: return id;
+486: };
+487: 
+488: const updateLog = (id: string, updates: Partial<LogEntry>) => {
+489: setLogs(prev => prev.map(log => log.id === id ? { ...log, ...updates } : log));
+490: };
+491: const [lastSynced, setLastSynced] = useState<string>(new Date().toISOString());
+492: const [isSyncing, setIsSyncing] = useState(false);
+493: const [syncTimeRemaining, setSyncTimeRemaining] = useState(0);
+494: const [activeTasks, setActiveTasks] = useState<{id: string, name: string, progress: number}[]>([]);
+495: const [showSyncInfo, setShowSyncInfo] = useState(false);
+496: const [expandedImage, setExpandedImage] = useState<string | null>(null);
+497: const [isCreateInsightOpen, setIsCreateInsightOpen] = useState(false);
+498: const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
+499: const [hasQuestNotification, setHasQuestNotification] = useState(true);
+500: const [insightFilter, setInsightFilter] = useState<'All' | 'AI' | 'Human' | 'Brainstorm'>('All');
+501: const [newInsightForm, setNewInsightForm] = useState({ title: '', description: '', category: 'opportunity', impact: 'medium' });
+502: const [derivedInsights, setDerivedInsights] = useState<DerivedInsight[]>([
+503: {
+504: id: 'di-1',
+505: title: 'Self-Hosting Demand Surging',
+506: description: 'Analysis of GitHub discussions and recent pricing changes indicates a 40% increase in enterprise demand for self-hosted form solutions to comply with new EU data regulations.',
+507: category: 'opportunity',
+508: impact: 'high',
+509: timestamp: new Date().toISOString(),
+510: source: 'AI',
+511: sourceIds: ['src-3']
+512: },
+513: {
+514: id: 'di-2',
+515: title: 'Aggressive Pricing from Tally',
+516: description: 'Tally has introduced a new generous free tier that might capture the lower-end of our target market. We need to emphasize our enterprise features to differentiate.',
+517: category: 'threat',
+518: impact: 'medium',
+519: timestamp: new Date().toISOString(),
+520: source: 'Human',
+521: sourceIds: ['src-1']
+522: }
+523: ]);
+524:
+525: // Toast Functions
+526: const addToast = (message: string, type: Toast['type'] = 'info') => {
+527: const id = Math.random().toString(36).substr(2, 9);
+528: setToasts(prev => [...prev, { id, message, type }]);
+529: if (type !== 'loading') {
+530: setTimeout(() => {
+531: setToasts(prev => prev.filter(t => t.id !== id));
+532: }, 3000);
+533: }
+534: return id;
+535: };
+536:
+537: const removeToast = (id: string) => {
+538: setToasts(prev => prev.filter(t => t.id !== id));
+539: };
+540:
+541: // Sync Function
+542: const handleGlobalSync = async () => {
+543: if (isSyncing) {
+544: addToast(`Sync already in progress. Estimated time: ${syncTimeRemaining}s`, 'info');
+545: return;
+546: }
+547: 
+548: const toastId = addToast('Syncing all data sources and generating insights...', 'loading');
+549: setIsSyncing(true);
+550: setSyncTimeRemaining(25);
+551: setActiveTasks([
+552: { id: '1', name: 'Scraping competitor pricing', progress: 0 },
+553: { id: '2', name: 'Analyzing market trends', progress: 0 },
+554: { id: '3', name: 'Updating insight library', progress: 0 }
+555: ]);
+556: const logId = addLog('Global Sync', 'Started syncing all data sources...', 'pending', handleGlobalSync);
+557: 
+558: try {
+559: 
+560:
+561: const contextData = JSON.stringify({
+562: competitors: competitors.map(c => ({ name: c.name, features: c.coreFeatures, score: c.competitorScore })),
+563: recentDataSources: rawDataSources.slice(0, 5).map(s => ({ type: s.type, excerpt: s.excerpt }))
+564: });
+565:
+566: const response = await withKeyRotation(async (ai, model) => {
+567:      return await ai.models.generateContent({
+568: model: model,
+569: contents: `Analyze the following competitor data and recent data sources. Generate one new, highly specific derived insight (opportunity, threat, or trend) based on this data. Focus on market shifts, pricing changes, or feature gaps. Data: ${contextData}`,
+570: config: {
+571: responseMimeType: "application/json",
+572: responseSchema: {
+573: type: Type.OBJECT,
+574: properties: {
+575: title: { type: Type.STRING, description: "A concise title for the insight." },
+576: description: { type: Type.STRING, description: "A detailed explanation of the insight and its implications." },
+577: category: { type: Type.STRING, enum: ['opportunity', 'threat', 'trend'], description: "The category of the insight." },
+578: impact: { type: Type.STRING, enum: ['low', 'medium', 'high', 'critical'], description: "The potential impact on our business." }
+579: },
+580: required: ["title", "description", "category", "impact"]
+581: }
+582: }
+583: });
+584:});
+585:
+586:const newInsightData = JSON.parse(response.text || '{}');
+587: if (newInsightData.title) {
+588: const newInsight: DerivedInsight = {
+589: id: `di-${Date.now()}`,
+590: title: newInsightData.title,
+591: description: newInsightData.description,
+592: category: newInsightData.category as 'opportunity' | 'threat' | 'trend',
+593: impact: newInsightData.impact as 'low' | 'medium' | 'high' | 'critical',
+594: timestamp: new Date().toISOString(),
+595: source: 'AI'
+596: };
+597: setDerivedInsights(prev => [newInsight, ...prev]);
+598: }
+599:
+600: // Simulate the rest of the background tasks taking some time
+601: await new Promise(resolve => setTimeout(resolve, 5000));
+602:
+603: setLastSynced(new Date().toISOString());
+604: removeToast(toastId);
+605: addToast('System successfully synced. New insights generated.', 'success');
+606: updateLog(logId, { details: 'Successfully synced all data sources.', status: 'success', retryAction: undefined });
+607: } catch (error: any) {
+608: console.error("Sync failed:", getErrorMessage(error));
+609: removeToast(toastId);
+610: addToast('Sync failed.', 'error');
+611: updateLog(logId, { details: `Failed to sync data sources: ${getErrorMessage(error)}`, status: 'error' });
+612: } finally {
+613: setIsSyncing(false);
+614: setActiveTasks([]);
+615: setSyncTimeRemaining(0);
+616: }
+617: };
+618:
+619: React.useEffect(() => {
+620: if (!isSyncing) return;
+621: const interval = setInterval(() => {
+622: setSyncTimeRemaining(prev => Math.max(0, prev - 1));
+623: setActiveTasks(prev => prev.map(task => ({
+624: ...task,
+625: progress: Math.min(100, task.progress + Math.random() * 15)
+626: })));
+627: }, 1000);
+628: return () => clearInterval(interval);
+629: }, [isSyncing]);
+630:
+631: // Export Functions
+632: const generateLLMOptimizedText = () => {
+633: let text = `KAGEFORM MARKET INTELLIGENCE EXPORT\nGenerated: ${new Date().toISOString()}\n\n`;
+634: 
+635: if (activeTab !== 'reports') {
+636: text += `--- COMPETITORS ---\n`;
+637: competitors.forEach(c => {
+638: text += `Name: ${c.name}\nWebsite: ${c.website}\nTarget Audience: ${c.targetAudience}\nData Sovereignty: ${c.dataSovereignty}\nCore Features: ${c.coreFeatures.join(', ')}\nTrust Score: ${c.trustScore}\n\n`;
+639: });
+640: }
+641:
+642: text += `--- DERIVED INSIGHTS ---\n`;
+643: derivedInsights.forEach(d => {
+644: text += `[${d.category.toUpperCase()}] ${d.title} (Impact: ${d.impact}, Source: ${d.source})\n${d.description}\n\n`;
+645: });
+646: return text;
+647: };
+648:
+649: const handleExport = (format: 'csv' | 'txt' | 'copy') => {
+650: const logId = addLog('Export', `Exporting data as ${format.toUpperCase()}...`, 'pending');
+651: let text = '';
+652: 
+653: if (format === 'csv') {
+654: if (activeTab !== 'reports') {
+655: text = 'Name,Website,Target Audience,Data Sovereignty,Trust Score,Core Features\n';
+656: competitors.forEach(c => {
+657: const features = `"${c.coreFeatures.join(', ')}"`;
+658: text += `"${c.name}","${c.website}","${c.targetAudience}","${c.dataSovereignty}",${c.trustScore},${features}\n`;
+659: });
+660: text += '\n';
+661: }
+662: text += 'Derived Insights\nCategory,Title,Impact,Source,Description\n';
+663: derivedInsights.forEach(d => {
+664: text += `"${d.category}","${d.title}","${d.impact}","${d.source}","${d.description.replace(/"/g, '""')}"\n`;
+665: });
+666: } else {
+667: text = generateLLMOptimizedText();
+668: }
+669: 
+670: if (format === 'copy') {
+671: navigator.clipboard.writeText(text);
+672: addToast('Data copied to clipboard (LLM Optimized)', 'success');
+673: updateLog(logId, { details: 'Data copied to clipboard.', status: 'success' });
+674: return;
+675: }
+676:
+677: const mimeType = format === 'csv' ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8';
+678: const blob = new Blob([text], { type: mimeType });
+679: const url = URL.createObjectURL(blob);
+680: const a = document.createElement('a');
+681: a.href = url;
+682: a.download = `kageform_export_${new Date().toISOString().split('T')[0]}.${format}`;
+683: a.click();
+684: URL.revokeObjectURL(url);
+685: addToast(`Exported as ${format.toUpperCase()}`, 'success');
+686: updateLog(logId, { details: `Successfully exported data as ${format.toUpperCase()}.`, status: 'success' });
+687: };
+688:
+689: // Summary Stats (Derived)
+690: const stats = {
+691: tracked: competitors.length,
+692: pricingChanges: 2, // Mock dynamic data
+693: featuresIndexed: competitors.reduce((acc, curr) => acc + curr.integrations.length, 0) + 42, // Mock
+694: topIntegrations: 'Zapier, Slack, Salesforce',
+695: estimatedMarketValue: '$3.2B'
+696: };
+697:
+698: // Smart Filtering Logic
+699: const smartFilter = (item: any, query: string, fieldsToSearch: string[]) => {
+700: if (!query) return true;
+701: 
+702: // Basic stop words to ignore
+703: const stopWords = new Set(['find', 'competitors', 'that', 'are', 'in', 'but', 'focused', 'on', 'with', 'and', 'or', 'the', 'a', 'an', 'is', 'to', 'for', 'of', 'show', 'me']);
+704: 
+705: // Extract keywords
+706: const keywords = query.toLowerCase()
+707: .split(/\s+/)
+708: .map(word => word.replace(/[^a-z0-9]/g, ''))
+709: .filter(word => word.length > 1 && !stopWords.has(word));
+710:
+711: if (keywords.length === 0) return true;
+712:
+713: // Check if ALL keywords are found somewhere in the specified fields
+714: return keywords.every(keyword => {
+715: return fieldsToSearch.some(field => {
+716: const value = item[field];
+717: if (typeof value === 'string') {
+718: return value.toLowerCase().includes(keyword);
+719: }
+720: if (Array.isArray(value)) {
+721: return value.some(v => typeof v === 'string' && v.toLowerCase().includes(keyword));
+722: }
+723: return false;
+724: });
+725: });
+726: };
+727:
+728: // Sorting & Filtering Logic
+729: const sortedCompetitors = useMemo(() => {
+730: let filtered = [...competitors];
+731: 
+732: // Matrix Filter
+733: if (matrixFilter !== 'All') {
+734: filtered = filtered.filter(c => 
+735: c.marketSegments.some(segment => segment.toLowerCase() === matrixFilter.toLowerCase()) || 
+736: c.dataSovereignty.toLowerCase().includes(matrixFilter.toLowerCase())
+737: );
+738: }
+739:
+740: // Global Search
+741: if (globalSearch) {
+742: filtered = filtered.filter(c => smartFilter(c, globalSearch, ['name', 'targetAudience', 'marketSegments', 'dataSovereignty', 'integrations', 'coreFeatures']));
+743: }
+744:
+745: // Sorting
+746: return filtered.sort((a, b) => {
+747: let aValue = a[sortField];
+748: let bValue = b[sortField];
+749: 
+750: if (Array.isArray(aValue)) aValue = aValue.join(', ');
+751: if (Array.isArray(bValue)) bValue = bValue.join(', ');
+752: 
+753: if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+754: if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+755: return 0;
+756: });
+757: }, [competitors, sortField, sortOrder, globalSearch, matrixFilter]);
+758:
+759: const filteredRawData = useMemo(() => {
+760: let filtered = [...rawDataSources];
+761: if (rawDataTypeFilter !== 'all') {
+762: filtered = filtered.filter(s => s.type === rawDataTypeFilter || s.source === rawDataTypeFilter);
+763: }
+764: if (rawDataCompanyFilter !== 'all') {
+765: filtered = filtered.filter(s => s.competitorId === rawDataCompanyFilter);
+766: }
+767: const search = rawDataSearch || globalSearch;
+768: if (search) {
+769: filtered = filtered.filter(s => {
+770: const comp = competitors.find(c => c.id === s.competitorId);
+771: const compNameMatch = comp ? comp.name.toLowerCase().includes(search.toLowerCase()) : false;
+772: return compNameMatch || smartFilter(s, search, ['excerpt', 'source', 'type', 'sourceUrl']);
+773: });
+774: }
+775: return filtered;
+776: }, [rawDataSources, rawDataTypeFilter, rawDataCompanyFilter, rawDataSearch, globalSearch, competitors]);
+777:
+778: useEffect(() => {
+779: const observer = new IntersectionObserver(
+780: (entries) => {
+781: if (entries[0].isIntersecting) {
+782: setRawDataVisibleCount((prev) => prev + 10);
+783: }
+784: },
+785: { threshold: 1.0 }
+786: );
+787: if (rawDataObserverRef.current) {
+788: observer.observe(rawDataObserverRef.current);
+789: }
+790: return () => observer.disconnect();
+791: }, [filteredRawData]);
+792:
+793: const initialMindmapData = useMemo<MindmapNode>(() => ({
+794:    id: 'root',
+795:    name: 'Market Intelligence',
+796:    type: 'root',
+797:    isExpanded: true,
+798:    children: [
+799:      {
+800:        id: 'insights-root',
+801:        name: 'Key Insights',
+802:        type: 'category' as const,
+803:        isExpanded: false,
+804:        children: derivedInsights.map(i => ({
+805:          id: `insight-${i.id}`,
+806:          name: i.title,
+807:          type: 'insight' as const,
+808:          content: i.description
+809:        }))
+810:      },
+811:      ...competitors.map(c => ({
+812:      id: `comp-${c.id}`,
+813:      name: c.name,
+814:      type: 'competitor' as const,
+815:      isExpanded: false,
+816:      children: [
+817:        {
+818:          id: `comp-${c.id}-strengths`,
+819:          name: 'Strengths',
+820:          type: 'category' as const,
+821:          isExpanded: false,
+822:          children: c.coreFeatures.map((f, i) => ({
+823:            id: `comp-${c.id}-str-${i}`,
+824:            name: f,
+825:            type: 'insight' as const
+826:          }))
+827:        },
+828:        {
+829:          id: `comp-${c.id}-weaknesses`,
+830:          name: 'Weaknesses',
+831:          type: 'category' as const,
+832:          isExpanded: false,
+833:          children: [
+834:            {
+835:              id: `comp-${c.id}-wk-1`,
+836:              name: c.howWeCompare,
+837:              type: 'insight' as const
+838:            }
+839:          ]
+840:        }
+841:      ]
+842:    }))
+843:    ]
+844:  }), [competitors, derivedInsights]);
+845:
+846:  const filteredInsights = useMemo(() => {
+847: let filtered = [...derivedInsights];
+848: if (insightFilter !== 'All') {
+849: filtered = filtered.filter(i => i.source === insightFilter);
+850: }
+851: if (globalSearch) {
+852: filtered = filtered.filter(i => smartFilter(i, globalSearch, ['title', 'description', 'category', 'impact', 'source']));
+853: }
+854: return filtered;
+855: }, [derivedInsights, insightFilter, globalSearch]);
+856:
+857: const handleSort = (field: SortField) => {
+858: if (sortField === field) {
+859: setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+860: } else {
+861: setSortField(field);
+862: setSortOrder('asc');
+863: }
+864: };
+865:
+866: // Live Discovery Logic
+867: const runDiscovery = async () => {
+868: setIsDiscovering(true);
+869: const logId = addLog('Live Discovery', 'Starting live discovery scan...', 'pending', runDiscovery);
+870: try {
+871: 
+872: 
+873: const response = await withKeyRotation(async (ai, model) => {
+874:      return await ai.models.generateContent({
+875: model: model,
+876: contents: "Identify 1 or 2 emerging or lesser-known competitors to Typeform and Jotform (e.g., Fillout, Feathery, Paperform, Reform). Do not return Typeform, Jotform, Tally, or KageForm. Provide detailed data and simulate 2-4 data sources (website, linkedin, crunchbase, news) for each to establish a trust score.",
+877: config: {
+878: responseMimeType: "application/json",
+879: responseSchema: {
+880: type: Type.ARRAY,
+881: items: {
+882: type: Type.OBJECT,
+883: properties: {
+884: name: { type: Type.STRING },
+885: website: { type: Type.STRING },
+886: freeTier: { type: Type.STRING },
+887: spamProtection: { type: Type.STRING },
+888: integrations: { type: Type.ARRAY, items: { type: Type.STRING } },
+889: targetAudience: { type: Type.STRING },
+890: dataSovereignty: { type: Type.STRING },
+891: sovereigntyScore: { type: Type.STRING, description: "low, medium, or high" },
+892: financialSnapshot: { type: Type.STRING },
+893: coreFeatures: { type: Type.ARRAY, items: { type: Type.STRING } },
+894: howWeCompare: { type: Type.STRING },
+895: competitorScore: { type: Type.NUMBER },
+896: sources: {
+897: type: Type.ARRAY,
+898: items: {
+899: type: Type.OBJECT,
+900: properties: {
+901: type: { type: Type.STRING, description: "website, api, screenshot, database, github, linkedin, crunchbase, news" },
+902: sourceUrl: { type: Type.STRING },
+903: excerpt: { type: Type.STRING },
+904: confidenceLevel: { type: Type.STRING, description: "High, Medium, Low" },
+905: isDeduced: { type: Type.BOOLEAN }
+906: }
+907: }
+908: }
+909: }
+910: }
+911: }
+912: }
+913: });
+914:});
+915:
+916:const newComps = JSON.parse(response.text || "[]");
+917: 
+918: const newCompetitors: Competitor[] = [];
+919: const newSources: DataSource[] = [];
+920:
+921: newComps.forEach((comp: any) => {
+922: const newId = Math.random().toString(36).substr(2, 9);
+923: 
+924: // Calculate Trust Score based on sources volume and diversity
+925: const sourceTypes = new Set(comp.sources?.map((s: any) => s.type) || []);
+926: const baseScore = 30;
+927: const diversityBonus = sourceTypes.size * 15;
+928: const volumeBonus = (comp.sources?.length || 0) * 5;
+929: const trustScore = Math.min(100, baseScore + diversityBonus + volumeBonus);
+930:
+931: newCompetitors.push({
+932: id: newId,
+933: name: comp.name || 'Unknown',
+934: website: comp.website || '',
+935: freeTier: comp.freeTier || 'Unknown',
+936: spamProtection: comp.spamProtection || 'Unknown',
+937: integrations: comp.integrations || [],
+938: targetAudience: comp.targetAudience || 'Unknown',
+939: marketSegments: ['SMB', 'Enterprise'], // Default value
+940: dataSovereignty: comp.dataSovereignty || 'Unknown',
+941: sovereigntyScore: (comp.sovereigntyScore as any) || 'low',
+942: logoUrl: `https://picsum.photos/seed/${comp.name.replace(/\s+/g, '')}/200/200`,
+943: financialSnapshot: comp.financialSnapshot || 'Unknown',
+944: coreFeatures: comp.coreFeatures || [],
+945: howWeCompare: comp.howWeCompare || '',
+946: competitorScore: comp.competitorScore || 50,
+947: trustScore: trustScore,
+948: marketCommonalityIndex: 50, // Default value
+949: resourceSimilarityScore: 50 // Default value
+950: });
+951:
+952: comp.sources?.forEach((s: any) => {
+953: newSources.push({
+954: id: Math.random().toString(36).substr(2, 9),
+955: competitorId: newId,
+956: type: s.type as SourceType,
+957: sourceUrl: s.sourceUrl || '',
+958: excerpt: s.excerpt || '',
+959: timestamp: new Date().toISOString(),
+960: tags: ['auto-discovered'],
+961: confidenceLevel: s.confidenceLevel as ConfidenceLevel || 'Medium',
+962: isDeduced: s.isDeduced || false,
+963: source: 'AI'
+964: });
+965: });
+966: });
+967:
+968: setCompetitors(prev => [...prev, ...newCompetitors]);
+969: setRawDataSources(prev => [...prev, ...newSources]);
+970: updateLog(logId, { details: `Live discovery scan complete. Found ${newCompetitors.length} new competitors.`, status: 'success', retryAction: undefined });
+971:
+972: } catch (error: any) {
+973: console.error("Discovery failed:", getErrorMessage(error));
+974: alert("Discovery failed. Check console or API key.");
+975: updateLog(logId, { details: `Discovery scan failed: ${getErrorMessage(error)}`, status: 'error' });
+976: } finally {
+977: setIsDiscovering(false);
+978: }
+979: };
+980:
+981: const updateSystemContext = async () => {
+982: setIsUpdatingContext(true);
+983: const logId = addLog('Update Context', 'Rebuilding AI knowledge base...', 'pending', updateSystemContext);
+984: try {
+985: 
+986: 
+987: const systemData = JSON.stringify({
+988: competitors: competitors.map(c => ({ name: c.name, score: c.competitorScore, features: c.coreFeatures })),
+989: insights: derivedInsights.map(i => ({ title: i.title, category: i.category })),
+990: stats
+991: });
+992:
+993: const response = await withKeyRotation(async (ai, model) => {
+994:      return await ai.models.generateContent({
+995: model: model,
+996: contents: `Analyze this entire system data and provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. This will be used as the daily system context for the AI agents.\n\nData: ${systemData}`
+997: });
+998:});
+999:
+1000:setSystemContextSummary(response.text || 'System context updated.');
+1001: addToast('System context updated successfully', 'success');
+1002: updateLog(logId, { details: 'System context updated successfully.', status: 'success', retryAction: undefined });
+1003: } catch (error: any) {
+1004: addToast(`Failed to update context: ${getErrorMessage(error)}`, 'error');
+1005: updateLog(logId, { details: `Failed to update context: ${getErrorMessage(error)}`, status: 'error' });
+1006: } finally {
+1007: setIsUpdatingContext(false);
+1008: }
+1009: };
+1010:
+1011: // Page Analysis Logic
+1012: const runPageAnalysis = async () => {
+1013: setIsAnalyzingPage(true);
+1014: const logId = addLog('Page Analysis', 'Running AI analysis on current view...', 'pending', runPageAnalysis);
+1015: try {
+1016: 
+1017: 
+1018: let pageContext = '';
+1019: if (selectedCompetitorId) {
+1020: const comp = competitors.find(c => c.id === selectedCompetitorId);
+1021: pageContext = `User is viewing Scout Page for competitor: ${comp?.name}. Data: ${JSON.stringify(comp)}`;
+1022: } else if (selectedSourceId) {
+1023: const src = rawDataSources.find(s => s.id === selectedSourceId);
+1024: const compName = competitors.find(c => c.id === src?.competitorId)?.name;
+1025: pageContext = `User is viewing Raw Data Source for ${compName}: ${src?.sourceUrl}. Data: ${JSON.stringify(src)}`;
+1026: } else if (selectedSummaryId) {
+1027: pageContext = `User is viewing Dashboard Summary: ${selectedSummaryId}. Stats: ${JSON.stringify(stats)}`;
+1028: } else if (activeTab === 'dashboard') {
+1029: pageContext = `User is viewing the Dashboard. Stats: ${JSON.stringify(stats)}`;
+1030: } else if (activeTab === 'matrix') {
+1031: pageContext = `User is viewing the Competitor Matrix. Filtered Competitors: ${JSON.stringify(sortedCompetitors.map(c => c.name))}`;
+1032: } else if (activeTab === 'rawdata') {
+1033: pageContext = `User is viewing the Raw Data Library. Filtered Sources count: ${filteredRawData.length}`;
+1034: } else if (activeTab === 'reports') {
+1035: pageContext = `User is viewing the Insight Library page. Filtered Insights: ${JSON.stringify(filteredInsights)}`;
+1036: }
+1037:
+1038: const systemPrompt = `You are the KageForm Insight Engine.
+1039:Context: KageForm is a BaaS form platform focusing on Cloud-Agnostic Global Data Sovereignty and open-source self-hosting.
+1040:System Context Summary: ${systemContextSummary || 'Not generated yet. Use specific page context.'}
+1041:Current View Context: ${pageContext}
+1042:Task: Run a quick analysis on the current page data. Provide a brief, readable summary of what the user is looking at and what it means. 
+1043:If you detect a strong insight (especially driven by the user's potential passion or a unique market angle), use the \`suggest_insight\` tool to propose it.
+1044:Keep the summary concise and grounded in reality. Ask a follow-up question to validate the user's ideas or passion.`;
+1045:
+1046: const suggestInsightFunctionDeclaration: FunctionDeclaration = {
+1047: name: "suggest_insight",
+1048: parameters: {
+1049: type: Type.OBJECT,
+1050: description: "Suggest a valuable insight based on the page analysis.",
+1051: properties: {
+1052: title: { type: Type.STRING, description: "A concise title for the insight." },
+1053: description: { type: Type.STRING, description: "A detailed explanation of the insight." },
+1054: category: { type: Type.STRING, enum: ['opportunity', 'threat', 'trend'], description: "The category of the insight." },
+1055: impact: { type: Type.STRING, enum: ['low', 'medium', 'high', 'critical'], description: "The potential impact." }
+1056: },
+1057: required: ["title", "description", "category", "impact"]
+1058: }
+1059: };
+1060:
+1061: const response = await withKeyRotation(async (ai, model) => {
+1062:      return await ai.models.generateContent({
+1063: model: model,
+1064: contents: systemPrompt,
+1065: config: {
+1066: tools: [{ functionDeclarations: [suggestInsightFunctionDeclaration] }]
+1067: }
+1068: });
+1069:});
+1070:
+1071:let suggestedInsight = undefined;
+1072: if (response.functionCalls && response.functionCalls.length > 0) {
+1073: const call = response.functionCalls[0];
+1074: if (call.name === 'suggest_insight') {
+1075: suggestedInsight = call.args as any;
+1076: }
+1077: }
+1078:
+1079: setChatHistory(prev => [
+1080: ...prev, 
+1081: { role: 'user', content: 'Run analysis on this page.' },
+1082: { role: 'assistant', content: response.text || 'Analysis complete.', suggestedInsight }
+1083: ]);
+1084: if (chatState === 'closed') setChatState('locked');
+1085: updateLog(logId, { details: 'Analysis complete.', status: 'success', retryAction: undefined });
+1086:
+1087: } catch (error: any) {
+1088: addToast(`Analysis failed: ${getErrorMessage(error)}`, 'error');
+1089: updateLog(logId, { details: `Analysis failed: ${getErrorMessage(error)}`, status: 'error' });
+1090: } finally {
+1091: setIsAnalyzingPage(false);
+1092: }
+1093: };
+1094:
+1095: // Chat Logic
+1096: const handleSendMessage = async (customPrompt?: string) => {
+1097: const messageText = customPrompt || chatInput;
+1098: if (!messageText.trim()) return;
+1099:
+1100: const newUserMsg: ChatMessage = { role: 'user', content: messageText };
+1101: setChatHistory(prev => [...prev, newUserMsg]);
+1102: setChatInput('');
+1103: setShowMentionDropdown(false);
+1104: setIsTyping(true);
+1105:
+1106: try {
+1107: 
+1108:
+1109: // Extract [[CardName]] mentions
+1110: const mentions = [...messageText.matchAll(/\[\[(.*?)\]\]/g)].map(m => m[1]);
+1111: let mentionContext = '';
+1112: if (mentions.length > 0) {
+1113:   const mentionedCompetitors = competitors.filter(c => mentions.includes(c.name));
+1114:   const mentionedInsights = derivedInsights.filter(i => mentions.includes(i.title));
+1115:   mentionContext = `\n\nUser explicitly mentioned these cards:\n${mentionedCompetitors.map(c => `Competitor: ${c.name} - ${JSON.stringify(c)}`).join('\n')}\n${mentionedInsights.map(i => `Insight: ${i.title} - ${JSON.stringify(i)}`).join('\n')}`;
+1116: }
+1117: 
+1118: // Build context from current view
+1119: let pageContext = '';
+1120: let specializedPrompt = '';
+1121: if (selectedCompetitorId) {
+1122: const comp = competitors.find(c => c.id === selectedCompetitorId);
+1123: pageContext = `User is viewing Scout Page for competitor: ${comp?.name}. Data: ${JSON.stringify(comp)}`;
+1124: specializedPrompt = 'Focus deeply on this specific competitor\'s weaknesses, pricing, and how KageForm can position against them.';
+1125: } else if (selectedSourceId) {
+1126: const src = rawDataSources.find(s => s.id === selectedSourceId);
+1127: const compName = competitors.find(c => c.id === src?.competitorId)?.name;
+1128: pageContext = `User is viewing Raw Data Source for ${compName}: ${src?.sourceUrl}. Data: ${JSON.stringify(src)}`;
+1129: specializedPrompt = 'Analyze this raw data source for hidden opportunities or threats. Extract actionable intelligence.';
+1130: } else if (selectedSummaryId) {
+1131: pageContext = `User is viewing Dashboard Summary: ${selectedSummaryId}. Stats: ${JSON.stringify(stats)}`;
+1132: specializedPrompt = 'Provide high-level strategic advice based on these summary statistics.';
+1133: } else if (activeTab === 'dashboard') {
+1134: pageContext = `User is viewing the Dashboard. Stats: ${JSON.stringify(stats)}`;
+1135: specializedPrompt = 'You have access to the fully synthesized chat context with all data. Provide holistic, high-level strategic advice.';
+1136: } else if (activeTab === 'matrix') {
+1137: pageContext = `User is viewing the Competitor Matrix. Filtered Competitors: ${JSON.stringify(sortedCompetitors.map(c => c.name))}`;
+1138: specializedPrompt = 'Focus on market gaps, feature comparisons, and positioning strategies across the entire competitive landscape.';
+1139: } else if (activeTab === 'rawdata') {
+1140: pageContext = `User is viewing the Raw Data Library. Filtered Sources count: ${filteredRawData.length}`;
+1141: specializedPrompt = 'Help the user sift through raw data, identify patterns, and evaluate data quality and confidence levels.';
+1142: } else if (activeTab === 'reports') {
+1143: pageContext = `User is viewing the Insight Library page. Filtered Insights: ${JSON.stringify(filteredInsights)}`;
+1144: specializedPrompt = 'Discuss the derived insights, evaluate their impact, and brainstorm new strategic directions based on the library.';
+1145: }
+1146:
+1147: const systemPrompt = `You are the KageForm Insight Engine, a specialized AI Co-Founder, Product Manager, and GTM Strategist.
+1148:Context: KageForm is a BaaS form platform focusing on Cloud-Agnostic Global Data Sovereignty and open-source self-hosting. Special attention is dedicated to enabling region-specific form data pipelines and storage with enterprise-grade security certifications supporting multiple regions including US, EU, Asia, Middle East, etc.
+1149:System Context Summary: ${systemContextSummary || 'Not generated yet. Use specific page context.'}
+1150:Current View Context: ${pageContext}
+1151:Specialized Focus: ${specializedPrompt}
+1152:Goal: Help the founders get their first customers, secure grants/investment, reduce cloud costs, and generate actionable Agile user stories/features from market research. Provide factual, logical, and analytical data and insights using a highly intelligent modern comfort pro approach with the ultimate goal to serve the community.
+1153:Important Instruction: If the user shares a valuable insight or makes a profound realization during the discussion, ask them if they want to save it to the Insight Library. If they explicitly agree, use the \`save_brainstorm_insight\` tool to store it.
+1154:Respond in Markdown. Be concise, highly technical, and actionable.`;
+1155:
+1156: const saveInsightFunctionDeclaration: FunctionDeclaration = {
+1157: name: "save_brainstorm_insight",
+1158: parameters: {
+1159: type: Type.OBJECT,
+1160: description: "Save a valuable insight generated during the discussion to the Insight Library.",
+1161: properties: {
+1162: title: { type: Type.STRING, description: "A concise title for the insight." },
+1163: description: { type: Type.STRING, description: "A detailed explanation of the insight." },
+1164: category: { type: Type.STRING, enum: ['opportunity', 'threat', 'trend'], description: "The category of the insight." },
+1165: impact: { type: Type.STRING, enum: ['low', 'medium', 'high', 'critical'], description: "The potential impact." }
+1166: },
+1167: required: ["title", "description", "category", "impact"]
+1168: }
+1169: };
+1170:
+1171: // Format chat history for the model
+1172: const formattedHistory = chatHistory.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n');
+1173:
+1174: const response = await withKeyRotation(async (ai, model) => {
+1175:      return await ai.models.generateContent({
+1176: model: model,
+1177: contents: `${systemPrompt}${mentionContext}\n\nChat History:\n${formattedHistory}\n\nUser: ${messageText}`,
+1178: config: {
+1179: tools: [{ functionDeclarations: [saveInsightFunctionDeclaration] }]
+1180: }
+1181: });
+1182:});
+1183:
+1184:if (response.functionCalls && response.functionCalls.length > 0) {
+1185: const call = response.functionCalls[0];
+1186: if (call.name === 'save_brainstorm_insight') {
+1187: const args = call.args as any;
+1188: const newInsight: DerivedInsight = {
+1189: id: `di-${Date.now()}`,
+1190: title: args.title,
+1191: description: args.description,
+1192: category: args.category,
+1193: impact: args.impact,
+1194: timestamp: new Date().toISOString(),
+1195: source: 'Brainstorm'
+1196: };
+1197: setDerivedInsights(prev => [newInsight, ...prev]);
+1198: setChatHistory(prev => [...prev, { role: 'assistant', content: `I've saved that insight to the library: **${args.title}**` }]);
+1199: addToast('Insight saved from chat', 'success');
+1200: return;
+1201: }
+1202: }
+1203:
+1204: setChatHistory(prev => [...prev, { role: 'assistant', content: response.text || 'No response.' }]);
+1205: } catch (error: any) {
+1206: setChatHistory(prev => [...prev, { role: 'assistant', content: `**Error:** ${getErrorMessage(error)}` }]);
+1207: } finally {
+1208: setIsTyping(false);
+1209: }
+1210: };
+1211:
+1212: // Export to Markdown
+1213: const exportToMarkdown = () => {
+1214: let md = `# FormTracker AI - Competitor Matrix Context\n\n`;
+1215: md += `*Exported on: ${new Date().toISOString().split('T')[0]}*\n\n`;
+1216: md += `| Competitor | Market Commonality | Resource Similarity | Free Tier Limits | Target Audience | Market Segments | Data Sovereignty | Funding Stage | Est. ARR | Trust Score |\n`;
+1217: md += `|---|---|---|---|---|---|---|---|---|---|\n`;
+1218: 
+1219: sortedCompetitors.forEach(c => {
+1220: md += `| **${c.name}** | ${c.marketCommonalityIndex}/100 | ${c.resourceSimilarityScore}/100 | ${c.freeTier} | ${c.targetAudience} | ${c.marketSegments.join(', ')} | ${c.dataSovereignty} | ${c.fundingStage || 'N/A'} | ${c.estimatedARR || 'N/A'} | ${c.trustScore}/100 |\n`;
+1221: });
+1222:
+1223: const blob = new Blob([md], { type: 'text/markdown' });
+1224: const url = URL.createObjectURL(blob);
+1225: const a = document.createElement('a');
+1226: a.href = url;
+1227: a.download = 'kageform_competitor_context.md';
+1228: a.click();
+1229: URL.revokeObjectURL(url);
+1230: };
+1231:
+1232: return (
+1233: <div className="flex h-screen bg-[#F5F3ED] text-[#2C2C2C] font-sans overflow-hidden selection:bg-[#2C2C2C]/10 relative">
+1234: 
+1235: {/* Global Ghibli Animations */}
+1236: <div className="leaf-container pointer-events-none"><div className="leaf"></div></div>
+1237: 
+1238: <InsightQuestModal 
+1239: isOpen={isQuestModalOpen}
+1240: onClose={() => setIsQuestModalOpen(false)}
+1241: insights={derivedInsights}
+1242: onRankInsight={(winnerId, loserId) => {
+1243: setDerivedInsights(prev => prev.map(insight => {
+1244: if (insight.id === winnerId) {
+1245: return { ...insight, impact: insight.impact === 'low' ? 'medium' : insight.impact === 'medium' ? 'high' : 'critical' };
+1246: }
+1247: if (insight.id === loserId) {
+1248: return { ...insight, impact: insight.impact === 'critical' ? 'high' : insight.impact === 'high' ? 'medium' : 'low' };
+1249: }
+1250: return insight;
+1251: }));
+1252: }}
+1253: />
+1254:
+1255: {/* --- SIDEBAR --- */}
+1256: <aside className="w-64 shrink-0 bg-paper-light border-r border-ink-dark/20 flex flex-col z-20 shadow-storybook">
+1257: <div className="p-6 shrink-0 flex items-center gap-3">
+1258: <div className="w-8 h-8 shrink-0 bg-[#2C2C2C] rounded-storybook-sm flex items-center justify-center shadow-storybook">
+1259: <Database className="w-4 h-4 text-[#F5F3ED]" />
+1260: </div>
+1261: <div>
+1262: <h1 className="text-lg font-serif font-bold text-ink-dark leading-tight">FormTracker AI</h1>
+1263: <p className="text-[10px] font-sans text-ink-muted uppercase tracking-wider font-semibold">Wind Valley OS</p>
+1264: </div>
+1265: </div>
+1266: 
+1267: <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+1268: <NavItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1269: <NavItem icon={<TableProperties size={18} />} label="Competitor Matrix" active={activeTab === 'matrix'} onClick={() => {setActiveTab('matrix'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1270: <NavItem icon={<Archive size={18} />} label="Raw Data Library" active={activeTab === 'rawdata'} onClick={() => {setActiveTab('rawdata'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1271: <NavItem icon={<PieChart size={18} />} label="Insight Library" active={activeTab === 'reports'} onClick={() => {setActiveTab('reports'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1272: <NavItem icon={<Newspaper size={18} />} label="Market Analysis" active={activeTab === 'market-analysis'} onClick={() => {setActiveTab('market-analysis'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1273:          <NavItem icon={<Network size={18} />} label="Mindmap Explorer" active={activeTab === 'mindmap'} onClick={() => {setActiveTab('mindmap'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1274: <NavItem icon={<Activity size={18} />} label="Action Center" active={activeTab === 'actions'} onClick={() => {setActiveTab('actions'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1275: <NavItem icon={<Settings size={18} />} label="Settings" active={activeTab === 'settings'} onClick={() => {setActiveTab('settings'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+1276: </nav>
+1277: 
+1278: <div className="mt-auto">
+1279: <InspiringRadioWidget />
+1280: </div>
+1281: <div className="p-4 border-t border-ink-dark/20 shrink-0 bg-paper-light">
+1282: <button 
+1283: onClick={() => {
+1284: setIsQuestModalOpen(true);
+1285: setHasQuestNotification(false);
+1286: }}
+1287: className="w-full flex items-center gap-3 px-2 py-2 rounded-storybook-sm hover:bg-paper-base transition-colors text-left relative group"
+1288: >
+1289: <div className="relative w-8 h-8 shrink-0 rounded-full bg-paper-card border border-ink-dark/30 flex items-center justify-center text-xs font-sans font-bold text-ink-dark shadow-storybook-inner">
+1290: KF
+1291: {hasQuestNotification && (
+1292: <span className="absolute -top-1 -right-1 w-3 h-3 bg-terracotta border-2 border-paper-light rounded-full animate-pulse shadow-[0_0_10px_rgba(193,110,90,0.8)]"></span>
+1293: )}
+1294: </div>
+1295: <div className="text-sm min-w-0 flex-1">
+1296: <p className="font-sans font-semibold text-ink-dark truncate transition-colors">Founders Team</p>
+1297: <p className="font-sans text-ink-faint text-xs truncate">Admin Access</p>
+1298: </div>
+1299: {hasQuestNotification && (
+1300: <div className="absolute right-2 text-[10px] uppercase tracking-wider text-terracotta font-bold bg-terracotta/10 px-2 py-0.5 rounded border border-terracotta/20 opacity-0 group-hover:opacity-100 transition-opacity">
+1301: Quest
+1302: </div>
+1303: )}
+1304: </button>
+1305: </div>
+1306: </aside>
+1307:
+1308: {/* --- MAIN CONTENT --- */}
+1309: <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+1310: 
+1311: {/* TOASTS */}
+1312: <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
+1313: {toasts.map(toast => (
+1314: <div key={toast.id} className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in slide-in-from-top-4 fade-in duration-300 ${
+1315: toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+1316: toast.type === 'error' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+1317: toast.type === 'loading' ? 'bg-paper-base text-[#2C2C2C] border border-ink-dark/20' :
+1318: 'bg-paper-base text-ink-dark border border-ink-dark/20 '
+1319: }`}>
+1320: {toast.type === 'success' && <CheckCircle2 size={16} />}
+1321: {toast.type === 'error' && <XCircle size={16} />}
+1322: {toast.type === 'loading' && <Loader2 size={16} className="animate-spin" />}
+1323: {toast.type === 'info' && <Info size={16} />}
+1324: {toast.message}
+1325: </div>
+1326: ))}
+1327: </div>
+1328:
+1329: {/* IMAGE MODAL */}
+1330: {expandedImage && (
+1331: <div className="fixed inset-0 z-50 bg-ink-dark/90 flex items-center justify-center p-8 animate-in fade-in duration-200" onClick={() => setExpandedImage(null)}>
+1332: <div className="relative max-w-5xl w-full max-h-full flex flex-col items-center gap-4" onClick={e => e.stopPropagation()}>
+1333: <button onClick={() => setExpandedImage(null)} className="absolute -top-12 right-0 text-[#8A8A8A] hover:text-[#2C2C2C] p-2 transition-colors">
+1334: <XCircle size={24} />
+1335: </button>
+1336: <img src={expandedImage} alt="Expanded Media" className="max-w-full max-h-[85vh] object-contain rounded-lg border border-ink-dark/20 shadow-2xl" referrerPolicy="no-referrer" />
+1337: <button onClick={() => window.open(expandedImage, '_blank')} className="flex items-center gap-2 px-5 py-2 border border-[#F5F3ED] text-[#F5F3ED] rounded-full text-sm font-sans font-medium hover:bg-[#F5F3ED] hover:text-[#2C2C2C] transition-all duration-300">
+1338: <Download size={16} /> Download Image
+1339: </button>
+1340: </div>
+1341: </div>
+1342: )}
+1343:
+1344: {/* SYNC INFO MODAL */}
+1345: {showSyncInfo && (
+1346: <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-dark/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSyncInfo(false)}>
+1347: <div className="bg-paper-light border border-ink-dark/20 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+1348: <div className="flex items-center justify-between p-6 border-b border-ink-dark/20 ">
+1349: <div className="flex items-center gap-3">
+1350: <div className="w-10 h-10 rounded-full bg-paper-base flex items-center justify-center">
+1351: <RefreshCw size={20} className="text-moss" />
+1352: </div>
+1353: <div>
+1354: <h2 className="text-xl font-bold text-ink-dark ">About System Synchronization</h2>
+1355: <p className="text-sm text-[#8A8A8A] ">How FormTracker AI keeps your data fresh</p>
+1356: </div>
+1357: </div>
+1358: <button 
+1359: onClick={() => setShowSyncInfo(false)}
+1360: className="text-[#8A8A8A] hover:text-ink-dark :text-ink-dark transition-colors p-2 rounded-full hover:bg-paper-base :bg-paper-card"
+1361: >
+1362: <X size={20} />
+1363: </button>
+1364: </div>
+1365: 
+1366: <div className="p-6 overflow-y-auto space-y-6 text-ink-dark ">
+1367: <section className="space-y-3">
+1368: <h3 className="text-lg font-bold flex items-center gap-2">
+1369: <Database size={18} className="text-moss" /> What happens during a sync?
+1370: </h3>
+1371: <p className="text-sm leading-relaxed">
+1372: When you trigger a "Sync Now" operation, FormTracker AI initiates a comprehensive background process to update all your market intelligence data. This involves several concurrent tasks:
+1373: </p>
+1374: <ul className="list-disc pl-5 text-sm space-y-2 text-[#8A8A8A] ">
+1375: <li><strong className="text-ink-dark ">Scraping Competitor Pricing:</strong> We fetch the latest pricing tiers and feature matrices from your tracked competitors.</li>
+1376: <li><strong className="text-ink-dark ">Analyzing Market Trends:</strong> We scan recent news, press releases, and industry reports for relevant shifts.</li>
+1377: <li><strong className="text-ink-dark ">Updating Insight Library:</strong> Our AI processes the newly gathered data to generate fresh, actionable insights (Opportunities, Threats, Trends).</li>
+1378: </ul>
+1379: </section>
+1380:
+1381: <section className="space-y-3">
+1382: <h3 className="text-lg font-bold flex items-center gap-2">
+1383: <Activity size={18} className="text-moss" /> Background Task Management
+1384: </h3>
+1385: <p className="text-sm leading-relaxed">
+1386: Sync operations are resource-intensive. To ensure system stability and prevent data corruption, <strong className="text-[#2C2C2C]">only one global sync can run at a time</strong>. 
+1387: </p>
+1388: <div className="bg-paper-base p-4 rounded-xl border border-ink-dark/30">
+1389: <p className="text-sm">
+1390: If you attempt to start a new sync while one is already in progress, the system will notify you and prevent the new operation. You can monitor the progress of active tasks in the <strong>Background Tasks & Sync</strong> tab.
+1391: </p>
+1392: </div>
+1393: </section>
+1394:
+1395: <section className="space-y-3">
+1396: <h3 className="text-lg font-bold flex items-center gap-2">
+1397: <Clock size={18} className="text-moss" /> Estimated Completion Times
+1398: </h3>
+1399: <p className="text-sm leading-relaxed">
+1400: A full global sync typically takes between <strong className="text-[#2C2C2C]">20 to 45 seconds</strong>, depending on the volume of data sources and the complexity of the AI analysis required. The system provides a real-time estimate during the process.
+1401: </p>
+1402: </section>
+1403: </div>
+1404: 
+1405: <div className="p-6 border-t border-ink-dark/20 bg-paper-base/30 flex justify-end">
+1406: <button 
+1407: onClick={() => setShowSyncInfo(false)}
+1408: className="px-6 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
+1409: >
+1410: Got it
+1411: </button>
+1412: </div>
+1413: </div>
+1414: </div>
+1415: )}
+1416:
+1417: {/* CREATE INSIGHT MODAL */}
+1418: {isCreateInsightOpen && (
+1419: <div className="fixed inset-0 z-50 bg-ink-dark/80 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200" onClick={() => setIsCreateInsightOpen(false)}>
+1420: <div className="bg-paper-card border border-ink-dark/20 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-full" onClick={e => e.stopPropagation()}>
+1421: <div className="p-6 border-b border-ink-dark/20 flex justify-between items-center">
+1422: <h3 className="text-xl font-bold text-ink-dark flex items-center gap-2"><Sparkles className="text-[#8A8A8A] " /> Create Insight</h3>
+1423: <button onClick={() => setIsCreateInsightOpen(false)} className="text-[#8A8A8A] hover:text-ink-dark transition-colors"><XCircle size={20} /></button>
+1424: </div>
+1425: <div className="p-6 overflow-y-auto space-y-4 flex-1">
+1426: <div>
+1427: <label className="block text-sm font-medium text-[#8A8A8A] mb-1">Title</label>
+1428: <input 
+1429: type="text" 
+1430: value={newInsightForm.title}
+1431: onChange={e => setNewInsightForm({...newInsightForm, title: e.target.value})}
+1432: className="w-full bg-paper-base border border-ink-dark/20 rounded-lg px-4 py-2 text-ink-dark focus:outline-none focus:border-[#2C2C2C]"
+1433: placeholder="e.g., New Competitor Feature Detected"
+1434: />
+1435: </div>
+1436: <div className="grid grid-cols-2 gap-4">
+1437: <div>
+1438: <label className="block text-sm font-medium text-[#8A8A8A] mb-1">Category</label>
+1439: <select 
+1440: value={newInsightForm.category}
+1441: onChange={e => setNewInsightForm({...newInsightForm, category: e.target.value as any})}
+1442: className="w-full bg-paper-base border border-ink-dark/20 rounded-lg px-4 py-2 text-ink-dark focus:outline-none focus:border-[#2C2C2C]"
+1443: >
+1444: <option value="opportunity">Opportunity</option>
+1445: <option value="threat">Threat</option>
+1446: <option value="trend">Trend</option>
+1447: </select>
+1448: </div>
+1449: <div>
+1450: <label className="block text-sm font-medium text-[#8A8A8A] mb-1">Impact</label>
+1451: <select 
+1452: value={newInsightForm.impact}
+1453: onChange={e => setNewInsightForm({...newInsightForm, impact: e.target.value as any})}
+1454: className="w-full bg-paper-base border border-ink-dark/20 rounded-lg px-4 py-2 text-ink-dark focus:outline-none focus:border-[#2C2C2C]"
+1455: >
+1456: <option value="low">Low</option>
+1457: <option value="medium">Medium</option>
+1458: <option value="high">High</option>
+1459: <option value="critical">Critical</option>
+1460: </select>
+1461: </div>
+1462: </div>
+1463: <div>
+1464: <label className="block text-sm font-medium text-[#8A8A8A] mb-1">Description (Markdown Supported)</label>
+1465: <textarea 
+1466: value={newInsightForm.description}
+1467: onChange={e => setNewInsightForm({...newInsightForm, description: e.target.value})}
+1468: className="w-full bg-paper-base border border-ink-dark/20 rounded-lg px-4 py-2 text-ink-dark focus:outline-none focus:border-[#2C2C2C] h-32 resize-none"
+1469: placeholder="Describe the insight, add links, or paste data..."
+1470: />
+1471: </div>
+1472: </div>
+1473: <div className="p-6 border-t border-ink-dark/20 flex justify-end gap-3 bg-paper-card/50 rounded-b-2xl">
+1474: <button onClick={() => setIsCreateInsightOpen(false)} className="px-4 py-2 text-sm font-medium text-[#8A8A8A] hover:text-ink-dark transition-colors">Cancel</button>
+1475: <button 
+1476: onClick={() => {
+1477: if (!newInsightForm.title || !newInsightForm.description) return addToast('Title and description required', 'error');
+1478: const newInsight: DerivedInsight = {
+1479: id: `di-${Date.now()}`,
+1480: title: newInsightForm.title,
+1481: description: newInsightForm.description,
+1482: category: newInsightForm.category as any,
+1483: impact: newInsightForm.impact as any,
+1484: timestamp: new Date().toISOString(),
+1485: source: 'Human'
+1486: };
+1487: setDerivedInsights(prev => [newInsight, ...prev]);
+1488: setIsCreateInsightOpen(false);
+1489: setNewInsightForm({ title: '', description: '', category: 'opportunity', impact: 'medium' });
+1490: addToast('Insight created successfully', 'success');
+1491: }}
+1492: className="px-6 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
+1493: >
+1494: Save Insight
+1495: </button>
+1496: </div>
+1497: </div>
+1498: </div>
+1499: )}
+1500:
+1501: {/* HEADER */}
+1502: <header className="h-16 border-b border-ink-dark/20 bg-paper-base/80 backdrop-blur-md flex items-center justify-between px-8 shrink-0 z-10 sticky top-0">
+1503: <div className="flex items-center gap-3 text-sm font-sans">
+1504: <span className="font-semibold text-ink-dark">Market Intelligence</span>
+1505: <span className="text-ink-faint">/</span>
+1506: <span className="text-ink-muted capitalize">{activeTab.replace('-', ' ')}</span>
+1507: </div>
+1508: <div className="flex items-center gap-4">
+1509: <SyncNowButton 
+1510: isSyncing={isSyncing} 
+1511: syncTimeRemaining={syncTimeRemaining} 
+1512: handleGlobalSync={handleGlobalSync} 
+1513: setShowSyncInfo={setShowSyncInfo} 
+1514: />
+1515:
+1516: <div className="relative w-full sm:w-64 hidden sm:block">
+1517: <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+1518: <input 
+1519: type="text" 
+1520: placeholder="Global search (e.g. health smb)..." 
+1521: value={globalSearch}
+1522: onChange={(e) => setGlobalSearch(e.target.value)}
+1523: className="w-full bg-paper-card shadow-storybook-inner border border-ink-dark/30 rounded-full pl-9 pr-4 py-1.5 text-sm font-sans text-ink-dark placeholder:text-ink-faint focus:outline-none focus:border-[#2C2C2C] transition-all"
+1524: />
+1525: </div>
+1526: </div>
+1527: </header>
+1528:
+1529: {/* SCROLLABLE CONTENT AREA */}
+1530: <div className="flex-1 overflow-auto p-8">
+1531: <div className="max-w-7xl mx-auto space-y-8 pb-12">
+1532: 
+1533: {/* SOURCE PAGE */}
+1534: {selectedSourceId && (
+1535: <SourcePage 
+1536: source={rawDataSources.find(s => s.id === selectedSourceId)!}
+1537: competitorName={competitors.find(c => c.id === rawDataSources.find(s => s.id === selectedSourceId)?.competitorId)?.name || 'Unknown'}
+1538: linkedInsights={derivedInsights.filter(i => rawDataSources.find(s => s.id === selectedSourceId)?.linkedInsightIds?.includes(i.id))}
+1539: onBack={() => setSelectedSourceId(null)}
+1540: onExpandImage={(url) => setExpandedImage(url)}
+1541: onCopy={(text) => {
+1542: navigator.clipboard.writeText(text);
+1543: addToast('Copied text with context', 'success');
+1544: }}
+1545: />
+1546: )}
+1547:
+1548: {/* SUMMARY PAGE */}
+1549: {!selectedSourceId && selectedSummaryId && (
+1550: <SummaryPage 
+1551: title={selectedSummaryId}
+1552: value={
+1553: selectedSummaryId === 'Competitors Tracked' ? stats.tracked :
+1554: selectedSummaryId === 'Recent Pricing Changes' ? stats.pricingChanges :
+1555: selectedSummaryId === 'Features Indexed' ? stats.featuresIndexed :
+1556: selectedSummaryId === 'Est. Market Value' ? stats.estimatedMarketValue :
+1557: stats.topIntegrations
+1558: }
+1559: trend={
+1560: selectedSummaryId === 'Competitors Tracked' ? '+1 this week' :
+1561: selectedSummaryId === 'Recent Pricing Changes' ? 'High activity' :
+1562: selectedSummaryId === 'Features Indexed' ? '+12 new' :
+1563: selectedSummaryId === 'Est. Market Value' ? '+15% YoY' :
+1564: undefined
+1565: }
+1566: icon={<Database size={18} className="text-[#8A8A8A]" />}
+1567: stats={stats}
+1568: competitors={competitors}
+1569: onBack={() => setSelectedSummaryId(null)}
+1570: />
+1571: )}
+1572:
+1573: {/* SCOUT PAGE (Detailed Competitor View) */}
+1574: {(activeTab === 'dashboard' || activeTab === 'matrix') && selectedCompetitorId && !selectedSourceId && !selectedSummaryId && (
+1575: <ScoutPage 
+1576: competitor={competitors.find(c => c.id === selectedCompetitorId)!}
+1577: onBack={() => setSelectedCompetitorId(null)}
+1578: sources={rawDataSources.filter(s => s.competitorId === selectedCompetitorId)}
+1579: onSourceClick={(id) => setSelectedSourceId(id)}
+1580: />
+1581: )}
+1582:
+1583: {/* EPIC 1: SUMMARY CARDS (Visible on Dashboard) */}
+1584: {(activeTab === 'dashboard') && !selectedSummaryId && !selectedCompetitorId && !selectedSourceId && (
+1585: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+1586: <div>
+1587: <h2 className="text-2xl font-bold text-ink-dark tracking-tight">Market Overview</h2>
+1588: <p className="text-[#8A8A8A] text-sm mt-1">High-level summary of the BaaS form space.</p>
+1589: </div>
+1590: 
+1591: <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+1592: <SummaryCard 
+1593: title="Competitors Tracked" 
+1594: value={stats.tracked.toString()} 
+1595: icon={<Users size={24} />}
+1596: trend="+1 this week"
+1597: onClick={() => setSelectedSummaryId('Competitors Tracked')}
+1598: colorClass="text-[#2C2C2C]"
+1599: bgClass="bg-paper-base"
+1600: />
+1601: <SummaryCard 
+1602: title="Recent Pricing Changes" 
+1603: value={stats.pricingChanges.toString()} 
+1604: icon={<Zap size={24} />}
+1605: trend="High activity"
+1606: trendType="warning"
+1607: onClick={() => setSelectedSummaryId('Recent Pricing Changes')}
+1608: colorClass="text-terracotta"
+1609: bgClass="bg-terracotta/10"
+1610: />
+1611: <SummaryCard 
+1612: title="Features Indexed" 
+1613: value={stats.featuresIndexed.toString()} 
+1614: icon={<Database size={24} />}
+1615: trend="+12 new"
+1616: onClick={() => setSelectedSummaryId('Features Indexed')}
+1617: colorClass="text-sage"
+1618: bgClass="bg-sage/10"
+1619: />
+1620: <SummaryCard 
+1621: title="Top Integrations" 
+1622: value={stats.topIntegrations} 
+1623: icon={<GlobeLock size={24} />}
+1624: subtitle="Most common across market"
+1625: onClick={() => setSelectedSummaryId('Top Integrations')}
+1626: colorClass="text-sky"
+1627: bgClass="bg-sky/10"
+1628: />
+1629: <SummaryCard 
+1630: title="Est. Market Value" 
+1631: value={stats.estimatedMarketValue} 
+1632: icon={<DollarSign size={24} />}
+1633: subtitle="BaaS Form Market"
+1634: onClick={() => setSelectedSummaryId('Estimated Market Value')}
+1635: colorClass="text-emerald-600"
+1636: bgClass="bg-emerald-50"
+1637: />
+1638: </div>
+1639: </div>
+1640: )}
+1641:
+1642: {/* EPIC 2: ADVANCED COMPETITOR MATRIX (Visible on Dashboard & Matrix tabs) */}
+1643: {(activeTab === 'dashboard' || activeTab === 'matrix') && !selectedCompetitorId && !selectedSummaryId && !selectedSourceId && (
+1644: <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+1645: 
+1646: {activeTab === 'matrix' && (
+1647: <div className="flex justify-between items-end mb-8 mt-4">
+1648: <div>
+1649: <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
+1650: 競合マトリックス
+1651: </p>
+1652: <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
+1653: Competitor Matrix
+1654: </h1>
+1655: <p className="text-[#8A8A8A] text-sm font-sans mt-2">
+1656: Deep-dive comparison to identify strategic gaps.
+1657: </p>
+1658: </div>
+1659: <div className="hidden sm:block">
+1660: <SyncNowButton 
+1661: isSyncing={isSyncing} 
+1662: syncTimeRemaining={syncTimeRemaining} 
+1663: handleGlobalSync={handleGlobalSync} 
+1664: setShowSyncInfo={setShowSyncInfo} 
+1665: />
+1666: </div>
+1667: </div>
+1668: )}
+1669:
+1670: <div className="w-full overflow-hidden font-sans">
+1671: {/* Matrix Toolbar */}
+1672: <div className="pb-4 flex flex-col sm:flex-row justify-end items-center gap-4">
+1673: <select 
+1674: value={matrixFilter}
+1675: onChange={e => setMatrixFilter(e.target.value)}
+1676: className="bg-paper-base border border-ink-dark/20 rounded-lg px-3 py-2 text-sm text-ink-dark focus:outline-none focus:border-[#2C2C2C]"
+1677: >
+1678: <option value="All">All Segments & Regions</option>
+1679: <option value="Enterprise">Enterprise</option>
+1680: <option value="SMB">SMB</option>
+1681: <option value="Healthcare">Healthcare</option>
+1682: <option value="Developers">Developers</option>
+1683: <option value="EU">EU Region</option>
+1684: <option value="US">US Region</option>
+1685: <option value="Self-Hosted">Self-Hosted</option>
+1686: </select>
+1687: <div className="flex items-center gap-2 w-full sm:w-auto">
+1688: <SyncNowButton 
+1689: isSyncing={isSyncing} 
+1690: syncTimeRemaining={syncTimeRemaining} 
+1691: handleGlobalSync={handleGlobalSync} 
+1692: setShowSyncInfo={setShowSyncInfo} 
+1693: />
+1694: <button 
+1695: onClick={exportToMarkdown}
+1696: className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
+1697: >
+1698: <Download size={16} />
+1699: Export
+1700: </button>
+1701: </div>
+1702: </div>
+1703:
+1704: {/* Matrix Table (Horizontal & Vertical Scroll) */}
+1705: <div className="overflow-auto max-h-[600px] relative">
+1706: <table className="w-full text-sm text-left whitespace-nowrap">
+1707: <thead className="text-xs text-[#8A8A8A] uppercase tracking-widest font-semibold border-b border-[#2C2C2C]/10 pb-3 mb-4">
+1708: <tr>
+1709: <SortableHeader label="Competitor" field="name" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} className="sticky left-0 bg-[#F5F3ED] z-20" />
+1710: <SortableHeader label="Market Commonality" field="marketCommonalityIndex" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} tooltip="Based on Chen's (1996) framework. Measures the degree of overlap in target markets and customer segments. Higher score = more direct threat." />
+1711: <SortableHeader label="Resource Similarity" field="resourceSimilarityScore" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} tooltip="Measures how similar their capabilities, features, and resources are to yours. Higher score = more similar product offering." />
+1712: <SortableHeader label="Free Tier Limits" field="freeTier" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} />
+1713: <SortableHeader label="Market Segments" field="marketSegments" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} />
+1714: <SortableHeader label="Data Sovereignty" field="dataSovereignty" currentSort={sortField} sortOrder={sortOrder} onSort={handleSort} />
+1715: </tr>
+1716: </thead>
+1717: <tbody className="divide-y divide-ink-dark/20">
+1718: {sortedCompetitors.map((comp) => (
+1719: <tr 
+1720: key={comp.id} 
+1721: className="hover:bg-white/40 transition-colors group cursor-pointer border-b border-[#2C2C2C]/5"
+1722: onClick={() => setSelectedCompetitorId(comp.id)}
+1723: >
+1724: {/* Sticky First Column */}
+1725: <td className="px-6 py-5 sticky left-0 bg-[#F5F3ED] group-hover:bg-white/40 transition-colors z-0">
+1726: <h3 className="text-[#2C2C2C] font-bold text-base">{comp.name}</h3>
+1727: <p className="text-ink-dark text-xs">{comp.website}</p>
+1728: </td>
+1729: <td className="px-6 py-5">
+1730: <div className="flex items-center gap-2">
+1731: <div className="w-full bg-paper-base rounded-full h-1.5 max-w-[80px]">
+1732: <div className="bg-[#2C2C2C] h-1.5 rounded-full" style={{ width: `${comp.marketCommonalityIndex}%` }}></div>
+1733: </div>
+1734: <span className="text-xs font-medium text-ink-dark ">{comp.marketCommonalityIndex}</span>
+1735: </div>
+1736: </td>
+1737: <td className="px-6 py-5">
+1738: <div className="flex items-center gap-2">
+1739: <div className="w-full bg-paper-base rounded-full h-1.5 max-w-[80px]">
+1740: <div className="bg-[#8A8A8A] h-1.5 rounded-full" style={{ width: `${comp.resourceSimilarityScore}%` }}></div>
+1741: </div>
+1742: <span className="text-xs font-medium text-ink-dark ">{comp.resourceSimilarityScore}</span>
+1743: </div>
+1744: </td>
+1745: <td className="px-6 py-5 text-[#2C2C2C]">
+1746: <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-paper-base border border-ink-dark/20 text-xs font-medium">
+1747: {comp.freeTier}
+1748: </span>
+1749: </td>
+1750: <td className="px-6 py-5">
+1751: <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+1752: {comp.marketSegments.map((segment, i) => (
+1753: <span key={i} className="px-2 py-0.5 bg-paper-base text-ink-dark rounded text-[10px] uppercase tracking-wider font-medium">
+1754: {segment}
+1755: </span>
+1756: ))}
+1757: </div>
+1758: </td>
+1759: <td className="px-6 py-5">
+1760: <SovereigntyBadge status={comp.dataSovereignty} score={comp.sovereigntyScore} />
+1761: </td>
+1762: </tr>
+1763: ))}
+1764: {sortedCompetitors.length === 0 && (
+1765: <tr>
+1766: <td colSpan={6} className="px-6 py-12 text-center text-[#8A8A8A] ">
+1767: <div className="flex flex-col items-center justify-center">
+1768: <Search className="w-8 h-8 mb-3 opacity-20" />
+1769: <p>No competitors found matching "{globalSearch}"</p>
+1770: </div>
+1771: </td>
+1772: </tr>
+1773: )}
+1774: </tbody>
+1775: </table>
+1776: </div>
+1777: </div>
+1778: </div>
+1779: )}
+1780:
+1781: {/* RAW DATA LIBRARY TAB */}
+1782: {activeTab === 'rawdata' && !selectedSourceId && (
+1783: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+1784: <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+1785: <div>
+1786: <h2 className="text-2xl font-bold text-ink-dark tracking-tight">Raw Data Library</h2>
+1787: <p className="text-[#8A8A8A] text-sm mt-1">Explore the source data scraped from competitors.</p>
+1788: </div>
+1789: <div className="hidden sm:block">
+1790: <SyncNowButton 
+1791: isSyncing={isSyncing} 
+1792: syncTimeRemaining={syncTimeRemaining} 
+1793: handleGlobalSync={handleGlobalSync} 
+1794: setShowSyncInfo={setShowSyncInfo} 
+1795: />
+1796: </div>
+1797: </div>
+1798: <div className="flex flex-wrap gap-2 items-center bg-paper-card p-3 rounded-xl border border-ink-dark/20 shadow-sm">
+1799: <div className="relative flex-1 min-w-[200px]">
+1800: <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+1801: <input 
+1802: type="text" 
+1803: placeholder="Search raw data..." 
+1804: value={rawDataSearch}
+1805: onChange={(e) => setRawDataSearch(e.target.value)}
+1806: className="w-full bg-paper-base border border-ink-dark/20 rounded-lg pl-9 pr-4 py-2 text-sm text-ink-dark focus:outline-none focus:border-[#2C2C2C] transition-all"
+1807: />
+1808: </div>
+1809: <select 
+1810: value={rawDataTypeFilter}
+1811: onChange={(e) => setRawDataTypeFilter(e.target.value)}
+1812: className="bg-paper-base border border-ink-dark/20 rounded-lg px-3 py-2 text-sm text-ink-dark focus:outline-none focus:border-[#2C2C2C] transition-all appearance-none cursor-pointer"
+1813: >
+1814: <option value="all">All Media Types</option>
+1815: <option value="website">Websites</option>
+1816: <option value="api">APIs</option>
+1817: <option value="github">GitHub</option>
+1818: <option value="screenshot">Screenshots</option>
+1819: <option value="linkedin">LinkedIn</option>
+1820: <option value="crunchbase">Crunchbase</option>
+1821: <option value="news">News</option>
+1822: </select>
+1823: <select 
+1824: value={rawDataCompanyFilter}
+1825: onChange={(e) => setRawDataCompanyFilter(e.target.value)}
+1826: className="bg-paper-base border border-ink-dark/20 rounded-lg px-3 py-2 text-sm text-ink-dark focus:outline-none focus:border-[#2C2C2C] transition-all appearance-none cursor-pointer"
+1827: >
+1828: <option value="all">All Companies</option>
+1829: {competitors.map(c => (
+1830: <option key={c.id} value={c.id}>{c.name}</option>
+1831: ))}
+1832: </select>
+1833: </div>
+1834:
+1835: <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+1836: {filteredRawData.slice(0, rawDataVisibleCount).map((source) => (
+1837: <DataSourceCard 
+1838: key={source.id} 
+1839: source={source} 
+1840: competitorName={competitors.find(c => c.id === source.competitorId)?.name || 'Unknown'} 
+1841: onClick={() => setSelectedSourceId(source.id)}
+1842: />
+1843: ))}
+1844: {filteredRawData.length === 0 && (
+1845: <div className="col-span-2 p-12 text-center border border-dashed border-ink-dark/20 rounded-xl text-[#8A8A8A] ">
+1846: No data sources found matching your criteria.
+1847: </div>
+1848: )}
+1849: {filteredRawData.length > rawDataVisibleCount && (
+1850: <div ref={rawDataObserverRef} className="col-span-2 py-4 flex justify-center">
+1851: <Loader2 className="animate-spin text-ink-faint" size={24} />
+1852: </div>
+1853: )}
+1854: </div>
+1855: </div>
+1856: )}
+1857:
+1858: {/* INSIGHT LIBRARY TAB */}
+1859: {activeTab === 'reports' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
+1860: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+1861: <div className="flex justify-between items-end mb-8 mt-4">
+1862: <div>
+1863: <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
+1864: インサイトライブラリ
+1865: </p>
+1866: <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
+1867: Insight Library
+1868: </h1>
+1869: <p className="text-[#8A8A8A] text-sm font-sans mt-2">
+1870: Derived insights, market threats, and brainstorming sessions.
+1871: </p>
+1872: </div>
+1873: <div className="flex gap-2">
+1874: <button onClick={() => setIsCreateInsightOpen(true)} className="flex items-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300">
+1875: <Sparkles size={16} />
+1876: New Insight
+1877: </button>
+1878: <div className="hidden sm:block">
+1879: <SyncNowButton 
+1880: isSyncing={isSyncing} 
+1881: syncTimeRemaining={syncTimeRemaining} 
+1882: handleGlobalSync={handleGlobalSync} 
+1883: setShowSyncInfo={setShowSyncInfo} 
+1884: />
+1885: </div>
+1886: <div className="relative group">
+1887: <button className="flex items-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300">
+1888: <Download size={16} /> Export
+1889: </button>
+1890: <div className="absolute right-0 mt-1 w-48 bg-paper-card border border-ink-dark/20 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+1891: <div className="p-1 flex flex-col">
+1892: <button onClick={() => handleExport('csv')} className="flex items-center gap-2 px-3 py-2 text-sm text-ink-dark hover:bg-paper-base hover:text-ink-dark rounded-md text-left"><FileSpreadsheet size={14} /> Export as CSV</button>
+1893: <button onClick={() => handleExport('txt')} className="flex items-center gap-2 px-3 py-2 text-sm text-ink-dark hover:bg-paper-base hover:text-ink-dark rounded-md text-left"><FileText size={14} /> Export as TXT</button>
+1894: <button onClick={() => handleExport('copy')} className="flex items-center gap-2 px-3 py-2 text-sm text-ink-dark hover:bg-paper-base hover:text-ink-dark rounded-md text-left"><Copy size={14} /> Copy to Clipboard</button>
+1895: </div>
+1896: </div>
+1897: </div>
+1898: </div>
+1899: </div>
+1900:
+1901: <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+1902: <SummaryCard title="Data Pulls (30d)" value="1,248" icon={<Database size={24} />} colorClass="text-sky" bgClass="bg-sky/10" />
+1903: <SummaryCard title="Competitors Scraped" value={stats.tracked.toString()} icon={<Users size={24} />} colorClass="text-[#2C2C2C]" bgClass="bg-paper-base" />
+1904: <SummaryCard title="Data Points Collected" value="15,892" icon={<TableProperties size={24} />} colorClass="text-sage" bgClass="bg-sage/10" />
+1905: <SummaryCard title="Est. Market Value" value="$3.2B" icon={<PieChart size={24} />} subtitle="BaaS Form Market" colorClass="text-ochre" bgClass="bg-ochre/10" />
+1906: </div>
+1907:
+1908: <div className="flex justify-between items-center mt-8 mb-4">
+1909: <h3 className="text-xl font-serif font-bold text-ink-dark flex items-center gap-2"><Lightbulb className="text-ochre" /> Derived Insights Engine</h3>
+1910: <div className="flex gap-2 bg-paper-card p-1 rounded-storybook-sm border border-ink-dark/20 shadow-storybook-inner">
+1911: {['All', 'AI', 'Human', 'Brainstorm'].map(f => (
+1912: <button 
+1913: key={f}
+1914: onClick={() => setInsightFilter(f as any)}
+1915: className={`px-4 py-1.5 text-xs font-sans font-semibold rounded-md transition-all duration-200 ${insightFilter === f ? 'bg-ink-dark text-paper-light shadow-md' : 'text-ink-muted hover:text-ink-dark hover:bg-paper-base'}`}
+1916: >
+1917: {f}
+1918: </button>
+1919: ))}
+1920: </div>
+1921: </div>
+1922:
+1923: <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+1924: {filteredInsights.map(insight => (
+1925: <div key={insight.id} className="bg-paper-card border border-ink-dark/20 rounded-storybook p-6 shadow-storybook hover:shadow-storybook-hover transition-all duration-300 relative overflow-hidden flex flex-col group">
+1926: <div className="flex justify-between items-start mb-3">
+1927: <div className="flex items-center gap-2">
+1928: {insight.category === 'opportunity' && <TrendingUp size={18} className="text-[#2C2C2C]" />}
+1929: {insight.category === 'threat' && <AlertTriangle size={18} className="text-terracotta" />}
+1930: {insight.category === 'trend' && <TrendingUp size={18} className="text-sky" />}
+1931: <h4 className="font-serif font-bold text-ink-dark text-lg">{insight.title}</h4>
+1932: </div>
+1933: <span className={`text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-bold ${
+1934: insight.impact === 'high' || insight.impact === 'critical' ? 'bg-terracotta/10 text-terracotta' :
+1935: insight.impact === 'medium' ? 'bg-ochre/10 text-ochre' :
+1936: 'bg-sky/10 text-sky'
+1937: }`}>
+1938: {insight.impact}
+1939: </span>
+1940: </div>
+1941: <div className="text-sm font-sans text-ink-muted mt-2 leading-relaxed flex-1 prose prose-sm"><Markdown>{insight.description}</Markdown></div>
+1942: 
+1943: {insight.sourceIds && insight.sourceIds.length > 0 && (
+1944: <div className="mt-4 pt-4 border-t border-ink-dark/20">
+1945: <h5 className="text-[10px] uppercase tracking-wider text-[#8A8A8A] font-bold mb-2">Derived From</h5>
+1946: <div className="flex flex-wrap gap-2">
+1947: {insight.sourceIds.map(sourceId => {
+1948: const source = rawDataSources.find(s => s.id === sourceId);
+1949: if (!source) return null;
+1950: return (
+1951: <button 
+1952: key={sourceId}
+1953: onClick={() => setSelectedSourceId(sourceId)}
+1954: className="text-xs bg-paper-base border border-ink-dark/30 hover:border-ink-dark/50 hover:text-[#2C2C2C] text-ink-muted px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+1955: >
+1956: <LinkIcon size={10} />
+1957: {source.sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
+1958: </button>
+1959: );
+1960: })}
+1961: </div>
+1962: </div>
+1963: )}
+1964:
+1965: <div className="mt-4 flex justify-between items-center border-t border-ink-dark/20 pt-4">
+1966: <div className="text-[11px] font-sans text-ink-faint">
+1967: {new Date(insight.timestamp).toLocaleString()}
+1968: </div>
+1969: <span className={`text-[10px] px-2 py-1 rounded-full border ${
+1970: insight.source === 'AI' ? 'border-ink-dark/20 text-[#8A8A8A] bg-paper-base' :
+1971: insight.source === 'Brainstorm' ? 'border-ochre/30 text-ochre bg-ochre/10' :
+1972: 'border-sage/30 text-sage bg-sage/10'
+1973: }`}>
+1974: {insight.source}
+1975: </span>
+1976: </div>
+1977: <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+1978: <div className="w-2 h-2 rounded-full bg-ink-dark animate-scatter"></div>
+1979: </div>
+1980: </div>
+1981: ))}
+1982: </div>
+1983: </div>
+1984: )}
+1985:
+1986: {/* SETTINGS TAB */}
+1987: {activeTab === 'settings' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
+1988: <div className="h-[calc(100vh-120px)] w-full rounded-xl overflow-hidden border border-ink-dark/20 shadow-sm">
+1989: <SettingsComponent />
+1990: </div>
+1991: )}
+1992:
+1993: {/* MINDMAP EXPLORER TAB */}
+1994:        {activeTab === 'mindmap' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
+1995:          <div className="h-[calc(100vh-120px)] w-full rounded-xl overflow-hidden border border-ink-dark/20 shadow-sm">
+1996:            <MindmapExplorer initialData={initialMindmapData} competitors={competitors} insights={derivedInsights} rawDataSources={rawDataSources} />
+1997:          </div>
+1998:        )}
+1999:
+2000:        {/* MARKET ANALYSIS TAB */}
+2001: {activeTab === 'market-analysis' && (
+2002: <MarketAnalysis stats={stats} competitors={competitors} insights={derivedInsights} />
+2003: )}
+2004:
+2005: {/* ACTION CENTER TAB */}
+2006: {activeTab === 'actions' && (
+2007: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+2008: <div>
+2009: <h2 className="text-2xl font-bold text-ink-dark tracking-tight">Background Tasks & Sync</h2>
+2010: <p className="text-[#8A8A8A] text-sm mt-1">Monitor active operations and system synchronization.</p>
+2011: </div>
+2012:
+2013: <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+2014: {/* Sync Status */}
+2015: <div className="lg:col-span-1 space-y-4">
+2016: <h3 className="text-lg font-semibold text-ink-dark ">Current Status</h3>
+2017: 
+2018: <div className="bg-paper-card border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
+2019: <div className="flex items-center justify-between mb-6">
+2020: <h4 className="text-sm font-bold text-ink-dark ">System State</h4>
+2021: <div className={`px-3 py-1 rounded-full text-xs font-bold ${isSyncing ? 'bg-amber-100 text-amber-700' : 'bg-paper-base text-[#8A8A8A] '}`}>
+2022: {isSyncing ? 'Syncing...' : 'Idle'}
+2023: </div>
+2024: </div>
+2025: 
+2026: {isSyncing ? (
+2027: <div className="space-y-6">
+2028: <p className="text-sm text-[#8A8A8A] ">
+2029: A sync operation is currently running. Estimated time remaining: <span className="font-bold">{syncTimeRemaining}s</span>
+2030: </p>
+2031: <div className="space-y-4">
+2032: {activeTasks.map(task => (
+2033: <div key={task.id} className="space-y-2">
+2034: <div className="flex justify-between text-sm">
+2035: <span className="text-ink-dark font-medium">{task.name}</span>
+2036: <span className="text-[#2C2C2C]">{Math.round(task.progress)}%</span>
+2037: </div>
+2038: <div className="h-2 bg-paper-light rounded-full overflow-hidden">
+2039: <div 
+2040: className="h-full bg-[#2C2C2C] transition-all duration-500 ease-out"
+2041: style={{ width: `${task.progress}%` }}
+2042: />
+2043: </div>
+2044: </div>
+2045: ))}
+2046: </div>
+2047: </div>
+2048: ) : (
+2049: <div className="text-center py-8">
+2050: <div className="w-16 h-16 bg-paper-base rounded-full flex items-center justify-center mx-auto mb-4">
+2051: <CheckCircle2 size={32} className="text-moss" />
+2052: </div>
+2053: <p className="text-ink-dark font-medium">All systems are up to date.</p>
+2054: <p className="text-sm text-[#8A8A8A] mt-2">No background tasks are currently running.</p>
+2055: <div className="mt-6 flex justify-center">
+2056: <SyncNowButton 
+2057: isSyncing={isSyncing} 
+2058: syncTimeRemaining={syncTimeRemaining} 
+2059: handleGlobalSync={handleGlobalSync} 
+2060: setShowSyncInfo={setShowSyncInfo} 
+2061: />
+2062: </div>
+2063: </div>
+2064: )}
+2065: </div>
+2066: </div>
+2067:
+2068: {/* Logs Section */}
+2069: <div className="lg:col-span-2 space-y-4">
+2070: <div className="flex items-center justify-between">
+2071: <h3 className="text-lg font-semibold text-ink-dark ">System Logs</h3>
+2072: <button onClick={() => setLogs([])} className="text-xs text-[#8A8A8A] hover:text-ink-dark :text-ink-dark">Clear Logs</button>
+2073: </div>
+2074: 
+2075: <div className="bg-paper-card border border-ink-dark/20 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[500px]">
+2076: <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
+2077: {logs.length === 0 ? (
+2078: <div className="h-full flex items-center justify-center text-[#8A8A8A] ">
+2079: No logs available.
+2080: </div>
+2081: ) : (
+2082: logs.map(log => (
+2083: <div key={log.id} className="flex gap-3 items-start border-b border-ink-dark/20 /50 pb-3 last:border-0 last:pb-0">
+2084: <div className="shrink-0 text-[#8A8A8A] w-20">
+2085: {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+2086: </div>
+2087: <div className="shrink-0 w-24">
+2088: <span className={`px-1.5 py-0.5 rounded font-medium ${
+2089: log.status === 'success' ? 'bg-paper-base text-[#8A8A8A] ' :
+2090: log.status === 'error' ? 'bg-rose-100 text-rose-700 ' :
+2091: log.status === 'pending' ? 'bg-amber-100 text-amber-700 ' :
+2092: 'bg-paper-light text-ink-dark '
+2093: }`}>
+2094: {log.action}
+2095: </span>
+2096: </div>
+2097: <div className={`flex-1 flex justify-between items-start ${
+2098: log.status === 'error' ? 'text-rose-600 ' : 'text-ink-dark '
+2099: }`}>
+2100: <span>{log.details}</span>
+2101: {log.status === 'error' && log.retryAction && (
+2102: <button
+2103: onClick={() => log.retryAction?.()}
+2104: className="ml-2 px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-[10px] font-medium transition-colors"
+2105: >
+2106: Retry
+2107: </button>
+2108: )}
+2109: </div>
+2110: </div>
+2111: ))
+2112: )}
+2113: </div>
+2114: </div>
+2115: </div>
+2116: </div>
+2117: </div>
+2118: )}
+2119:
+2120: </div>
+2121: </div>
+2122: </main>
+2123:
+2124: {/* Floating Chat Hover Zone */}
+2125: {chatState === 'closed' && (
+2126: <div
+2127: onMouseEnter={() => setChatState('hover')}
+2128: className="fixed inset-y-0 right-0 w-8 z-40 cursor-pointer group"
+2129: >
+2130: <div className="absolute top-1/2 right-2 -translate-y-1/2 bg-paper-base text-[#2C2C2C] p-2 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-2 shadow-lg backdrop-blur-sm border border-ink-dark/20">
+2131: <MessageSquare size={16} />
+2132: <span className="text-[10px] font-bold uppercase" style={{ writingMode: 'vertical-rl' }}>Insight Engine</span>
+2133: </div>
+2134: </div>
+2135: )}
+2136:
+2137: {/* --- RIGHT SIDEBAR CHAT --- */}
+2138: <div 
+2139: id="insight-engine-chat"
+2140: className={`absolute inset-y-0 right-0 w-full md:w-96 shrink-0 bg-paper-light border-l border-ink-dark/20 flex flex-col z-50 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+2141: chatState === 'closed' ? 'translate-x-full' : 'translate-x-0'
+2142: }`}
+2143: onMouseLeave={() => {
+2144: if (chatState === 'hover') setChatState('closed');
+2145: }}
+2146: onClick={() => {
+2147: if (chatState === 'hover') setChatState('locked');
+2148: }}
+2149: >
+2150: <div className="h-16 border-b border-ink-dark/20 flex items-center justify-between px-4 shrink-0 bg-paper-base/80 /80 backdrop-blur-md cursor-pointer" onClick={() => { if (chatState === 'hover') setChatState('locked'); }}>
+2151: <div className="flex items-center gap-2">
+2152: <MessageSquare size={18} className="text-moss" />
+2153: <span className="font-medium text-ink-dark ">Insight Engine</span>
+2154: {chatState === 'locked' && (
+2155: <span className="ml-2 px-1.5 py-0.5 bg-paper-base text-[#8A8A8A] text-[10px] uppercase font-bold rounded">Locked</span>
+2156: )}
+2157: </div>
+2158: <button 
+2159: onClick={(e) => { e.stopPropagation(); setChatState('closed'); }}
+2160: className="p-2 text-[#8A8A8A] hover:text-ink-dark :text-ink-dark rounded-lg hover:bg-paper-base :bg-paper-card transition-colors"
+2161: >
+2162: <X size={18} />
+2163: </button>
+2164: </div>
+2165: 
+2166: <div className="p-4 border-b border-ink-dark/20 bg-paper-base/30 shrink-0">
+2167: <p className="text-xs text-[#8A8A8A] mb-2">Quick Prompts:</p>
+2168: <div className="flex flex-wrap gap-2">
+2169: <button onClick={() => handleSendMessage("Analyze the data on this page.")} className="text-[10px] bg-paper-card hover:bg-paper-base text-ink-dark px-2 py-1 rounded border border-ink-dark/20 transition-colors">Analyze Page</button>
+2170: <button onClick={() => handleSendMessage("Generate User Stories based on this context.")} className="text-[10px] bg-paper-card hover:bg-paper-base text-ink-dark px-2 py-1 rounded border border-ink-dark/20 transition-colors">User Stories</button>
+2171: </div>
+2172: </div>
+2173:
+2174: <div className="flex-1 overflow-y-auto p-4 space-y-4">
+2175: {chatHistory.map((msg, idx) => (
+2176: <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+2177: <div className={`w-6 h-6 shrink-0 rounded flex items-center justify-center mt-1 ${msg.role === 'user' ? 'bg-paper-base ' : 'bg-[#2C2C2C]'}`}>
+2178: {msg.role === 'user' ? <Users size={12} className="text-ink-dark " /> : <Sparkles size={12} className="text-paper-light" />}
+2179: </div>
+2180: <div className={`max-w-[85%] rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-paper-base text-ink-dark ' : 'bg-paper-card border border-ink-dark/20 text-ink-dark prose prose-sm'}`}>
+2181: {msg.role === 'user' ? (
+2182:  <div className="whitespace-pre-wrap">
+2183:    {msg.content.split(/(\[\[.*?\]\])/g).map((part, i) => {
+2184:      if (part.startsWith('[[') && part.endsWith(']]')) {
+2185:        return <span key={i} className="px-1.5 py-0.5 bg-[#2C2C2C] text-white text-xs rounded-md shadow-sm mx-1">{part}</span>;
+2186:      }
+2187:      return part;
+2188:    })}
+2189:  </div>
+2190:) : <Markdown>{msg.content}</Markdown>}
+2191: {msg.suggestedInsight && (
+2192: <div className="mt-4 bg-paper-light border border-ink-dark/30 rounded-lg p-3 not-prose">
+2193: <div className="flex items-center gap-2 mb-2">
+2194: <Lightbulb size={14} className="text-amber-500" />
+2195: <span className="text-xs font-bold text-[#8A8A8A] uppercase tracking-wider">Suggested Insight</span>
+2196: </div>
+2197: <h4 className="font-medium text-ink-dark text-sm mb-1">{msg.suggestedInsight.title}</h4>
+2198: <p className="text-xs text-[#8A8A8A] mb-3">{msg.suggestedInsight.description}</p>
+2199: <button 
+2200: onClick={() => {
+2201: if (msg.insightAdded) return;
+2202: const newInsight: DerivedInsight = {
+2203: id: `di-${Date.now()}`,
+2204: title: msg.suggestedInsight!.title,
+2205: description: msg.suggestedInsight!.description,
+2206: category: msg.suggestedInsight!.category,
+2207: impact: msg.suggestedInsight!.impact,
+2208: timestamp: new Date().toISOString(),
+2209: source: 'Brainstorm'
+2210: };
+2211: setDerivedInsights(prev => [newInsight, ...prev]);
+2212: 
+2213: // Mark as added
+2214: setChatHistory(prev => prev.map((m, i) => i === idx ? { ...m, insightAdded: true } : m));
+2215: 
+2216: addToast('Insight added successfully!', 'success');
+2217: }}
+2218: disabled={msg.insightAdded}
+2219: className={`w-full text-xs font-sans font-medium py-1.5 rounded-full transition-all duration-300 ${
+2220: msg.insightAdded 
+2221: ? 'border border-[#8A8A8A] text-[#8A8A8A] cursor-not-allowed' 
+2222: : 'border border-[#2C2C2C] text-[#2C2C2C] hover:bg-[#2C2C2C] hover:text-[#F5F3ED]'
+2223: }`}
+2224: >
+2225: {msg.insightAdded ? 'Insight Added' : 'Add Insight'}
+2226: </button>
+2227: </div>
+2228: )}
+2229: </div>
+2230: </div>
+2231: ))}
+2232: {isTyping && (
+2233: <div className="flex gap-3">
+2234: <div className="w-6 h-6 shrink-0 rounded bg-[#2C2C2C] flex items-center justify-center mt-1">
+2235: <Loader2 size={12} className="text-paper-light animate-spin" />
+2236: </div>
+2237: <div className="bg-paper-card border border-ink-dark/20 rounded-lg p-3 flex items-center gap-1.5">
+2238: <span className="w-1.5 h-1.5 bg-[#F5F3ED] rounded-full animate-bounce" />
+2239: <span className="w-1.5 h-1.5 bg-[#F5F3ED] rounded-full animate-bounce delay-75" />
+2240: <span className="w-1.5 h-1.5 bg-[#F5F3ED] rounded-full animate-bounce delay-150" />
+2241: </div>
+2242: </div>
+2243: )}
+2244: </div>
+2245: 
+2246: <div className="p-4 bg-paper-base border-t border-ink-dark/20 shrink-0">
+2247: {showMentionDropdown && (
+2248:   <div className="absolute bottom-full mb-2 left-4 w-64 max-h-48 overflow-y-auto bg-white border border-ink-dark/30 rounded-lg shadow-xl z-50">
+2249:     {[...competitors.map(c => ({ type: 'Competitor', name: c.name })), ...derivedInsights.map(i => ({ type: 'Insight', name: i.title }))]
+2250:       .filter(item => item.name.toLowerCase().includes(mentionQuery))
+2251:       .slice(0, 10)
+2252:       .map((item, idx) => (
+2253:         <button
+2254:           key={idx}
+2255:           className="w-full text-left px-3 py-2 hover:bg-paper-base text-sm flex flex-col"
+2256:           onClick={() => {
+2257:             const lastAt = chatInput.lastIndexOf('@');
+2258:             setChatInput(chatInput.substring(0, lastAt) + `[[${item.name}]] `);
+2259:             setShowMentionDropdown(false);
+2260:           }}
+2261:         >
+2262:           <span className="font-medium text-ink-dark">{item.name}</span>
+2263:           <span className="text-xs text-ink-faint">{item.type}</span>
+2264:         </button>
+2265:       ))}
+2266:   </div>
+2267: )}
+2268: <div className="relative flex items-center">
+2269: <input 
+2270: type="text"
+2271: value={chatInput}
+2272: onChange={(e) => {
+2273:   const val = e.target.value;
+2274:   setChatInput(val);
+2275:   const lastAt = val.lastIndexOf('@');
+2276:   if (lastAt !== -1 && !val.substring(lastAt).includes(' ')) {
+2277:     setShowMentionDropdown(true);
+2278:     setMentionQuery(val.substring(lastAt + 1).toLowerCase());
+2279:   } else {
+2280:     setShowMentionDropdown(false);
+2281:   }
+2282: }}
+2283: onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+2284: onFocus={() => { if (chatState === 'hover') setChatState('locked'); }}
+2285: placeholder="Ask about this page..."
+2286: disabled={isTyping}
+2287: className="w-full bg-paper-card border border-ink-dark/20 rounded-lg pl-3 pr-10 py-2.5 text-sm text-ink-dark focus:outline-none focus:border-[#2C2C2C] focus:ring-1 focus:ring-[#2C2C2C] transition-all disabled:opacity-50"
+2288: />
+2289: <button 
+2290: onClick={() => handleSendMessage()}
+2291: disabled={isTyping || !chatInput.trim()}
+2292: className="absolute right-1.5 p-1.5 text-[#8A8A8A] hover:text-[#2C2C2C] disabled:opacity-50 transition-colors rounded-md hover:bg-paper-base "
+2293: >
+2294: <Send size={16} />
+2295: </button>
+2296: </div>
+2297: </div>
+2298: </div>
+2299: </div>
+2300: );
+2301:}
+2302:
+2303:// --- Subcomponents ---
+2304:
+2305:function JsonViewer({ text }: { text: string }) {
+2306: try {
+2307: const parsed = JSON.parse(text);
+2308: 
+2309: const renderNode = (data: any): React.ReactNode => {
+2310: if (typeof data !== 'object' || data === null) {
+2311: return <span className="text-ink-dark text-sm font-medium">{String(data)}</span>;
+2312: }
+2313: 
+2314: if (Array.isArray(data)) {
+2315: return (
+2316: <div className="flex flex-wrap gap-2">
+2317: {data.map((item, i) => (
+2318: <div key={i} className="bg-paper-card border border-ink-dark/20 px-2 py-1 rounded text-xs text-ink-dark">
+2319: {typeof item === 'object' ? renderNode(item) : String(item)}
+2320: </div>
+2321: ))}
+2322: </div>
+2323: );
+2324: }
+2325:
+2326: return (
+2327: <div className="space-y-2 w-full">
+2328: {Object.entries(data).map(([key, value]) => (
+2329: <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 border-b border-ink-dark/20 pb-2 last:border-0 last:pb-0">
+2330: <span className="text-[#8A8A8A] text-xs uppercase tracking-wider font-medium min-w-[120px] pt-0.5">{key.replace(/_/g, ' ')}</span>
+2331: <div className="flex-1">
+2332: {typeof value === 'object' && value !== null ? (
+2333: <div className="bg-paper-card p-2 rounded border border-ink-dark/20 mt-1 sm:mt-0">
+2334: {renderNode(value)}
+2335: </div>
+2336: ) : (
+2337: <span className="text-ink-dark text-sm font-medium">{String(value)}</span>
+2338: )}
+2339: </div>
+2340: </div>
+2341: ))}
+2342: </div>
+2343: );
+2344: };
+2345:
+2346: return renderNode(parsed);
+2347: } catch (e) {
+2348: return <pre className="text-xs font-mono text-ink-dark leading-relaxed whitespace-pre-wrap">{text}</pre>;
+2349: }
+2350:}
+2351:
+2352:function DataSourceCard({ source, competitorName, onClick }: { source: DataSource, competitorName?: string, onClick?: () => void }) {
+2353: return (
+2354: <div 
+2355: onClick={onClick}
+2356: className={`bg-paper-base border border-ink-dark/20 rounded-xl overflow-hidden shadow-lg flex flex-col ${onClick ? 'cursor-pointer hover:border-ink-dark/50 transition-colors' : ''}`}
+2357: >
+2358: <div className="flex items-center justify-between px-4 py-2 bg-paper-card border-b border-ink-dark/20 ">
+2359: <div className="flex items-center gap-2">
+2360: {source.type === 'website' && <GlobeLock size={14} className="text-blue-400" />}
+2361: {source.type === 'api' && <Database size={14} className="text-emerald-400" />}
+2362: {source.type === 'github' && <Github size={14} className="text-moss " />}
+2363: {source.type === 'screenshot' && <ImageIcon size={14} className="text-purple-400" />}
+2364: {source.type === 'linkedin' && <Users size={14} className="text-blue-500" />}
+2365: {source.type === 'crunchbase' && <DollarSign size={14} className="text-emerald-500" />}
+2366: {source.type === 'news' && <MessageSquare size={14} className="text-amber-400" />}
+2367: <span className="text-xs font-mono text-ink-dark truncate max-w-[200px]">{source.sourceUrl}</span>
+2368: </div>
+2369: <div className="flex items-center gap-2">
+2370: {source.isDeduced && <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded border border-purple-200">Deduced</span>}
+2371: <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+2372: source.confidenceLevel === 'High' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+2373: source.confidenceLevel === 'Medium' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+2374: 'bg-rose-100 text-rose-800 border-rose-200'
+2375: }`}>{source.confidenceLevel} Confidence</span>
+2376: </div>
+2377: </div>
+2378: {source.type === 'screenshot' ? (
+2379: <div className="h-32 w-full border-b border-ink-dark/20 relative group overflow-hidden bg-paper-base ">
+2380: <img src={source.sourceUrl} alt="Screenshot" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" referrerPolicy="no-referrer" />
+2381: <div className="absolute inset-0 bg-ink-dark/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+2382: <Maximize2 className="text-paper-light w-6 h-6" />
+2383: </div>
+2384: </div>
+2385: ) : (
+2386: <div className="p-4 flex-1 overflow-x-auto">
+2387: <JsonViewer text={source.excerpt} />
+2388: </div>
+2389: )}
+2390: <div className="px-4 py-3 bg-paper-card border-t border-ink-dark/20 flex items-center justify-between">
+2391: <div className="flex items-center gap-2">
+2392: {competitorName && <span className="text-xs font-medium text-[#8A8A8A] ">Target: <span className="text-ink-dark ">{competitorName}</span></span>}
+2393: <span className="text-[10px] text-[#8A8A8A] font-mono">{new Date(source.timestamp).toLocaleString()}</span>
+2394: </div>
+2395: <div className="flex items-center gap-3">
+2396: {source.linkedInsightIds && source.linkedInsightIds.length > 0 && (
+2397: <div className="flex items-center gap-1 text-xs text-[#8A8A8A]" title={`${source.linkedInsightIds.length} derived insight(s)`}>
+2398: <Lightbulb size={12} />
+2399: <span>{source.linkedInsightIds.length}</span>
+2400: </div>
+2401: )}
+2402: <div className="flex gap-1.5">
+2403: {source.tags.map(tag => (
+2404: <span key={tag} className="px-2 py-0.5 bg-paper-base text-[#8A8A8A] rounded text-[10px] uppercase tracking-wider">{tag}</span>
+2405: ))}
+2406: </div>
+2407: </div>
+2408: </div>
+2409: </div>
+2410: );
+2411:}
+2412:
+2413:function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor: Competitor, onBack: () => void, sources: DataSource[], onSourceClick: (id: string) => void }) {
+2414: const [isAnalyzing, setIsAnalyzing] = useState(false);
+2415: const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+2416:
+2417: const handleAnalyze = async () => {
+2418:   setIsAnalyzing(true);
+2419:   try {
+2420:     const response = await withKeyRotation(async (ai, model) => {
+2421:       return await ai.models.generateContent({
+2422:         model: model,
+2423:         contents: `Analyze the following competitor data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
+2424:       });
+2425:     });
+2426:     setAnalysisResult(response.text || 'No analysis generated.');
+2427:   } catch (error) {
+2428:     console.error(error);
+2429:     setAnalysisResult('Failed to generate analysis.');
+2430:   } finally {
+2431:     setIsAnalyzing(false);
+2432:   }
+2433: };
+2434:
+2435: const radarData = [
+2436: { subject: 'Market Overlap', A: competitor.marketCommonalityIndex, fullMark: 100 },
+2437: { subject: 'Resource Parity', A: competitor.resourceSimilarityScore, fullMark: 100 },
+2438: { subject: 'Threat Level', A: competitor.competitorScore, fullMark: 100 },
+2439: { subject: 'Data Trust', A: competitor.trustScore, fullMark: 100 },
+2440: { subject: 'Sovereignty', A: competitor.sovereigntyScore === 'high' ? 100 : competitor.sovereigntyScore === 'medium' ? 60 : 30, fullMark: 100 },
+2441: ];
+2442:
+2443: return (
+2444: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+2445: <div className="flex justify-between items-center">
+2446: <button onClick={onBack} className="flex items-center gap-2 text-[#8A8A8A] hover:text-ink-dark transition-colors text-sm font-medium">
+2447: <ArrowLeft size={16} /> Back to Matrix
+2448: </button>
+2449: <button 
+2450:   onClick={handleAnalyze} 
+2451:   disabled={isAnalyzing}
+2452:   className="flex items-center gap-2 bg-[#2C2C2C] text-[#F5F3ED] px-4 py-2 rounded-full text-sm font-medium hover:bg-black transition-colors disabled:opacity-50"
+2453: >
+2454:   {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+2455:   {isAnalyzing ? 'Analyzing...' : 'Pull and analyze latest data'}
+2456: </button>
+2457: </div>
+2458:
+2459: {analysisResult && (
+2460:   <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl prose prose-sm max-w-none">
+2461:     <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><Sparkles size={18} /> AI Analysis</h3>
+2462:     <Markdown>{analysisResult}</Markdown>
+2463:   </div>
+2464: )}
+2465:
+2466: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 flex flex-col md:flex-row items-start gap-6">
+2467: <img src={competitor.logoUrl} alt={competitor.name} className="w-24 h-24 rounded-xl border border-ink-dark/20 object-cover bg-paper-base shrink-0" referrerPolicy="no-referrer" />
+2468: <div className="flex-1 w-full">
+2469: <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+2470: <div>
+2471: <h2 className="text-3xl font-bold text-ink-dark tracking-tight">{competitor.name}</h2>
+2472: <a href={`https://${competitor.website}`} target="_blank" rel="noreferrer" className="text-[#8A8A8A] hover:underline text-sm">{competitor.website}</a>
+2473: <div className="mt-3 flex flex-wrap gap-2">
+2474: {competitor.marketSegments.map((segment, i) => (
+2475: <span key={i} className="px-2.5 py-1 bg-paper-base text-[#8A8A8A] rounded-md text-xs uppercase tracking-wider font-semibold border border-ink-dark/20 ">
+2476: {segment}
+2477: </span>
+2478: ))}
+2479: </div>
+2480: </div>
+2481: <div className="flex gap-6 text-left sm:text-right">
+2482: <div>
+2483: <div className="text-3xl font-bold text-ink-dark ">{competitor.competitorScore}<span className="text-lg text-[#8A8A8A] ">/100</span></div>
+2484: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium">Threat Score</div>
+2485: </div>
+2486: <div className="hidden sm:block w-px h-12 bg-paper-base "></div>
+2487: <div>
+2488: <div className="flex items-center sm:justify-end gap-2 mb-1">
+2489: <ShieldCheck size={14} className={competitor.trustScore > 80 ? "text-emerald-500 " : competitor.trustScore > 50 ? "text-amber-500 " : "text-rose-500 "} />
+2490: <span className="text-2xl font-bold text-ink-dark ">{competitor.trustScore}<span className="text-sm text-[#8A8A8A] ">/100</span></span>
+2491: </div>
+2492: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium">Data Trust Score</div>
+2493: </div>
+2494: </div>
+2495: </div>
+2496: <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-ink-dark/20 /50">
+2497: <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
+2498: <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><DollarSign size={16}/> Financial & Market Data</h3>
+2499: <div className="grid grid-cols-2 gap-4 mb-3">
+2500: <div>
+2501: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1">Funding Stage</div>
+2502: <div className="font-semibold text-ink-dark ">{competitor.fundingStage}</div>
+2503: </div>
+2504: <div>
+2505: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1">Estimated ARR</div>
+2506: <div className="font-semibold text-ink-dark ">{competitor.estimatedARR}</div>
+2507: </div>
+2508: </div>
+2509: <p className="text-sm text-[#8A8A8A] leading-relaxed">{competitor.financialSnapshot}</p>
+2510: </div>
+2511: <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
+2512: <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><Users size={16}/> Target Audience</h3>
+2513: <p className="text-ink-dark font-medium mb-2">{competitor.targetAudience}</p>
+2514: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-2">Key Segments</div>
+2515: <div className="flex flex-wrap gap-1.5">
+2516: {competitor.marketSegments.map((segment, i) => (
+2517: <span key={i} className="px-2 py-0.5 bg-paper-card text-[#8A8A8A] rounded text-xs border border-ink-dark/20 ">
+2518: {segment}
+2519: </span>
+2520: ))}
+2521: </div>
+2522: </div>
+2523: <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
+2524: <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><GlobeLock size={16}/> Data Sovereignty</h3>
+2525: <div className="mb-4">
+2526: <SovereigntyBadge status={competitor.dataSovereignty} score={competitor.sovereigntyScore} />
+2527: </div>
+2528: <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1">Spam Protection</div>
+2529: <div className="font-medium text-ink-dark ">{competitor.spamProtection}</div>
+2530: </div>
+2531: </div>
+2532: </div>
+2533: </div>
+2534:
+2535: <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+2536: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 lg:col-span-1 flex flex-col">
+2537: <h3 className="text-lg font-semibold text-ink-dark mb-6 flex items-center gap-2"><Radar size={18} className="text-[#8A8A8A] "/> Competitive Proximity</h3>
+2538: 
+2539: <div className="h-64 w-full mb-6 relative -ml-4">
+2540: <ResponsiveContainer width="100%" height="100%">
+2541: <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+2542: <PolarGrid stroke="#5c8c74" strokeOpacity={0.2} />
+2543: <PolarAngleAxis dataKey="subject" tick={{ fill: '#5c8c74', fontSize: 10 }} />
+2544: <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+2545: <RechartsRadar name={competitor.name} dataKey="A" stroke="#7ba05b" fill="#7ba05b" fillOpacity={0.3} />
+2546: <RechartsTooltip 
+2547: contentStyle={{ backgroundColor: '#fcfbf9', border: '1px solid rgba(61, 74, 64, 0.1)', borderRadius: '8px', color: '#3d4a40', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+2548: itemStyle={{ color: '#7ba05b', fontWeight: 600 }}
+2549: />
+2550: </RadarChart>
+2551: </ResponsiveContainer>
+2552: </div>
+2553:
+2554: <div className="space-y-6 mt-auto">
+2555: <div className="group cursor-help relative">
+2556: <div className="flex justify-between items-end mb-2">
+2557: <div className="flex items-center gap-1.5">
+2558: <span className="text-sm font-medium text-ink-dark ">Market Commonality</span>
+2559: <Info size={14} className="text-[#8A8A8A] " />
+2560: </div>
+2561: <span className="text-xl font-bold text-ink-dark ">{competitor.marketCommonalityIndex}<span className="text-sm text-[#8A8A8A] font-normal">/100</span></span>
+2562: </div>
+2563: <div className="w-full bg-paper-base rounded-full h-2.5 overflow-hidden">
+2564: <div className="bg-[#2C2C2C] h-2.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${competitor.marketCommonalityIndex}%` }}></div>
+2565: </div>
+2566: <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-paper-card text-ink-dark text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 font-normal normal-case border border-ink-dark/20 ">
+2567: <p className="font-semibold mb-1">Market Commonality Index (MCI)</p>
+2568: <p className="text-[#8A8A8A] ">Based on Chen's (1996) framework of competitive dynamics. Measures the degree of overlap in target markets and customer segments. A higher score indicates a more direct threat to your core customer base.</p>
+2569: </div>
+2570: </div>
+2571:
+2572: <div className="group cursor-help relative">
+2573: <div className="flex justify-between items-end mb-2">
+2574: <div className="flex items-center gap-1.5">
+2575: <span className="text-sm font-medium text-ink-dark ">Resource Similarity</span>
+2576: <Info size={14} className="text-[#8A8A8A] " />
+2577: </div>
+2578: <span className="text-xl font-bold text-ink-dark ">{competitor.resourceSimilarityScore}<span className="text-sm text-[#8A8A8A] font-normal">/100</span></span>
+2579: </div>
+2580: <div className="w-full bg-paper-base rounded-full h-2.5 overflow-hidden">
+2581: <div className="bg-[#8A8A8A] h-2.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${competitor.resourceSimilarityScore}%` }}></div>
+2582: </div>
+2583: <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-paper-card text-ink-dark text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 font-normal normal-case border border-ink-dark/20 ">
+2584: <p className="font-semibold mb-1">Resource Similarity Score (RSS)</p>
+2585: <p className="text-[#8A8A8A] ">Measures the extent to which a competitor possesses strategic endowments comparable to yours (features, integrations, capital). High similarity means they can easily match your moves.</p>
+2586: </div>
+2587: </div>
+2588: </div>
+2589: </div>
+2590:
+2591: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 lg:col-span-1">
+2592: <h3 className="text-lg font-semibold text-ink-dark mb-4 flex items-center gap-2"><Zap size={18} className="text-amber-500 "/> Core Features</h3>
+2593: <ul className="space-y-3">
+2594: {competitor.coreFeatures.map((feature, i) => (
+2595: <li key={i} className="flex items-start gap-3 text-sm text-ink-dark ">
+2596: <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
+2597: <span className="w-1.5 h-1.5 rounded-full bg-amber-500 " />
+2598: </div>
+2599: <span className="pt-1">{feature}</span>
+2600: </li>
+2601: ))}
+2602: </ul>
+2603: </div>
+2604: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 lg:col-span-1">
+2605: <h3 className="text-lg font-semibold text-ink-dark mb-4 flex items-center gap-2"><Target size={18} className="text-emerald-500 "/> How We Compare</h3>
+2606: <p className="text-sm text-ink-dark leading-relaxed bg-paper-base p-4 rounded-lg border border-ink-dark/20 /50">{competitor.howWeCompare}</p>
+2607: </div>
+2608: </div>
+2609:
+2610: <div>
+2611: <h3 className="text-xl font-bold text-ink-dark mb-4 flex items-center gap-2"><Database size={20} className="text-[#8A8A8A] "/> Audit-Ready Data Sources</h3>
+2612: <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2613: {sources.map(source => (
+2614: <DataSourceCard key={source.id} source={source} onClick={() => onSourceClick(source.id)} />
+2615: ))}
+2616: {sources.length === 0 && (
+2617: <div className="col-span-2 p-8 text-center border border-dashed border-ink-dark/20 rounded-xl text-[#8A8A8A] ">
+2618: No raw data sources linked to this competitor yet.
+2619: </div>
+2620: )}
+2621: </div>
+2622: </div>
+2623: </div>
+2624: );
+2625:}
+2626:
+2627:function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) {
+2628: return (
+2629: <button
+2630: onClick={onClick}
+2631: className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-sans font-medium transition-all duration-300 ${
+2632: active 
+2633: ? 'bg-[#2C2C2C] text-[#F5F3ED]' 
+2634: : 'text-[#8A8A8A] hover:bg-[#2C2C2C]/5 hover:text-[#2C2C2C]'
+2635: }`}
+2636: >
+2637: <div className={`shrink-0 ${active ? 'text-[#F5F3ED]' : 'text-[#8A8A8A]'}`}>{icon}</div>
+2638: <span className="truncate">{label}</span>
+2639: </button>
+2640: );
+2641:}
+2642:
+2643:function SummaryCard({ title, value, subtitle, icon, trend, trendType = 'success', onClick, colorClass = 'text-sky', bgClass = 'bg-sky/10' }: { 
+2644: title: string; 
+2645: value: string; 
+2646: subtitle?: string; 
+2647: icon?: React.ReactNode;
+2648: trend?: string;
+2649: trendType?: 'success' | 'warning' | 'neutral';
+2650: onClick?: () => void;
+2651: colorClass?: string;
+2652: bgClass?: string;
+2653:}) {
+2654: const trendColors = {
+2655: success: 'text-[#2C2C2C] bg-paper-base',
+2656: warning: 'text-terracotta bg-terracotta/10',
+2657: neutral: 'text-ink-muted bg-ink-dark/10'
+2658: };
+2659:
+2660: return (
+2661: <div 
+2662: onClick={onClick}
+2663: className={`bg-paper-card border border-ink-dark/20 rounded-storybook p-6 shadow-storybook hover:shadow-storybook-hover hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
+2664: >
+2665: <div className={`absolute -bottom-4 -right-4 w-24 h-24 ${colorClass} opacity-[0.03] group-hover:opacity-[0.06] group-hover:scale-110 transition-all duration-500 pointer-events-none`}>
+2666: {icon}
+2667: </div>
+2668: 
+2669: <div className="flex justify-between items-start mb-4 relative z-10">
+2670: <h3 className="text-sm font-sans font-semibold text-ink-muted">{title}</h3>
+2671: {icon && <div className={`p-2 rounded-full ${bgClass} ${colorClass}`}>{icon}</div>}
+2672: </div>
+2673: <div className="relative z-10">
+2674: <div className="text-4xl font-serif font-bold text-ink-dark tracking-tight">{value}</div>
+2675: <div className="flex items-center gap-2 mt-2">
+2676: {trend && (
+2677: <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${trendColors[trendType]}`}>
+2678: {trend}
+2679: </span>
+2680: )}
+2681: {subtitle && <p className="text-xs font-sans text-ink-faint truncate">{subtitle}</p>}
+2682: </div>
+2683: </div>
+2684: </div>
+2685: );
+2686:}
+2687:
+2688:function SortableHeader({ 
+2689: label, 
+2690: field, 
+2691: currentSort, 
+2692: sortOrder, 
+2693: onSort,
+2694: className = "",
+2695: tooltip
+2696:}: { 
+2697: label: string; 
+2698: field: SortField; 
+2699: currentSort: SortField; 
+2700: sortOrder: SortOrder; 
+2701: onSort: (field: SortField) => void;
+2702: className?: string;
+2703: tooltip?: string;
+2704:}) {
+2705: return (
+2706: <th 
+2707: className={`pb-3 px-6 py-4 text-ink-dark text-xs uppercase tracking-widest font-semibold cursor-pointer hover:text-black transition-colors group select-none relative ${className}`}
+2708: onClick={() => onSort(field)}
+2709: >
+2710: <div className="flex items-center gap-2">
+2711: {label}
+2712: {tooltip && <Info size={14} className="text-ink-muted" />}
+2713: <ArrowUpDown 
+2714: size={14} 
+2715: className={`transition-all ${currentSort === field ? 'opacity-100 text-black' : 'opacity-0 group-hover:opacity-40 text-ink-muted'}`} 
+2716: />
+2717: </div>
+2718: {tooltip && (
+2719:   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-paper-card text-ink-dark border border-ink-dark/20 text-xs rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 font-normal normal-case">
+2720:     {tooltip}
+2721:   </div>
+2722: )}
+2723: </th>
+2724: );
+2725:}
+2726:
+2727:function QuickPromptButton({ icon, label, onClick, disabled }: { icon?: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+2728: return (
+2729: <button
+2730: onClick={onClick}
+2731: disabled={disabled}
+2732: className="flex items-center justify-center gap-2 px-4 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+2733: >
+2734: {icon && <span>{icon}</span>}
+2735: <span>{label}</span>
+2736: </button>
+2737: );
+2738:}
+2739:
+2740:function SovereigntyBadge({ status, score }: { status: string; score: 'low' | 'medium' | 'high' }) {
+2741: const styles = {
+2742: low: 'bg-rose-100 text-rose-800 border-rose-200',
+2743: medium: 'bg-amber-100 text-amber-800 border-amber-200',
+2744: high: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+2745: };
+2746:
+2747: return (
+2748: <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${styles[score]}`}>
+2749: <GlobeLock size={12} />
+2750: {status}
+2751: </span>
+2752: );
+2753:}
+2754:
+2755:function SourcePage({ source, competitorName, linkedInsights, onBack, onExpandImage, onCopy }: { source: DataSource, competitorName: string, linkedInsights: DerivedInsight[], onBack: () => void, onExpandImage: (url: string) => void, onCopy: (text: string) => void }) {
+2756: const [isAnalyzing, setIsAnalyzing] = useState(false);
+2757: const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+2758:
+2759: const handleAnalyze = async () => {
+2760:   setIsAnalyzing(true);
+2761:   try {
+2762:     const response = await withKeyRotation(async (ai, model) => {
+2763:       return await ai.models.generateContent({
+2764:         model: model,
+2765:         contents: `Analyze the following source data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
+2766:       });
+2767:     });
+2768:     setAnalysisResult(response.text || 'No analysis generated.');
+2769:   } catch (error) {
+2770:     console.error(error);
+2771:     setAnalysisResult('Failed to generate analysis.');
+2772:   } finally {
+2773:     setIsAnalyzing(false);
+2774:   }
+2775: };
+2776:
+2777: const copySourceText = () => {
+2778: const text = `Source: ${source.sourceUrl}\nCompetitor: ${competitorName}\nType: ${source.type}\nConfidence: ${source.confidenceLevel}\n\nExcerpt:\n${source.excerpt}`;
+2779: onCopy(text);
+2780: };
+2781:
+2782: return (
+2783: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+2784: <div className="flex justify-between items-center">
+2785: <button onClick={onBack} className="flex items-center gap-2 text-sm text-[#8A8A8A] hover:text-ink-dark transition-colors">
+2786: <ArrowLeft size={16} /> Back to Library
+2787: </button>
+2788: <button 
+2789:   onClick={handleAnalyze} 
+2790:   disabled={isAnalyzing}
+2791:   className="flex items-center gap-2 bg-[#2C2C2C] text-[#F5F3ED] px-4 py-2 rounded-full text-sm font-medium hover:bg-black transition-colors disabled:opacity-50"
+2792: >
+2793:   {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+2794:   {isAnalyzing ? 'Analyzing...' : 'Pull and analyze latest data'}
+2795: </button>
+2796: </div>
+2797:
+2798: {analysisResult && (
+2799:   <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl prose prose-sm max-w-none">
+2800:     <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><Sparkles size={18} /> AI Analysis</h3>
+2801:     <Markdown>{analysisResult}</Markdown>
+2802:   </div>
+2803: )}
+2804: 
+2805: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl">
+2806: <div className="flex items-center gap-3 mb-6">
+2807: <div className="w-10 h-10 rounded-lg bg-paper-base flex items-center justify-center">
+2808: <Archive className="text-[#8A8A8A] " size={20} />
+2809: </div>
+2810: <div>
+2811: <h2 className="text-xl font-bold text-ink-dark ">Raw Data Source</h2>
+2812: <a href={source.sourceUrl.startsWith('http') ? source.sourceUrl : `https://${source.sourceUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#8A8A8A] hover:text-[#2C2C2C] flex items-center gap-1">
+2813: {source.sourceUrl} <ExternalLink size={12} />
+2814: </a>
+2815: </div>
+2816: </div>
+2817:
+2818: <div className="overflow-hidden rounded-lg border border-ink-dark/20 ">
+2819: <table className="w-full text-sm text-left">
+2820: <tbody className="divide-y divide-ink-dark/20">
+2821: <tr className="bg-paper-base /50"><th className="px-4 py-3 text-[#8A8A8A] font-medium w-1/3">Competitor</th><td className="px-4 py-3 text-ink-dark ">{competitorName}</td></tr>
+2822: <tr><th className="px-4 py-3 text-[#8A8A8A] font-medium">Source Type</th><td className="px-4 py-3 text-ink-dark capitalize">{source.type}</td></tr>
+2823: <tr className="bg-paper-base /50"><th className="px-4 py-3 text-[#8A8A8A] font-medium">Confidence Level</th><td className="px-4 py-3 text-ink-dark ">{source.confidenceLevel}</td></tr>
+2824: <tr><th className="px-4 py-3 text-[#8A8A8A] font-medium">Is Deduced</th><td className="px-4 py-3 text-ink-dark ">{source.isDeduced ? 'Yes' : 'No'}</td></tr>
+2825: <tr className="bg-paper-base /50"><th className="px-4 py-3 text-[#8A8A8A] font-medium">Timestamp</th><td className="px-4 py-3 text-ink-dark ">{new Date(source.timestamp).toLocaleString()}</td></tr>
+2826: <tr><th className="px-4 py-3 text-[#8A8A8A] font-medium">Tags</th><td className="px-4 py-3 text-ink-dark ">{source.tags.join(', ')}</td></tr>
+2827: </tbody>
+2828: </table>
+2829: </div>
+2830:
+2831: {linkedInsights && linkedInsights.length > 0 && (
+2832: <div className="mt-6">
+2833: <h3 className="text-sm font-medium text-[#8A8A8A] mb-2 uppercase tracking-wider">Derived Insights</h3>
+2834: <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2835: {linkedInsights.map(insight => (
+2836: <div key={insight.id} className="bg-paper-base border border-ink-dark/20 rounded-lg p-4">
+2837: <h4 className="font-bold text-ink-dark mb-1">{insight.title}</h4>
+2838: <p className="text-sm text-ink-muted line-clamp-2">{insight.description}</p>
+2839: </div>
+2840: ))}
+2841: </div>
+2842: </div>
+2843: )}
+2844:
+2845: {source.type === 'screenshot' && (
+2846: <div className="mt-6">
+2847: <h3 className="text-sm font-medium text-[#8A8A8A] mb-2 uppercase tracking-wider flex justify-between items-center">
+2848: Media Source
+2849: <button onClick={() => window.open(source.sourceUrl, '_blank')} className="text-[#8A8A8A] hover:text-[#2C2C2C] flex items-center gap-1 text-xs normal-case">
+2850: <Download size={12} /> Download
+2851: </button>
+2852: </h3>
+2853: <div className="bg-paper-base border border-ink-dark/20 rounded-lg overflow-hidden cursor-pointer" onClick={() => onExpandImage(source.sourceUrl)}>
+2854: <img src={source.sourceUrl} alt="Source Media" className="w-full max-h-[400px] object-contain" referrerPolicy="no-referrer" />
+2855: </div>
+2856: </div>
+2857: )}
+2858:
+2859: <div className="mt-6">
+2860: <h3 className="text-sm font-medium text-[#8A8A8A] mb-2 uppercase tracking-wider flex justify-between items-center">
+2861: Extracted Excerpt
+2862: <button onClick={copySourceText} className="text-[#8A8A8A] hover:text-[#2C2C2C] flex items-center gap-1 text-xs normal-case">
+2863: <Copy size={12} /> Copy with Context
+2864: </button>
+2865: </h3>
+2866: <div className="bg-paper-base border border-ink-dark/20 rounded-lg p-4 overflow-x-auto">
+2867: <JsonViewer text={source.excerpt} />
+2868: </div>
+2869: </div>
+2870: </div>
+2871: </div>
+2872: );
+2873:}
+2874:
+2875:function SummaryPage({ title, value, icon, trend, stats, onBack, competitors }: any) {
+2876: const [isAnalyzing, setIsAnalyzing] = useState(false);
+2877: const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+2878:
+2879: const handleAnalyze = async () => {
+2880:   setIsAnalyzing(true);
+2881:   try {
+2882:     const response = await withKeyRotation(async (ai, model) => {
+2883:       return await ai.models.generateContent({
+2884:         model: model,
+2885:         contents: `Analyze the following summary data. Return the source data as tables or excerpts and a summary explaining why this matters. Title: ${title}\nValue: ${value}\nTrend: ${trend}\nStats: ${JSON.stringify(stats)}`,
+2886:       });
+2887:     });
+2888:     setAnalysisResult(response.text || 'No analysis generated.');
+2889:   } catch (error) {
+2890:     console.error(error);
+2891:     setAnalysisResult('Failed to generate analysis.');
+2892:   } finally {
+2893:     setIsAnalyzing(false);
+2894:   }
+2895: };
+2896:
+2897: return (
+2898: <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+2899: <div className="flex justify-between items-center">
+2900: <button onClick={onBack} className="flex items-center gap-2 text-sm text-[#8A8A8A] hover:text-ink-dark transition-colors">
+2901: <ArrowLeft size={16} /> Back to Dashboard
+2902: </button>
+2903: <button 
+2904:   onClick={handleAnalyze} 
+2905:   disabled={isAnalyzing}
+2906:   className="flex items-center gap-2 bg-[#2C2C2C] text-[#F5F3ED] px-4 py-2 rounded-full text-sm font-medium hover:bg-black transition-colors disabled:opacity-50"
+2907: >
+2908:   {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+2909:   {isAnalyzing ? 'Analyzing...' : 'Pull and analyze latest data'}
+2910: </button>
+2911: </div>
+2912:
+2913: {analysisResult && (
+2914:   <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl prose prose-sm max-w-none">
+2915:     <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><Sparkles size={18} /> AI Analysis</h3>
+2916:     <Markdown>{analysisResult}</Markdown>
+2917:   </div>
+2918: )}
+2919: 
+2920: <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl">
+2921: <div className="flex items-center gap-3 mb-6">
+2922: <div className="w-10 h-10 rounded-lg bg-paper-base flex items-center justify-center">
+2923: {icon}
+2924: </div>
+2925: <div>
+2926: <h2 className="text-xl font-bold text-ink-dark ">{title}</h2>
+2927: <p className="text-sm text-[#8A8A8A] ">Detailed view</p>
+2928: </div>
+2929: </div>
+2930:
+2931: <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+2932: <div className="bg-paper-base border border-ink-dark/20 rounded-lg p-4">
+2933: <div className="text-[#8A8A8A] text-sm mb-1">Current Value</div>
+2934: <div className="text-2xl font-bold text-ink-dark ">{value}</div>
+2935: </div>
+2936: <div className="bg-paper-base border border-ink-dark/20 rounded-lg p-4">
+2937: <div className="text-[#8A8A8A] text-sm mb-1">Trend</div>
+2938: <div className="text-lg font-medium text-ink-dark ">{trend || 'Stable'}</div>
+2939: </div>
+2940: </div>
+2941:
+2942: {title === 'Estimated Market Value' || title === 'Est. Market Value' ? (
+2943:   <div className="mt-8 mb-8">
+2944:     <MarketValueNotebook stats={stats} />
+2945:   </div>
+2946: ) : (
+2947:   <div className="mt-8 mb-8">
+2948:     <DataPointsTable type={title} data={competitors} />
+2949:   </div>
+2950: )}
+2951:
+2952: <h3 className="text-lg font-semibold text-ink-dark mb-4">Related Market Data</h3>
+2953: <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+2954: {Object.entries(stats).map(([key, val]) => (
+2955: <div key={key} className="bg-paper-base border border-ink-dark/20 rounded-lg p-4">
+2956: <div className="text-[#8A8A8A] text-xs uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+2957: <div className="text-ink-dark font-medium">{String(val)}</div>
+2958: </div>
+2959: ))}
+2960: </div>
+2961: </div>
+2962: </div>
+2963: );
+2964:}
+2965:
