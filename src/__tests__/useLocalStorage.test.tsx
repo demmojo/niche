@@ -1,7 +1,7 @@
-import { render, act, waitFor, fireEvent } from "@testing-library/react";
+import { render, act, waitFor, fireEvent } from "../test-utils/render";
 import React, { useEffect } from "react";
 import { useLocalStorage } from "../App";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as firestore from "firebase/firestore";
 
 // Mock Firebase
@@ -47,8 +47,13 @@ function TestComponent({
 
 describe("useLocalStorage", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     window.localStorage.clear();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should initialize with initial value if localStorage is empty", () => {
@@ -74,6 +79,7 @@ describe("useLocalStorage", () => {
 
     act(() => {
       fireEvent.click(getByTestId("update"));
+      vi.runAllTimers();
     });
 
     expect(getByTestId("value").textContent).toBe("new_value");
@@ -84,12 +90,7 @@ describe("useLocalStorage", () => {
     expect(valueSetCall).toBeDefined();
 
     // Check debounce for firebase
-    await waitFor(
-      () => {
-        expect(firestore.setDoc).toHaveBeenCalled();
-      },
-      { timeout: 2500 },
-    );
+    expect(firestore.setDoc).toHaveBeenCalled();
   });
 
   it("should correctly handle functional updates", () => {

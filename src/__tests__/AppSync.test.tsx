@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  render,
-  screen,
-  act,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react";
+import { render, screen, act, fireEvent, waitFor } from "../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "../App";
 import * as firestore from "firebase/firestore";

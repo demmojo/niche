@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SyncReviewModal } from "../../components/SyncReviewModal";
 import { SyncDiff } from "../../types";

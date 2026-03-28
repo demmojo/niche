@@ -1,5 +1,5 @@
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, act, waitFor } from "../../test-utils/render";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useFirebaseSync } from "../../hooks/useFirebaseSync";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { safeDisableNetwork } from "../../firebase";
@@ -26,6 +26,7 @@ describe("useFirebaseSync", () => {
   let mockOnSnapshotErrorCallback: any;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.resetAllMocks();
     mockOnSnapshotCallback = undefined;
     mockOnSnapshotErrorCallback = undefined;
@@ -39,6 +40,10 @@ describe("useFirebaseSync", () => {
         return vi.fn(); // unsubscribe function
       },
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns initial value when no user is authenticated", () => {
@@ -103,6 +108,11 @@ describe("useFirebaseSync", () => {
     });
 
     expect(result.current[0]).toBe("new-value");
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
     expect(setDoc).toHaveBeenCalledWith(
       "mock-doc-ref",
       { value: "new-value" },
@@ -131,6 +141,11 @@ describe("useFirebaseSync", () => {
     });
 
     expect(result.current[0]).toBe(1);
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
     expect(setDoc).toHaveBeenCalledWith(
       "mock-doc-ref",
       { value: 1 },
@@ -179,7 +194,7 @@ describe("useFirebaseSync", () => {
     // Trigger setDoc failure in snapshot initialization
     await act(async () => {
       mockOnSnapshotCallback({ exists: () => false });
-      await new Promise((resolve) => setTimeout(resolve, 0)); // wait for promise rejection
+      await vi.runAllTimersAsync();
     });
 
     expect(safeDisableNetwork).toHaveBeenCalled();
@@ -189,7 +204,7 @@ describe("useFirebaseSync", () => {
 
     await act(async () => {
       result.current[1]("fail-value");
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.runAllTimersAsync();
     });
 
     expect(safeDisableNetwork).toHaveBeenCalledTimes(2);
@@ -203,6 +218,9 @@ describe("useFirebaseSync", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     renderHook(() => useFirebaseSync("test-key", "initial"));
+
+    // Ensure mockOnSnapshotCallback is set by onSnapshot
+    expect(mockOnSnapshotErrorCallback).toBeDefined();
 
     act(() => {
       mockOnSnapshotErrorCallback({

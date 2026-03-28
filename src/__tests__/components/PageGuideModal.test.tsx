@@ -1,50 +1,60 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PageGuideModal } from '../../components/PageGuideModal';
+import { render, screen, fireEvent } from "../../test-utils/render";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { PageGuideModal } from "../../components/PageGuideModal";
 
-describe('PageGuideModal', () => {
+describe("PageGuideModal", () => {
   const mockOnClose = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('does not render when isOpen is false', () => {
+  it("does not render when isOpen is false", () => {
     const { container } = render(
-      <PageGuideModal isOpen={false} onClose={mockOnClose} activeTab="dashboard" />
+      <PageGuideModal
+        isOpen={false}
+        onClose={mockOnClose}
+        activeTab="dashboard"
+      />,
     );
-    expect(container.firstChild).toBeNull(); 
+    expect(container.firstChild).toBeNull();
   });
 
-  it('renders the correct guide content based on activeTab', async () => {
+  it("renders the correct guide content based on activeTab", async () => {
     render(
-      <PageGuideModal isOpen={true} onClose={mockOnClose} activeTab="matrix" />
+      <PageGuideModal isOpen={true} onClose={mockOnClose} activeTab="matrix" />,
     );
-    expect(await screen.findByText('Competitor Matrix')).toBeInTheDocument();
+    expect(await screen.findByText("Competitor Matrix")).toBeInTheDocument();
   });
 
-  it('falls back to dashboard if tab is not found', async () => {
+  it("falls back to dashboard if tab is not found", async () => {
     render(
-      <PageGuideModal isOpen={true} onClose={mockOnClose} activeTab="non-existent" />
+      <PageGuideModal
+        isOpen={true}
+        onClose={mockOnClose}
+        activeTab="non-existent"
+      />,
     );
-    expect(await screen.findByText('Dashboard')).toBeInTheDocument();
+    expect(await screen.findByText("Dashboard")).toBeInTheDocument();
   });
 
   it('handles "Do not show again" checkbox properly', async () => {
     const mockOnDoNotShowAgain = vi.fn();
     render(
-      <PageGuideModal 
-        isOpen={true} 
-        onClose={mockOnClose} 
-        activeTab="dashboard" 
-        onDoNotShowAgain={mockOnDoNotShowAgain} 
-      />
+      <PageGuideModal
+        isOpen={true}
+        onClose={mockOnClose}
+        activeTab="dashboard"
+        onDoNotShowAgain={mockOnDoNotShowAgain}
+      />,
     );
 
-    const checkboxLabel = await screen.findByText("Don't show this guide again");
+    const checkboxLabel = await screen.findByText(
+      "Don't show this guide again",
+    );
     fireEvent.click(checkboxLabel);
-    
-    const startButton = screen.getByText('Get Started');
+
+    const startButton = screen.getByText("Get Started");
     fireEvent.click(startButton);
 
     expect(mockOnDoNotShowAgain).toHaveBeenCalledTimes(1);

@@ -1,4 +1,6 @@
-import { create } from "zustand";
+import { createStore } from "zustand/vanilla";
+import { useStore } from "zustand";
+import { createContext, useContext, useRef } from "react";
 
 // Decoupled Card (exists globally, independent of whiteboards)
 export interface Card {
@@ -63,10 +65,12 @@ interface VisualKnowledgeState {
 
   addEdge: (whiteboardId: string, edge: Omit<WhiteboardEdge, "id">) => void;
   removeEdge: (whiteboardId: string, edgeId: string) => void;
+
+  setInitialData: (data: Partial<VisualKnowledgeState>) => void;
 }
 
-export const useVisualKnowledgeStore = create<VisualKnowledgeState>(
-  (set, get) => ({
+export const createVisualKnowledgeStore = () =>
+  createStore<VisualKnowledgeState>((set, get) => ({
     cards: {},
     whiteboards: {},
     activeWhiteboardId: null,
@@ -253,5 +257,51 @@ export const useVisualKnowledgeStore = create<VisualKnowledgeState>(
         };
       });
     },
-  }),
-);
+
+    setInitialData: (data) => {
+      set(data);
+    },
+  }));
+
+export const testVisualKnowledgeStore = createVisualKnowledgeStore();
+
+export const VisualKnowledgeContext = createContext<ReturnType<
+  typeof createVisualKnowledgeStore
+> | null>(null);
+
+export function VisualKnowledgeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const storeRef = useRef<ReturnType<typeof createVisualKnowledgeStore>>(null);
+  if (!storeRef.current) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    storeRef.current =
+      typeof process !== "undefined" && process.env.NODE_ENV === "test"
+        ? testVisualKnowledgeStore
+        : createVisualKnowledgeStore();
+  }
+  return (
+    <VisualKnowledgeContext.Provider value={storeRef.current}>
+      {children}
+    </VisualKnowledgeContext.Provider>
+  );
+}
+
+export function useVisualKnowledgeStore(): VisualKnowledgeState;
+export function useVisualKnowledgeStore<T>(
+  selector: (state: VisualKnowledgeState) => T,
+): T;
+export function useVisualKnowledgeStore<T>(
+  selector?: (state: VisualKnowledgeState) => T,
+) {
+  const store = useContext(VisualKnowledgeContext);
+  if (!store) throw new Error("Missing VisualKnowledgeProvider");
+  return useStore(store, selector!);
+}
+
+// Attach methods for test compatibility
+useVisualKnowledgeStore.setState = testVisualKnowledgeStore.setState;
+useVisualKnowledgeStore.getState = testVisualKnowledgeStore.getState;

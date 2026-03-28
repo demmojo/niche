@@ -5,7 +5,7 @@ import {
   fireEvent,
   act,
   waitFor,
-} from "@testing-library/react";
+} from "../../test-utils/render";
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Settings } from "../../../src/components/Settings";

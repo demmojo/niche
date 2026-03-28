@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   ReactFlow,
   MiniMap,
@@ -89,7 +90,20 @@ export function VisualWhiteboard() {
     removeEdge,
     addCard,
     placeCardOnWhiteboard,
-  } = useVisualKnowledgeStore();
+  } = useVisualKnowledgeStore(
+    useShallow((state) => ({
+      whiteboards: state.whiteboards,
+      activeWhiteboardId: state.activeWhiteboardId,
+      cards: state.cards,
+      createWhiteboard: state.createWhiteboard,
+      setActiveWhiteboard: state.setActiveWhiteboard,
+      updateCardInstancePosition: state.updateCardInstancePosition,
+      addEdge: state.addEdge,
+      removeEdge: state.removeEdge,
+      addCard: state.addCard,
+      placeCardOnWhiteboard: state.placeCardOnWhiteboard,
+    })),
+  );
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -203,9 +217,7 @@ export function VisualWhiteboard() {
       // For this simplified setup, we'll use placeCard and let the user redraw edges,
       // OR we implement a robust batch initialization method in the store.
       // *Workaround*: Just place them using the store.
-      useVisualKnowledgeStore
-        .getState()
-        .placeCardOnWhiteboard(wbId, inst.cardId, inst.position);
+      placeCardOnWhiteboard(wbId, inst.cardId, inst.position);
     });
 
     // We skip automatic edges for now due to instance ID mismatch.

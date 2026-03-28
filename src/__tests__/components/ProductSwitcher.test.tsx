@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "../../test-utils/render";
 import { ProductSwitcher } from "../../components/ProductSwitcher";
 
 // Mock the Radix UI primitives as they can be tricky in JSDOM without proper layout

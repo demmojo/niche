@@ -5,7 +5,7 @@ import {
   fireEvent,
   waitFor,
   act,
-} from "@testing-library/react";
+} from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { tMessage } from "../../content/dictionary";
 import { Tooltip } from "../../components/Tooltip";

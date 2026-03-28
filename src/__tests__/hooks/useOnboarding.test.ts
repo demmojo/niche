@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act, waitFor } from "../../test-utils/render";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import * as storageUtils from "../../utils/storage";

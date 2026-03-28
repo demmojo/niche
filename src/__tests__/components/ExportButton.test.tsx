@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "../../test-utils/render";
 import { describe, it, expect, vi } from "vitest";
 import ExportButton from "../../components/ExportButton";
 import { checkSubscriptionTier } from "../../utils/subscription";

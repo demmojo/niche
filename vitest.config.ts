@@ -7,7 +7,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/setupTests.ts"],
-    isolate: true, // Reverting to isolate: true as state leaking from Zustand/Mocks across 50+ tests is too destructive for an immediate flip.
+    isolate: true,
     pool: "threads",
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
