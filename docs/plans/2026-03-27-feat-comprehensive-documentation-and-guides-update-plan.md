@@ -7,101 +7,78 @@ date: 2026-03-27
 
 # Comprehensive Documentation and Guides Update
 
-## User Value Proposition
-
-**Empower users to master complex features without reading a manual.**
-
-NicheAI has incredibly powerful tools (like the Strategy Toolbox, Lens Strategy Console, and Next-Gen Analytics), but if users don't know how to use them, that power is useless. Traditional, forced multi-step product tours annoy users, and hidden features never get discovered.
-
-**Why use this tool?**
-This initiative transforms the platform from a "complex tool you have to learn" into an "intuitive assistant that guides you."
-
-**What is the expectation of the result?**
-
-- **Discoverability:** Users effortlessly discover advanced features at exactly the moment they need them, through subtle, contextual "beacons."
-- **Clarity:** Tooltips and guides don't just explain _what_ a button does; they explain _why_ the user should care (intent-based documentation).
-- **Frictionless Experience:** No more annoying popups on mobile, no more clipped text, and no more forced tours that interrupt the user's flow.
-
-**The Best Case Scenario:**
-A new founder logs into NicheAI. Instead of being bombarded by a 10-step unskippable tour, they are left to explore. When they hover over the "Algorithmic Blue Ocean Value Curve," a beautifully formatted tooltip explains how it helps them beat competitors. A subtle, pulsing beacon guides them to connect their first data source. They feel completely supported, never overwhelmed, and immediately understand the value of the platform.
-
 ## Overview
 
-A massive platform-wide overhaul of all documentation, user onboarding guides, and progressive disclosure patterns (tooltips). This initiative aligns the NicheAI platform with modern 2026 UX best practices—moving away from forced tours to beacon-initiated guides, establishing an "intent-based" documentation hierarchy, standardizing broken accessibility patterns in tooltips, and bringing the repository's core marketing and technical documentation up to date.
+A platform-wide overhaul of all documentation, user onboarding guides, and progressive disclosure patterns (tooltips). This initiative aligns the NicheAI platform with modern 2026 UX/DX best practices—establishing an "intent-based" (Jobs-To-Be-Done) documentation hierarchy, standardizing accessible & performant tooltips, and bringing the repository's core marketing and technical documentation up to date.
+
+Following a rigorous technical review, the implementation strictly adheres to YAGNI principles and robust React patterns: eliminating fragile DOM observers in favor of a React Target Registry, dropping unnecessary temporal state (like "Snooze" or global "Beacon Queues"), and relying on declarative CSS for mobile responsiveness.
 
 ## Problem Statement
 
 The NicheAI platform suffers from fragmented and outdated documentation at both the codebase and user-interface levels:
 
-- **Root Documentation:** The `README.md` and `docs/landing-page-master.md` are missing the recently added "Next-Gen Analytics" features. There is no central `CLAUDE.md` to guide AI-assisted development.
-- **In-App Guides:** The `PageGuideModal` is hardcoded to specific tabs and completely lacks documentation for the Dead Letter Queue (`dlq`) tab. Content is descriptive rather than intent-based. The `GuidedTour` component is only implemented in `VisualWhiteboard` and uses an inconsistent naming convention (`mindmap`).
-- **Tooltips:** Despite having a custom `Tooltip.tsx` component, the codebase is littered with raw inline Tailwind classes (`group-hover:visible group-hover:opacity-100`), which causes z-index clipping, ruins accessibility (missing ARIA portaling), and provides a broken experience on touch devices.
-- **UX Debt:** Onboarding is currently ad-hoc. We lack a robust progressive disclosure mechanism (like subtle "beacons") to introduce complex features (Dashboard, Lens Strategy Console) to users without forcing blocking multi-step modals.
+- **Root Documentation:** The `README.md` and `docs/landing-page-master.md` are missing the recently added features. There is no central `CLAUDE.md` to guide AI-assisted development.
+- **In-App Guides:** The `PageGuideModal` is hardcoded to specific tabs and lacks documentation for the Dead Letter Queue (`dlq`). Content is descriptive rather than intent-based. The `GuidedTour` component is underutilized.
+- **Tooltips:** The codebase is littered with raw inline Tailwind classes (`group-hover:visible`), causing z-index clipping, ruining accessibility (missing ARIA portaling), and providing a broken experience on touch devices. At scale, individual tooltip providers also cause performance degradation.
+- **UX Debt:** Onboarding is ad-hoc. We lack a robust progressive disclosure mechanism (like subtle "beacons") to introduce complex features without forcing blocking multi-step modals.
 
 ## Proposed Solution
 
-1. **Repository & Marketing Docs:** Create a comprehensive `CLAUDE.md`. Update `README.md` and `docs/landing-page-master.md` to feature the "Next-Gen Analytics" and "Analytical Template System."
-2. **Accessible Tooltips:** Standardize all tooltips across the app to use the `<Tooltip>` component. Remove all inline `group-hover` tooltip hacks. Ensure the component handles mobile touch events gracefully.
-3. **Intent-Based Guides:** Refactor `PageGuideModal` to support the `dlq` route. Rewrite existing guides to be "intent-based" (focusing on user goals and workflows rather than technical descriptions).
-4. **Progressive Disclosure Tours:** Implement a beacon-style launcher system for `GuidedTour`. Expand tours to the Dashboard and Lens Strategy Console. Track tour completion state persistently so users aren't nagged across sessions.
+1. **Repository & Marketing Docs:** Create a comprehensive, XML-tagged `CLAUDE.md` with explicit anti-patterns. Update `README.md` and `docs/landing-page-master.md`.
+2. **Accessible & Performant Tooltips:** Standardize all tooltips to use a refined `<Tooltip>` component. Hoist the `<TooltipProvider>` to the app root with `skipDelayDuration` for fluid UX. Restrict tooltips to simple strings, and use CSS media queries to handle mobile tap-to-open fallbacks (promoting complex tooltips to `Popover`s).
+3. **Intent-Based (JTBD) Guides:** Refactor `PageGuideModal` content to a Jobs-To-Be-Done taxonomy (e.g., `recover-failed-events`). Add "Time-to-Value" action buttons and conditional disclosure inside the guides. Add a "Restart Tour" capability.
+4. **Progressive Disclosure Tours:** Implement localized `<TourBeacon>` components. Track tour completion state persistently via Zustand with strict partialization (only persisting boolean flags). Use a robust React-idiomatic **Tour Target Registry** instead of fragile DOM polling to attach tours to async elements.
 
 ## Technical Approach
 
 ### Architecture
 
-- **Tooltips:** Rely strictly on the `Tooltip.tsx` wrapper (which utilizes `framer-motion` and `@radix-ui/react-tooltip` primitives for portaling and ARIA compliance). Disable hover-triggered tooltips on viewports `< 768px` to prevent sticky touch bugs.
-- **Tour State:** Implement a global Zustand store (e.g., `useOnboardingStore`) synchronized with `localStorage` (or backend user preferences) to track `hasSeenDashboardTour`, `hasSeenLensTour`, etc.
-- **Beacons:** Build a reusable `<TourBeacon>` component that renders a subtle pulsing indicator over a target element if the tour hasn't been completed.
+- **Tooltips:** Hoist `<TooltipProvider delayDuration={300} skipDelayDuration={150}>` to `App.tsx`. The `<Tooltip>` component uses Radix UI for portaling (`sideOffset={4}`, `collisionPadding={8}`). Mobile responsive behavior is handled declaratively via CSS (`hidden md:inline`), not JS window sizing.
+- **Tour State:** Implement a global Zustand store (`useOnboardingStore`) synchronized with `localStorage`. Use `partialize` to strictly whitelist completion flags (`hasSeenDashboardTour`, etc.).
+- **Beacons & Tours:** Build a reusable `<TourBeacon>` anchored robustly via Radix Popover/Floating UI. Tours must have a progress indicator, an always-visible Dismiss button, and full keyboard accessibility (`Esc`, `Arrow` keys).
+- **Tour Target Registry:** Eliminate `setTimeout` and `MutationObserver` hacks. Target components will use a `useTourTarget('target-id')` hook to register their `ref` in a lightweight context, allowing the Tour Engine to deterministically attach popovers when async data finishes loading.
 
 ### Implementation Phases
 
 #### Phase 1: Foundation (Docs & Tooltips)
 
-- Create `CLAUDE.md` with repository conventions.
+- Create XML-tagged `CLAUDE.md` with `<anti-patterns>` section.
 - Update `README.md` and `landing-page-master.md`.
-- Audit the codebase via regex for `group-hover:visible` and inline `title="..."` attributes. Replace them all with the standard `<Tooltip>` component.
-- **Success Criteria:** Zero raw Tailwind tooltips remain; codebase docs are up to date.
+- Hoist `<TooltipProvider>` to root. Audit and replace all inline `group-hover:visible` hacks with the optimized `<Tooltip>` component.
+- **Success Criteria:** Zero raw Tailwind tooltips remain; codebase docs are up-to-date; no tooltip flashing occurs when moving mouse rapidly across items.
 
 #### Phase 2: Page Guides & Intent Refactoring
 
-- Update `PageGuideModal.tsx` to include a rich, intent-based configuration for the `dlq` tab.
-- Rewrite the `dashboard`, `matrix`, and `settings` guides to use an intent-based structure (Goal -> Why it matters -> How to use it).
-- **Success Criteria:** Clicking "Help" on the DLQ tab opens the correct documentation modal.
+- Rename guide keys to JTBD taxonomy (e.g., `recover-failed-events`).
+- Rewrite guide content using conditional disclosure (`<details>`) and add "Time-to-Value" action buttons (e.g., "Apply default retry config").
+- Add "Restart Tour" buttons to the `PageGuideModal`.
+- **Success Criteria:** Clicking "Help" opens task-oriented, actionable documentation.
 
-#### Phase 3: Progressive Guided Tours
+#### Phase 3: Progressive Guided Tours & Beacons
 
-- Build the `useOnboardingStore` to track tour completion state.
+- Build the `useOnboardingStore` with strict partialization.
 - Create the `<TourBeacon>` component.
-- Implement the `GuidedTour` for the Dashboard and Lens Strategy Console, triggered by clicking the beacon.
-- **Success Criteria:** Users see a pulsing beacon on new features. Clicking it starts the tour. Completing or dismissing it hides the beacon permanently.
+- Implement the Tour Target Registry (`TourContext` and `useTourTarget` hook).
+- Implement the `GuidedTour` for the Dashboard and Lens Strategy Console, triggered by beacons.
+- **Success Criteria:** Users see beacons that reliably attach to async DOM nodes without polling, can navigate via keyboard, and state is safely persisted without I/O thrashing.
 
 ## Acceptance Criteria
 
 ### Functional Requirements
 
-- [ ] `README.md` and `docs/landing-page-master.md` contain documentation for "Next-Gen Analytics".
-- [ ] `CLAUDE.md` exists in the root directory and contains AI development instructions.
-- [ ] Navigating to the `dlq` tab and opening the help guide displays DLQ-specific documentation.
-- [ ] Tooltips across the application render above all other UI elements (via Portals) and are accessible to screen readers.
-- [ ] No tooltips trigger "sticky" hover states on mobile touch devices.
-- [ ] The Dashboard and Lens Strategy Console display a "beacon" for first-time users that launches a `GuidedTour`.
-- [ ] Dismissing or completing a tour prevents the beacon from appearing on subsequent page loads.
+- [ ] `CLAUDE.md` exists with XML tags and explicit anti-patterns.
+- [ ] Tooltips render via Portals and use CSS to handle mobile fallbacks (complex content promoted to Popover).
+- [ ] Global `TooltipProvider` handles `skipDelayDuration` for fluid rapid hovering.
+- [ ] Guide content uses JTBD naming and contains actionable "Time-to-Value" buttons.
+- [ ] Beacons appear locally (no global queue) and permanently dismiss on click.
+- [ ] Guided tours use the Tour Target Registry, support keyboard navigation, and wait for async DOM nodes robustly (no `MutationObserver` or `setTimeout`).
+- [ ] Zustand onboarding store only persists boolean completion flags to `localStorage`.
 
 ### Non-Functional Requirements
 
-- [ ] **Accessibility:** All tooltips must use `aria-describedby` or equivalent Radix primitives.
-- [ ] **Consistency:** All documentation copy must follow the intent-based structure.
-
-## Dependencies & Prerequisites
-
-- The `Tooltip.tsx` component must be fully robust and support Radix UI portaling to avoid clipping inside `overflow-hidden` containers (like modals or charts).
-- The `GuidedTour` component must be able to wait for async data to load before attaching to DOM nodes (e.g., waiting for Lens charts to render).
-
-## Documentation Plan
-
-- This entire feature is a documentation update. It will self-document via `CLAUDE.md` and the in-app guides.
+- [ ] **Accessibility:** All tooltips must use `aria-describedby`. Tours must be keyboard-navigable.
+- [ ] **Simplicity (YAGNI):** No complex temporal state (snooze), no global beacon queues, and no fragile "spotlight" CSS background dimming.
 
 ## References & Research
 
-- Best Practices Research: Diátaxis framework, Progressive Disclosure UX (beacons), Radix UI accessibility standards.
-- Current Gaps: Missing DLQ guide, underutilized GuidedTour, fragmented Tailwind tooltips.
+- Best Practices Research: Diátaxis framework, Jobs-To-Be-Done (JTBD), Progressive Disclosure UX (beacons), Radix UI performance & accessibility standards.
