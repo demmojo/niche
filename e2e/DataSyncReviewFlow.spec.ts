@@ -90,7 +90,7 @@ test.describe("Data Sync Review Flow", () => {
                 content: {
                   parts: [
                     {
-                      text: '```json\n{"summary": "Mock market summary", "insights": [{"title": "Mock Insight", "description": "Market trend identified", "category": "opportunity", "impact": "high"}], "metrics": {"topIntegrations": "Mock", "estimatedMarketValue": "10B"}}\n```',
+                      text: '{"summary": "Mock market summary", "insights": [{"title": "Mock Insight", "description": "Market trend identified", "category": "opportunity", "impact": "high"}], "metrics": {"topIntegrations": "Mock", "estimatedMarketValue": "10B"}}',
                     },
                   ],
                 },
@@ -149,12 +149,12 @@ test.describe("Data Sync Review Flow", () => {
 
     // 4. Verify the SyncReviewModal is open
     await expect(
-      page.getByRole("heading", { name: "Review Automated Updates" }),
+      page.getByRole("heading", { name: "Review Sync Changes" }),
     ).toBeVisible();
 
     // 5. See some proposed changes (e.g. from the mock response)
     // We should see "Mock Insight" in the diffs
-    await expect(page.getByText("Mock Insight")).toBeVisible();
+    await expect(page.getByText("Mock Insight").first()).toBeVisible();
 
     // 6. Commit changes
     const commitButton = page.getByRole("button", {
@@ -164,7 +164,7 @@ test.describe("Data Sync Review Flow", () => {
 
     // 7. The modal should close and the "Review Changes" button should disappear
     await expect(
-      page.getByRole("heading", { name: "Review Automated Updates" }),
+      page.getByRole("heading", { name: "Review Sync Changes" }),
     ).not.toBeVisible();
     await expect(reviewChangesButton).not.toBeVisible();
   });
