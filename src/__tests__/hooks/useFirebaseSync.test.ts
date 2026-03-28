@@ -184,8 +184,6 @@ describe("useFirebaseSync", () => {
   it("handles network errors by disabling network safely", async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
 
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     // Mock setDoc to throw resource-exhausted
     vi.mocked(setDoc).mockRejectedValueOnce({ code: "resource-exhausted" });
 
@@ -208,14 +206,10 @@ describe("useFirebaseSync", () => {
     });
 
     expect(safeDisableNetwork).toHaveBeenCalledTimes(2);
-
-    consoleSpy.mockRestore();
   });
 
   it("handles snapshot errors gracefully", () => {
     vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     renderHook(() => useFirebaseSync("test-key", "initial"));
 
@@ -229,12 +223,6 @@ describe("useFirebaseSync", () => {
       });
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error syncing test-key from Firebase:",
-      expect.any(Object),
-    );
     expect(safeDisableNetwork).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 });

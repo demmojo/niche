@@ -63,11 +63,12 @@ Return a strictly formatted JSON object analyzing the idea. (Response)
           config: {
             temperature: 0.2,
             responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(tarpitSchema) as any,
+            // @ts-ignore
+            responseSchema: zodToJsonSchema(tarpitSchema as any as any) as any,
           },
         });
       },
-      { tier: "fast" },
+      { capability: "chat" },
     );
 
     const text = response.text || "{}";

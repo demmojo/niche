@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   fetchAvailableModels,
   getMainModel,
@@ -6,49 +6,6 @@ import {
   withModelFallback,
 } from "../../utils/aiClient";
 import * as apiKeys from "../../utils/apiKeys";
-
-// --- Mocks ---
-const mockGeminiGenerateContent = vi.fn();
-const mockGeminiGenerateContentStream = vi.fn();
-
-vi.mock("@google/genai", () => ({
-  GoogleGenAI: vi.fn().mockImplementation(() => ({
-    models: {
-      generateContent: mockGeminiGenerateContent,
-      generateContentStream: mockGeminiGenerateContentStream,
-    },
-  })),
-}));
-
-const mockOpenAICreate = vi.fn();
-const mockOpenAIList = vi.fn();
-
-vi.mock("openai", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      models: {
-        list: mockOpenAIList,
-      },
-      chat: {
-        completions: {
-          create: mockOpenAICreate,
-        },
-      },
-    })),
-  };
-});
-
-const mockAnthropicCreate = vi.fn();
-
-vi.mock("@anthropic-ai/sdk", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      messages: {
-        create: mockAnthropicCreate,
-      },
-    })),
-  };
-});
 
 vi.mock("../../utils/usageTracker", () => ({
   trackRequest: vi.fn(),
@@ -87,57 +44,13 @@ describe("aiClient utils", () => {
     });
   });
 
-  describe.skip("fetchAvailableModels", () => {
-    it("returns base gemini models by default", async () => {
+  describe("fetchAvailableModels", () => {
+    it("returns static list of models", async () => {
       const models = await fetchAvailableModels();
       expect(models.length).toBeGreaterThan(0);
       expect(models.some((m) => m.provider === "gemini")).toBe(true);
-      expect(models.some((m) => m.provider === "openai")).toBe(false);
-      expect(models.some((m) => m.provider === "anthropic")).toBe(false);
-    });
-
-    it("returns openai models when key is present", async () => {
-      mockKeys["openai"] = "test-key";
-      mockOpenAIList.mockResolvedValueOnce({
-        data: [
-          { id: "gpt-4o" },
-          { id: "gpt-3.5-turbo" },
-          { id: "o1-preview" },
-          { id: "o3-mini" },
-          { id: "dall-e" },
-        ],
-      });
-      const models = await fetchAvailableModels();
-      // Should filter to gpt-4, gpt-3.5, o1, o3
-      expect(models.some((m) => m.id === "gpt-4o")).toBe(true);
-      expect(models.some((m) => m.id === "gpt-3.5-turbo")).toBe(true);
-      expect(models.some((m) => m.id === "o1-preview")).toBe(true);
-      expect(models.some((m) => m.id === "o3-mini")).toBe(true);
-      expect(models.some((m) => m.id === "dall-e")).toBe(false);
-    });
-
-    it("handles openai API failure gracefully", async () => {
-      mockKeys["openai"] = "test-key";
-      mockOpenAIList.mockRejectedValueOnce(new Error("Network error"));
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const models = await fetchAvailableModels();
-      expect(models.some((m) => m.provider === "openai")).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to fetch OpenAI models",
-        expect.any(Error),
-      );
-      consoleErrorSpy.mockRestore();
-    });
-
-    it("returns anthropic models when key is present", async () => {
-      mockKeys["anthropic"] = "test-key";
-      const models = await fetchAvailableModels();
+      expect(models.some((m) => m.provider === "openai")).toBe(true);
       expect(models.some((m) => m.provider === "anthropic")).toBe(true);
-      expect(models.some((m) => m.id === "claude-3-7-sonnet-20250219")).toBe(
-        true,
-      );
     });
   });
 
@@ -151,7 +64,11 @@ describe("aiClient utils", () => {
 
       expect(result).toBe("success");
       expect(mockOperation).toHaveBeenCalledTimes(1);
-      expect(mockOperation).toHaveBeenCalledWith(expect.anything(), "gpt-4o");
+      expect(mockOperation).toHaveBeenCalledWith(
+        expect.anything(),
+        "gpt-4o",
+        expect.anything(),
+      );
     });
 
     it("falls back to second model if primary fails with rate limit error", async () => {
@@ -159,94 +76,49 @@ describe("aiClient utils", () => {
       mockKeys["anthropic"] = "test-key2";
       setMainModel("auto");
 
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
       const rateLimitError = new Error("429 Rate Limit Exceeded");
       const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(rateLimitError)
+        .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValueOnce("success2");
 
-      const result = await withModelFallback(mockOperation, { tier: "pro" });
+      const result = await withModelFallback(mockOperation, {
+        capability: "reasoning",
+      });
 
       expect(result).toBe("success2");
-      expect(mockOperation).toHaveBeenCalledTimes(2);
+      expect(mockOperation).toHaveBeenCalledTimes(3);
       expect(mockOperation).toHaveBeenNthCalledWith(
         1,
         expect.anything(),
-        "claude-3-7-sonnet-20250219",
+        "gemini-3.1-pro-preview",
+        expect.anything(),
       );
       expect(mockOperation).toHaveBeenNthCalledWith(
-        2,
+        3,
         expect.anything(),
         "gpt-4o",
+        expect.anything(),
       );
-
-      consoleErrorSpy.mockRestore();
-    });
-
-    it("throws custom RateLimit error when all models fail and last error is rate limit", async () => {
-      mockKeys["openai"] = "test-key";
-      setMainModel("auto");
-
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const rateLimitError = new Error("429 Rate Limit Exceeded");
-      const mockOperation = vi.fn().mockRejectedValue(rateLimitError);
-
-      await expect(withModelFallback(mockOperation)).rejects.toThrow(
-        "RateLimit:CustomKey:429 Rate Limit Exceeded",
-      );
-
-      consoleErrorSpy.mockRestore();
-    });
-
-    it("throws custom RateLimit:GlobalKey error when all models fail and no custom key is used", async () => {
-      process.env.GEMINI_API_KEY = "env-key";
-      mockKeys["gemini"] = null;
-      setMainModel("gemini-3.1-pro-preview");
-
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-      const rateLimitError = new Error("quota exceeded");
-      const mockOperation = vi.fn().mockRejectedValue(rateLimitError);
-
-      await expect(withModelFallback(mockOperation)).rejects.toThrow(
-        "RateLimit:GlobalKey:quota exceeded",
-      );
-
-      consoleErrorSpy.mockRestore();
     });
 
     it("throws generic error when all models fail and last error is NOT a rate limit", async () => {
       mockKeys["openai"] = "test-key";
       setMainModel("auto");
 
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       const genericError = new Error("Some random network error");
       const mockOperation = vi.fn().mockRejectedValue(genericError);
 
       await expect(withModelFallback(mockOperation)).rejects.toThrow(
-        "Some random network error",
+        "All configured models failed",
       );
-
-      consoleErrorSpy.mockRestore();
     });
 
     it("respects timeout logic and falls back", async () => {
       mockKeys["openai"] = "test-key";
       mockKeys["gemini"] = "test-key2";
       setMainModel("auto");
-
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
 
       const mockOperation = vi
         .fn()
@@ -258,18 +130,16 @@ describe("aiClient utils", () => {
 
       const result = await withModelFallback(
         mockOperation,
-        { tier: "fast" },
+        { capability: "chat" },
         50,
       );
 
       expect(result).toBe("fast fallback result");
       expect(mockOperation).toHaveBeenCalledTimes(2);
-
-      consoleErrorSpy.mockRestore();
     });
   });
 
-  describe("AIClient.generateContent capabilities", () => {
+  describe("AIClient.generateContent capabilities via MSW", () => {
     let aiClient: any;
 
     beforeEach(async () => {
@@ -281,341 +151,114 @@ describe("aiClient utils", () => {
       });
     });
 
-    describe("Gemini provider", () => {
-      it("throws if no Gemini API key available", async () => {
-        mockKeys["gemini"] = null;
-        delete process.env.GEMINI_API_KEY;
-        await expect(
-          aiClient.generateContent("gemini-3.1-pro-preview", {
-            contents: "hi",
-          }),
-        ).rejects.toThrow("No Gemini API key available.");
-        await expect(
-          aiClient.generateContentStream("gemini-3.1-pro-preview", {
-            contents: "hi",
-          }),
-        ).rejects.toThrow("No Gemini API key available.");
-      });
+    it("calls /api/llm/generate and returns mocked result", async () => {
+      const params = {
+        contents: "hello",
+      };
+      const res = await aiClient.generateContent(
+        "gemini-3.1-pro-preview",
+        params,
+      );
 
-      it("calls GoogleGenAI generateContent with proper arguments", async () => {
-        process.env.GEMINI_API_KEY = "env-key";
-        mockGeminiGenerateContent.mockResolvedValueOnce({
-          text: "gemini response",
-        });
-
-        const params = {
-          contents: "hello",
-          config: { responseMimeType: "application/json" },
-        };
-        const res = await aiClient.generateContent(
-          "gemini-3.1-pro-preview",
-          params,
-        );
-
-        expect(res).toEqual({ text: "gemini response" });
-        expect(mockGeminiGenerateContent).toHaveBeenCalledWith({
-          model: "gemini-3.1-pro-preview",
-          contents: "hello",
-          config: params.config,
-        });
-      });
-
-      it("calls GoogleGenAI generateContentStream with proper arguments", async () => {
-        process.env.GEMINI_API_KEY = "env-key";
-        mockGeminiGenerateContentStream.mockResolvedValueOnce({
-          text: "stream chunk",
-        });
-
-        const res = await aiClient.generateContentStream(
-          "gemini-3.1-pro-preview",
-          { contents: "hello" },
-        );
-
-        expect(res).toEqual({ text: "stream chunk" });
-        expect(mockGeminiGenerateContentStream).toHaveBeenCalledWith({
-          model: "gemini-3.1-pro-preview",
-          contents: "hello",
-          config: undefined,
-        });
-      });
+      expect(res).toBeDefined();
+      expect(res.text).toContain("Mock generated market summary");
     });
 
-    describe("OpenAI provider", () => {
-      beforeEach(() => {
-        mockKeys["openai"] = "test-key";
-      });
+    it("calls /api/llm/generate via generateContentStream and returns mocked stream", async () => {
+      const res = await aiClient.generateContentStream(
+        "gemini-3.1-pro-preview",
+        { contents: "hello" },
+      );
 
-      it("throws if no OpenAI API key available", async () => {
-        mockKeys["openai"] = null;
-        await expect(
-          aiClient.generateContent("gpt-4o", { contents: "hi" }),
-        ).rejects.toThrow("No OpenAI API key available.");
-      });
+      const result = await res.next();
+      expect(result.value.text).toContain("Mock generated market summary");
+      expect(result.done).toBe(false);
+    });
+  });
 
-      it("formats request without tools or json schema correctly", async () => {
-        mockOpenAICreate.mockResolvedValueOnce({
-          choices: [
-            { message: { content: "openai response", tool_calls: undefined } },
-          ],
-        });
-
-        const res = await aiClient.generateContent("gpt-4o", {
-          contents: "hello openai",
-        });
-
-        expect(res).toEqual({
-          text: "openai response",
-          functionCalls: undefined,
-        });
-        expect(mockOpenAICreate).toHaveBeenCalledWith({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: "hello openai" }],
-          response_format: undefined,
-          tools: undefined,
-        });
-      });
-
-      it("formats json schema request correctly", async () => {
-        mockOpenAICreate.mockResolvedValueOnce({
-          choices: [{ message: { content: '{"ok": true}' } }],
-        });
-
-        const params = {
-          contents: "hello",
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: { type: "object" },
-          },
-        };
-
-        const res = await aiClient.generateContent("gpt-4o", params);
-
-        expect(res.text).toBe('{"ok": true}');
-        expect(mockOpenAICreate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content: expect.stringContaining(
-                  'Follow this JSON schema strictly: {"type":"object"}',
-                ),
-              },
-              { role: "user", content: "hello" },
-            ],
-          }),
-        );
-      });
-
-      it("formats tools correctly and parses tool calls", async () => {
-        mockOpenAICreate.mockResolvedValueOnce({
-          choices: [
-            {
-              message: {
-                content: "",
-                tool_calls: [
-                  {
-                    function: {
-                      name: "myTool",
-                      arguments: '{"arg1":"value1"}',
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        });
-
-        const params = {
-          contents: "call tool",
-          config: {
-            tools: [
-              {
-                functionDeclarations: [
-                  {
-                    name: "myTool",
-                    description: "Does something",
-                    parameters: { type: "object" },
-                  },
-                ],
-              },
-            ],
-          },
-        };
-
-        const res = await aiClient.generateContent("gpt-4o", params);
-
-        expect(res.functionCalls).toBeDefined();
-        expect(res.functionCalls[0]).toEqual({
-          name: "myTool",
-          args: { arg1: "value1" },
-        });
-
-        expect(mockOpenAICreate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "myTool",
-                  description: "Does something",
-                  parameters: { type: "object" },
-                },
-              },
-            ],
-          }),
-        );
-      });
-
-      it("returns dummy stream for generateContentStream", async () => {
-        mockOpenAICreate.mockResolvedValueOnce({
-          choices: [{ message: { content: "openai response" } }],
-        });
-
-        const stream = await aiClient.generateContentStream("gpt-4o", {
-          contents: "hello openai",
-        });
-        const result = await stream.next();
-
-        expect(result.value).toEqual({
-          text: "openai response",
-          functionCalls: undefined,
-        });
-        expect(result.done).toBe(false);
-      });
+  describe("Bug Fixes: Phase 3 Domain B", () => {
+    let globalFetch: any;
+    beforeEach(() => {
+      globalFetch = global.fetch;
+    });
+    afterEach(() => {
+      if (globalFetch) global.fetch = globalFetch;
     });
 
-    describe("Anthropic provider", () => {
-      beforeEach(() => {
-        mockKeys["anthropic"] = "test-key";
+    it("handles rate-limit (429) backoff correctly before escalating", async () => {
+      mockKeys["openai"] = "test-key";
+      setMainModel("gemini-3.1-pro-preview");
+      let calls = 0;
+      const mockOperation = vi.fn().mockImplementation(async () => {
+        calls++;
+        if (calls === 1) {
+          const err = new Error("Rate limit");
+          (err as any).status = 429;
+          throw err;
+        }
+        return "success-after-backoff";
       });
 
-      it("throws if no Anthropic API key available", async () => {
-        mockKeys["anthropic"] = null;
-        await expect(
-          aiClient.generateContent("claude-3-opus-20240229", {
-            contents: "hi",
-          }),
-        ).rejects.toThrow("No Anthropic API key available.");
+      const startTime = Date.now();
+      const result = await withModelFallback(mockOperation, {
+        capability: "reasoning",
+      });
+      const endTime = Date.now();
+
+      expect(result).toBe("success-after-backoff");
+      expect(mockOperation).toHaveBeenCalledTimes(2);
+      expect(mockOperation).toHaveBeenNthCalledWith(
+        1,
+        expect.anything(),
+        "gemini-3.1-pro-preview",
+        expect.anything(),
+      );
+      expect(mockOperation).toHaveBeenNthCalledWith(
+        2,
+        expect.anything(),
+        "gemini-3.1-pro-preview",
+        expect.anything(),
+      );
+      expect(endTime - startTime).toBeGreaterThanOrEqual(1000); // Because exponential backoff delay is at least 1s
+    });
+
+    it("passes AbortSignal to operation to prevent unbounded timeouts", async () => {
+      mockKeys["openai"] = "test-key";
+      setMainModel("auto");
+      let receivedSignal: AbortSignal | undefined;
+      const mockOperation = vi
+        .fn()
+        .mockImplementation(async (ai, model, signal) => {
+          receivedSignal = signal;
+          await new Promise((r) => setTimeout(r, 100));
+          return "slow result";
+        });
+
+      try {
+        await withModelFallback(mockOperation, { capability: "chat" }, 50);
+      } catch (e) {
+        // ignore timeout error
+      }
+
+      expect(receivedSignal).toBeDefined();
+      expect(receivedSignal?.aborted).toBe(true);
+    });
+
+    it("handles malformed JSON parsing panics gracefully", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError("Unexpected token < in JSON at position 0");
+        },
+        text: async () => "<html>Gateway Timeout</html>",
       });
 
-      it("formats request without tools or json schema correctly", async () => {
-        mockAnthropicCreate.mockResolvedValueOnce({
-          content: [{ type: "text", text: "anthropic response" }],
-        });
+      const mockOp = async (ai: any) =>
+        ai.generateContent("gemini-3.1-pro-preview", { contents: "hello" });
 
-        const res = await aiClient.generateContent("claude-3-opus-20240229", {
-          contents: "hello claude",
-        });
-
-        expect(res).toEqual({
-          text: "anthropic response",
-          functionCalls: undefined,
-        });
-        expect(mockAnthropicCreate).toHaveBeenCalledWith({
-          model: "claude-3-opus-20240229",
-          max_tokens: 4096,
-          system: undefined,
-          messages: [{ role: "user", content: "hello claude" }],
-          tools: undefined,
-        });
-      });
-
-      it("formats json schema request correctly", async () => {
-        mockAnthropicCreate.mockResolvedValueOnce({
-          content: [{ type: "text", text: '{"ok": true}' }],
-        });
-
-        const params = {
-          contents: "hello",
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: { type: "object" },
-          },
-        };
-
-        const res = await aiClient.generateContent(
-          "claude-3-opus-20240229",
-          params,
-        );
-
-        expect(res.text).toBe('{"ok": true}');
-        expect(mockAnthropicCreate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            system: expect.stringContaining(
-              'Follow this JSON schema strictly: {"type":"object"}',
-            ),
-          }),
-        );
-      });
-
-      it("formats tools correctly and parses tool calls", async () => {
-        mockAnthropicCreate.mockResolvedValueOnce({
-          content: [
-            { type: "text", text: "Using tool" },
-            { type: "tool_use", name: "myTool", input: { arg1: "value1" } },
-          ],
-        });
-
-        const params = {
-          contents: "call tool",
-          config: {
-            tools: [
-              {
-                functionDeclarations: [
-                  {
-                    name: "myTool",
-                    description: "Does something",
-                    parameters: { type: "object" },
-                  },
-                ],
-              },
-            ],
-          },
-        };
-
-        const res = await aiClient.generateContent(
-          "claude-3-opus-20240229",
-          params,
-        );
-
-        expect(res.text).toBe("Using tool");
-        expect(res.functionCalls).toBeDefined();
-        expect(res.functionCalls[0]).toEqual({
-          name: "myTool",
-          args: { arg1: "value1" },
-        });
-
-        expect(mockAnthropicCreate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            tools: [
-              {
-                name: "myTool",
-                description: "Does something",
-                input_schema: { type: "object" },
-              },
-            ],
-          }),
-        );
-      });
-
-      it("returns dummy stream for generateContentStream", async () => {
-        mockAnthropicCreate.mockResolvedValueOnce({
-          content: [{ type: "text", text: "anthropic response" }],
-        });
-
-        const stream = await aiClient.generateContentStream(
-          "claude-3-5-sonnet-20241022",
-          { contents: "hello claude" },
-        );
-        const result = await stream.next();
-
-        expect(result.value).toEqual({
-          text: "anthropic response",
-          functionCalls: undefined,
-        });
-        expect(result.done).toBe(false);
-      });
+      await expect(withModelFallback(mockOp)).rejects.toThrow(
+        "All configured models failed",
+      );
     });
   });
 });

@@ -88,11 +88,13 @@ ${JSON.stringify(allFeatures, null, 2)}
             config: {
               temperature: 0.1,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(consolidationSchema) as any,
+              responseSchema: zodToJsonSchema(
+                consolidationSchema as any,
+              ) as any,
             },
           });
         },
-        { tier: "fast" },
+        { capability: "extraction" },
       );
 
       const result = JSON.parse(response.text || '{"consolidations": []}');

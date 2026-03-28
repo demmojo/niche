@@ -84,7 +84,7 @@ export async function extractFeaturesFromVisuals(
           config: { responseMimeType: "application/json" },
         });
       },
-      { tier: "pro" },
+      { capability: "reasoning" },
     );
 
     const text = response.text || "[]";

@@ -34,9 +34,7 @@ export const removeGeminiKey = (key: string) => {
  *
  */
 export const getSelectedModel = (): string => {
-  return (
-    localStorage.getItem("gemini_selected_model") || "gemini-3-flash-preview"
-  );
+  return localStorage.getItem("gemini_selected_model") || "gemini-3.1-flash";
 };
 
 /**
@@ -86,7 +84,11 @@ export const rotateGeminiKey = () => {
  * is hit and \`fallbackToLite\` is disabled.
  */
 export const withKeyRotation = async <T>(
-  operation: (ai: GoogleGenAI, model: string) => Promise<T>,
+  operation: (
+    ai: GoogleGenAI,
+    model: string,
+    signal?: AbortSignal,
+  ) => Promise<T>,
   timeoutMs: number = 120000,
 ): Promise<T> => {
   const key = getCustomApiKey("gemini") || process.env.GEMINI_API_KEY;
@@ -99,17 +101,15 @@ export const withKeyRotation = async <T>(
   let currentModel = getSelectedModel();
   const ai = new GoogleGenAI({ apiKey: key });
 
-  /**
-   *
-   * @param model
-   */
   const executeWithTimeout = async (model: string): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
+      const controller = new AbortController();
       const timer = setTimeout(() => {
+        controller.abort();
         reject(new Error(`Operation timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
-      operation(ai, model)
+      operation(ai, model, controller.signal)
         .then((result) => {
           clearTimeout(timer);
           resolve(result);
@@ -121,126 +121,156 @@ export const withKeyRotation = async <T>(
     });
   };
 
-  try {
-    const result = await executeWithTimeout(currentModel);
-    trackRequest("gemini", key, false, currentModel);
-    return result;
-  } catch (error: any) {
-    trackRequest("gemini", key, true, currentModel);
+  const formatError = (err: any) => {
+    let msg = "";
+    if (typeof err === "string") {
+      msg = err;
+    } else if (err && err.message && typeof err.message === "string") {
+      msg = err.message;
+    }
 
-    const errorStr =
-      typeof error === "string"
-        ? error
-        : JSON.stringify(error, Object.getOwnPropertyNames(error));
-    const isRateLimit =
-      error?.status === 429 ||
-      errorStr.includes("429") ||
-      errorStr.includes("quota") ||
-      errorStr.includes("rate limit") ||
-      errorStr.includes("Resource has been exhausted");
+    try {
+      if (msg.startsWith("{")) {
+        const parsed = JSON.parse(msg);
+        if (parsed.error && parsed.error.message) {
+          msg = parsed.error.message;
+        }
+      }
+    } catch (e) {
+      // ignore JSON parse error
+    }
+
+    if (
+      msg.includes("quota") ||
+      msg.includes("429") ||
+      msg.includes("RESOURCE_EXHAUSTED")
+    ) {
+      msg =
+        "API Quota Exceeded. Please check your Gemini API plan or try again later. " +
+        msg;
+    } else if (
+      msg.includes("503") ||
+      msg.includes("500") ||
+      msg.includes("Service Unavailable") ||
+      msg.includes("overloaded")
+    ) {
+      msg =
+        "Gemini API is currently experiencing issues or is overloaded. Please try again later. " +
+        msg;
+    }
+
+    const newErr = new Error(msg || "Unknown error");
+    if (err && typeof err === "object") {
+      Object.assign(newErr, err);
+    }
+    return newErr;
+  };
+
+  const doCall = async (model: string, maxRetries: number) => {
+    let attempts = 0;
+    while (attempts <= maxRetries) {
+      try {
+        const result = await executeWithTimeout(model);
+        trackRequest("gemini", key, false, model, undefined);
+        return result;
+      } catch (error: any) {
+        trackRequest("gemini", key, true, model, undefined);
+
+        const errorStr =
+          typeof error === "string"
+            ? error
+            : JSON.stringify(error, Object.getOwnPropertyNames(error));
+
+        const isRateLimit =
+          error?.status === 429 ||
+          errorStr.includes("429") ||
+          errorStr.includes("quota") ||
+          errorStr.includes("rate limit") ||
+          errorStr.includes("Resource has been exhausted");
+
+        const isTimeout = errorStr.includes("timed out");
+
+        const isServerError =
+          error?.status >= 500 ||
+          errorStr.includes("500") ||
+          errorStr.includes("503") ||
+          errorStr.includes("Failed to call the Gemini API");
+
+        if (
+          (isRateLimit || isTimeout || isServerError) &&
+          attempts < maxRetries
+        ) {
+          attempts++;
+          const backoffMs = Math.min(
+            1000 * Math.pow(2, attempts) + Math.random() * 500,
+            5000,
+          );
+          console.warn(
+            `Error on model ${model} (${isRateLimit ? "429" : "Server/Timeout"}). Backing off for ${backoffMs}ms before retry...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+
+        throw {
+          error,
+          formatError: formatError(error),
+          isRateLimit,
+          isTimeout,
+          isServerError,
+          errorStr,
+        };
+      }
+    }
+  };
+
+  try {
+    return await doCall(currentModel, 2);
+  } catch (errWrapper: any) {
+    if (!errWrapper.error) throw errWrapper;
+
+    const {
+      formatError: formattedError,
+      isRateLimit,
+      isTimeout,
+      isServerError,
+      errorStr,
+    } = errWrapper;
+
     const isNotFound =
-      error?.status === 404 ||
+      errWrapper.error?.status === 404 ||
       errorStr.includes("404") ||
       errorStr.includes("not found") ||
       errorStr.includes("NOT_FOUND");
-    const isTimeout = errorStr.includes("timed out");
-    const isServerError =
-      error?.status >= 500 ||
-      errorStr.includes("500") ||
-      errorStr.includes("503") ||
-      errorStr.includes("Failed to call the Gemini API");
-
-    /**
-     *
-     * @param err
-     */
-    const formatError = (err: any) => {
-      let msg = "";
-      if (typeof err === "string") {
-        msg = err;
-      } else if (err && err.message && typeof err.message === "string") {
-        msg = err.message;
-      }
-
-      try {
-        if (msg.startsWith("{")) {
-          const parsed = JSON.parse(msg);
-          if (parsed.error && parsed.error.message) {
-            msg = parsed.error.message;
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      // Add a friendly note for quota errors
-      if (
-        msg.includes("quota") ||
-        msg.includes("429") ||
-        msg.includes("RESOURCE_EXHAUSTED")
-      ) {
-        msg =
-          "API Quota Exceeded. Please check your Gemini API plan or try again later. " +
-          msg;
-      } else if (
-        msg.includes("503") ||
-        msg.includes("500") ||
-        msg.includes("Service Unavailable") ||
-        msg.includes("overloaded")
-      ) {
-        msg =
-          "Gemini API is currently experiencing issues or is overloaded. Please try again later. " +
-          msg;
-      }
-
-      const newErr = new Error(msg || "Unknown error");
-      // Copy other properties if it's an object
-      if (err && typeof err === "object") {
-        Object.assign(newErr, err);
-      }
-      return newErr;
-    };
 
     if (isRateLimit || isTimeout || isServerError) {
-      console.warn(
-        `Retrying due to ${isTimeout ? "timeout" : isRateLimit ? "rate limit" : "server error"}...`,
-      );
-
-      if (
-        (isRateLimit || isTimeout || isServerError) &&
-        currentModel !== "gemini-3.1-flash-lite-preview"
-      ) {
+      if (currentModel !== "gemini-3.1-flash-lite-preview") {
         console.warn(`Falling back to free/lite model...`);
         currentModel = "gemini-3.1-flash-lite-preview";
-      }
-
-      // Add a delay before retrying
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      try {
-        const result = await executeWithTimeout(currentModel);
-        trackRequest("gemini", key, false, currentModel);
-        return result;
-      } catch (fallbackError) {
-        trackRequest("gemini", key, true, currentModel);
-        throw formatError(fallbackError);
+        try {
+          return await doCall(currentModel, 0);
+        } catch (fallbackErrWrapper: any) {
+          throw (
+            fallbackErrWrapper.formatError ||
+            formatError(fallbackErrWrapper.error || fallbackErrWrapper)
+          );
+        }
       }
     } else if (isNotFound) {
       console.warn(
-        `Model ${currentModel} not found. Falling back to gemini-3-flash-preview...`,
+        `Model ${currentModel} not found. Falling back to gemini-3.1-flash...`,
       );
-      currentModel = "gemini-3-flash-preview";
-
+      currentModel = "gemini-3.1-flash";
       try {
-        const result = await executeWithTimeout(currentModel);
-        trackRequest("gemini", key, false, currentModel);
-        return result;
-      } catch (fallbackError) {
-        trackRequest("gemini", key, true, currentModel);
-        throw formatError(fallbackError);
+        return await doCall(currentModel, 0);
+      } catch (fallbackErrWrapper: any) {
+        throw (
+          fallbackErrWrapper.formatError ||
+          formatError(fallbackErrWrapper.error || fallbackErrWrapper)
+        );
       }
     }
 
-    throw formatError(error);
+    throw formattedError;
   }
 };

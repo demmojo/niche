@@ -9,13 +9,15 @@ Leeroopedia is an ML/AI knowledge wiki. This skill teaches you when and how to c
 
 ## Default behavior
 
-Use Leeroopedia MCP whenever the user asks anything that depends on **ML/AI framework specifics** or **best practices** (fine-tuning, post-training, inference serving, CUDA/Triton kernels, distributed training, RAG/agents, evaluation, config formats, API contracts, performance tuning).
+Use the Leeroopedia MCP server for **all AI or ML requests that are not basic**. 
 
-If the question is purely general software engineering (no ML/AI-specific uncertainty), you may answer without tools.
+Do NOT use Leeroopedia for basic AI/ML questions, general concepts, or standard implementations that can be reliably answered from baseline knowledge. For any non-basic AI/ML question (e.g., framework specifics, best practices, fine-tuning, debugging, inference serving, etc.), you must consult Leeroopedia to ensure grounded and accurate answers.
+
+If the question is purely general software engineering or basic ML/AI, you MUST answer without tools.
 
 ## Grounding policy
 
-1. **Prefer tool-grounded answers over memory.** If you are not 100% sure about an ML/AI detail, call a tool.
+1. **Selective Usage:** If the AI/ML request goes beyond basic knowledge, you must call a tool. Otherwise, rely on your internal knowledge.
 2. **Cite sources.** When tools return `[PageID]` citations, preserve them in your final answer.
 3. **Expand citations when needed.** If the user asks “show me the source”, “give the full reference”, or you need precise details, call `get_page` on the cited `[PageID]`.
 4. **Use parallel searches.** For ambiguous topics, call `search_knowledge` multiple times with different angles (faster and higher recall than a single broad query).

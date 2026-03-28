@@ -1,0 +1,26 @@
+---
+description: Standards for generating top-tier UI and UX without design files (Figma). Enforces intent-based, low-cognitive-load design.
+globs: ["src/components/**/*.tsx", "src/pages/**/*.tsx", "src/app/**/*.tsx"]
+---
+# UI/UX Excellence Standards (Design by Code)
+
+When generating or modifying UI components, and no Figma or design files are provided, you MUST adhere to the following heuristic principles to ensure a top-tier, intent-based user experience:
+
+## 1. Intent-Based Design & Cognitive Load
+- **Decisions Over Data:** Design for the decision the user needs to make, not just to display data. Use progressive disclosure (hide advanced settings behind an "Advanced" toggle or drill-down).
+- **The 7±2 Rule:** Never present more than 7-9 data chunks or actions at once. Cap high-signal KPIs at 3-5.
+- **Visual Hierarchy:** The primary action (CTA) must be immediately obvious. Use subtle gradients, distinct sizing, and strategic white space to guide the eye.
+
+## 2. Spacing & Typography (The "Invisible" UI)
+- **Generous Whitespace:** Use consistent spacing scales (e.g., Tailwind's `p-4`, `p-6`, `p-8`). Give elements room to breathe; cramped UI feels cheap.
+- **Typography:** Use a clear typographic scale. Differentiate hierarchy using font weight and color (e.g., text-slate-900 for headings, text-slate-500 for secondary text) rather than just size.
+
+## 3. Trust & Micro-interactions
+- **Explainable States:** Never use a naked loading spinner for complex actions. Use skeleton loaders or explanatory text (e.g., "Analyzing data...").
+- **Friction by Design:** For destructive actions (Delete, Archive), add slight friction (confirmation dialogs with clear consequences).
+- **Empty States:** Empty states should be educational and actionable, providing a clear "Get Started" CTA rather than a blank screen.
+
+## 4. Technical Implementation
+- Leverage the existing UI component library (e.g., Radix, shadcn/ui, Tailwind CSS) strictly.
+- When introducing a new pattern, check `plugin-compound-engineering-context7` for the most up-to-date accessibility and implementation guidelines.
+- Always ensure components are fully responsive (mobile-first approach).

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
+import { useShallow } from "zustand/react/shallow";
 import { useVisualKnowledgeStore } from "../../store/visualKnowledgeStore";
 import { Tag, Plus, X } from "lucide-react";
 
@@ -13,7 +14,14 @@ interface CustomCardNodeProps {
 
 export function CustomCardNode({ data }: CustomCardNodeProps) {
   const { cards, updateCard, deleteCard, removeCardFromWhiteboard } =
-    useVisualKnowledgeStore();
+    useVisualKnowledgeStore(
+      useShallow((state) => ({
+        cards: state.cards,
+        updateCard: state.updateCard,
+        deleteCard: state.deleteCard,
+        removeCardFromWhiteboard: state.removeCardFromWhiteboard,
+      })),
+    );
   const card = cards[data.cardId];
 
   const [isEditingTags, setIsEditingTags] = useState(false);

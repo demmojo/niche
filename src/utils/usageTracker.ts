@@ -49,31 +49,53 @@ const createEmptyServiceStats = (): ServiceUsageStats => ({
   },
 });
 
-export const getUsageStats = (): UsageStats => {
-  const data = localStorage.getItem(USAGE_STORAGE_KEY);
-  const today = getTodayDateString();
+let cachedUsageStats: UsageStats | null = null;
+let cachedKeyUsage: Record<string, KeyUsage> | null = null;
+let flushTimeout: any = null;
 
+const flushToStorage = () => {
+  if (cachedUsageStats) {
+    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(cachedUsageStats));
+  }
+  if (cachedKeyUsage) {
+    localStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(cachedKeyUsage));
+  }
+  flushTimeout = null;
+};
+
+const scheduleFlush = () => {
+  if (!flushTimeout) {
+    flushTimeout = setTimeout(flushToStorage, 3000);
+  }
+};
+
+export const getUsageStats = (): UsageStats => {
+  const today = getTodayDateString();
+  if (cachedUsageStats && cachedUsageStats.date === today) {
+    return cachedUsageStats;
+  }
+
+  const data = localStorage.getItem(USAGE_STORAGE_KEY);
+  let parsed: any = null;
   if (data) {
     try {
-      const parsed = JSON.parse(data) as UsageStats;
-      if (parsed.date === today && parsed.services) {
-        // Ensure all services exist
-        ["gemini", "apollo", "exa", "openai", "anthropic"].forEach(
-          (service) => {
-            if (!parsed.services[service as keyof UsageStats["services"]]) {
-              parsed.services[service as keyof UsageStats["services"]] =
-                createEmptyServiceStats();
-            }
-          },
-        );
-        return parsed;
-      }
+      parsed = JSON.parse(data);
     } catch (e) {
       console.error("Failed to parse usage stats", e);
     }
   }
 
-  return {
+  if (parsed && parsed.date === today && parsed.services) {
+    ["gemini", "apollo", "exa", "openai", "anthropic"].forEach((service) => {
+      if (!parsed.services[service]) {
+        parsed.services[service] = createEmptyServiceStats();
+      }
+    });
+    cachedUsageStats = parsed;
+    return cachedUsageStats!;
+  }
+
+  cachedUsageStats = {
     date: today,
     services: {
       gemini: createEmptyServiceStats(),
@@ -83,18 +105,23 @@ export const getUsageStats = (): UsageStats => {
       anthropic: createEmptyServiceStats(),
     },
   };
+  return cachedUsageStats;
 };
 
 export const getKeyUsage = (): Record<string, KeyUsage> => {
+  if (cachedKeyUsage) return cachedKeyUsage;
+
   const data = localStorage.getItem(KEYS_STORAGE_KEY);
   if (data) {
     try {
-      return JSON.parse(data);
+      cachedKeyUsage = JSON.parse(data);
+      return cachedKeyUsage!;
     } catch (e) {
       console.error("Failed to parse key usage", e);
     }
   }
-  return {};
+  cachedKeyUsage = {};
+  return cachedKeyUsage;
 };
 
 export const updateRateLimits = (
@@ -123,7 +150,7 @@ export const updateRateLimits = (
         : serviceStats.rateLimit?.resetDate || null,
   };
 
-  localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(stats));
+  scheduleFlush();
 };
 
 export const trackRequest = (
@@ -131,10 +158,10 @@ export const trackRequest = (
   key: string,
   isError: boolean = false,
   model?: string,
+  tokens?: { input: number; output: number },
 ) => {
   const today = getTodayDateString();
 
-  // Update global stats
   const stats = getUsageStats();
   const serviceStats = stats.services[service];
 
@@ -152,51 +179,48 @@ export const trackRequest = (
       }
       serviceStats.requestsPerModel[gModel] =
         (serviceStats.requestsPerModel[gModel] || 0) + 1;
-      // Rough estimation for AI
+
       serviceStats.estimatedInputTokens =
-        (serviceStats.estimatedInputTokens || 0) + 1500;
+        (serviceStats.estimatedInputTokens || 0) + (tokens?.input || 1500);
       serviceStats.estimatedOutputTokens =
-        (serviceStats.estimatedOutputTokens || 0) + 500;
+        (serviceStats.estimatedOutputTokens || 0) + (tokens?.output || 500);
     }
   }
-  localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(stats));
 
-  if (!key) return; // Don't track key stats if no key is provided
+  if (key) {
+    const keyUsage = getKeyUsage();
+    if (!keyUsage[key]) {
+      keyUsage[key] = {
+        key,
+        service,
+        requestsToday: 0,
+        totalRequests: 0,
+        errors: 0,
+        lastUsed: null,
+      };
+    }
 
-  // Update key specific stats
-  const keyUsage = getKeyUsage();
-  if (!keyUsage[key]) {
-    keyUsage[key] = {
-      key,
-      service,
-      requestsToday: 0,
-      totalRequests: 0,
-      errors: 0,
-      lastUsed: null,
-    };
+    const lastUsedDate = keyUsage[key].lastUsed
+      ? keyUsage[key].lastUsed.split("T")[0]
+      : null;
+    if (lastUsedDate !== today) {
+      keyUsage[key].requestsToday = 0;
+    }
+
+    if (isError) {
+      keyUsage[key].errors += 1;
+    } else {
+      keyUsage[key].requestsToday += 1;
+      keyUsage[key].totalRequests += 1;
+    }
+
+    keyUsage[key].lastUsed = new Date().toISOString();
   }
 
-  // Reset daily counter if it's a new day
-  const lastUsedDate = keyUsage[key].lastUsed
-    ? keyUsage[key].lastUsed.split("T")[0]
-    : null;
-  if (lastUsedDate !== today) {
-    keyUsage[key].requestsToday = 0;
-  }
-
-  if (isError) {
-    keyUsage[key].errors += 1;
-  } else {
-    keyUsage[key].requestsToday += 1;
-    keyUsage[key].totalRequests += 1;
-  }
-
-  keyUsage[key].lastUsed = new Date().toISOString();
-  localStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(keyUsage));
+  scheduleFlush();
 };
 
 export const getResetTime = () => {
-  // Gemini limits typically reset at midnight Pacific Time (PT)
   const now = new Date();
   const ptString = now.toLocaleString("en-US", {
     timeZone: "America/Los_Angeles",

@@ -21,8 +21,6 @@ describe("SupportHelpPage", () => {
     vi.clearAllMocks();
     // Mock global alert
     vi.stubGlobal("alert", vi.fn());
-    // Mock console.error
-    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -211,10 +209,6 @@ describe("SupportHelpPage", () => {
       expect(addDoc).toHaveBeenCalledTimes(1);
     });
 
-    expect(console.error).toHaveBeenCalledWith(
-      "Failed to submit feedback:",
-      expect.any(Error),
-    );
     expect(window.alert).toHaveBeenCalledWith(
       "Failed to submit feedback. Please try again or check your connection.",
     );

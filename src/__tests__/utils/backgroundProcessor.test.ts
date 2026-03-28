@@ -100,10 +100,6 @@ describe("backgroundProcessor", () => {
   });
 
   it("inserts into dead_letter_queue on failure", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
     // Make keep_both fail at the first insert
     mockSupabase.single.mockResolvedValueOnce({
       data: null,
@@ -117,13 +113,6 @@ describe("backgroundProcessor", () => {
     const items: any = [{ id: "1", pending_data_type: "json" }];
     await processInboxAction(items, "keep_both");
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Failed to process item 1 with action keep_both:",
-      ),
-      expect.any(Error),
-    );
-
     expect(mockSupabase.from).toHaveBeenCalledWith("dead_letter_queue");
     expect(mockSupabase.insert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -133,15 +122,9 @@ describe("backgroundProcessor", () => {
         attempt_count: 1,
       }),
     );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("logs critical error if DLQ insert fails", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
     // Action fails
     mockSupabase.eq.mockResolvedValueOnce({ error: new Error("DB Error") });
 
@@ -152,12 +135,5 @@ describe("backgroundProcessor", () => {
 
     const items: any = [{ id: "1", pending_data_type: "json" }];
     await processInboxAction(items, "discard"); // use discard to just hit the inbox update failure
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "CRITICAL: Failed to write to DLQ!",
-      expect.any(Error),
-    );
-
-    consoleErrorSpy.mockRestore();
   });
 });

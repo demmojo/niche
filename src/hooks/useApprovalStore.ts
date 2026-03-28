@@ -18,6 +18,7 @@ interface ApprovalState {
   setBannerDismissed: (dismissed: boolean) => void;
   items: InboxItem[];
   loading: boolean;
+  _currentFetchId?: number;
   fetchInbox: () => Promise<void>;
   resolveItems: (
     ids: string[],
@@ -35,17 +36,21 @@ export const useApprovalStore = create<ApprovalState>()(
       setBannerDismissed: (dismissed) => set({ isBannerDismissed: dismissed }),
       items: [],
       loading: true,
+      _currentFetchId: 0,
       /**
        *
        */
       fetchInbox: async () => {
-        set({ loading: true });
+        const fetchId = Date.now() + Math.random();
+        set({ loading: true, _currentFetchId: fetchId });
         try {
           const { data, error } = await supabase
             .from("raw_data_inbox")
             .select("*")
             .eq("status", "pending")
             .order("created_at", { ascending: false });
+
+          if (get()._currentFetchId !== fetchId) return;
 
           if (error) {
             // Mock data for UI development if DB isn't ready
@@ -77,7 +82,9 @@ export const useApprovalStore = create<ApprovalState>()(
           }
         } catch (err) {
           console.error("Failed to fetch inbox:", err);
-          set({ loading: false });
+          if (get()._currentFetchId === fetchId) {
+            set({ loading: false });
+          }
         }
       },
       /**
@@ -99,8 +106,15 @@ export const useApprovalStore = create<ApprovalState>()(
           await processInboxAction(itemsToProcess, action);
         } catch (err) {
           console.error(`Error performing action ${action}:`, err);
-          // Rollback optimistic update
-          set({ items: previousItems });
+          // Rollback optimistic update: append the specific items back
+          set((state) => {
+            // Re-insert itemsToProcess, avoiding duplicates in case of bizarre races
+            const currentItemIds = new Set(state.items.map((i) => i.id));
+            const itemsToRestore = itemsToProcess.filter(
+              (i) => !currentItemIds.has(i.id),
+            );
+            return { items: [...state.items, ...itemsToRestore] };
+          });
         }
       },
     }),

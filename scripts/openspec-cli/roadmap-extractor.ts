@@ -13,10 +13,9 @@
 
 import { promises as fs } from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
-import { GoogleGenAI } from "@google/genai";
 import * as yaml from "js-yaml";
 import * as dotenv from "dotenv";
+import { z } from "zod";
 
 dotenv.config();
 
@@ -30,39 +29,33 @@ type RoadmapFeature = {
   source_file: string;
 };
 
-import { z } from "zod";
-import { Schema } from "@google/genai";
+const featureSchema = z.object({
+  id: z.string().describe("A unique kebab-case identifier for the feature"),
+  title: z
+    .string()
+    .describe("A visionary, action-oriented title for the feature or refactor"),
+  domain: z
+    .string()
+    .describe(
+      "The primary domain of expertise: 'Product', 'Design', 'Architecture', or 'Machine Learning'",
+    ),
+  description: z
+    .string()
+    .describe(
+      "Detailed strategic description of the future feature or refactor, explicitly tied to current (2026) user behavior, market data, or AI interaction paradigms.",
+    ),
+  strategic_value: z
+    .string()
+    .describe(
+      "Why this matters to the business or market (e.g., 'Captures emerging 2026 prompt-driven dev trend', 'Reduces cognitive load by 10x', 'Creates a defensible AI data moat')",
+    ),
+});
 
-const featureSchema: Schema = {
-  type: "object" as any,
-  properties: {
-    id: {
-      type: "string" as any,
-      description: "A unique kebab-case identifier for the feature",
-    },
-    title: {
-      type: "string" as any,
-      description:
-        "A visionary, action-oriented title for the feature or refactor",
-    },
-    domain: {
-      type: "string" as any,
-      description:
-        "The primary domain of expertise: 'Product', 'Design', 'Architecture', or 'Machine Learning'",
-    },
-    description: {
-      type: "string" as any,
-      description:
-        "Detailed strategic description of the future feature or refactor, explicitly tied to current (2026) user behavior, market data, or AI interaction paradigms.",
-    },
-    strategic_value: {
-      type: "string" as any,
-      description:
-        "Why this matters to the business or market (e.g., 'Captures emerging 2026 prompt-driven dev trend', 'Reduces cognitive load by 10x', 'Creates a defensible AI data moat')",
-    },
-  },
-  required: ["id", "title", "domain", "description", "strategic_value"],
-};
+const roadmapResponseSchema = z.object({
+  features: z
+    .array(featureSchema)
+    .describe("List of strategically analyzed future roadmap items"),
+});
 
 async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
   const specFiles = stagedFiles.filter(
@@ -86,7 +79,9 @@ async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
     return;
   }
 
-  const ai = new GoogleGenAI({});
+  const { GoogleGenAI } = await import("@google/genai");
+  const { generateWithSelfHealing } = await import("./utils.js");
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   console.log(
     `Analyzing ${specFiles.length} spec file(s) for future roadmap features...`,
   );
@@ -116,10 +111,7 @@ async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
 
       // 1. Gather context from recent market trends/tools (via Exa, optional but simulated via prompt alignment)
       // We instruct the model to ground its recommendations in 2026 market context.
-      const prompt = `You are an elite ensemble of tech strategists: an Expert Product Manager, a Visionary UX Designer, a Staff Architect, and a Lead ML Engineer. 
-Your goal is not just to extract deferred tasks, but to strategically analyze the feature spec and propose high-leverage future evolutions for our living roadmap.
-
-Review the following feature specification file.
+      const prompt = `Review the following feature specification file.
 
 1. Actively apply your domains of expertise to identify missing opportunities, architectural limits, UX friction, and product expansion possibilities.
 2. Ground your recommendations in actual 2026 product, user behavior, and market data trends. Ensure the "Wow" features you propose are not just technical debt disguised as features, but genuinely innovative market opportunities.
@@ -127,31 +119,35 @@ Review the following feature specification file.
 4. For each item, specify its primary domain and clearly articulate the strategic value it brings to the user or business (e.g., how it aligns with modern AI user behavior or resolves widespread market friction).
 
 Please strategically analyze and extract features from this specification:
-${fileContent}`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object" as any,
-            properties: {
-              features: {
-                type: "array" as any,
-                description:
-                  "List of strategically analyzed future roadmap items",
-                items: featureSchema,
-              },
-            },
-            required: ["features"],
-          },
-        },
-      });
+<specification>
+${fileContent}
+</specification>
 
-      const content = response.text;
-      if (content) {
-        const result = JSON.parse(content);
+<example>
+{
+  "features": [
+    {
+      "id": "real-time-generative-feedback-copilot",
+      "title": "Real-time Generative Feedback Co-pilot for External IDEs",
+      "domain": "Design",
+      "description": "An intelligent co-pilot, potentially implemented as a browser extension or a lightweight desktop agent, that integrates directly with external visual code generators or development environments (e.g., VS Code). As code is generated or edited, the co-pilot provides real-time, streaming feedback based on NicheAI's strategic constraints. It instantly highlights deviations, offers contextual suggestions, and can even auto-apply minor fixes, significantly reducing the iteration loop and proactively addressing AI context window limits.",
+      "strategic_value": "Reduces cognitive load by 10x and accelerates the design-to-code cycle by providing instant, actionable feedback directly within the user's generative environment. Positions NicheAI as an indispensable, proactive co-pilot, not just a post-hoc validator, capturing the 2026 trend of always-on, intelligent AI assistance."
+    }
+  ]
+}
+</example>`;
+
+      try {
+        const result = await generateWithSelfHealing(
+          ai,
+          "gemini-3.1-pro-preview",
+          prompt,
+          roadmapResponseSchema,
+          `You are an elite ensemble of tech strategists: an Expert Product Manager, a Visionary UX Designer, a Staff Architect, and a Lead ML Engineer. 
+Your goal is not just to extract deferred tasks, but to strategically analyze the feature spec and propose high-leverage future evolutions for our living roadmap.`,
+        );
+
         for (const feature of result.features) {
           newFeatures.push({
             ...feature,
@@ -159,6 +155,8 @@ ${fileContent}`;
             source_file: file,
           });
         }
+      } catch (error) {
+        console.warn(`Failed to process roadmap for ${file}`, error);
       }
     }
 

@@ -12,6 +12,60 @@ expect.extend(matchers);
 const initialVisualKnowledgeState = testVisualKnowledgeStore.getState();
 
 // Setup MSW for all tests
+const CONSOLE_ERROR_ALLOW_LIST = [
+  /ResizeObserver/,
+  /The width\(-1\) and height\(-1\) of chart/,
+  /Not implemented: navigation \(except hash changes\)/,
+  /act\(\.\.\.\) is not supported in production builds/,
+  /When testing, code that causes React state updates should be wrapped into act\(\.\.\.\)/,
+  /Cannot log after tests are done/,
+  /Error analyzing file/,
+  /Error saving .* to Firebase/,
+  /Error syncing .* from Firebase/,
+  /Failed to fetch DLQ items/,
+  /Failed to retry DLQ job/,
+  /ALERT: DLQ Job .* has reached terminal status/,
+  /Failed to send invite/,
+  /Failed to submit feedback/,
+  /Error processing access request/,
+  /Error fetching feature access/,
+  /Failed to fetch models/,
+  /Failed to analyze features/,
+  /API failed/,
+  /Failed to process item/,
+  /CRITICAL: Failed to write to DLQ!/,
+  /WebSocket server error: Port 24678 is already in use/,
+  /Error calling Apollo/,
+  /API Error/,
+  /ECONNREFUSED 127.0.0.1:6379/,
+  /ioredis/,
+];
+
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+console.error = (...args: any[]) => {
+  const msg =
+    typeof args[0] === "string"
+      ? args[0]
+      : args[0]?.message || args[0]?.toString() || "";
+  if (CONSOLE_ERROR_ALLOW_LIST.some((regex) => regex.test(msg))) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
+console.warn = (...args: any[]) => {
+  const msg =
+    typeof args[0] === "string"
+      ? args[0]
+      : args[0]?.message || args[0]?.toString() || "";
+  if (CONSOLE_ERROR_ALLOW_LIST.some((regex) => regex.test(msg))) {
+    return;
+  }
+  originalConsoleWarn(...args);
+};
+
 beforeAll(() => {
   vi.stubEnv("GEMINI_API_KEY", "test-mock-key");
   server.listen({

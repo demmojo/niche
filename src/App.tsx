@@ -1515,9 +1515,12 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   const [mentionQuery, setMentionQuery] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  const chatStateRef = useRef(chatState);
+  chatStateRef.current = chatState;
+
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (chatState === "locked") {
+      if (chatStateRef.current === "locked") {
         const chatEl = document.getElementById("insight-engine-chat");
         if (chatEl && !chatEl.contains(e.target as Node)) {
           setChatState("closed");
@@ -1526,7 +1529,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [chatState]);
+  }, []);
 
   // Global State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -1573,13 +1576,13 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   const [activeTasks, setActiveTasks] = useState<
     { id: string; name: string; progress: number }[]
   >([]);
-  const syncProgress = useMemo(() => {
+  const syncProgress = (() => {
     if (!isSyncing || activeTasks.length === 0) return 0;
     const completedStages = activeTasks.filter(
       (t) => t.progress === 100,
     ).length;
     return Math.round((completedStages / activeTasks.length) * 100);
-  }, [isSyncing, activeTasks]);
+  })();
 
   useEffect(() => {
     if (!isSyncing || activeTasks.length === 0) return;
@@ -1673,14 +1676,26 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     defaultInsights,
   );
 
+  // Keep track of all active timeouts to prevent leaks on unmount
+  const activeTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      activeTimeoutsRef.current.forEach(clearTimeout);
+      activeTimeoutsRef.current.clear();
+    };
+  }, []);
+
   // Toast Functions
   const addToast = (message: string, type: Toast["type"] = "info") => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
     if (type !== "loading") {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
+        activeTimeoutsRef.current.delete(timer);
       }, 3000);
+      activeTimeoutsRef.current.add(timer);
     }
     return id;
   };
@@ -1874,7 +1889,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
                 },
               });
             },
-            { tier: "fast" },
+            { capability: "chat" },
           );
           const llmDomains = JSON.parse(response.text || "[]");
           newCompetitorDomains = [
@@ -2238,7 +2253,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
                       },
                     });
                   },
-                  { tier: "fast" },
+                  { capability: "chat" },
                 );
 
                 const summary = response.text || "No summary generated.";
@@ -2474,7 +2489,7 @@ Return a JSON array of objects matching this exact structure:
                   },
                 });
               },
-              { tier: "pro" },
+              { capability: "reasoning" },
             );
 
             const results = JSON.parse(response.text || "[]");
@@ -2656,7 +2671,7 @@ Return a JSON array of objects matching this exact structure:
                 },
               });
             },
-            { tier: "pro" },
+            { capability: "reasoning" },
           );
 
           setActiveTasks((prev) =>
@@ -3015,7 +3030,8 @@ The markdown MUST follow this exact structure:
         `Fixed ${issuesFound} issues. Re-running check...`,
         "info",
       );
-      setTimeout(runSystemCheck, 100);
+      const timer = setTimeout(runSystemCheck, 100);
+      activeTimeoutsRef.current.add(timer);
       return;
     }
 
@@ -3350,7 +3366,7 @@ The markdown MUST follow this exact structure:
             },
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
 
       const parsed = JSON.parse(geminiResponse.text);
@@ -3505,7 +3521,7 @@ The markdown MUST follow this exact structure:
             },
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
 
       const newComps = JSON.parse(response.text || "[]");
@@ -3677,7 +3693,7 @@ The markdown MUST follow this exact structure:
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       const result = JSON.parse(response.text || "{}");
@@ -3828,7 +3844,7 @@ Keep the summary concise and grounded in reality. Ask a follow-up question to va
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       let fullText = "";
@@ -4024,7 +4040,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       let fullText = "";
@@ -6927,7 +6943,7 @@ function ScoutPage({
             contents: `Analyze the following competitor data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
       setAnalysisResult(response.text || "[]");
     } catch (error: any) {
@@ -7733,7 +7749,7 @@ function SourcePage({
             contents: `Analyze the following source data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
       setAnalysisResult(response.text || "[]");
     } catch (error: any) {
@@ -8038,7 +8054,7 @@ function SummaryPage({
             contents: `Analyze the following summary data. Return the source data as tables or excerpts and a summary explaining why this matters. Title: ${title}\nValue: ${value}\nTrend: ${trend}\nStats: ${JSON.stringify(stats)}`,
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
       setAnalysisResult(response.text || "No analysis generated.");
     } catch (error: any) {

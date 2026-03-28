@@ -71,8 +71,6 @@ describe("RequestAccessModal Component", () => {
       new Error("Firebase error"),
     );
 
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     render(
       <RequestAccessModal
         open={true}
@@ -91,7 +89,5 @@ describe("RequestAccessModal Component", () => {
 
     // Should re-enable button
     expect(requestBtn).not.toBeDisabled();
-
-    consoleSpy.mockRestore();
   });
 });

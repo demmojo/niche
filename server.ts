@@ -2,6 +2,16 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
+import { requireAuth } from "./src/server/authMiddleware";
+import {
+  saveByokKey,
+  injectByokKey,
+  ByokRequest,
+} from "./src/server/byokMiddleware";
+import {
+  generateContentHandler,
+  generateContentStreamHandler,
+} from "./src/server/llmRoutes";
 import {
   calculateExactHash,
   calculateSimHash,
@@ -16,6 +26,11 @@ import {
   networkIoQueue,
   visionMlQueue,
 } from "./src/server/queues";
+import {
+  apiLimiter,
+  llmLimiter,
+  enrichmentLimiter,
+} from "./src/server/rateLimit";
 
 dotenv.config();
 
@@ -29,6 +44,23 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Apply Global API rate limiter
+  app.use("/api/", apiLimiter);
+
+  app.use("/api", injectByokKey);
+
+  // Settings Endpoint
+  app.post("/api/settings/byok", saveByokKey);
+
+  // LLM Proxy Endpoints
+  app.use("/api/llm/", llmLimiter);
+  app.post("/api/llm/generate", requireAuth, generateContentHandler);
+  app.post(
+    "/api/llm/generateStream",
+    requireAuth,
+    generateContentStreamHandler,
+  );
+
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -40,7 +72,7 @@ async function startServer() {
   // IDEATION ENDPOINTS
 
   // Client-Side Image Deduplication
-  app.post("/api/images/check", async (req, res) => {
+  app.post("/api/images/check", requireAuth, async (req, res) => {
     try {
       const { hash } = req.body;
       if (!hash) {
@@ -101,7 +133,7 @@ async function startServer() {
   }
 
   // Endpoint to manually dispatch ideation jobs
-  app.post("/api/ideation/start", async (req, res) => {
+  app.post("/api/ideation/start", requireAuth, async (req, res) => {
     try {
       const { competitors } = req.body;
       if (!competitors || !Array.isArray(competitors)) {
@@ -163,7 +195,7 @@ async function startServer() {
   };
 
   // Federated Mentions Search API
-  app.get("/api/search/mentions", async (req, res) => {
+  app.get("/api/search/mentions", requireAuth, async (req, res) => {
     try {
       const { q, limit_per_category } = req.query;
       if (!q || typeof q !== "string") {
@@ -242,7 +274,7 @@ async function startServer() {
   });
 
   // Tarpit Analyzer Endpoint
-  app.post("/api/tarpit-analyze", async (req, res) => {
+  app.post("/api/tarpit-analyze", requireAuth, async (req, res) => {
     try {
       const { productName, productDescription } = req.body;
       if (!productName || !productDescription) {
@@ -273,7 +305,7 @@ async function startServer() {
   });
 
   // Visual Intelligence & BYOK Proxy
-  app.post("/api/visual/analyze", async (req, res) => {
+  app.post("/api/visual/analyze", requireAuth, async (req, res) => {
     try {
       const { imageBase64, userApiKey, provider } = req.body;
 
@@ -319,7 +351,7 @@ async function startServer() {
   });
 
   // Reality Check Diff Endpoint
-  app.post("/api/visual/reality-check", async (req, res) => {
+  app.post("/api/visual/reality-check", requireAuth, async (req, res) => {
     try {
       const { imageBase64, currentFeatures } = req.body;
 
@@ -340,22 +372,26 @@ async function startServer() {
   });
 
   // Cloudflare API Integration & OAuth
-  app.post("/api/cloudflare/provision-analytics", async (req, res) => {
-    try {
-      const { accountId, token } = req.body;
-      const siteToken =
-        "cf_site_token_mock_" + Math.random().toString(36).substring(7);
-      res.status(200).json({
-        site_token: siteToken,
-        message: "Analytics provisioned via OpenNext Edge",
-      });
-    } catch (error: any) {
-      console.error("Cloudflare Provision Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+  app.post(
+    "/api/cloudflare/provision-analytics",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { accountId, token } = req.body;
+        const siteToken =
+          "cf_site_token_mock_" + Math.random().toString(36).substring(7);
+        res.status(200).json({
+          site_token: siteToken,
+          message: "Analytics provisioned via OpenNext Edge",
+        });
+      } catch (error: any) {
+        console.error("Cloudflare Provision Error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    },
+  );
 
-  app.post("/api/cloudflare/graphql", async (req, res) => {
+  app.post("/api/cloudflare/graphql", requireAuth, async (req, res) => {
     try {
       const { siteToken } = req.body;
       const metrics = {
@@ -372,7 +408,7 @@ async function startServer() {
   });
 
   // Raw Data Ingestion API
-  app.post("/api/raw-data/ingest", async (req, res) => {
+  app.post("/api/raw-data/ingest", requireAuth, async (req, res) => {
     try {
       const { payload, data_type, metadata } = req.body;
 
@@ -520,275 +556,290 @@ async function startServer() {
   });
 
   // Apollo.io Enrichment API (Organization Search)
-  app.post("/api/apollo/enrich", async (req, res) => {
-    try {
-      const { domain } = req.body;
-      if (!domain) {
-        return res.status(400).json({ error: "Domain is required" });
-      }
+  app.use("/api/apollo/", enrichmentLimiter);
+  app.post(
+    "/api/apollo/enrich",
+    requireAuth,
+    async (req: ByokRequest, res: any) => {
+      try {
+        const { domain } = req.body;
+        if (!domain) {
+          return res.status(400).json({ error: "Domain is required" });
+        }
 
-      const clientApiKey = req.headers["x-api-key"] as string;
-      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
-      if (!apiKey) {
-        return res
-          .status(500)
-          .json({ error: "APOLLO_API_KEY is not configured" });
-      }
+        const clientApiKey = req.headers["x-api-key"] as string;
+        const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
+        if (!apiKey) {
+          return res
+            .status(500)
+            .json({ error: "APOLLO_API_KEY is not configured" });
+        }
 
-      let response: Response | undefined;
-      let errorText = "";
+        let response: Response | undefined;
+        let errorText = "";
 
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-        try {
-          response = await fetch(
-            `https://api.apollo.io/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
-            {
-              method: "GET",
-              headers: {
-                "Cache-Control": "no-cache",
-                "Content-Type": "application/json",
-                "x-api-key": apiKey,
+          try {
+            response = await fetch(
+              `https://api.apollo.io/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
+              {
+                method: "GET",
+                headers: {
+                  "Cache-Control": "no-cache",
+                  "Content-Type": "application/json",
+                  "x-api-key": apiKey,
+                },
+                signal: controller.signal,
               },
-              signal: controller.signal,
-            },
-          );
-          if (response.ok) {
-            clearTimeout(timeoutId);
-            break;
-          }
+            );
+            if (response.ok) {
+              clearTimeout(timeoutId);
+              break;
+            }
 
-          errorText = await response.text();
-          clearTimeout(timeoutId);
-          if (response.status === 429 || response.status >= 500) {
+            errorText = await response.text();
+            clearTimeout(timeoutId);
+            if (response.status === 429 || response.status >= 500) {
+              if (attempt === 1) {
+                const delay = 1000 + Math.random() * 500;
+                await new Promise((res) => setTimeout(res, delay));
+                continue;
+              }
+            } else {
+              break; // Don't retry 400s
+            }
+          } catch (e: any) {
+            clearTimeout(timeoutId);
             if (attempt === 1) {
               const delay = 1000 + Math.random() * 500;
               await new Promise((res) => setTimeout(res, delay));
               continue;
             }
-          } else {
-            break; // Don't retry 400s
+            throw e;
           }
-        } catch (e: any) {
-          clearTimeout(timeoutId);
-          if (attempt === 1) {
-            const delay = 1000 + Math.random() * 500;
-            await new Promise((res) => setTimeout(res, delay));
-            continue;
-          }
-          throw e;
         }
-      }
 
-      if (!response) {
-        throw new Error("Failed to execute request after retries");
-      }
+        if (!response) {
+          throw new Error("Failed to execute request after retries");
+        }
 
-      // Forward rate limit headers
-      const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) =>
-        res.setHeader(key, value),
-      );
+        // Forward rate limit headers
+        const rateLimits = extractRateLimitHeaders(response);
+        Object.entries(rateLimits).forEach(([key, value]) =>
+          res.setHeader(key, value),
+        );
 
-      if (!response.ok) {
-        return res.status(response.status).json({
-          error: `Apollo API error: ${response.status} ${errorText}`,
-          responseStatus: response.status,
-        });
-      }
+        if (!response.ok) {
+          return res.status(response.status).json({
+            error: `Apollo API error: ${response.status} ${errorText}`,
+            responseStatus: response.status,
+          });
+        }
 
-      const data = await response.json();
-      res.json(data);
-    } catch (error: any) {
-      console.error("Apollo API Error:", error);
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to fetch data from Apollo" });
-    }
-  });
-
-  app.post("/api/apollo/search", async (req, res) => {
-    try {
-      const { keywords } = req.body;
-      if (!keywords || !Array.isArray(keywords)) {
-        return res.status(400).json({ error: "Keywords array is required" });
-      }
-
-      const clientApiKey = req.headers["x-api-key"] as string;
-      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
-      if (!apiKey) {
-        return res
+        const data = await response.json();
+        res.json(data);
+      } catch (error: any) {
+        console.error("Apollo API Error:", error);
+        res
           .status(500)
-          .json({ error: "APOLLO_API_KEY is not configured" });
+          .json({ error: error.message || "Failed to fetch data from Apollo" });
       }
+    },
+  );
 
-      let response: Response | undefined;
-      let errorText = "";
+  app.post(
+    "/api/apollo/search",
+    requireAuth,
+    async (req: ByokRequest, res: any) => {
+      try {
+        const { keywords } = req.body;
+        if (!keywords || !Array.isArray(keywords)) {
+          return res.status(400).json({ error: "Keywords array is required" });
+        }
 
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        const clientApiKey = req.headers["x-api-key"] as string;
+        const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
+        if (!apiKey) {
+          return res
+            .status(500)
+            .json({ error: "APOLLO_API_KEY is not configured" });
+        }
 
-        try {
-          response = await fetch(
-            `https://api.apollo.io/v1/organizations/search`,
-            {
-              method: "POST",
-              headers: {
-                "Cache-Control": "no-cache",
-                "Content-Type": "application/json",
-                "x-api-key": apiKey,
+        let response: Response | undefined;
+        let errorText = "";
+
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+          try {
+            response = await fetch(
+              `https://api.apollo.io/v1/organizations/search`,
+              {
+                method: "POST",
+                headers: {
+                  "Cache-Control": "no-cache",
+                  "Content-Type": "application/json",
+                  "x-api-key": apiKey,
+                },
+                signal: controller.signal,
+                body: JSON.stringify({
+                  organization_locations: ["United States"],
+                  q_organization_keyword_tags: keywords,
+                  per_page: 5,
+                }),
               },
-              signal: controller.signal,
-              body: JSON.stringify({
-                organization_locations: ["United States"],
-                q_organization_keyword_tags: keywords,
-                per_page: 5,
-              }),
-            },
-          );
-          if (response.ok) {
-            clearTimeout(timeoutId);
-            break;
-          }
+            );
+            if (response.ok) {
+              clearTimeout(timeoutId);
+              break;
+            }
 
-          errorText = await response.text();
-          clearTimeout(timeoutId);
-          if (response.status === 429 || response.status >= 500) {
+            errorText = await response.text();
+            clearTimeout(timeoutId);
+            if (response.status === 429 || response.status >= 500) {
+              if (attempt === 1) {
+                const delay = 1000 + Math.random() * 500;
+                await new Promise((res) => setTimeout(res, delay));
+                continue;
+              }
+            } else {
+              break; // Don't retry 400s
+            }
+          } catch (e: any) {
+            clearTimeout(timeoutId);
             if (attempt === 1) {
               const delay = 1000 + Math.random() * 500;
               await new Promise((res) => setTimeout(res, delay));
               continue;
             }
-          } else {
-            break; // Don't retry 400s
+            throw e;
           }
-        } catch (e: any) {
-          clearTimeout(timeoutId);
-          if (attempt === 1) {
-            const delay = 1000 + Math.random() * 500;
-            await new Promise((res) => setTimeout(res, delay));
-            continue;
-          }
-          throw e;
         }
-      }
 
-      if (!response) {
-        throw new Error("Failed to execute request after retries");
-      }
+        if (!response) {
+          throw new Error("Failed to execute request after retries");
+        }
 
-      // Forward rate limit headers
-      const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) =>
-        res.setHeader(key, value),
-      );
+        // Forward rate limit headers
+        const rateLimits = extractRateLimitHeaders(response);
+        Object.entries(rateLimits).forEach(([key, value]) =>
+          res.setHeader(key, value),
+        );
 
-      if (!response.ok) {
-        return res.status(response.status).json({
-          error: `Apollo API error: ${response.status} ${errorText}`,
-          responseStatus: response.status,
+        if (!response.ok) {
+          return res.status(response.status).json({
+            error: `Apollo API error: ${response.status} ${errorText}`,
+            responseStatus: response.status,
+          });
+        }
+
+        const data = await response.json();
+        res.json(data);
+      } catch (error: any) {
+        console.error("Apollo API Error:", error);
+        res.status(500).json({
+          error: error.message || "Failed to fetch data from Apollo search",
         });
       }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error: any) {
-      console.error("Apollo API Error:", error);
-      res.status(500).json({
-        error: error.message || "Failed to fetch data from Apollo search",
-      });
-    }
-  });
+    },
+  );
 
   // Apollo.io News API (News Articles Search)
-  app.post("/api/apollo/news", async (req, res) => {
-    try {
-      const { organization_ids } = req.body;
+  app.post(
+    "/api/apollo/news",
+    requireAuth,
+    async (req: ByokRequest, res: any) => {
+      try {
+        const { organization_ids } = req.body;
 
-      if (!organization_ids || !organization_ids.length) {
-        return res.status(400).json({ error: "organization_ids is required" });
-      }
+        if (!organization_ids || !organization_ids.length) {
+          return res
+            .status(400)
+            .json({ error: "organization_ids is required" });
+        }
 
-      const clientApiKey = req.headers["x-api-key"] as string;
-      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
-      if (!apiKey) {
-        return res
-          .status(500)
-          .json({ error: "APOLLO_API_KEY is not configured" });
-      }
+        const clientApiKey = req.headers["x-api-key"] as string;
+        const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
+        if (!apiKey) {
+          return res
+            .status(500)
+            .json({ error: "APOLLO_API_KEY is not configured" });
+        }
 
-      const params = new URLSearchParams();
-      organization_ids.forEach((id: string) =>
-        params.append("organization_ids[]", id),
-      );
-      params.append("per_page", "5");
+        const params = new URLSearchParams();
+        organization_ids.forEach((id: string) =>
+          params.append("organization_ids[]", id),
+        );
+        params.append("per_page", "5");
 
-      let response: Response | undefined;
-      let errorText = "";
+        let response: Response | undefined;
+        let errorText = "";
 
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          response = await fetch(
-            `https://api.apollo.io/v1/news_articles/search?${params.toString()}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-api-key": apiKey,
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            response = await fetch(
+              `https://api.apollo.io/v1/news_articles/search?${params.toString()}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-api-key": apiKey,
+                },
               },
-            },
-          );
+            );
 
-          if (response.ok) break;
+            if (response.ok) break;
 
-          errorText = await response.text();
-          if (response.status === 429 || response.status >= 500) {
+            errorText = await response.text();
+            if (response.status === 429 || response.status >= 500) {
+              if (attempt === 1) {
+                const delay = 1000 + Math.random() * 500;
+                await new Promise((res) => setTimeout(res, delay));
+                continue;
+              }
+            } else {
+              break; // Don't retry 400s
+            }
+          } catch (e: any) {
             if (attempt === 1) {
               const delay = 1000 + Math.random() * 500;
               await new Promise((res) => setTimeout(res, delay));
               continue;
             }
-          } else {
-            break; // Don't retry 400s
+            throw e;
           }
-        } catch (e: any) {
-          if (attempt === 1) {
-            const delay = 1000 + Math.random() * 500;
-            await new Promise((res) => setTimeout(res, delay));
-            continue;
-          }
-          throw e;
         }
+
+        if (!response) {
+          throw new Error("Failed to execute news request after retries");
+        }
+
+        // Forward rate limit headers
+        const rateLimits = extractRateLimitHeaders(response);
+        Object.entries(rateLimits).forEach(([key, value]) =>
+          res.setHeader(key, value),
+        );
+
+        if (!response.ok) {
+          return res.status(response.status).json({
+            error: `Apollo news error: ${response.status} ${errorText}`,
+          });
+        }
+
+        const data = await response.json();
+        res.json(data);
+      } catch (error: any) {
+        console.error("Apollo News API Error:", error);
+        res
+          .status(500)
+          .json({ error: error.message || "Failed to fetch news from Apollo" });
       }
-
-      if (!response) {
-        throw new Error("Failed to execute news request after retries");
-      }
-
-      // Forward rate limit headers
-      const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) =>
-        res.setHeader(key, value),
-      );
-
-      if (!response.ok) {
-        return res.status(response.status).json({
-          error: `Apollo news error: ${response.status} ${errorText}`,
-        });
-      }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error: any) {
-      console.error("Apollo News API Error:", error);
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to fetch news from Apollo" });
-    }
-  });
+    },
+  );
 
   // Vite middleware for development
   if (

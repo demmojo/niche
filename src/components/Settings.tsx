@@ -18,7 +18,7 @@ import {
   setMainModel,
   AIModel,
 } from "../utils/aiClient";
-import { getCustomApiKey, setCustomApiKey } from "../utils/apiKeys";
+import { getCustomApiKey, setCustomApiKey, ApiService } from "../utils/apiKeys";
 import { useUrlSearchParam } from "../hooks/useUrlSearchParam";
 import { useAuth } from "./AuthProvider";
 import { RequestAccessModal } from "./RequestAccessModal";
@@ -46,19 +46,18 @@ export const Settings: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   // API Key State
-  const [geminiKey, setGeminiKeyState] = useState(
-    getCustomApiKey("gemini") || "",
-  );
-  const [apolloKey, setApolloKeyState] = useState(
-    getCustomApiKey("apollo") || "",
-  );
-  const [exaKey, setExaKeyState] = useState(getCustomApiKey("exa") || "");
-  const [openaiKey, setOpenaiKeyState] = useState(
-    getCustomApiKey("openai") || "",
-  );
-  const [anthropicKey, setAnthropicKeyState] = useState(
-    getCustomApiKey("anthropic") || "",
-  );
+  const placeholderText = "********-configured-********";
+
+  const initKey = (service: ApiService) => {
+    const val = getCustomApiKey(service);
+    return val === "true" ? placeholderText : val || "";
+  };
+
+  const [geminiKey, setGeminiKeyState] = useState(initKey("gemini"));
+  const [apolloKey, setApolloKeyState] = useState(initKey("apollo"));
+  const [exaKey, setExaKeyState] = useState(initKey("exa"));
+  const [openaiKey, setOpenaiKeyState] = useState(initKey("openai"));
+  const [anthropicKey, setAnthropicKeyState] = useState(initKey("anthropic"));
 
   // Determine daily limit based on model (fallback if no rate limit headers)
   const primaryModel =
@@ -80,6 +79,13 @@ export const Settings: React.FC = () => {
   const dailyRequestLimit = isProModel ? 50 : 1500;
 
   useEffect(() => {
+    // Migrate deprecated model
+    const currentModel = localStorage.getItem("ai_main_model");
+    if (currentModel === "gemini-3-flash-preview") {
+      setMainModel("gemini-3.1-flash");
+      setLocalMainModel("gemini-3.1-flash");
+    }
+
     // Load initial data
     setStats(getUsageStats());
 
@@ -138,11 +144,15 @@ export const Settings: React.FC = () => {
   };
 
   const handleSaveKeys = async () => {
-    setCustomApiKey("gemini", geminiKey);
-    setCustomApiKey("apollo", apolloKey);
-    setCustomApiKey("exa", exaKey);
-    setCustomApiKey("openai", openaiKey);
-    setCustomApiKey("anthropic", anthropicKey);
+    if (geminiKey !== placeholderText)
+      await setCustomApiKey("gemini", geminiKey);
+    if (apolloKey !== placeholderText)
+      await setCustomApiKey("apollo", apolloKey);
+    if (exaKey !== placeholderText) await setCustomApiKey("exa", exaKey);
+    if (openaiKey !== placeholderText)
+      await setCustomApiKey("openai", openaiKey);
+    if (anthropicKey !== placeholderText)
+      await setCustomApiKey("anthropic", anthropicKey);
     // Could add a toast here
 
     setIsFetchingModels(true);
@@ -583,9 +593,8 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs text-ink-dark/40 mt-4">
-                * Token counts are estimated based on average request sizes
-                (1500 in / 500 out) as exact token counts are not returned by
-                the streaming API in this implementation.
+                * Exact token usage is extracted directly from the API response
+                payload.
               </p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { DLQViewer } from "../../components/DLQViewer";
 import { supabase } from "../../utils/hashing";
 import { executeActionLogic } from "../../utils/backgroundProcessor";

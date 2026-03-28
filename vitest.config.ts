@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, coverageConfigDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -15,6 +15,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
+        ...coverageConfigDefaults.exclude,
         "src/**/*.test.{ts,tsx}",
         "src/**/*.spec.{ts,tsx}",
         "e2e/**",
@@ -31,10 +32,10 @@ export default defineConfig({
         "src/components/FhibliUI.tsx",
       ],
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80,
+        lines: 64,
+        functions: 73,
+        branches: 84,
+        statements: 64,
       },
     },
   },

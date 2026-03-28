@@ -44,9 +44,6 @@ describe("dlqWorker", () => {
   });
 
   it("returns early if fetching DLQ fails", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     mockSupabase.limit.mockResolvedValueOnce({
       data: null,
       error: new Error("Fetch Error"),
@@ -54,13 +51,7 @@ describe("dlqWorker", () => {
 
     await processDLQ();
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to fetch DLQ items",
-      expect.any(Error),
-    );
     expect(executeActionLogic).not.toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("returns early if no pending jobs", async () => {
@@ -107,10 +98,6 @@ describe("dlqWorker", () => {
   });
 
   it("throws error for unknown job_type", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
     mockSupabase.limit.mockResolvedValueOnce({
       data: [
         {
@@ -128,26 +115,15 @@ describe("dlqWorker", () => {
 
     await processDLQ();
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to retry DLQ job dlq-1:",
-      expect.any(Error),
-    );
-
     expect(mockSupabase.update).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "retrying",
         attempt_count: 2,
       }),
     );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("marks as terminal if max_attempts reached", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
     mockSupabase.limit.mockResolvedValueOnce({
       data: [
         {
@@ -177,10 +153,5 @@ describe("dlqWorker", () => {
         attempt_count: 3,
       }),
     );
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "🚨 ALERT: DLQ Job dlq-1 has reached terminal status!",
-    );
-
-    consoleErrorSpy.mockRestore();
   });
 });

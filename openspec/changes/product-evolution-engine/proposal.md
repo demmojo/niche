@@ -1,3 +1,5 @@
+> **NOTICE:** This spec has been **superseded** by `unified-ideation-and-evolution`. Do not implement tasks from this spec.
+
 ## Why
 
 The bottleneck for small teams has structurally shifted in 2026. Code generation is commoditized; the true challenges are **Distribution** and **Finding a Defensible Niche**. Building another horizontal CRM is a death sentence for an indie hacker, while building one for a specific, underserved niche is a goldmine. NicheAI must act as an opinionated product strategist that helps teams iterate on their product definition organically based on real market data, ensuring they are building something highly specific, underserved, and distribution-ready.

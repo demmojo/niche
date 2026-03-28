@@ -56,23 +56,6 @@ describe("App Integration", () => {
   });
 
   it("renders App and verifies tab navigation and SyncNowButton deduplication", async () => {
-    // Suppress console warnings about recharts matching element for ResizeObserver in JSDOM
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
-    console.error = (...args) => {
-      if (typeof args[0] === "string") {
-        if (/ResizeObserver/.test(args[0])) return;
-        if (/The width\(-1\) and height\(-1\) of chart/.test(args[0])) return;
-      }
-      originalConsoleError(...args);
-    };
-    console.warn = (...args) => {
-      if (typeof args[0] === "string") {
-        if (/The width\(-1\) and height\(-1\) of chart/.test(args[0])) return;
-      }
-      originalConsoleWarn(...args);
-    };
-
     let getByText: any, getAllByText: any;
 
     await act(async () => {
@@ -81,57 +64,69 @@ describe("App Integration", () => {
       getAllByText = result.getAllByText;
     });
 
-    // 1. Check initial state: Should be on Dashboard
-    // Actually, checking "Overview" or "Executive Summary"
+    // Navigate to Dashboard
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    });
     expect(getByText("Dashboard", { selector: "h1" })).toBeInTheDocument();
 
     // The SyncNowButton text has "Sync Now"
     // Check that we only render one "Sync Now" button
-    let syncButtons = getAllByText("Sync Now", { selector: "button" });
+    let syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     expect(syncButtons.length).toBe(1);
 
     // 2. Navigate to "Matrix" tab
     await act(async () => {
-      fireEvent.click(getAllByText("Competitor Matrix")[0]);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Competitor Matrix" }),
+      );
     });
 
     await waitFor(() => {
-      expect(getAllByText("Competitor Matrix").length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("heading", { name: "Competitor Matrix", level: 1 }),
+      ).toBeInTheDocument();
     });
 
     // Check SyncNowButton count
-    syncButtons = getAllByText("Sync Now", { selector: "button" });
+    syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     expect(syncButtons.length).toBe(1);
 
     // 3. Navigate to "Raw Data" tab
     await act(async () => {
-      fireEvent.click(getAllByText("Raw Data Library")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Raw Data Library" }));
     });
 
     await waitFor(() => {
-      expect(getAllByText("Raw Data Library").length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("heading", { name: "Raw Data Library", level: 1 }),
+      ).toBeInTheDocument();
     });
 
     // Check SyncNowButton count
-    syncButtons = getAllByText("Sync Now", { selector: "button" });
+    syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     expect(syncButtons.length).toBe(1);
 
     // 4. Navigate to "Insights" tab
     await act(async () => {
-      fireEvent.click(getAllByText("Insight Library")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Insight Library" }));
     });
 
     await waitFor(() => {
-      expect(getAllByText("Insight Library").length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("heading", { name: "Insight Library", level: 1 }),
+      ).toBeInTheDocument();
     });
 
     // Check SyncNowButton count
-    syncButtons = getAllByText("Sync Now", { selector: "button" });
+    syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     expect(syncButtons.length).toBe(1);
 
     // Navigation to Background Tasks & Sync
     await act(async () => {
-      fireEvent.click(screen.getAllByText("Background Tasks & Sync")[0]);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Background Tasks & Sync" }),
+      );
     });
 
     await waitFor(() => {
@@ -141,13 +136,10 @@ describe("App Integration", () => {
     // Here, there's one Sync Now button in the empty state ("All systems are up to date.") and one in the top header.
     // Wait! The empty state has a Sync Now button. So on System Status tab, if empty, we might see 2!
     // Let's check how many there are.
-    syncButtons = getAllByText("Sync Now", { selector: "button" });
+    syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     // It's acceptable to have 2 here because one is in the empty state CTA, but the top header toolbar one is only 1.
     // The plan explicitly states: "Strip out the redundant `<SyncNowButton />` references from the individual tab toolbars, preserving only the global instance."
     // Let's assert there are no more than 2.
     expect(syncButtons.length).toBeLessThanOrEqual(2);
-
-    console.error = originalConsoleError;
-    console.warn = originalConsoleWarn;
   });
 });

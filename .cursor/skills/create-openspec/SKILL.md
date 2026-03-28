@@ -14,11 +14,12 @@ When asked to create a new OpenSpec or plan a feature:
 1. **Pre-requisite Review:** You MUST use the `Shell` or `Read` tools to review all existing specs in `openspec/changes/` and `openspec/archive/`. Check for overlaps, conflicts, or if the proposed feature alters an existing implemented/unimplemented spec.
    - If there is an overlap, ask the user if the new spec should _supersede_ the old one, or if they should be merged.
    - If superseding, update the old spec's `.openspec.yaml` to include `status: superseded` and `superseded_by: <new-feature-name>`, and add a warning to the top of its `proposal.md`.
-2. **Future Extractor Mandate:** While creating plans or specs, at the end make sure to populate "Future Considerations" or potential "Architectural, Design and Future Potential To Dos". This feeds the living roadmap document.
-3. Ask the user for the feature name and a brief description if not already provided.
-4. Determine a short `feature-name` (kebab-case) for the directory.
-5. Use the Write tool to create the directory structure: `openspec/changes/<feature-name>/` and `openspec/changes/<feature-name>/specs/<feature-name>/`.
-6. Generate the 5 files below, filling in placeholders logically based on the user's description.
+2. **Ingestion Pipeline Shortcut:** If the user provides an existing plan document (e.g., from `docs/plans/`), you **MUST NOT** scaffold the files manually. Instead, you MUST use the ingestion pipeline by running `npx tsx scripts/openspec-cli/index.ts ingest <path-to-plan.md>`. This will automatically parse the plan, generate the OpenSpec artifacts, check for collisions, and archive the original plan. You can skip steps 3-6 if you do this.
+3. **Future Extractor Mandate:** While creating plans or specs, at the end make sure to populate "Future Considerations" or potential "Architectural, Design and Future Potential To Dos". This feeds the living roadmap document.
+4. Ask the user for the feature name and a brief description if not already provided.
+5. Determine a short `feature-name` (kebab-case) for the directory.
+6. Use the Write tool to create the directory structure: `openspec/changes/<feature-name>/` and `openspec/changes/<feature-name>/specs/<feature-name>/`.
+7. Generate the 5 files below, filling in placeholders logically based on the user's description.
 
 ### 1. `.openspec.yaml`
 

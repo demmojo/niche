@@ -9,19 +9,21 @@ This project relies on `openspec/changes/` directories containing `proposal.md`,
 
 ## Pre-flight / Planning Phase (CRITICAL)
 Before you propose a new feature, run `/plan`, or create a new OpenSpec:
-1. **Discover Existing Specs:** You MUST run `npx tsx scripts/openspec-cli/index.ts collision` to detect overlaps or read `openspec/changes/` to see what is already planned.
-2. **Identify Overlaps:** If the new feature overlaps or conflicts with an existing spec (e.g. `product-evolution-engine`), determine if the new spec should *supersede* the old one or compliment it.
-3. **Supersede Specs:** If a spec is superseded or removed:
+1. **Discover Existing Specs:** You MUST run `npx tsx scripts/openspec-cli/index.ts detect-collisions` to detect overlaps or read `openspec/changes/` to see what is already planned.
+2. **Identify Overlaps:** If the new feature overlaps or conflicts with an existing spec (e.g. `product-evolution-engine`), determine if the new spec should *supersede* the old one or complement it.
+3. **Ingest to OpenSpec:** The output from `/plan` (in `docs/plans/`) is an ephemeral staging area. You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `docs/plans/` markdown file. You MUST ingest it into the OpenSpec DAG first by running `npx tsx scripts/openspec-cli/index.ts ingest docs/plans/<plan_filename>.md`.
+4. **Supersede Specs:** If a spec is superseded or removed:
    - Update its `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
    - Add a `> **NOTICE:** This spec has been **superseded** by [new-spec].` block to the very top of its `proposal.md`.
    - Never implement tasks from a superseded spec.
-4. **Future Roadmap Extractor:** While creating plans or specs, make sure to explicitly populate a "Future Considerations" or "Architectural, Design and Future Potential To Dos" section at the end of `design.md` or the plan file. This feeds the living `docs/ROADMAP.md` document during the git commit lifecycle.
-5. **Validate Specs:** Run `npx tsx scripts/openspec-cli/index.ts validate` to ensure the DAG is acyclic and valid. Then run `npx tsx scripts/openspec-cli/index.ts eval` to do a semantic pass.
+5. **Future Roadmap Extractor:** While creating plans or specs, make sure to explicitly populate a "Future Considerations" or "Architectural, Design and Future Potential To Dos" section at the end of `design.md` or the plan file. This feeds the living `docs/ROADMAP.md` document during the git commit lifecycle.
+6. **Validate Specs:** Run `npx tsx scripts/openspec-cli/index.ts validate` to ensure the DAG is acyclic and valid. Then run `npx tsx scripts/openspec-cli/index.ts ai-eval` to do a semantic pass.
 
 ## Implementation Phase
 When asked to implement a feature or fix a bug that has an associated OpenSpec in the `openspec/changes/` directory, you must follow this workflow:
 
-1. **Locate the Spec**: Run `npx tsx scripts/openspec-cli/index.ts context <feature-name>` to get an optimized GraphRAG prompt that provides deep local context and abstracted global context. Read it carefully.
-2. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined.
+1. **Verify Readiness**: Run `npx tsx scripts/openspec-cli/index.ts check-ready <feature-name>`. If the spec is blocked or depends on uncompleted features, YOU MUST HALT and inform the user. Do not proceed until dependencies are met.
+2. **Locate the Spec**: Run `npx tsx scripts/openspec-cli/index.ts build-context <feature-name>` to get an optimized GraphRAG prompt that provides deep local context and abstracted global context. Read it carefully.
+3. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined.
 4. **Update Progress**: As you complete each task in `tasks.md`, you MUST use the Write or Edit tool to update the file, marking the task as done by changing `- [ ]` to `- [x]`. 
-5. **Strict Adherence**: Do not deviate from the architecture or decisions outlined in `design.md` and `spec.md` without explicit user permission. If a requirement or task is unclear, ask the user.
+5. **Strict Adherence & 'Halt and Update' Protocol**: Do not deviate from the architecture or decisions outlined in `design.md` and `spec.md` without explicit user permission. If you encounter a technical constraint or pivot that requires deviating from `tasks.md`, `design.md`, or `spec.md`, you **MUST HALT** coding. You must proactively ask the user about the roadblock and proposed new approach. Once the user agrees on the new approach, you must automatically use the Write or Edit tool to update `design.md` (e.g., adding to 'Alternatives Considered' or 'Decisions') or `spec.md` to reflect the new reality. Only after the spec is updated may you write the new code. Do not wait for the developer to run a CLI script to do this.

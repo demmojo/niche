@@ -1,3 +1,5 @@
+> **NOTICE:** This spec has been **superseded** by `unified-ideation-and-evolution`. Do not implement tasks from this spec.
+
 ## Why
 
 Early-stage founders often fall into the trap of analysis paralysis or building horizontal "tarpit" ideas with bloated MVPs. Traditional market research is slow, manual, and disconnected from the product building cycle.

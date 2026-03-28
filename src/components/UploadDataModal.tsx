@@ -299,7 +299,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
             },
           });
         },
-        { tier: "fast" },
+        { capability: "extraction" },
       );
 
       const result = JSON.parse(response.text || "{}");

@@ -175,7 +175,7 @@ export default function MarketDataGrid({
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       const parsed = JSON.parse(response.text || "{}");

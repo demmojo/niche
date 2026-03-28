@@ -6,7 +6,7 @@ import {
   waitFor,
   fireEvent,
   act,
-} from "@testing-library/react";
+} from "../../test-utils/render";
 import { DeploymentWizardModal } from "../../components/DeploymentWizardModal";
 
 const mockProductData = {

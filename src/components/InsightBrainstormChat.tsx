@@ -268,7 +268,7 @@ export function InsightBrainstormChat({
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       let fullText = "";

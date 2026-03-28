@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useApprovalStore } from "../hooks/useApprovalStore";
+import { useShallow } from "zustand/react/shallow";
 import { Inbox, X, ArrowRight } from "lucide-react";
 
 /**
@@ -9,7 +10,15 @@ export const ApprovalBanner: React.FC<{ onNavigate: () => void }> = ({
   onNavigate,
 }) => {
   const { isBannerDismissed, setBannerDismissed, items, fetchInbox, loading } =
-    useApprovalStore();
+    useApprovalStore(
+      useShallow((state) => ({
+        isBannerDismissed: state.isBannerDismissed,
+        setBannerDismissed: state.setBannerDismissed,
+        items: state.items,
+        fetchInbox: state.fetchInbox,
+        loading: state.loading,
+      })),
+    );
 
   useEffect(() => {
     fetchInbox();

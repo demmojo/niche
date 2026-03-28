@@ -1,12 +1,19 @@
 import React, { useState } from "react";
 import { useApprovalStore } from "../hooks/useApprovalStore";
+import { useShallow } from "zustand/react/shallow";
 import { Inbox, FileText, Check, X, GitBranch, Database } from "lucide-react";
 
 /**
  *
  */
 export const TaskInbox: React.FC = () => {
-  const { items, resolveItems, loading } = useApprovalStore();
+  const { items, resolveItems, loading } = useApprovalStore(
+    useShallow((state) => ({
+      items: state.items,
+      resolveItems: state.resolveItems,
+      loading: state.loading,
+    })),
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   /**

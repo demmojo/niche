@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { SuggestionFeed } from "../../components/SuggestionFeed";
 

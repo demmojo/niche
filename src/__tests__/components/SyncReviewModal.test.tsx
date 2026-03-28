@@ -66,14 +66,18 @@ describe("SyncReviewModal", () => {
       />,
     );
 
-    // Both checkboxes start checked
-    const checkboxes = await screen.findAllByRole("checkbox");
-    expect(checkboxes[0]).toBeChecked();
-    expect(checkboxes[1]).toBeChecked();
+    const checkbox1 = await screen.findByRole("checkbox", {
+      name: /Select change for Update Target Audience/i,
+    });
+    const checkbox2 = screen.getByRole("checkbox", {
+      name: /Select change for Update Tech Stack/i,
+    });
+    expect(checkbox1).toBeChecked();
+    expect(checkbox2).toBeChecked();
 
     // Deselect first diff
-    fireEvent.click(checkboxes[0]);
-    expect(checkboxes[0]).not.toBeChecked();
+    fireEvent.click(checkbox1);
+    expect(checkbox1).not.toBeChecked();
     expect(screen.getByText("1 / 2 changes selected")).toBeInTheDocument();
   });
 
@@ -109,9 +113,11 @@ describe("SyncReviewModal", () => {
       />,
     );
 
-    const checkboxes = await screen.findAllByRole("checkbox");
     // Deselect second item (ID '2')
-    fireEvent.click(checkboxes[1]);
+    const checkbox2 = await screen.findByRole("checkbox", {
+      name: /Select change for Update Tech Stack/i,
+    });
+    fireEvent.click(checkbox2);
 
     fireEvent.click(screen.getByRole("button", { name: /Commit/ }));
 
@@ -131,13 +137,17 @@ describe("SyncReviewModal", () => {
     );
 
     // Toggle off a group
-    const deselectGroupBtns = await screen.findAllByText("Deselect Group");
-    fireEvent.click(deselectGroupBtns[0]);
+    const deselectGroupBtn = await screen.findByRole("button", {
+      name: /Deselect Group Comp A/i,
+    });
+    fireEvent.click(deselectGroupBtn);
 
     expect(screen.getByText("1 / 2 changes selected")).toBeInTheDocument();
 
     // Toggle on a group
-    const selectGroupBtn = await screen.findByText("Select Group");
+    const selectGroupBtn = await screen.findByRole("button", {
+      name: /Select Group Comp A/i,
+    });
     fireEvent.click(selectGroupBtn);
 
     expect(screen.getByText("2 / 2 changes selected")).toBeInTheDocument();

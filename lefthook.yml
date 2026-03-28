@@ -10,6 +10,9 @@ pre-commit:
     openspec:
       glob: "openspec/**/*.{yaml,yml,md}"
       run: npx tsx scripts/openspec-cli/index.ts validate
+    drift-healer:
+      glob: "*.{ts,tsx}"
+      run: npx tsx scripts/openspec-cli/drift.ts
     extract-roadmap:
       glob: "{openspec/changes/**/*.{md,yaml},docs/plans/**/*.md}"
       run: npx tsx scripts/openspec-cli/roadmap-extractor.ts {staged_files} && git add docs/ROADMAP.yaml docs/ROADMAP.md
@@ -18,8 +21,8 @@ pre-push:
   commands:
     type-check:
       run: npx tsc --noEmit
-    drift-detector:
-      run: npx tsx scripts/openspec-cli/drift.ts
+    generate-docs:
+      run: npx tsx scripts/openspec-cli/index.ts generate-docs && git add README.md
 
 commit-msg:
   commands:

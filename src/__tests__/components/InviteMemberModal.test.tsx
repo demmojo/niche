@@ -82,8 +82,7 @@ describe("InviteMemberModal Component", () => {
       new Error("Firebase error"),
     );
 
-    // Prevent console.error and alert from cluttering tests
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Prevent alert from cluttering tests
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
     render(
@@ -110,7 +109,6 @@ describe("InviteMemberModal Component", () => {
     );
     expect(submitBtn).not.toBeDisabled();
 
-    consoleSpy.mockRestore();
     alertSpy.mockRestore();
   });
 });

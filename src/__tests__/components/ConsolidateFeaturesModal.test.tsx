@@ -222,9 +222,6 @@ describe("ConsolidateFeaturesModal", () => {
   });
 
   it("handles analysis error gracefully", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     (withModelFallback as any).mockRejectedValue(new Error("API failed"));
 
     render(
@@ -246,8 +243,6 @@ describe("ConsolidateFeaturesModal", () => {
 
     // Should revert back to initial state (ready to aggregate)
     expect(screen.getByText("Ready to Aggregate")).toBeInTheDocument();
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("applies aggregations correctly and calls onConsolidate", async () => {

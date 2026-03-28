@@ -37,9 +37,9 @@ describe("UploadDataModal", () => {
     expect(mockOnDataAnalyzed).not.toHaveBeenCalled();
 
     server.use(
-      http.post("https://generativelanguage.googleapis.com/*", () => {
+      http.post("*/api/llm/generate", () => {
         return HttpResponse.json({
-          candidates: [{ content: { parts: [{ text: "" }] } }],
+          text: JSON.stringify([]),
         });
       }),
     );
@@ -95,11 +95,10 @@ describe("UploadDataModal", () => {
   });
 
   it("handles API errors gracefully", async () => {
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
     server.use(
-      http.post("https://generativelanguage.googleapis.com/*", () => {
+      http.post("*/api/llm/generate", () => {
         return HttpResponse.error();
       }),
     );
@@ -123,13 +122,11 @@ describe("UploadDataModal", () => {
     fireEvent.click(analyzeBtn);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalled();
       expect(alertSpy).toHaveBeenCalledWith(
         "Failed to analyze file. Please try again.",
       );
     });
 
-    consoleSpy.mockRestore();
     alertSpy.mockRestore();
   });
 
@@ -245,7 +242,6 @@ describe("UploadDataModal", () => {
   });
 
   it("falls back to FileReader if file.text is not available and handles read errors", async () => {
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const mockOnDataAnalyzed = vi.fn();
     render(
       <UploadDataModal
@@ -273,14 +269,6 @@ describe("UploadDataModal", () => {
 
     fireEvent.click(screen.getByText("Analyze Data"));
 
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error analyzing file:",
-        expect.any(Error),
-      );
-    });
-
     window.FileReader = originalFileReader;
-    consoleSpy.mockRestore();
   });
 });

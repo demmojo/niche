@@ -154,11 +154,14 @@ describe("App System/Integration Tests", () => {
       findAllByText = result.findAllByText;
     });
 
-    // Check we are loaded
+    // Navigate to Dashboard
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    });
     expect(getByText("Dashboard", { selector: "h1" })).toBeInTheDocument();
 
     // Click Sync Now
-    const syncButtons = getAllByText("Sync Now", { selector: "button" });
+    const syncButtons = screen.getAllByRole("button", { name: /Sync Now/i });
     expect(syncButtons.length).toBeGreaterThan(0);
 
     await act(async () => {

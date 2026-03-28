@@ -79,14 +79,6 @@ vi.mock("motion/react", () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
-// Mock useFirebaseSync as requested
-vi.mock("../../../src/hooks/useFirebaseSync", () => ({
-  useFirebaseSync: vi.fn(() => ({
-    saveData: vi.fn(),
-    syncState: "synced",
-  })),
-}));
-
 const mockInitialData: MyProductData = {
   name: "Test Product",
   description: "Test Description",
@@ -182,12 +174,9 @@ describe("MyProduct Component", () => {
   it("can edit an existing feature", async () => {
     render(<MyProductWrapper />);
 
-    // Find edit button for feature (it's hidden by opacity but clickable)
-    // We can find it by getting all icon-edit2 elements and picking the second one (first is for product details)
-    const editIcons = screen.getAllByTestId("icon-edit2");
-    // editIcons[0] is the product details edit button, editIcons[1] is the feature edit button
-    const featureEditBtn = editIcons[1].closest("button");
-    fireEvent.click(featureEditBtn!);
+    // Find edit button for feature
+    const featureEditBtn = screen.getByRole("button", { name: "Edit feature" });
+    fireEvent.click(featureEditBtn);
 
     const nameInput = screen.getByDisplayValue("Feature 1");
     const descInput = screen.getByDisplayValue("Desc 1");
@@ -216,9 +205,10 @@ describe("MyProduct Component", () => {
 
     expect(screen.getByText("Feature 1")).toBeInTheDocument();
 
-    const trashIcons = screen.getAllByTestId("icon-trash2");
-    const featureTrashBtn = trashIcons[0].closest("button");
-    fireEvent.click(featureTrashBtn!);
+    const featureTrashBtn = screen.getByRole("button", {
+      name: "Delete feature",
+    });
+    fireEvent.click(featureTrashBtn);
 
     expect(screen.queryByText("Feature 1")).not.toBeInTheDocument();
     expect(screen.getByText("No features added yet.")).toBeInTheDocument();
@@ -230,21 +220,23 @@ describe("MyProduct Component", () => {
     // Add
     const input = screen.getByPlaceholderText("Add a strategic step...");
     fireEvent.change(input, { target: { value: "New Strategy 2" } });
-    const addBtnIcons = screen.getAllByTestId("icon-plus");
-    const strategyAddBtn = addBtnIcons[1].closest("button");
-    fireEvent.click(strategyAddBtn!);
+    const strategyAddBtn = screen.getByRole("button", { name: "Add strategy" });
+    fireEvent.click(strategyAddBtn);
 
     expect(screen.getByText("New Strategy 2")).toBeInTheDocument();
 
     // Update status of the first strategy
-    const select = screen.getAllByRole("combobox")[1]; // Feature status is first, strategy status is second
-    fireEvent.change(select, { target: { value: "doing" } });
-    expect((select as HTMLSelectElement).value).toBe("doing");
+    const selects = screen.getAllByRole("combobox", {
+      name: "Strategy status",
+    });
+    fireEvent.change(selects[0], { target: { value: "doing" } });
+    expect((selects[0] as HTMLSelectElement).value).toBe("doing");
 
     // Remove first strategy
-    const trashIcons = screen.getAllByTestId("icon-trash2");
-    const strategyTrashBtn = trashIcons[1].closest("button"); // Second trash icon is for strategy
-    fireEvent.click(strategyTrashBtn!);
+    const strategyTrashBtns = screen.getAllByRole("button", {
+      name: "Delete strategy",
+    });
+    fireEvent.click(strategyTrashBtns[0]);
 
     expect(screen.queryByText("Strategy 1")).not.toBeInTheDocument();
   });

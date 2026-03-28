@@ -318,7 +318,7 @@ Format your response in Markdown using the exact structure below. (Response)
 (Specific details on how the implementing companies implement it)`,
             });
           },
-          { tier: "pro" },
+          { capability: "reasoning" },
         );
         actualSetFeatureDetails((prev) => ({
           ...prev,
@@ -377,7 +377,7 @@ Format your response in Markdown using the exact structure below:
 Keep it concise and actionable.`,
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
       setUserStories((prev) => ({
         ...prev,
@@ -421,7 +421,7 @@ ${JSON.stringify(
 Provide a concise, actionable recommendation in Markdown format.`,
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
       setSuggestedFeature(response.text || "No suggestion generated.");
     } catch (error) {
@@ -443,6 +443,7 @@ Provide a concise, actionable recommendation in Markdown format.`,
             <>
               <select
                 value={featureSort}
+                aria-label="Sort features"
                 onChange={(e) => setFeatureSort(e.target.value as any)}
                 className="text-sm bg-white border border-ink-dark/30 rounded-md px-2 py-1.5 focus:outline-none focus:border-ink-dark"
               >
@@ -452,6 +453,7 @@ Provide a concise, actionable recommendation in Markdown format.`,
               </select>
               <select
                 value={featureFilter}
+                aria-label="Filter features"
                 onChange={(e) => setFeatureFilter(e.target.value as any)}
                 className="text-sm bg-white border border-ink-dark/30 rounded-md px-2 py-1.5 focus:outline-none focus:border-ink-dark"
               >
@@ -734,6 +736,7 @@ Provide a concise, actionable recommendation in Markdown format.`,
                                   e.stopPropagation();
                                   onAddFeatureToProduct(row.value as string);
                                 }}
+                                aria-label={`Add ${row.value} to product`}
                                 className="p-1 text-sky hover:bg-sky/10 rounded transition-colors"
                               >
                                 <Plus size={16} />

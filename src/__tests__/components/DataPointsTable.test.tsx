@@ -155,8 +155,9 @@ describe("DataPointsTable", () => {
         <DataPointsTable type="Features Indexed" data={extendedMockData} />,
       );
 
-      const selects = screen.getAllByRole("combobox");
-      const filterSelect = selects[1]; // Second dropdown is the filter
+      const filterSelect = screen.getByRole("combobox", {
+        name: "Filter features",
+      });
 
       fireEvent.change(filterSelect, { target: { value: "closest-missing" } });
 
@@ -189,8 +190,9 @@ describe("DataPointsTable", () => {
       render(
         <DataPointsTable type="Features Indexed" data={mockCompetitorsData} />,
       );
-      const selects = screen.getAllByRole("combobox");
-      const sortSelect = selects[0]; // First dropdown is the custom sort
+      const sortSelect = screen.getByRole("combobox", {
+        name: "Sort features",
+      });
 
       fireEvent.change(sortSelect, { target: { value: "adoption" } });
       fireEvent.change(sortSelect, { target: { value: "name" } });
@@ -302,8 +304,9 @@ describe("DataPointsTable", () => {
         />,
       );
 
-      const plusIcons = screen.getAllByTestId("icon-plus");
-      const plusButton = plusIcons[0].closest("button");
+      const plusButton = screen.getByRole("button", {
+        name: "Add Feat1 to product",
+      });
 
       fireEvent.click(plusButton!);
       expect(mockAddFeature).toHaveBeenCalled();
@@ -312,9 +315,6 @@ describe("DataPointsTable", () => {
 
   describe("Error Handling", () => {
     it("handles AI feature detail fetch error gracefully", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       (withModelFallback as any).mockRejectedValue(new Error("API Error"));
 
       render(
@@ -332,10 +332,6 @@ describe("DataPointsTable", () => {
     });
 
     it("handles AI user stories error gracefully", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
       const mockGenerateContent = vi
         .fn()
         .mockResolvedValue({ text: "Details" });
@@ -372,9 +368,6 @@ describe("DataPointsTable", () => {
     });
 
     it("handles AI suggest feature error gracefully", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       (withModelFallback as any).mockRejectedValue(new Error("API Error"));
 
       render(

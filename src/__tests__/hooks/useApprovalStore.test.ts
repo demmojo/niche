@@ -70,9 +70,6 @@ describe("useApprovalStore", () => {
     });
 
     it("handles unexpected exceptions during fetch", async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       vi.mocked((supabase as any).order).mockRejectedValueOnce(
         new Error("Network error"),
       );
@@ -80,9 +77,6 @@ describe("useApprovalStore", () => {
       await useApprovalStore.getState().fetchInbox();
 
       expect(useApprovalStore.getState().loading).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -110,9 +104,6 @@ describe("useApprovalStore", () => {
     });
 
     it("rolls back optimistic update on error", async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       const mockItems: any = [
         { id: "1", pending_data_type: "json" },
         { id: "2", pending_data_type: "json" },
@@ -126,10 +117,41 @@ describe("useApprovalStore", () => {
       await useApprovalStore.getState().resolveItems(["1"], "keep_both");
 
       // Assert rollback
-      expect(useApprovalStore.getState().items).toEqual(mockItems);
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      const currentItems = useApprovalStore.getState().items;
+      expect(currentItems.length).toBe(2);
+      expect(currentItems.map((i) => i.id).sort()).toEqual(["1", "2"]);
+    });
 
-      consoleErrorSpy.mockRestore();
+    it("prevents stale closures when rolling back an optimistic update", async () => {
+      const mockItems: any = [
+        { id: "1", pending_data_type: "json" },
+        { id: "2", pending_data_type: "json" },
+        { id: "3", pending_data_type: "json" },
+      ];
+      useApprovalStore.setState({ items: mockItems });
+
+      // First call fails after a delay
+      vi.mocked(processInboxAction).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Fail 1")), 50),
+          ),
+      );
+      // Second call succeeds immediately
+      vi.mocked(processInboxAction).mockImplementationOnce(() =>
+        Promise.resolve(),
+      );
+
+      const p1 = useApprovalStore.getState().resolveItems(["1"], "keep_both");
+      const p2 = useApprovalStore.getState().resolveItems(["2"], "discard");
+
+      await Promise.allSettled([p1, p2]);
+
+      const remainingIds = useApprovalStore
+        .getState()
+        .items.map((i) => i.id)
+        .sort();
+      expect(remainingIds).toEqual(["1", "3"]);
     });
   });
 });

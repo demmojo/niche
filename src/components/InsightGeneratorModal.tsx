@@ -121,11 +121,13 @@ Ask a multiple-choice question to understand what area the user wants to focus o
             config: {
               temperature: 0.4,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(startConversationSchema) as any,
+              responseSchema: zodToJsonSchema(
+                startConversationSchema as any,
+              ) as any,
             },
           });
         },
-        { tier: "fast" },
+        { capability: "chat" },
       );
 
       const data = JSON.parse(
@@ -212,11 +214,13 @@ ${JSON.stringify(rawContextData).substring(0, 15000)}
             config: {
               temperature: 0.2,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(insightResponseSchema) as any,
+              responseSchema: zodToJsonSchema(
+                insightResponseSchema as any,
+              ) as any,
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       const data = JSON.parse(

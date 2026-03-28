@@ -294,11 +294,11 @@ ${context}
             config: {
               temperature: 0.2,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(strategySchema) as any,
+              responseSchema: zodToJsonSchema(strategySchema as any) as any,
             },
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       const text = response.text || '{"strategies": []}';
@@ -587,6 +587,7 @@ ${context}
                         <div className="flex items-center gap-3">
                           <select
                             value={feature.status}
+                            aria-label="Feature status"
                             onChange={(e) =>
                               handleUpdateFeatureStatus(
                                 feature.id,
@@ -612,12 +613,14 @@ ${context}
                           </select>
                           <button
                             onClick={() => handleEditFeature(feature)}
+                            aria-label="Edit feature"
                             className="text-ink-dark/40 hover:text-sky opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleRemoveFeature(feature.id)}
+                            aria-label="Delete feature"
                             className="text-ink-dark/40 hover:text-rose-500 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 size={16} />
@@ -642,6 +645,7 @@ ${context}
               <button
                 onClick={handleAddFeature}
                 disabled={!newFeatureName.trim()}
+                aria-label="Add feature"
                 className="p-2 bg-ink-dark text-white rounded-lg hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus size={20} />
@@ -696,6 +700,7 @@ ${context}
                       <div className="flex items-center gap-3 shrink-0">
                         <select
                           value={item.status}
+                          aria-label="Strategy status"
                           onChange={(e) =>
                             handleUpdateStrategyStatus(
                               item.id,
@@ -716,6 +721,7 @@ ${context}
                         </select>
                         <button
                           onClick={() => handleRemoveStrategy(item.id)}
+                          aria-label="Delete strategy"
                           className="text-ink-dark/40 hover:text-rose-500 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 size={16} />
@@ -739,6 +745,7 @@ ${context}
               <button
                 onClick={handleAddStrategy}
                 disabled={!newStrategyContent.trim()}
+                aria-label="Add strategy"
                 className="p-2 bg-ink-dark text-white rounded-lg hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus size={20} />

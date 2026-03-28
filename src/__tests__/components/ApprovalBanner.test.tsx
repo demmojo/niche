@@ -1,35 +1,25 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApprovalBanner } from "../../components/ApprovalBanner";
 import { useApprovalStore } from "../../hooks/useApprovalStore";
 
-vi.mock("../../hooks/useApprovalStore");
-
 describe("ApprovalBanner", () => {
-  const mockSetBannerDismissed = vi.fn();
   const mockFetchInbox = vi.fn();
   const mockOnNavigate = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useApprovalStore).mockReturnValue({
+    useApprovalStore.setState({
       items: [{ id: "1" }, { id: "2" }] as any,
       loading: false,
       isBannerDismissed: false,
-      setBannerDismissed: mockSetBannerDismissed,
       fetchInbox: mockFetchInbox,
-    } as any);
+    });
   });
 
   it("renders nothing if loading is true", () => {
-    vi.mocked(useApprovalStore).mockReturnValue({
-      loading: true,
-      isBannerDismissed: false,
-      items: [{ id: "1" }],
-      fetchInbox: mockFetchInbox,
-    } as any);
-
+    useApprovalStore.setState({ loading: true, items: [{ id: "1" }] as any });
     const { container } = render(
       <ApprovalBanner onNavigate={mockOnNavigate} />,
     );
@@ -37,13 +27,10 @@ describe("ApprovalBanner", () => {
   });
 
   it("renders nothing if banner is dismissed", () => {
-    vi.mocked(useApprovalStore).mockReturnValue({
-      loading: false,
+    useApprovalStore.setState({
       isBannerDismissed: true,
-      items: [{ id: "1" }],
-      fetchInbox: mockFetchInbox,
-    } as any);
-
+      items: [{ id: "1" }] as any,
+    });
     const { container } = render(
       <ApprovalBanner onNavigate={mockOnNavigate} />,
     );
@@ -51,13 +38,7 @@ describe("ApprovalBanner", () => {
   });
 
   it("renders nothing if there are no items", () => {
-    vi.mocked(useApprovalStore).mockReturnValue({
-      loading: false,
-      isBannerDismissed: false,
-      items: [],
-      fetchInbox: mockFetchInbox,
-    } as any);
-
+    useApprovalStore.setState({ items: [] });
     const { container } = render(
       <ApprovalBanner onNavigate={mockOnNavigate} />,
     );
@@ -76,7 +57,7 @@ describe("ApprovalBanner", () => {
     fireEvent.click(screen.getByRole("button", { name: /Review Now/i }));
 
     expect(mockOnNavigate).toHaveBeenCalled();
-    expect(mockSetBannerDismissed).toHaveBeenCalledWith(true);
+    expect(useApprovalStore.getState().isBannerDismissed).toBe(true);
   });
 
   it("calls setBannerDismissed when close button is clicked", () => {
@@ -84,7 +65,7 @@ describe("ApprovalBanner", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Dismiss banner/i }));
 
-    expect(mockSetBannerDismissed).toHaveBeenCalledWith(true);
+    expect(useApprovalStore.getState().isBannerDismissed).toBe(true);
     expect(mockOnNavigate).not.toHaveBeenCalled();
   });
 });

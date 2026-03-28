@@ -1,152 +1,157 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Documentation Drift Detector
+ * AST-Driven Pre-Commit Drift Healer
  *
- * An ML-powered pre-push script that analyzes git diffs to automatically validate
- * whether recent code changes render existing documentation stale or inaccurate.
- *
- * It runs semantic validation using an LLM to distinguish between true documentation
- * drift and mere noise like refactors or formatting changes.
+ * An ML-powered pre-commit script that analyzes AST diffs to automatically
+ * heal documentation drift and surface strategic insights (Tech Debt / Scope Creep).
  */
 
 import { promises as fs } from "fs";
 import { execSync } from "child_process";
-import { GoogleGenAI } from "@google/genai";
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { z } from "zod";
+import { getStagedASTDiff, formatDiffForLLM } from "./ast-scanner";
 
 dotenv.config();
 
-async function runDriftDetection(): Promise<void> {
+const TIMEOUT_MS = 3000;
+
+export async function runDriftHealing(): Promise<void> {
   if (!process.env.GEMINI_API_KEY) {
-    console.warn("Skipping drift detection: GEMINI_API_KEY is not set.");
+    console.warn("Skipping drift healing: GEMINI_API_KEY is not set.");
     return;
   }
 
-  // Get the diff that is about to be pushed.
-  let diffContent = "";
-  try {
-    const remoteBranch = execSync(
-      "git rev-parse --abbrev-ref --symbolic-full-name @{u}",
-      { stdio: ["pipe", "pipe", "ignore"] },
-    )
-      .toString()
-      .trim();
-    diffContent = execSync(`git diff ${remoteBranch}...HEAD`).toString();
-  } catch (e) {
-    try {
-      diffContent = execSync("git diff HEAD~1..HEAD").toString();
-    } catch (e2) {
-      // Might be first commit
-      diffContent = "";
-    }
-  }
-
-  if (!diffContent || diffContent.trim().length === 0) {
-    console.log(
-      "No substantive code changes found to check for documentation drift.",
-    );
+  const diffs = getStagedASTDiff();
+  if (!diffs || diffs.length === 0) {
+    // No structural AST changes detected in the staged files. Fast-path exit.
     return;
   }
 
-  console.log("Analyzing code changes for potential documentation drift...");
+  const astDiffSummary = formatDiffForLLM(diffs);
+  if (!astDiffSummary) {
+    return;
+  }
 
-  let changedFiles: string[] = [];
-  try {
-    changedFiles = execSync("git diff --name-only HEAD~1..HEAD")
-      .toString()
-      .trim()
-      .split("\n");
-  } catch (e) {}
-
-  const mdFilesChanged = changedFiles.some(
-    (f) => f.endsWith(".md") || f.endsWith(".mdc") || f.endsWith(".yaml"),
+  console.log(
+    "Analyzing structural AST changes for auto-healing documentation...",
   );
 
-  if (mdFilesChanged) {
-    console.log(
-      "Documentation files were modified in this push. Assuming drift is handled. Proceeding.",
-    );
-    return;
-  }
+  const { GoogleGenAI } = await import("@google/genai");
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-  const ai = new GoogleGenAI({});
+  const healSchema = z.object({
+    requiresUpdate: z
+      .boolean()
+      .describe(
+        "Whether this structural change warrants documentation updates.",
+      ),
+    reason: z.string().describe("Explanation of the structural changes."),
+    techDebtTask: z
+      .string()
+      .optional()
+      .describe(
+        "If this change feels like an undocumented workaround or scope creep, define a sprint task to refactor or formalize it.",
+      ),
+  });
 
   try {
-    const prompt = `You are an expert Staff Software Engineer and Technical Writer. 
-Your goal is to perform a semantic drift check on a git diff.
-A git push is occurring that changes code, but NO documentation files were modified.
+    const prompt = `You are a Staff Software Engineer analyzing structural AST changes for documentation healing.
+    
+A git commit is in progress. The following structural changes (components, endpoints, hooks) have been detected in the staged files:
 
-Analyze the git diff and determine if these code changes render the existing documentation inaccurate or incomplete.
-Ignore noise such as:
-- Variable or method renames
-- Code formatting and stylistic changes
-- Minor bug fixes or internal refactoring that does not change API contracts or system behavior
+<ast_diff>
+${astDiffSummary}
+</ast_diff>
 
-Focus on:
-- API changes (new endpoints, altered request/response schemas)
-- Architectural shifts or new system dependencies
-- Changes to user-facing UI or workflows
-- Database schema changes
+Analyze these changes. If they introduce new semantic signatures, new APIs, or structural additions, flag requiresUpdate: true.
+If the changes appear to be hacky workarounds, undocumented scope creep, or technical debt, provide a concise action item in 'techDebtTask' (e.g., "- [ ] Refactor: ...").
 
-If you detect substantive changes that require documentation updates, flag it as 'hasDrift: true' and explain why in 'reason'. Provide a suggested markdown patch if possible.
+Keep it extremely concise.`;
 
-Git Diff:
-${diffContent.substring(0, 10000)}`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            hasDrift: {
-              type: "boolean",
-              description:
-                "Whether the documentation has drifted from the code changes.",
+    // We implement a Promise.race to ensure we fail open if the LLM takes too long (> 3s).
+    // The developer's commit should not be blocked indefinitely.
+    const resultPromise = async () => {
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash", // Use a faster model for pre-commit
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "object",
+            properties: {
+              requiresUpdate: { type: "boolean" },
+              reason: { type: "string" },
+              techDebtTask: { type: "string" },
             },
-            reason: {
-              type: "string",
-              description:
-                "Explanation of why the documentation is stale or why it is still accurate.",
-            },
-            suggestedPatch: {
-              type: "string",
-              description:
-                "A suggested markdown patch to fix the documentation drift, if any.",
-            },
+            required: ["requiresUpdate", "reason"],
           },
-          required: ["hasDrift", "reason"],
         },
-      },
-    });
+      });
+      return JSON.parse(response.text || "{}");
+    };
 
-    const content = response.text;
-    if (content) {
-      const result = JSON.parse(content);
-      if (result.hasDrift) {
-        console.error("\n❌ Documentation Drift Detected!");
-        console.error(`\nReason: ${result.reason}\n`);
-        if (result.suggestedPatch) {
-          console.error(`Suggested Update:\n${result.suggestedPatch}\n`);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("LLM Timeout")), TIMEOUT_MS),
+    );
+
+    let result: any;
+    try {
+      result = await Promise.race([resultPromise(), timeoutPromise]);
+    } catch (timeoutErr) {
+      console.warn(
+        "⚠️ Structural drift detected, but LLM timed out. Proceeding with commit.",
+      );
+      return;
+    }
+
+    if (result.requiresUpdate) {
+      console.log(`\nAuto-healing documentation triggered: ${result.reason}`);
+
+      const filesToAdd: string[] = [];
+
+      // If a tech debt task is generated, append it to a global tech-debt doc.
+      // In the future, this can be routed to a specific spec's tasks.md via context mapping.
+      if (result.techDebtTask) {
+        const techDebtPath = path.resolve("docs/brainstorms/tech-debt.md");
+
+        let existingContent = "";
+        try {
+          existingContent = await fs.readFile(techDebtPath, "utf-8");
+        } catch {
+          existingContent = "# Harvested Tech Debt & Scope Creep\n\n";
+          // Ensure directory exists
+          await fs.mkdir(path.dirname(techDebtPath), { recursive: true });
         }
-        console.error(
-          "Please update the relevant documentation (e.g., OpenSpec, README) and commit before pushing.",
-        );
-        process.exit(1);
-      } else {
-        console.log("✅ No documentation drift detected. Push approved.");
+
+        const newContent = `${existingContent}\n${result.techDebtTask}\n`;
+        await fs.writeFile(techDebtPath, newContent);
+        filesToAdd.push(techDebtPath);
+
+        console.log(`📝 Generated Tech Debt Task: ${result.techDebtTask}`);
+      }
+
+      // Automatically stage the generated documentation updates so they are included in the commit.
+      if (filesToAdd.length > 0) {
+        execSync(`git add ${filesToAdd.join(" ")}`);
+        console.log("✅ Healed documentation successfully staged for commit.");
       }
     }
   } catch (e) {
-    console.error("Warning: Failed to perform ML drift detection", e);
+    console.warn("Warning: Failed to perform AST drift auto-healing", e);
   }
 }
 
-runDriftDetection().catch((e) => {
-  console.error("Fatal error in drift detector:", e);
-  process.exit(1);
-});
+if (
+  require.main === module ||
+  (typeof process !== "undefined" &&
+    process.argv[1] &&
+    process.argv[1].endsWith("drift.ts"))
+) {
+  runDriftHealing().catch((e) => {
+    console.error("Fatal error in drift healer:", e);
+    process.exit(1);
+  });
+}

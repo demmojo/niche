@@ -1,139 +1,5 @@
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import OpenAI from "openai";
-import Anthropic from "@anthropic-ai/sdk";
-import { getCustomApiKey, ApiService } from "./apiKeys";
+import { auth } from "../firebase";
 import { trackRequest } from "./usageTracker";
-
-export interface AIModel {
-  id: string;
-  name: string;
-  provider: ApiService;
-}
-
-export const fastModels = [
-  "gemini-3-flash-preview",
-  "claude-3-5-haiku-20241022",
-  "gpt-4o-mini",
-];
-export const proModels = [
-  "gemini-3.1-pro-preview",
-  "claude-3-7-sonnet-20250219",
-  "gpt-4o",
-];
-
-/**
- * Retrieves the user's selected main model preference.
- * Defaults to "auto" for smart routing if not set or invalid.
- */
-export const getMainModel = (): string => {
-  const data = localStorage.getItem("ai_main_model");
-  if (data) {
-    return data;
-  }
-  // Migration logic from old multi-select
-  const oldData = localStorage.getItem("ai_selected_models");
-  if (oldData) {
-    try {
-      const parsed = JSON.parse(oldData);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Just take the first valid one if they had a specific preference
-        const firstModel = parsed[0];
-        setMainModel(firstModel);
-        return firstModel;
-      }
-    } catch {
-      // Ignore
-    }
-  }
-  return "default-pro";
-};
-
-/**
- * Sets the user's selected main model preference.
- * @param model The model ID or "auto"
- */
-export const setMainModel = (model: string) => {
-  localStorage.setItem("ai_main_model", model);
-};
-
-/**
- *
- */
-export const fetchAvailableModels = async (): Promise<AIModel[]> => {
-  const models: AIModel[] = [];
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/models");
-    const json = await res.json();
-    const orModels = json.data || [];
-
-    orModels.forEach((m: any) => {
-      let provider: ApiService | null = null;
-      let id = m.id;
-
-      // Filter cleanly mapped models
-      if (id.startsWith("google/") && !id.includes(":")) {
-        provider = "gemini";
-        id = id.replace("google/", "");
-      } else if (id.startsWith("openai/") && !id.includes(":")) {
-        provider = "openai";
-        id = id.replace("openai/", "");
-      } else if (id.startsWith("anthropic/") && !id.includes(":")) {
-        provider = "anthropic";
-        id = id.replace("anthropic/", "");
-      }
-
-      if (provider) {
-        // avoid duplicates
-        if (!models.some((existing) => existing.id === id)) {
-          models.push({ id, name: m.name, provider });
-        }
-      }
-    });
-  } catch (e) {
-    console.error("Failed to fetch models from OpenRouter", e);
-  }
-
-  // Fallback defaults if fetch fails
-  if (models.length === 0) {
-    [
-      "gemini-3.1-pro-preview",
-      "gemini-3.1-flash-lite-preview",
-      "gemini-3-flash-preview",
-    ].forEach((id) =>
-      models.push({ id, name: `Google: ${id}`, provider: "gemini" }),
-    );
-
-    ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"].forEach((id) =>
-      models.push({ id, name: `OpenAI: ${id}`, provider: "openai" }),
-    );
-
-    [
-      "claude-3-7-sonnet-20250219",
-      "claude-3-5-sonnet-20241022",
-      "claude-3-5-haiku-20241022",
-      "claude-3-opus-20240229",
-    ].forEach((id) =>
-      models.push({ id, name: `Anthropic: ${id}`, provider: "anthropic" }),
-    );
-  }
-
-  return models;
-};
-
-/**
- *
- * @param modelId
- */
-const getProviderForModel = (modelId: string): ApiService => {
-  if (
-    modelId.startsWith("gpt-") ||
-    modelId.startsWith("o1") ||
-    modelId.startsWith("o3")
-  )
-    return "openai";
-  if (modelId.startsWith("claude-")) return "anthropic";
-  return "gemini";
-};
 
 export interface GenerateParams {
   contents: string;
@@ -144,159 +10,125 @@ export interface GenerateParams {
   };
 }
 
-/**
- *
- */
+export type Capability = "reasoning" | "chat" | "extraction";
+
+export const liteModels = [
+  "gemini-3.1-flash-lite-preview",
+  "gpt-4o-mini",
+  "claude-3-5-haiku-20241022",
+];
+
+export const fastModels = [
+  "gemini-3.1-flash",
+  "gpt-4o-mini",
+  "claude-3-5-haiku-20241022",
+];
+
+export const proModels = [
+  "gemini-3.1-pro-preview",
+  "claude-3-7-sonnet-20250219",
+  "gpt-4o",
+];
+
+export const getMainModel = (): string => {
+  const data = localStorage.getItem("ai_main_model");
+  return data || "default-pro";
+};
+
+export const setMainModel = (model: string) => {
+  localStorage.setItem("ai_main_model", model);
+};
+
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+export const fetchAvailableModels = async (): Promise<AIModel[]> => {
+  const models: AIModel[] = [];
+  [
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-flash",
+    "gemini-3.1-flash-lite-preview",
+  ].forEach((id) =>
+    models.push({ id, name: `Google: ${id}`, provider: "gemini" }),
+  );
+
+  ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"].forEach((id) =>
+    models.push({ id, name: `OpenAI: ${id}`, provider: "openai" }),
+  );
+
+  [
+    "claude-3-7-sonnet-20250219",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-opus-20240229",
+  ].forEach((id) =>
+    models.push({ id, name: `Anthropic: ${id}`, provider: "anthropic" }),
+  );
+  return models;
+};
+
 class AIClient {
-  async generateContent(model: string, params: GenerateParams): Promise<any> {
-    const provider = getProviderForModel(model);
+  public lastTokens?: { input: number; output: number };
 
-    if (provider === "gemini") {
-      const key = getCustomApiKey("gemini") || process.env.GEMINI_API_KEY;
-      if (!key) throw new Error("No Gemini API key available.");
-      const ai = new GoogleGenAI({ apiKey: key });
-      return await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
+  async generateContent(
+    model: string,
+    params: GenerateParams,
+    signal?: AbortSignal,
+  ): Promise<any> {
+    const token = await auth.currentUser?.getIdToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch("/api/llm/generate", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model, params }),
+      signal,
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      let errObj;
+      try {
+        errObj = JSON.parse(errorText);
+      } catch {
+        errObj = { error: errorText };
+      }
+      const err = new Error(errObj.error || errorText);
+      (err as any).status = res.status;
+      if (res.status === 429) (err as any).isRateLimit = true;
+      throw err;
     }
 
-    if (provider === "openai") {
-      const key = getCustomApiKey("openai");
-      if (!key) throw new Error("No OpenAI API key available.");
-      const openai = new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true });
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error(
+        `Failed to parse JSON response: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
 
-      let responseFormat: any = undefined;
-      let systemInstruction = "";
-      if (params.config?.responseMimeType === "application/json") {
-        responseFormat = { type: "json_object" };
-        systemInstruction = "You must output a valid JSON object or array.";
-        if (params.config?.responseSchema) {
-          systemInstruction +=
-            "\n\nFollow this JSON schema strictly: " +
-            JSON.stringify(params.config.responseSchema);
-        }
-      }
-
-      let tools: any = undefined;
-      if (params.config?.tools && params.config.tools.length > 0) {
-        const geminiTools = params.config.tools[0]?.functionDeclarations || [];
-        if (geminiTools.length > 0) {
-          tools = geminiTools.map((t: any) => ({
-            type: "function",
-            function: {
-              name: t.name,
-              description: t.description,
-              parameters: t.parameters,
-            },
-          }));
-        }
-      }
-
-      const messages: any[] = [];
-      if (systemInstruction)
-        messages.push({ role: "system", content: systemInstruction });
-      messages.push({ role: "user", content: params.contents });
-
-      const response = await openai.chat.completions.create({
-        model,
-        messages,
-        response_format: responseFormat,
-        tools,
-      });
-
-      const msg = response.choices[0].message;
-      return {
-        text: msg.content,
-        functionCalls: msg.tool_calls
-          ? msg.tool_calls.map((tc: any) => ({
-              name: tc.function.name,
-              args: JSON.parse(tc.function.arguments),
-            }))
-          : undefined,
+    if (data.usageMetadata) {
+      this.lastTokens = {
+        input: data.usageMetadata.promptTokenCount || 0,
+        output: data.usageMetadata.candidatesTokenCount || 0,
       };
     }
-
-    if (provider === "anthropic") {
-      const key = getCustomApiKey("anthropic");
-      if (!key) throw new Error("No Anthropic API key available.");
-      const anthropic = new Anthropic({
-        apiKey: key,
-        dangerouslyAllowBrowser: true,
-      });
-
-      let systemInstruction = "";
-      if (params.config?.responseMimeType === "application/json") {
-        systemInstruction =
-          "You must output a valid JSON object or array, and nothing else.";
-        if (params.config?.responseSchema) {
-          systemInstruction +=
-            "\n\nFollow this JSON schema strictly: " +
-            JSON.stringify(params.config.responseSchema);
-        }
-      }
-
-      let tools: any = undefined;
-      if (params.config?.tools && params.config.tools.length > 0) {
-        const geminiTools = params.config.tools[0]?.functionDeclarations || [];
-        if (geminiTools.length > 0) {
-          tools = geminiTools.map((t: any) => ({
-            name: t.name,
-            description: t.description,
-            input_schema: t.parameters,
-          }));
-        }
-      }
-
-      const response = await anthropic.messages.create({
-        model,
-        max_tokens: 4096,
-        system: systemInstruction || undefined,
-        messages: [{ role: "user", content: params.contents }],
-        tools,
-      });
-
-      const textContent = response.content.find(
-        (c) => c.type === "text",
-      ) as any;
-      const toolContent = response.content.filter(
-        (c) => c.type === "tool_use",
-      ) as any[];
-
-      return {
-        text: textContent?.text || "",
-        functionCalls:
-          toolContent.length > 0
-            ? toolContent.map((tc) => ({
-                name: tc.name,
-                args: tc.input,
-              }))
-            : undefined,
-      };
-    }
+    return data;
   }
 
   async generateContentStream(
     model: string,
     params: GenerateParams,
+    signal?: AbortSignal,
   ): Promise<any> {
-    const provider = getProviderForModel(model);
-    if (provider === "gemini") {
-      const key = getCustomApiKey("gemini") || process.env.GEMINI_API_KEY;
-      if (!key) throw new Error("No Gemini API key available.");
-      const ai = new GoogleGenAI({ apiKey: key });
-      return await ai.models.generateContentStream({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
-    }
-
-    const result = await this.generateContent(model, params);
-    /**
-     *
-     */
+    const result = await this.generateContent(model, params, signal);
     async function* dummyStream() {
       yield result;
     }
@@ -304,170 +136,113 @@ class AIClient {
   }
 }
 
-// Ensure withModelFallback replaces withKeyRotation
-/**
- * The central AI abstraction layer orchestrating requests across multiple providers.
- * @param operation The operation to execute using the AI client
- * @param config Determines the tier (fast or pro) for smart routing
- * @param timeoutMs Timeout in milliseconds
- * @description
- * Exposes a unified API for generating structured content and chats, hiding the
- * underlying SDK complexities (OpenAI, Gemini, Anthropic) from the UI. Features
- * built-in fallback loops that cycle through user-selected models if the primary
- * provider fails or rate-limits.
- * @example
- * ```ts
- * const result = await withModelFallback(async (ai, model) => ai.generateContent(model, { contents: "Hello" }), { tier: 'fast' });
- * ```
- * @throws {Error} Throws if all configured models exhaust their retries or if the
- * underlying network request (e.g. Gemini `504 Timeout`) fails universally.
- */
+const getProviderForModel = (
+  modelId: string,
+): "gemini" | "openai" | "anthropic" => {
+  if (
+    modelId.startsWith("gpt-") ||
+    modelId.startsWith("o1") ||
+    modelId.startsWith("o3")
+  )
+    return "openai";
+  if (modelId.startsWith("claude-")) return "anthropic";
+  return "gemini";
+};
+
 export const withModelFallback = async <T>(
-  operation: (ai: any, model: string) => Promise<T>,
-  config: { tier: "fast" | "pro" } = { tier: "fast" },
+  operation: (ai: any, model: string, signal?: AbortSignal) => Promise<T>,
+  config: { capability: Capability } = { capability: "chat" },
   timeoutMs: number = 120000,
 ): Promise<T> => {
   let mainModel = getMainModel();
-
-  // Backwards compatibility with 'auto'
   if (mainModel === "auto") mainModel = "default-pro";
 
-  let modelsToTry: string[] = [];
-
-  if (mainModel === "default-pro") {
-    // Always use pro models in default mode, prioritized by keys
-    modelsToTry = [...proModels];
-  } else if (mainModel === "auto-gemini-optimized") {
-    modelsToTry =
-      config.tier === "pro"
-        ? ["gemini-3.1-pro-preview"]
-        : ["gemini-3-flash-preview"];
-  } else if (mainModel === "auto-openai-optimized") {
-    modelsToTry = config.tier === "pro" ? ["gpt-4o"] : ["gpt-4o-mini"];
-  } else if (mainModel === "auto-anthropic-optimized") {
-    modelsToTry =
-      config.tier === "pro"
-        ? ["claude-3-7-sonnet-20250219"]
-        : ["claude-3-5-haiku-20241022"];
-  } else {
-    // User picked a specific model ID (BYOK)
-    modelsToTry = [mainModel];
+  let tierProgression: string[][] = [];
+  switch (config.capability) {
+    case "extraction":
+      tierProgression = [liteModels, fastModels];
+      break;
+    case "chat":
+      tierProgression = [fastModels, proModels];
+      break;
+    case "reasoning":
+      tierProgression = [proModels];
+      break;
   }
 
-  // If we are using the default-pro routing, we should try models that have keys first
-  if (mainModel === "default-pro") {
-    const modelsWithKeys = modelsToTry.filter((model) => {
-      const provider = getProviderForModel(model);
-      return getCustomApiKey(provider) !== null;
-    });
+  const allCandidateModels = Array.from(new Set(tierProgression.flat()));
+  let modelsToTry =
+    mainModel === "default-pro" ? allCandidateModels : [mainModel];
+  if (modelsToTry.length === 0) modelsToTry = tierProgression[0];
 
-    const fallbackModels = modelsToTry.filter((model) => {
-      const provider = getProviderForModel(model);
-      return (
-        getCustomApiKey(provider) === null &&
-        provider === "gemini" &&
-        process.env.GEMINI_API_KEY
-      );
-    });
-
-    modelsToTry = [...modelsWithKeys, ...fallbackModels];
-    if (modelsToTry.length === 0) modelsToTry = [...proModels];
-  }
-
-  if (modelsToTry.length === 0)
-    throw new Error("No AI models available for routing");
-
-  let lastError: any = null;
   const aiClient = new AIClient();
 
-  for (let i = 0; i < modelsToTry.length; i++) {
-    const model = modelsToTry[i];
+  for (const model of modelsToTry) {
     const provider = getProviderForModel(model);
-    let key: string | null = null;
+    let attempts = 0;
+    const maxRetries = 2;
 
-    if (provider === "gemini")
-      key = getCustomApiKey("gemini") || process.env.GEMINI_API_KEY || null;
-    else if (provider === "openai") key = getCustomApiKey("openai");
-    else if (provider === "anthropic") key = getCustomApiKey("anthropic");
+    while (attempts <= maxRetries) {
+      try {
+        const executeWithTimeout = async (): Promise<T> => {
+          return new Promise<T>((resolve, reject) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => {
+              controller.abort();
+              reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+            operation(aiClient, model, controller.signal)
+              .then((result) => {
+                clearTimeout(timer);
+                resolve(result);
+              })
+              .catch((err) => {
+                clearTimeout(timer);
+                reject(err);
+              });
+          });
+        };
 
-    if (!key) {
-      console.warn(`Skipping model ${model} - no API key available.`);
-      if (i === modelsToTry.length - 1 && !lastError) {
-        throw new Error(
-          `No API key available for any of the configured models.`,
+        const result = await executeWithTimeout();
+        trackRequest(
+          provider,
+          "backend-cookie",
+          false,
+          model,
+          aiClient.lastTokens,
         );
+        return result;
+      } catch (error: any) {
+        console.error(`Error with model ${model}:`, error);
+        trackRequest(
+          provider,
+          "backend-cookie",
+          true,
+          model,
+          aiClient.lastTokens,
+        );
+
+        if (error.status === 429 && attempts < maxRetries) {
+          attempts++;
+          const backoffMs = Math.min(
+            1000 * Math.pow(2, attempts) + Math.random() * 500,
+            5000,
+          );
+          console.warn(
+            `429 Rate Limit for model ${model}. Backing off for ${backoffMs}ms before retry...`,
+          );
+          await new Promise((r) => setTimeout(r, backoffMs));
+          continue;
+        }
+
+        // Fast fail for 503 from backend (Penalty Box) or 429 out of retries
+        if (error.status === 503 || error.status === 429) {
+          break; // The circuit breaker manages limits globally. Proceed to next model.
+        }
+
+        break; // Proceed to next model for any other error
       }
-      continue;
     }
-
-    try {
-      /**
-       *
-       */
-      const executeWithTimeout = async (): Promise<T> => {
-        return new Promise<T>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            reject(new Error(`Operation timed out after ${timeoutMs}ms`));
-          }, timeoutMs);
-
-          operation(aiClient, model)
-            .then((result) => {
-              clearTimeout(timer);
-              resolve(result);
-            })
-            .catch((err) => {
-              clearTimeout(timer);
-              reject(err);
-            });
-        });
-      };
-
-      const result = await executeWithTimeout();
-      trackRequest(provider, key, false, model);
-      return result;
-    } catch (error: any) {
-      trackRequest(provider, key!, true, model);
-      console.error(`Error with model ${model} (Fallback Level ${i}):`, error);
-      lastError = error;
-
-      const errorStr =
-        typeof error === "string"
-          ? error
-          : JSON.stringify(error, Object.getOwnPropertyNames(error));
-
-      // Fast fail for 400 Bad Request
-      if (
-        errorStr.includes("400") ||
-        errorStr.toLowerCase().includes("bad request")
-      ) {
-        throw error;
-      }
-
-      // Enhance quota/rate limit errors for upstream handling
-      if (
-        errorStr.includes("429") ||
-        errorStr.includes("quota") ||
-        errorStr.includes("rate limit") ||
-        errorStr.includes("Resource has been exhausted")
-      ) {
-        error.isRateLimit = true;
-      }
-
-      // Only continue to the next model if it's NOT a timeout or a clear parsing error
-      // Actually, falling back on 429s or 500s is the exact point of the fallback logic.
-    }
-  }
-
-  if (lastError) {
-    if (lastError.isRateLimit) {
-      const customKeyUsed = getCustomApiKey(
-        getProviderForModel(modelsToTry[modelsToTry.length - 1]),
-      );
-      if (customKeyUsed)
-        lastError.message = "RateLimit:CustomKey:" + lastError.message;
-      else lastError.message = "RateLimit:GlobalKey:" + lastError.message;
-    }
-    throw lastError;
   }
 
   throw new Error("All configured models failed or no valid keys available.");

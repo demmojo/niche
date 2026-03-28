@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "../../../test-utils/render";
 import { LensSuggestionCard } from "../../../components/lens/LensSuggestionCard";
 import { LensSuggestion } from "../../../types";
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useVisualKnowledgeStore } from "../../store/visualKnowledgeStore";
 import { Send, X, Bot, User, Pin, AtSign } from "lucide-react";
 import { withModelFallback } from "../../utils/aiClient";
@@ -22,7 +23,13 @@ export function MindmapAIChat({
   activeWhiteboardId,
   onClose,
 }: MindmapAIChatProps) {
-  const { cards, addCard, placeCardOnWhiteboard } = useVisualKnowledgeStore();
+  const { cards, addCard, placeCardOnWhiteboard } = useVisualKnowledgeStore(
+    useShallow((state) => ({
+      cards: state.cards,
+      addCard: state.addCard,
+      placeCardOnWhiteboard: state.placeCardOnWhiteboard,
+    })),
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -147,7 +154,7 @@ export function MindmapAIChat({
             message: `${contextString}User Query: ${userMsg}`,
           });
         },
-        { tier: "pro" },
+        { capability: "reasoning" },
       );
 
       setMessages((prev) => [

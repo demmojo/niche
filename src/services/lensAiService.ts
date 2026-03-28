@@ -159,7 +159,7 @@ export const runLensDeepAnalysis = async (
         },
       });
     },
-    { tier: "pro" },
+    { capability: "reasoning" },
   );
 
   return parseLensJSON(response.text || "");
@@ -184,7 +184,7 @@ export const generateLensChatResponse = async (
         },
       });
     },
-    { tier: "pro" },
+    { capability: "reasoning" },
   );
 
   return parseLensJSON(response.text || "");

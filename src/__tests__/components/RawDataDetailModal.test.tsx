@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RawDataDetailModal } from "../../components/RawDataDetailModal";
 import { supabase } from "../../utils/hashing";
@@ -110,9 +110,6 @@ describe("RawDataDetailModal", () => {
     vi.mocked((supabase as any).order).mockRejectedValueOnce(
       new Error("Network error"),
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     render(
       <RawDataDetailModal
@@ -123,10 +120,8 @@ describe("RawDataDetailModal", () => {
     );
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(screen.queryByText("asset_v0")).not.toBeInTheDocument();
     });
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("expands history row to show snapshot details", async () => {
