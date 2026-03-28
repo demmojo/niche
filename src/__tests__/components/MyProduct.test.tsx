@@ -252,7 +252,7 @@ describe("MyProduct Component", () => {
   it("can generate strategy via AI", async () => {
     // Mock the AI response
     const mockAiResponse = {
-      text: JSON.stringify(["AI Strategy 1", "AI Strategy 2"]),
+      text: JSON.stringify({ strategies: ["AI Strategy 1", "AI Strategy 2"] }),
     };
     (withModelFallback as any).mockResolvedValue(mockAiResponse);
 

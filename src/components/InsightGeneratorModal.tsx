@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ArrowRight, X, Loader2, MessageSquare } from "lucide-react";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { withModelFallback } from "../utils/aiClient";
 import { getErrorMessage } from "../utils/errorHandler";
 import Markdown from "react-markdown";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Props for the InsightGeneratorModal component.
@@ -29,22 +31,41 @@ interface ChatMessage {
   insightData?: any;
 }
 
+const startConversationSchema = z.object({
+  message: z.string().describe("Your greeting and question."),
+  options: z
+    .array(z.string())
+    .min(2)
+    .max(4)
+    .describe(
+      "An array of 2-4 short string options for the user to choose from.",
+    ),
+});
+
+const insightResponseSchema = z.object({
+  isFinal: z
+    .boolean()
+    .describe(
+      "true if generating the final insight, false if asking another question",
+    ),
+  message: z.string().describe("Your response or question."),
+  options: z
+    .array(z.string())
+    .optional()
+    .describe("Array of 2-4 string options if isFinal is false."),
+  insight: z
+    .object({
+      title: z.string(),
+      description: z.string(),
+      category: z.enum(["opportunity", "threat", "trend"]),
+      impact: z.enum(["high", "medium", "low"]),
+    })
+    .optional()
+    .describe("If isFinal is true, provide the insight object."),
+});
+
 /**
  * A modal that uses conversational AI to extract a specific structured insight.
- * @description
- * Operates like a multi-step wizard, but driven dynamically by an LLM rather than
- * static UI steps. The AI evaluates the `rawContextData` and asks the user clarifying
- * questions via `ChatMessage.options`. Once sufficient context is gathered, the AI
- * yields a structured JSON object that matches the system's Insight schema.
- * @example
- * ```tsx
- * <InsightGeneratorModal
- *   isOpen={true}
- *   onClose={() => setOpen(false)}
- *   onInsightGenerated={saveInsight}
- *   rawContextData={selectedCompetitor}
- * />
- * ```
  */
 export function InsightGeneratorModal({
   isOpen,
@@ -76,24 +97,21 @@ export function InsightGeneratorModal({
     }
   }, [messages, isTyping]);
 
-  /**
-   *
-   */
   const startConversation = async () => {
     if (isTyping) return;
     setIsTyping(true);
     try {
       const prompt = `
-        You are an expert Market Intelligence AI. I have just synced a large amount of raw market data about form builders and data collection tools.
-        
-        Your goal is to help me generate ONE highly actionable insight (Opportunity, Threat, or Trend) from this data.
-        Instead of just giving me the insight, ask me a multiple-choice question to understand what area I want to focus on right now.
-        
-        For example, you could ask if I'm more interested in "Pricing Changes", "New Competitor Features", or "Market Sentiment".
-        
-        Return a JSON object with:
-        - "message": Your greeting and question.
-        - "options": An array of 2-4 short string options for me to choose from.
+You are an expert Market Intelligence AI. (Context)
+Your goal is to help generate ONE highly actionable insight (Opportunity, Threat, or Trend) from raw market data. (Objective)
+Be conversational, professional, and helpful. (Style & Tone)
+Your audience is a product manager looking for strategic direction. (Audience)
+Ask a multiple-choice question to understand what area the user wants to focus on right now (e.g., Pricing, Features, Sentiment) and return a structured JSON response. (Response)
+
+<processing_rules>
+1. Do not generate the insight yet.
+2. Provide 2-4 short, clickable options.
+</processing_rules>
       `;
 
       const response = await withModelFallback(
@@ -101,15 +119,9 @@ export function InsightGeneratorModal({
           return await ai.generateContent(model, {
             contents: prompt,
             config: {
+              temperature: 0.4,
               responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  message: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                },
-                required: ["message", "options"],
-              },
+              responseSchema: zodToJsonSchema(startConversationSchema) as any,
             },
           });
         },
@@ -145,9 +157,6 @@ export function InsightGeneratorModal({
     }
   };
 
-  /**
-   *
-   */
   const handleOptionClick = async (option: string) => {
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -156,7 +165,6 @@ export function InsightGeneratorModal({
     };
 
     setMessages((prev) => {
-      // Remove options from the last assistant message
       const updated = [...prev];
       if (
         updated.length > 0 &&
@@ -176,23 +184,25 @@ export function InsightGeneratorModal({
           .join("\n") + `\nUser: ${option}`;
 
       const prompt = `
-        You are an expert Market Intelligence AI. We are having a conversation to generate a specific market insight.
-        
-        Conversation history:
-        ${historyText}
-        
-        Raw Market Data Context:
-        ${JSON.stringify(rawContextData).substring(0, 15000)} // Truncated to avoid token limits
-        
-        Based on the user's choice and the raw data, decide what to do next:
-        1. If you need more specific direction, ask another multiple-choice question to narrow it down.
-        2. If you have enough direction, generate the final insight.
-        
-        Return a JSON object with:
-        - "isFinal": boolean (true if generating the final insight, false if asking another question)
-        - "message": Your response or question.
-        - "options": (Optional) Array of 2-4 string options if isFinal is false.
-        - "insight": (Optional) If isFinal is true, provide the insight object with { "title": string, "description": string, "category": "opportunity"|"threat"|"trend", "impact": "high"|"medium"|"low" }
+You are an expert Market Intelligence AI. (Context)
+Your goal is to either ask a follow-up question or generate the final structured insight based on the conversation history and raw data. (Objective)
+Be precise, analytical, and objective. (Style & Tone)
+Your audience is a product manager. (Audience)
+Return a strictly formatted JSON object. (Response)
+
+<processing_rules>
+1. If you need more specific direction, set isFinal=false and ask another multiple-choice question.
+2. If you have enough direction from the user's choice, set isFinal=true and provide the insight.
+3. Base the insight STRICTLY on the raw data provided.
+</processing_rules>
+
+<conversation_history>
+${historyText}
+</conversation_history>
+
+<raw_market_data>
+${JSON.stringify(rawContextData).substring(0, 15000)}
+</raw_market_data>
       `;
 
       const response = await withModelFallback(
@@ -200,25 +210,9 @@ export function InsightGeneratorModal({
           return await ai.generateContent(model, {
             contents: prompt,
             config: {
+              temperature: 0.2,
               responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  isFinal: { type: Type.BOOLEAN },
-                  message: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  insight: {
-                    type: Type.OBJECT,
-                    properties: {
-                      title: { type: Type.STRING },
-                      description: { type: Type.STRING },
-                      category: { type: Type.STRING },
-                      impact: { type: Type.STRING },
-                    },
-                  },
-                },
-                required: ["isFinal", "message"],
-              },
+              responseSchema: zodToJsonSchema(insightResponseSchema) as any,
             },
           });
         },

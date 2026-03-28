@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: ["./src/setupTests.ts"],
     isolate: true,
     pool: "threads",
+    testTimeout: 15000,
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",

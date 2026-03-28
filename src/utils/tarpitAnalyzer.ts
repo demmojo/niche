@@ -1,4 +1,6 @@
 import { withModelFallback } from "./aiClient";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 export interface TarpitAnalysisResult {
   isTarpit: boolean;
@@ -7,22 +9,50 @@ export interface TarpitAnalysisResult {
   suggestedNiches: string[];
 }
 
+const tarpitSchema = z.object({
+  isTarpit: z
+    .boolean()
+    .describe("true if the idea is too generic/horizontal/commoditized"),
+  score: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe(
+      "0-100, 100 being absolute generic tarpit, 0 being hyper-niche and defensible",
+    ),
+  reasoning: z
+    .string()
+    .describe(
+      "Clear reasoning explaining exactly WHY it is or isn't a tarpit. Cite market saturation if applicable.",
+    ),
+  suggestedNiches: z
+    .array(z.string())
+    .describe(
+      "If it is a tarpit, provide 3 highly specific, underserved niches. If not, this can be empty.",
+    ),
+});
+
 export async function analyzeProductForTarpit(
   productName: string,
   productDescription: string,
 ): Promise<TarpitAnalysisResult> {
-  const prompt = `You are an expert product strategist. Analyze the following product idea to determine if it is a "Tarpit" (a highly horizontal, commoditized idea that is extremely difficult for a small team to distribute, e.g., "generic AI email client", "another basic CRM", "general purpose note-taking app").
+  const prompt = `
+You are an expert product strategist. (Context)
+Your goal is to determine if a product idea is a "Tarpit" (a highly horizontal, commoditized idea that is extremely difficult for a small team to distribute). (Objective)
+Be highly critical, realistic, and objective. (Style & Tone)
+Your audience is a solo founder or small startup team looking to avoid building something no one wants or can't be marketed. (Audience)
+Return a strictly formatted JSON object analyzing the idea. (Response)
 
-Product Name: ${productName}
-Description: ${productDescription}
+<processing_rules>
+1. Examples of Tarpits: "generic AI email client", "another basic CRM", "general purpose note-taking app".
+2. Assess distribution difficulty.
+3. If it is a Tarpit, suggest 3 highly specific, underserved niches related to the original idea.
+</processing_rules>
 
-Evaluate this product and respond with a JSON object strictly following this structure:
-{
-  "isTarpit": boolean (true if the idea is too generic/horizontal),
-  "score": number (0-100, 100 being absolute generic tarpit, 0 being hyper-niche and defensible),
-  "reasoning": string (Clear, impeccable reasoning explaining exactly WHY it is or isn't a tarpit. If it is a tarpit, cite real-world market saturation data or reasons why distribution will be a nightmare),
-  "suggestedNiches": string[] (If it is a tarpit, provide 3 highly specific, underserved niches related to the original idea that would be much more viable for a small team. If not a tarpit, this can be empty)
-}
+<product>
+  <name>${productName}</name>
+  <description>${productDescription}</description>
+</product>
 `;
 
   try {
@@ -31,7 +61,9 @@ Evaluate this product and respond with a JSON object strictly following this str
         return ai.generateContent(model, {
           contents: prompt,
           config: {
+            temperature: 0.2,
             responseMimeType: "application/json",
+            responseSchema: zodToJsonSchema(tarpitSchema) as any,
           },
         });
       },

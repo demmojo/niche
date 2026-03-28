@@ -27,7 +27,92 @@ export type SourceType =
   | "crunchbase"
   | "news"
   | "gemini-grounding";
+
 export type ConfidenceLevel = "High" | "Medium" | "Low" | "Critical";
+
+export interface MLInsight {
+  confidenceScore: number; // 0.0 to 1.0
+  verbatimQuotes: string[];
+  isHumanVerified: boolean;
+}
+
+export interface SentimentInsight extends MLInsight {
+  id: string;
+  competitorId: string;
+  featureName: string;
+  prevalenceScore: number; // 0.0 to 1.0
+  dissatisfactionScore: number; // 0.0 to 1.0
+  timestamp: string;
+}
+
+export interface JobToBeDone extends MLInsight {
+  id: string;
+  jobStatement: string;
+  importanceScore: number; // 1-10
+  currentSatisfactionScore: number; // 1-10
+  opportunityScore: number; // Importance + Math.max(Importance - Satisfaction, 0)
+  timestamp: string;
+}
+
+export interface Assumption extends MLInsight {
+  id: string;
+  category: "desirability" | "viability" | "feasibility";
+  statement: string;
+  importanceScore: number; // 1-10
+  evidenceStrength: number; // 1-10 (time-decayed)
+  timestamp: string;
+  linkedEvidenceIds: string[];
+}
+
+export interface ValidationCampaign {
+  id: string;
+  name: string;
+  adImpressions: number;
+  ctaClicks: number;
+  emailCaptures: number;
+  purchaseIntent: number;
+  calculatedCPAi: number; // Cost Per Acquisition of Intent
+  skinInTheGameScore: number; // Aggregate validation score
+  timestamp: string;
+}
+
+export interface ValueFactor {
+  id: string;
+  name: string;
+  dimension:
+    | "price"
+    | "usability"
+    | "performance"
+    | "customization"
+    | "support";
+  userProductScore: number; // 1-10
+  competitorScores: Record<string, number>; // competitorId -> 1-10
+  timestamp: string;
+}
+
+export interface ExperimentVersion {
+  id: string;
+  parentInsightId: string;
+  parentInsightType:
+    | "job_to_be_done"
+    | "assumption"
+    | "sentiment"
+    | "value_curve";
+  versionName: string;
+  codeSnippet: string;
+  deploymentUrl?: string;
+  timestamp: string;
+}
+
+export interface DeploymentAnalytics {
+  id: string;
+  linkedVersionId: string;
+  adoptionRate: number; // percentage
+  conversionCount: number;
+  bounceRate: number; // percentage
+  dailyActiveUsers: number;
+  timestamp: string;
+}
 
 export interface DataSource {
   id: string;

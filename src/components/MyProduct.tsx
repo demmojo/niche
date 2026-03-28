@@ -22,6 +22,14 @@ import { Tooltip } from "./Tooltip";
 import ExportButton from "./ExportButton";
 import { DocumentationWizardModal } from "./DocumentationWizardModal";
 import { DerivedInsight } from "../types";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+const strategySchema = z.object({
+  strategies: z.array(
+    z.string().describe("A concise strategic next step or action item."),
+  ),
+});
 
 export interface FeatureProvenance {
   sourceType:
@@ -247,21 +255,36 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setIsGeneratingStrategy(true);
     try {
       const context = `
-        Product Name: ${productData.name}
-        Description: ${productData.description}
-        Target Regions: ${productData.targetRegions.join(", ")}
-        Current Features: ${productData.features.map((f) => f.name).join(", ")}
-        Competitors Tracked: ${competitors.length}
-        Competitors: ${competitors.map((c) => c.name).join(", ")}
-        Competitor Features: ${competitors
-          .map((c) => c.features?.join(", "))
-          .filter(Boolean)
-          .join(" | ")}
+<product>
+  <name>${productData.name}</name>
+  <description>${productData.description}</description>
+  <target_regions>${productData.targetRegions.join(", ")}</target_regions>
+  <current_features>${productData.features.map((f) => f.name).join(", ")}</current_features>
+</product>
+<market>
+  <competitors_tracked>${competitors.length}</competitors_tracked>
+  <competitor_names>${competitors.map((c) => c.name).join(", ")}</competitor_names>
+  <competitor_features>${competitors
+    .map((c) => c.features?.join(", "))
+    .filter(Boolean)
+    .join(" | ")}</competitor_features>
+</market>
       `;
 
-      const prompt = `Based on the following product context and competitor landscape, generate 3 strategic next steps or action items to improve the product's market position. Consider missing features, target regions, and potential differentiators. Return ONLY a JSON array of strings.
-      
-      Context: ${context}
+      const prompt = `
+You are an expert Product Manager and Strategist. (Context)
+Your goal is to generate 3 strategic next steps or action items to improve the product's market position. (Objective)
+Be highly actionable, concise, and focused on product-market fit. (Style & Tone)
+Your audience is the executive team looking for clear direction. (Audience)
+Return a strictly formatted JSON object with an array of strings. (Response)
+
+<processing_rules>
+1. Consider missing features compared to competitors.
+2. Consider target regions for expansion or localization.
+3. Identify potential differentiators.
+</processing_rules>
+
+${context}
       `;
 
       const response = await withModelFallback(
@@ -269,17 +292,26 @@ export const MyProduct: React.FC<MyProductProps> = ({
           return ai.generateContent(model, {
             contents: prompt,
             config: {
+              temperature: 0.2,
               responseMimeType: "application/json",
+              responseSchema: zodToJsonSchema(strategySchema) as any,
             },
           });
         },
         { tier: "pro" },
       );
 
-      const text = response.text || "[]";
-      const suggestions = JSON.parse(text);
+      const text = response.text || '{"strategies": []}';
+      let parsed = { strategies: [] };
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        console.error("Failed to parse AI output for strategy", text);
+      }
 
-      if (Array.isArray(suggestions)) {
+      const suggestions = parsed.strategies || [];
+
+      if (Array.isArray(suggestions) && suggestions.length > 0) {
         const newStrategies = suggestions.map((s: string) => ({
           id: Math.random().toString(36).substring(2, 9),
           content: s,

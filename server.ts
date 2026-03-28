@@ -239,12 +239,10 @@ async function startServer() {
       const { accountId, token } = req.body;
       const siteToken =
         "cf_site_token_mock_" + Math.random().toString(36).substring(7);
-      res
-        .status(200)
-        .json({
-          site_token: siteToken,
-          message: "Analytics provisioned via OpenNext Edge",
-        });
+      res.status(200).json({
+        site_token: siteToken,
+        message: "Analytics provisioned via OpenNext Edge",
+      });
     } catch (error: any) {
       console.error("Cloudflare Provision Error:", error);
       res.status(500).json({ error: error.message });
@@ -451,11 +449,13 @@ async function startServer() {
               signal: controller.signal,
             },
           );
-          clearTimeout(timeoutId);
-
-          if (response.ok) break;
+          if (response.ok) {
+            clearTimeout(timeoutId);
+            break;
+          }
 
           errorText = await response.text();
+          clearTimeout(timeoutId);
           if (response.status === 429 || response.status >= 500) {
             if (attempt === 1) {
               const delay = 1000 + Math.random() * 500;
@@ -487,7 +487,6 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
         return res.status(response.status).json({
           error: `Apollo API error: ${response.status} ${errorText}`,
           responseStatus: response.status,
@@ -544,11 +543,13 @@ async function startServer() {
               }),
             },
           );
-          clearTimeout(timeoutId);
-
-          if (response.ok) break;
+          if (response.ok) {
+            clearTimeout(timeoutId);
+            break;
+          }
 
           errorText = await response.text();
+          clearTimeout(timeoutId);
           if (response.status === 429 || response.status >= 500) {
             if (attempt === 1) {
               const delay = 1000 + Math.random() * 500;
@@ -580,7 +581,6 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
         return res.status(response.status).json({
           error: `Apollo API error: ${response.status} ${errorText}`,
           responseStatus: response.status,
@@ -669,7 +669,6 @@ async function startServer() {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
         return res.status(response.status).json({
           error: `Apollo news error: ${response.status} ${errorText}`,
         });

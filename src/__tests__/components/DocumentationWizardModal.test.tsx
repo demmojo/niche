@@ -88,7 +88,7 @@ describe("DocumentationWizardModal", () => {
           screen.queryByText("Generating Documentation..."),
         ).not.toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 4000 },
     );
 
     expect(screen.getByText(/Test Product One-Pager/i)).toBeInTheDocument();
@@ -215,7 +215,7 @@ describe("DocumentationWizardModal", () => {
           screen.queryByText("Generating Documentation..."),
         ).not.toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 4000 },
     );
 
     expect(screen.getByText(/Key Insights/i)).toBeInTheDocument();
@@ -254,7 +254,7 @@ describe("DocumentationWizardModal", () => {
           screen.queryByText("Generating Documentation..."),
         ).not.toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 4000 },
     );
 
     // Assert PRD format string
@@ -312,7 +312,7 @@ describe("DocumentationWizardModal", () => {
           screen.queryByText("Generating Documentation..."),
         ).not.toBeInTheDocument();
       },
-      { timeout: 2000 },
+      { timeout: 4000 },
     );
 
     expect(

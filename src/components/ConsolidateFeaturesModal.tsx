@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Combine, Loader2, Check } from "lucide-react";
 import { Tooltip } from "./Tooltip";
-import { Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { withModelFallback } from "../utils/aiClient";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Props for the ConsolidateFeaturesModal component.
@@ -21,22 +23,26 @@ interface ConsolidateFeaturesModalProps {
   ) => void;
 }
 
+const consolidationSchema = z.object({
+  consolidations: z.array(
+    z.object({
+      originalFeatures: z
+        .array(z.string())
+        .describe(
+          "An array of exact feature strings from the input that should be combined.",
+        ),
+      suggestedName: z
+        .string()
+        .describe("The new, consolidated unique capability/feature name."),
+      reasoning: z
+        .string()
+        .describe("Why these features should be aggregated."),
+    }),
+  ),
+});
+
 /**
  * A generative AI modal interface for aggregating similar competitor features.
- * @description
- * This modal passes all active competitor features to the AI Client, prompting it
- * to normalize terminology (e.g., merging "Chat UI" and "Conversational Interface"
- * into a single "Conversational AI" feature). The user can preview the changes
- * before applying them globally.
- * @example
- * ```tsx
- * <ConsolidateFeaturesModal
- *   isOpen={showConsolidate}
- *   competitors={competitorData}
- *   onClose={() => setShowConsolidate(false)}
- *   onConsolidate={(updates) => applyFeatureUpdates(updates)}
- * />
- * ```
  */
 export const ConsolidateFeaturesModal: React.FC<
   ConsolidateFeaturesModalProps
@@ -47,9 +53,6 @@ export const ConsolidateFeaturesModal: React.FC<
 
   if (!isOpen) return null;
 
-  /**
-   *
-   */
   const handleAnalyze = async () => {
     if (!competitors || competitors.length < 2) return;
     setIsAnalyzing(true);
@@ -60,18 +63,22 @@ export const ConsolidateFeaturesModal: React.FC<
         features: c.coreFeatures || [],
       }));
 
-      const prompt = `You are a product manager analyzing competitor features. 
-We have a list of features across different competitors. Convert the features into unique capabilities/features so we can aggregate features that are too similar.
-For example, "Conversational UI" and "Chat Interface", or "Developer SDKs" and "API Access", should be aggregated into a single unique capability.
+      const prompt = `
+You are an expert Product Manager. (Context)
+Your goal is to analyze competitor features and aggregate similar ones into unique capabilities. (Objective)
+Be precise, logical, and concise. (Style & Tone)
+Your audience is the product team trying to normalize terminology across a competitor matrix. (Audience)
+Return a strictly formatted JSON object detailing the consolidations. (Response)
 
-Analyze the following competitor features and suggest how to aggregate them into unique capabilities.
-Return a JSON object with a "consolidations" array. Each item should have:
-- "originalFeatures": an array of exact feature strings that should be combined.
-- "suggestedName": the new, consolidated unique capability/feature name.
-- "reasoning": why they should be aggregated.
+<processing_rules>
+1. Group features that are functionally identical but named differently (e.g. "Chat Interface" and "Conversational UI").
+2. Ensure the \`originalFeatures\` exactly match strings from the input.
+3. Provide a clear, professional \`suggestedName\` for the grouped capability.
+</processing_rules>
 
-Competitor Data:
+<competitor_data>
 ${JSON.stringify(allFeatures, null, 2)}
+</competitor_data>
 `;
 
       const response = await withModelFallback(
@@ -79,38 +86,16 @@ ${JSON.stringify(allFeatures, null, 2)}
           return ai.generateContent(model, {
             contents: prompt,
             config: {
+              temperature: 0.1,
               responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  consolidations: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        originalFeatures: {
-                          type: Type.ARRAY,
-                          items: { type: Type.STRING },
-                        },
-                        suggestedName: { type: Type.STRING },
-                        reasoning: { type: Type.STRING },
-                      },
-                      required: [
-                        "originalFeatures",
-                        "suggestedName",
-                        "reasoning",
-                      ],
-                    },
-                  },
-                },
-              },
+              responseSchema: zodToJsonSchema(consolidationSchema) as any,
             },
           });
         },
         { tier: "fast" },
       );
 
-      const result = JSON.parse(response.text || "{}");
+      const result = JSON.parse(response.text || '{"consolidations": []}');
       setSuggestions(result.consolidations || []);
     } catch (error) {
       console.error("Error analyzing features:", error);

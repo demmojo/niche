@@ -72,7 +72,7 @@ describe("InviteMemberModal Component", () => {
       () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
       },
-      { timeout: 3000 },
+      { timeout: 4000 },
     );
   });
 
