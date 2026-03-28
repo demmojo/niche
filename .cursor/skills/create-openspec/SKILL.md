@@ -11,10 +11,14 @@ This project uses the `openspec` standard to plan, design, and manage features. 
 
 When asked to create a new OpenSpec or plan a feature:
 
-1. Ask the user for the feature name and a brief description if not already provided.
-2. Determine a short `feature-name` (kebab-case) for the directory.
-3. Use the Write tool to create the directory structure: `openspec/changes/<feature-name>/` and `openspec/changes/<feature-name>/specs/<feature-name>/`.
-4. Generate the 5 files below, filling in placeholders logically based on the user's description.
+1. **Pre-requisite Review:** You MUST use the `Shell` or `Read` tools to review all existing specs in `openspec/changes/` and `openspec/archive/`. Check for overlaps, conflicts, or if the proposed feature alters an existing implemented/unimplemented spec.
+   - If there is an overlap, ask the user if the new spec should _supersede_ the old one, or if they should be merged.
+   - If superseding, update the old spec's `.openspec.yaml` to include `status: superseded` and `superseded_by: <new-feature-name>`, and add a warning to the top of its `proposal.md`.
+2. **Future Extractor Mandate:** While creating plans or specs, at the end make sure to populate "Future Considerations" or potential "Architectural, Design and Future Potential To Dos". This feeds the living roadmap document.
+3. Ask the user for the feature name and a brief description if not already provided.
+4. Determine a short `feature-name` (kebab-case) for the directory.
+5. Use the Write tool to create the directory structure: `openspec/changes/<feature-name>/` and `openspec/changes/<feature-name>/specs/<feature-name>/`.
+6. Generate the 5 files below, filling in placeholders logically based on the user's description.
 
 ### 1. `.openspec.yaml`
 
@@ -22,7 +26,9 @@ This file is placed at `openspec/changes/<feature-name>/.openspec.yaml`
 
 ```yaml
 schema: spec-driven
+status: draft # Options: draft, active, implemented, superseded, archived
 created: YYYY-MM-DD
+# superseded_by: [other-feature-name] (if applicable)
 ```
 
 ### 2. `proposal.md`
@@ -86,6 +92,13 @@ This file is placed at `openspec/changes/<feature-name>/design.md`
 
 - **Risk: [Risk Name]** -> [Description]
 - **Mitigation**: [How to mitigate]
+
+## Future Potential & Wow Features
+
+**CRITICAL:** You must populate this section based on your analysis of the specs, technical debt taken, or "Non-Goals". This section is automatically extracted by the CI/CD pipeline (`roadmap-extractor.ts`) to populate the living `docs/ROADMAP.md` document used by the team to strategize and create new product features.
+
+- **[Feature Name]**: [Transform a technical compromise or deferred item into a visionary, user-facing "wow" capability.]
+- **Architectural / Design To-Do**: [Any future architectural refactors or design explorations needed to support maturity.]
 ```
 
 ### 4. `spec.md`

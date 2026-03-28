@@ -7,11 +7,19 @@ pre-commit:
     tests:
       glob: "*.{js,ts,jsx,tsx}"
       run: npx vitest related --run {staged_files}
+    openspec:
+      glob: "openspec/**/*.{yaml,yml,md}"
+      run: npx tsx scripts/openspec-cli/index.ts validate
+    extract-roadmap:
+      glob: "openspec/changes/**/*.{md,yaml}"
+      run: npx tsx scripts/openspec-cli/roadmap-extractor.ts {staged_files} && git add docs/ROADMAP.yaml docs/ROADMAP.md
 
 pre-push:
   commands:
     type-check:
       run: npx tsc --noEmit
+    drift-detector:
+      run: npx tsx scripts/openspec-cli/drift.ts
 
 commit-msg:
   commands:

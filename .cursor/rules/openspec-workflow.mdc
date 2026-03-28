@@ -1,5 +1,5 @@
 ---
-description: Enforces reading and updating OpenSpec files (tasks.md, spec.md) during feature implementation.
+description: Enforces reading and updating OpenSpec files (tasks.md, spec.md) during feature implementation and planning.
 alwaysApply: true
 ---
 
@@ -7,10 +7,21 @@ alwaysApply: true
 
 This project relies on `openspec/changes/` directories containing `proposal.md`, `design.md`, `specs/`, and `tasks.md` files to document and guide feature implementation.
 
+## Pre-flight / Planning Phase (CRITICAL)
+Before you propose a new feature, run `/plan`, or create a new OpenSpec:
+1. **Discover Existing Specs:** You MUST run `npx tsx scripts/openspec-cli/index.ts collision` to detect overlaps or read `openspec/changes/` to see what is already planned.
+2. **Identify Overlaps:** If the new feature overlaps or conflicts with an existing spec (e.g. `product-evolution-engine`), determine if the new spec should *supersede* the old one or compliment it.
+3. **Supersede Specs:** If a spec is superseded or removed:
+   - Update its `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
+   - Add a `> **NOTICE:** This spec has been **superseded** by [new-spec].` block to the very top of its `proposal.md`.
+   - Never implement tasks from a superseded spec.
+4. **Future Roadmap Extractor:** While creating plans or specs, make sure to explicitly populate a "Future Considerations" or "Architectural, Design and Future Potential To Dos" section at the end of `design.md` or the plan file. This feeds the living `docs/ROADMAP.md` document during the git commit lifecycle.
+5. **Validate Specs:** Run `npx tsx scripts/openspec-cli/index.ts validate` to ensure the DAG is acyclic and valid. Then run `npx tsx scripts/openspec-cli/index.ts eval` to do a semantic pass.
+
+## Implementation Phase
 When asked to implement a feature or fix a bug that has an associated OpenSpec in the `openspec/changes/` directory, you must follow this workflow:
 
-1. **Locate the Spec**: Search `openspec/changes/` for the relevant feature directory.
-2. **Read the Context**: Use the Read tool to parse `proposal.md`, `design.md`, and `specs/<feature-name>/spec.md`. Understand the full context, rationale, and requirements before coding.
-3. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined.
+1. **Locate the Spec**: Run `npx tsx scripts/openspec-cli/index.ts context <feature-name>` to get an optimized GraphRAG prompt that provides deep local context and abstracted global context. Read it carefully.
+2. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined.
 4. **Update Progress**: As you complete each task in `tasks.md`, you MUST use the Write or Edit tool to update the file, marking the task as done by changing `- [ ]` to `- [x]`. 
 5. **Strict Adherence**: Do not deviate from the architecture or decisions outlined in `design.md` and `spec.md` without explicit user permission. If a requirement or task is unclear, ask the user.
