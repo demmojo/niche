@@ -114,6 +114,7 @@ import { Heart } from "lucide-react";
 import { MarketValueNotebook } from "./components/MarketValueNotebook";
 import { RapidPdlcWorkflow } from "./components/RapidPdlcWorkflow";
 import { DataPointsTable } from "./components/DataPointsTable";
+import { UnifiedIdeationEngine } from "./components/ideation/UnifiedIdeationEngine";
 import { MyProduct, MyProductData } from "./components/MyProduct";
 import { useAuth } from "./components/AuthProvider";
 import { InsightBrainstormModal } from "./components/InsightBrainstormModal";
@@ -1396,7 +1397,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
 
   const [activeTab, setActiveTab] = useLocalStorage(
     `active_tab_${user.uid}_${productId}`,
-    "dashboard",
+    "ideation",
   );
   const [supportInitialType, setSupportInitialType] = useState<
     "Bug" | "Feature" | "General" | "Limit Increase Request"
@@ -4301,6 +4302,17 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
         <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
           <NavItem
+            icon={<Sparkles size={18} />}
+            label="Ideation Engine"
+            active={activeTab === "ideation"}
+            onClick={() => {
+              setActiveTab("ideation");
+              setSelectedCompetitorId(null);
+              setSelectedSourceId(null);
+              setSelectedSummaryId(null);
+            }}
+          />
+          <NavItem
             icon={<Zap size={18} />}
             label="Rapid PDLC"
             active={activeTab === "rapid-pdlc"}
@@ -6506,6 +6518,13 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                   addToast(`Added strategic insight: ${title}`);
                 }}
               />
+            )}
+
+            {/* IDEATION TAB */}
+            {activeTab === "ideation" && (
+              <div className="h-full">
+                <UnifiedIdeationEngine />
+              </div>
             )}
 
             {/* ACTION CENTER TAB */}

@@ -16,6 +16,7 @@ import { Tooltip } from "./Tooltip";
 import { Type } from "@google/genai";
 import { withModelFallback } from "../utils/aiClient";
 import { compressImage } from "../utils/imageUtils";
+import { calculateImageHash } from "../utils/hashWorkerAPI";
 
 interface UploadDataModalProps {
   isOpen: boolean;
@@ -209,11 +210,27 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
         });
       }
 
-      // Add image contents
+      // Add image contents sequentially to aid Garbage Collection and avoid mobile memory OOM
       const imageFiles = files.filter((f) => f.type.startsWith("image/"));
       if (imageFiles.length > 0) {
         for (const img of imageFiles) {
           try {
+            // 1. Calculate dHash client-side via Web Worker
+            const hash = await calculateImageHash(img);
+            console.log(`Computed dHash for ${img.name}: ${hash}`);
+
+            // 2. Check deduplication API
+            const hashRes = await fetch("/api/images/check", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hash }),
+            });
+            const hashData = await hashRes.json();
+
+            // NOTE: Even if duplicate, for this analysis we still need to process it
+            // In a full implementation, we'd pass the existing URL to the backend or use the base64 just for the prompt
+
+            // 3. Compress and append image
             const { base64Data, mimeType } = await compressImage(img);
             parts.push({
               inlineData: {
@@ -221,9 +238,14 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                 mimeType,
               },
             });
-            parts.push({ text: `\nFilename: ${img.name}` });
+            parts.push({
+              text: `\nFilename: ${img.name}\nSource URL: ${hashData.url || hashData.presignedUrl}`,
+            });
+
+            // Sleep briefly to yield thread and allow GC to collect temporary buffers
+            await new Promise((r) => setTimeout(r, 50));
           } catch (err) {
-            console.error("Failed to compress image:", img.name, err);
+            console.error("Failed to process image:", img.name, err);
           }
         }
       }

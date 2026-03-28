@@ -52,6 +52,13 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/team-collaboration.webm" autoplay loop muted playsinline></video>`
 
+### 6. Unified Ideation & Evolution Engine
+
+- **Value Prop:** "From blank slate to validated MVP in minutes."
+- **Description:** Escape analysis paralysis and feature bloat. Use the Intent-Based Router to start from an idea or brainstorm from competitor URLs. Our AI ingests market data asynchronously and presents a Tinder-style Hybrid Product Builder with strict MVP budgeting guardrails to ensure you build a lean, defensible product.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/unified-ideation.webm" autoplay loop muted playsinline></video>`
+
 ---
 
 ## Maintenance Guidelines

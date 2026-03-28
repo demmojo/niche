@@ -65,6 +65,38 @@ interface GuideData {
 }
 
 const getPageGuides = (): Record<string, GuideData> => ({
+  ideation: {
+    title: "Unified Ideation Engine",
+    description:
+      "From a blank slate to a validated MVP in minutes. Escape analysis paralysis by letting our AI synthesize a lean, defensible product from raw market data.",
+    icon: <Sparkles size={28} />,
+    color: "text-amber-500",
+    bgGlow: "bg-amber-500/20",
+    capabilities: [
+      {
+        icon: <Wand2 size={20} />,
+        title: "Intent-Based Routing",
+        desc: "Start with a specific idea to validate, or brainstorm from scratch by ingesting competitor URLs.",
+      },
+      {
+        icon: <Combine size={20} />,
+        title: "Hybrid Product Builder",
+        desc: "Curate your MVP using a rapid Tinder-style swipe interface. Every feature is backed by verifiable data.",
+      },
+      {
+        icon: <Target size={20} />,
+        title: "Anti-Bloat Guardrails",
+        desc: "Stay lean. Our built-in MVP budgeting tracks development effort and warns you before scope creep ruins your timeline.",
+      },
+    ],
+    steps: [
+      "Select your starting path (Idea vs Brainstorm).",
+      "Paste up to 5 competitor URLs and let the AI extract features asynchronously.",
+      "Swipe right to approve features until your 30-day MVP budget is full.",
+    ],
+    proTip:
+      "Click 'Find a Niche' during the swipe phase to pause standard extraction and discover highly-differentiated Blue Ocean gap features.",
+  },
   dashboard: {
     title: tMessage(dictionary.dashboard.guide.title),
     description: tMessage(dictionary.dashboard.guide.description),

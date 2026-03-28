@@ -9,8 +9,19 @@ import {
   generateEmbedding,
   supabase,
 } from "./src/utils/hashing";
+import { sseEndpoint } from "./src/server/sse";
+import {
+  startNetworkIoWorker,
+  startVisionMlWorker,
+  networkIoQueue,
+  visionMlQueue,
+} from "./src/server/queues";
 
 dotenv.config();
+
+// Start Background Workers
+startNetworkIoWorker();
+startVisionMlWorker();
 
 async function startServer() {
   const app = express();
@@ -21,6 +32,101 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // SSE Streaming Endpoint for "AI Thinking DAG UI"
+  app.get("/api/sse", sseEndpoint);
+
+  // IDEATION ENDPOINTS
+
+  // Client-Side Image Deduplication
+  app.post("/api/images/check", async (req, res) => {
+    try {
+      const { hash } = req.body;
+      if (!hash) {
+        return res.status(400).json({ error: "Hash is required" });
+      }
+
+      // Check for exact match or near match (Hamming distance <= 4)
+      const { data: candidates, error: candidateError } = await supabase
+        .from("raw_data_versions")
+        .select("perceptual_hash, blob_uri")
+        .eq("data_type", "image")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (candidateError) throw candidateError;
+
+      if (candidates) {
+        for (const candidate of candidates) {
+          if (candidate.perceptual_hash) {
+            const distance = calculateHammingDistance(
+              hash,
+              candidate.perceptual_hash,
+            );
+            if (distance !== -1 && distance <= 4) {
+              // Found duplicate
+              return res.status(200).json({
+                status: "duplicate",
+                url: candidate.blob_uri,
+              });
+            }
+          }
+        }
+      }
+
+      // If no duplicate, return a mock presigned URL for upload
+      return res.status(200).json({
+        status: "net_new",
+        presignedUrl: `https://mock-supabase-storage/upload/${Date.now()}`,
+      });
+    } catch (error: any) {
+      console.error("Deduplication Check Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  function calculateHammingDistance(hex1: string, hex2: string): number {
+    if (hex1.length !== hex2.length) return -1;
+    let distance = 0;
+    for (let i = 0; i < hex1.length; i++) {
+      const val1 = parseInt(hex1[i], 16);
+      const val2 = parseInt(hex2[i], 16);
+      const xor = val1 ^ val2;
+      for (let j = 0; j < 4; j++) {
+        if ((xor >> j) & 1) distance++;
+      }
+    }
+    return distance;
+  }
+
+  // Endpoint to manually dispatch ideation jobs
+  app.post("/api/ideation/start", async (req, res) => {
+    try {
+      const { competitors } = req.body;
+      if (!competitors || !Array.isArray(competitors)) {
+        return res.status(400).json({ error: "Competitors array is required" });
+      }
+
+      const jobId = `ideation-${Date.now()}`;
+
+      // Dispatch multiple scraping jobs
+      for (const url of competitors) {
+        await networkIoQueue.add(
+          "scrape-competitor",
+          { url },
+          {
+            jobId: `${jobId}-scrape-${url}`,
+            attempts: 3,
+          },
+        );
+      }
+
+      res.status(202).json({ message: "Ideation started", jobId });
+    } catch (error: any) {
+      console.error("Ideation start error:", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   const extractRateLimitHeaders = (response: any) => {
