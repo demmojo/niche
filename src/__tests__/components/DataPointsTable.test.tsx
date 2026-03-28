@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DataPointsTable } from "../../components/DataPointsTable";
-import { withKeyRotation } from "../../utils/geminiClient";
+import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
@@ -25,7 +25,7 @@ vi.mock("@google/genai", () => ({
 
 // Mock gemini client wrapper
 vi.mock("../../utils/geminiClient", () => ({
-  withKeyRotation: vi.fn(),
+  withModelFallback: vi.fn(),
 }));
 
 // Mock react-markdown
@@ -202,7 +202,7 @@ describe("DataPointsTable", () => {
       const mockGenerateContent = vi
         .fn()
         .mockResolvedValue({ text: "Mock AI Feature Details" });
-      (withKeyRotation as any).mockImplementation(async (cb: any) => {
+      (withModelFallback as any).mockImplementation(async (cb: any) => {
         return cb(
           { models: { generateContent: mockGenerateContent } },
           "gemini-1.5-pro",
@@ -237,7 +237,7 @@ describe("DataPointsTable", () => {
         .mockResolvedValueOnce({ text: "Mock AI Feature Details" })
         .mockResolvedValueOnce({ text: "Mock AI User Stories" });
 
-      (withKeyRotation as any).mockImplementation(async (cb: any) => {
+      (withModelFallback as any).mockImplementation(async (cb: any) => {
         return cb(
           { models: { generateContent: mockGenerateContent } },
           "gemini-1.5-pro",
@@ -271,7 +271,7 @@ describe("DataPointsTable", () => {
       const mockGenerateContent = vi
         .fn()
         .mockResolvedValue({ text: "Mock AI Suggested Feature" });
-      (withKeyRotation as any).mockImplementation(async (cb: any) => {
+      (withModelFallback as any).mockImplementation(async (cb: any) => {
         return cb(
           { models: { generateContent: mockGenerateContent } },
           "gemini-1.5-pro",
@@ -315,7 +315,7 @@ describe("DataPointsTable", () => {
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      (withKeyRotation as any).mockRejectedValue(new Error("API Error"));
+      (withModelFallback as any).mockRejectedValue(new Error("API Error"));
 
       render(
         <DataPointsTable type="Features Indexed" data={mockCompetitorsData} />,
@@ -339,7 +339,7 @@ describe("DataPointsTable", () => {
       const mockGenerateContent = vi
         .fn()
         .mockResolvedValue({ text: "Details" });
-      (withKeyRotation as any)
+      (withModelFallback as any)
         .mockImplementationOnce(async (cb: any) =>
           cb(
             { models: { generateContent: mockGenerateContent } },
@@ -375,7 +375,7 @@ describe("DataPointsTable", () => {
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      (withKeyRotation as any).mockRejectedValue(new Error("API Error"));
+      (withModelFallback as any).mockRejectedValue(new Error("API Error"));
 
       render(
         <DataPointsTable type="Features Indexed" data={mockCompetitorsData} />,

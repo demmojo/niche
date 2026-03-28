@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Tooltip } from "./Tooltip";
 import { Type } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import { compressImage } from "../utils/imageUtils";
 
 interface UploadDataModalProps {
@@ -228,52 +228,58 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
         }
       }
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return ai.models.generateContent({
-          model: model,
-          contents: parts,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                newSources: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      competitorId: { type: Type.STRING },
-                      type: { type: Type.STRING },
-                      sourceUrl: { type: Type.STRING },
-                      excerpt: { type: Type.STRING },
-                      tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      confidenceLevel: { type: Type.STRING },
-                    },
-                    required: ["type", "excerpt"],
-                  },
-                },
-                newInsights: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      title: { type: Type.STRING },
-                      description: { type: Type.STRING },
-                      category: { type: Type.STRING },
-                      impact: { type: Type.STRING },
-                      actionableSteps: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING },
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return ai.models.generateContent({
+            model: model,
+            contents: parts,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  newSources: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        competitorId: { type: Type.STRING },
+                        type: { type: Type.STRING },
+                        sourceUrl: { type: Type.STRING },
+                        excerpt: { type: Type.STRING },
+                        tags: {
+                          type: Type.ARRAY,
+                          items: { type: Type.STRING },
+                        },
+                        confidenceLevel: { type: Type.STRING },
                       },
+                      required: ["type", "excerpt"],
                     },
-                    required: ["title", "description", "category", "impact"],
+                  },
+                  newInsights: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        category: { type: Type.STRING },
+                        impact: { type: Type.STRING },
+                        actionableSteps: {
+                          type: Type.ARRAY,
+                          items: { type: Type.STRING },
+                        },
+                      },
+                      required: ["title", "description", "category", "impact"],
+                    },
                   },
                 },
               },
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "fast" },
+      );
 
       const result = JSON.parse(response.text || "{}");
 

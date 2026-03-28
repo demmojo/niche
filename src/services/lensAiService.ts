@@ -1,5 +1,5 @@
 import { Type } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import {
   LensSuggestion,
   RejectedSuggestion,
@@ -149,16 +149,18 @@ export const runLensDeepAnalysis = async (
     "You have just completed a deep background analysis of the latest synchronized market data. Identify the 1-3 most compelling, trending, or critical shifts in the market that could directly improve our product's competitive positioning. Extract these as suggestions.",
   );
 
-  const response = await withKeyRotation(async (ai, model) => {
-    return await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    });
-  });
+  const response = await withModelFallback(
+    async (ai, model) => {
+      return await ai.generateContent(model, {
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        },
+      });
+    },
+    { tier: "pro" },
+  );
 
   return parseLensJSON(response.text || "");
 };
@@ -172,16 +174,18 @@ export const generateLensChatResponse = async (
     `The user just selected or typed the following input: "${userPrompt}". Respond directly to this input, analyzing the market data if necessary, and optionally draft new suggestions.`,
   );
 
-  const response = await withKeyRotation(async (ai, model) => {
-    return await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    });
-  });
+  const response = await withModelFallback(
+    async (ai, model) => {
+      return await ai.generateContent(model, {
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        },
+      });
+    },
+    { tier: "pro" },
+  );
 
   return parseLensJSON(response.text || "");
 };

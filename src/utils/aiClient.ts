@@ -10,36 +10,50 @@ export interface AIModel {
   provider: ApiService;
 }
 
+export const fastModels = [
+  "gemini-1.5-flash",
+  "claude-3-haiku-20240307",
+  "gpt-4o-mini",
+];
+export const proModels = [
+  "gemini-1.5-pro",
+  "claude-3-5-sonnet-20240620",
+  "gpt-4o",
+];
+
 /**
- *
+ * Retrieves the user's selected main model preference.
+ * Defaults to "auto" for smart routing if not set or invalid.
  */
-export const getSelectedModels = (): string[] => {
-  const data = localStorage.getItem("ai_selected_models");
+export const getMainModel = (): string => {
+  const data = localStorage.getItem("ai_main_model");
   if (data) {
+    return data;
+  }
+  // Migration logic from old multi-select
+  const oldData = localStorage.getItem("ai_selected_models");
+  if (oldData) {
     try {
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
-        // Automatically migrate deprecated or non-existent 3.1 preview models
-        const migrated = parsed.map((m) => {
-          if (m === "gemini-3.1-flash-preview") return "gemini-3-flash-preview";
-          if (m === "gemini-3-pro-preview") return "gemini-3.1-pro-preview"; // Deprecated
-          return m;
-        });
-        return migrated;
+      const parsed = JSON.parse(oldData);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Just take the first valid one if they had a specific preference
+        const firstModel = parsed[0];
+        setMainModel(firstModel);
+        return firstModel;
       }
     } catch {
-      return ["gemini-3-flash-preview"];
+      // Ignore
     }
   }
-  return ["gemini-3-flash-preview"];
+  return "auto";
 };
 
 /**
- *
- * @param models
+ * Sets the user's selected main model preference.
+ * @param model The model ID or "auto"
  */
-export const setSelectedModels = (models: string[]) => {
-  localStorage.setItem("ai_selected_models", JSON.stringify(models));
+export const setMainModel = (model: string) => {
+  localStorage.setItem("ai_main_model", model);
 };
 
 /**
@@ -307,8 +321,9 @@ class AIClient {
 // Ensure withModelFallback replaces withKeyRotation
 /**
  * The central AI abstraction layer orchestrating requests across multiple providers.
- * @param operation
- * @param timeoutMs
+ * @param operation The operation to execute using the AI client
+ * @param config Determines the tier (fast or pro) for smart routing
+ * @param timeoutMs Timeout in milliseconds
  * @description
  * Exposes a unified API for generating structured content and chats, hiding the
  * underlying SDK complexities (OpenAI, Gemini, Anthropic) from the UI. Features
@@ -316,23 +331,57 @@ class AIClient {
  * provider fails or rate-limits.
  * @example
  * ```ts
- * const result = await withModelFallback("Respond to the user", "How do I do X?");
+ * const result = await withModelFallback(async (ai, model) => ai.generateContent(model, { contents: "Hello" }), { tier: 'fast' });
  * ```
  * @throws {Error} Throws if all configured models exhaust their retries or if the
  * underlying network request (e.g. Gemini `504 Timeout`) fails universally.
  */
 export const withModelFallback = async <T>(
-  operation: (ai: AIClient, model: string) => Promise<T>,
+  operation: (ai: any, model: string) => Promise<T>,
+  config: { tier: "fast" | "pro" } = { tier: "fast" },
   timeoutMs: number = 120000,
 ): Promise<T> => {
-  const models = getSelectedModels();
-  if (models.length === 0) throw new Error("No AI models selected");
+  const mainModel = getMainModel();
+
+  let modelsToTry: string[] = [];
+
+  if (mainModel !== "auto") {
+    modelsToTry = [mainModel];
+  } else {
+    // Smart Routing Logic based on Tier
+    const tierModels = config.tier === "pro" ? proModels : fastModels;
+
+    // Prioritize models that have custom API keys configured
+    const modelsWithKeys = tierModels.filter((model) => {
+      const provider = getProviderForModel(model);
+      return getCustomApiKey(provider) !== null;
+    });
+
+    const fallbackModels = tierModels.filter((model) => {
+      const provider = getProviderForModel(model);
+      return (
+        getCustomApiKey(provider) === null &&
+        provider === "gemini" &&
+        process.env.GEMINI_API_KEY
+      );
+    });
+
+    modelsToTry = [...modelsWithKeys, ...fallbackModels];
+
+    if (modelsToTry.length === 0) {
+      // Fallback if no keys are found at all, but gemini might have env
+      modelsToTry = tierModels;
+    }
+  }
+
+  if (modelsToTry.length === 0)
+    throw new Error("No AI models available for routing");
 
   let lastError: any = null;
   const aiClient = new AIClient();
 
-  for (let i = 0; i < models.length; i++) {
-    const model = models[i];
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i];
     const provider = getProviderForModel(model);
     let key: string | null = null;
 
@@ -343,7 +392,7 @@ export const withModelFallback = async <T>(
 
     if (!key) {
       console.warn(`Skipping model ${model} - no API key available.`);
-      if (i === models.length - 1 && !lastError) {
+      if (i === modelsToTry.length - 1 && !lastError) {
         throw new Error(
           `No API key available for any of the configured models.`,
         );
@@ -386,6 +435,14 @@ export const withModelFallback = async <T>(
           ? error
           : JSON.stringify(error, Object.getOwnPropertyNames(error));
 
+      // Fast fail for 400 Bad Request
+      if (
+        errorStr.includes("400") ||
+        errorStr.toLowerCase().includes("bad request")
+      ) {
+        throw error;
+      }
+
       // Enhance quota/rate limit errors for upstream handling
       if (
         errorStr.includes("429") ||
@@ -404,7 +461,7 @@ export const withModelFallback = async <T>(
   if (lastError) {
     if (lastError.isRateLimit) {
       const customKeyUsed = getCustomApiKey(
-        getProviderForModel(models[models.length - 1]),
+        getProviderForModel(modelsToTry[modelsToTry.length - 1]),
       );
       if (customKeyUsed)
         lastError.message = "RateLimit:CustomKey:" + lastError.message;

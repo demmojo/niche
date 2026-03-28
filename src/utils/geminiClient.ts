@@ -77,7 +77,7 @@ export const rotateGeminiKey = () => {
  * requests succeed even under heavy load.
  * @example
  * ```ts
- * const result = await withKeyRotation(
+ * const result = await withModelFallback(
  *   async (ai, model) => await ai.models.generateContent({ model, contents: prompt }),
  *   120000
  * );

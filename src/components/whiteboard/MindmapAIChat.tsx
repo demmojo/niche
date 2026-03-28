@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useVisualKnowledgeStore } from "../../store/visualKnowledgeStore";
 import { Send, X, Bot, User, Pin, AtSign } from "lucide-react";
-import { withKeyRotation } from "../../utils/geminiClient";
+import { withModelFallback } from "../../utils/aiClient";
 import { getErrorMessage } from "../../utils/errorHandler";
 import ReactMarkdown from "react-markdown";
 
@@ -135,17 +135,20 @@ export function MindmapAIChat({
         }
       }
 
-      const response = await withKeyRotation(async (ai, model) => {
-        const history = messages.map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }],
-        }));
+      const response = await withModelFallback(
+        async (ai, model) => {
+          const history = messages.map((m) => ({
+            role: m.role === "user" ? "user" : "model",
+            parts: [{ text: m.content }],
+          }));
 
-        const chat = ai.chats.create({ model, history: history as any });
-        return await chat.sendMessage({
-          message: `${contextString}User Query: ${userMsg}`,
-        });
-      });
+          const chat = ai.chats.create({ model, history: history as any });
+          return await chat.sendMessage({
+            message: `${contextString}User Query: ${userMsg}`,
+          });
+        },
+        { tier: "pro" },
+      );
 
       setMessages((prev) => [
         ...prev,

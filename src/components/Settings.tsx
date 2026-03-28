@@ -14,8 +14,8 @@ import {
 import { getUsageStats, getResetTime, UsageStats } from "../utils/usageTracker";
 import {
   fetchAvailableModels,
-  getSelectedModels,
-  setSelectedModels,
+  getMainModel,
+  setMainModel,
   AIModel,
 } from "../utils/aiClient";
 import { getCustomApiKey, setCustomApiKey } from "../utils/apiKeys";
@@ -40,8 +40,7 @@ export const Settings: React.FC = () => {
 
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [timeUntilReset, setTimeUntilReset] = useState<string>("");
-  const [selectedModels, setLocalSelectedModels] =
-    useState<string[]>(getSelectedModels());
+  const [mainModel, setLocalMainModel] = useState<string>(getMainModel());
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,8 +61,11 @@ export const Settings: React.FC = () => {
   );
 
   // Determine daily limit based on model (fallback if no rate limit headers)
-  const primaryModel = selectedModels[0] || "gemini-3.1-pro-preview";
-  const isProModel = primaryModel.includes("pro");
+  const primaryModel = mainModel === "auto" ? "gemini-1.5-pro" : mainModel;
+  const isProModel =
+    primaryModel.includes("pro") ||
+    primaryModel.includes("sonnet") ||
+    primaryModel.includes("gpt-4o");
   const dailyRequestLimit = isProModel ? 50 : 1500;
 
   useEffect(() => {
@@ -118,20 +120,10 @@ export const Settings: React.FC = () => {
     };
   }, []);
 
-  const handleModelChange = (
-    index: number,
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    const newModels = [...selectedModels];
-    newModels[index] = e.target.value;
-
-    // Remove empty strings from the middle, ensuring priority order is compact
-    const filtered = newModels.filter((m, i) => m || i === 0);
-    // Ensure primary model is never empty
-    if (!filtered[0]) filtered[0] = "gemini-3.1-pro-preview";
-
-    setLocalSelectedModels(filtered);
-    setSelectedModels(filtered);
+  const handleMainModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVal = e.target.value;
+    setLocalMainModel(newVal);
+    setMainModel(newVal);
   };
 
   const handleSaveKeys = async () => {
@@ -283,40 +275,38 @@ export const Settings: React.FC = () => {
               <div className="flex items-center gap-2 mb-4">
                 <Cpu size={18} className="text-ink-dark" />
                 <h3 className="text-lg font-medium text-ink-dark">
-                  Model Selection (Fallback Strategy)
+                  Main AI Model (Smart Routing)
                 </h3>
               </div>
               <p className="mb-4 text-xs text-ink-dark/60">
-                Select up to 3 models. If the primary model fails or hits a rate
-                limit, the system will automatically fall back to the next model
-                in the list.
+                Select your preferred AI model. If you select "Auto (Smart
+                Routing)", NicheAI will dynamically route requests between fast
+                models (like Gemini Flash) and complex models (like Claude
+                Sonnet) based on the task and your available API keys, with
+                automatic fallbacks for rate limits.
               </p>
               <div className="max-w-md space-y-4">
-                {[0, 1, 2].map((index) => (
-                  <div key={index}>
-                    <label className="block text-sm font-medium text-ink-dark/80 mb-2">
-                      {index === 0
-                        ? "Primary AI Model"
-                        : `Fallback Model ${index}`}
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={selectedModels[index] || ""}
-                        onChange={(e) => handleModelChange(index, e)}
-                        className="w-full bg-paper-base border border-ink-dark/20 text-ink-dark text-sm rounded-lg focus:ring-ink-dark focus:border-ink-dark block p-2.5"
-                      >
-                        {index !== 0 && (
-                          <option value="">-- None (Stop retrying) --</option>
-                        )}
-                        {availableModels.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.provider})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink-dark/80 mb-2">
+                    Main AI Model
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={mainModel}
+                      onChange={handleMainModelChange}
+                      className="w-full bg-paper-base border border-ink-dark/20 text-ink-dark text-sm rounded-lg focus:ring-ink-dark focus:border-ink-dark block p-2.5"
+                    >
+                      <option value="auto">
+                        Auto (Smart Routing) - Recommended
+                      </option>
+                      {availableModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.provider})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
 

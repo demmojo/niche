@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConsolidateFeaturesModal } from "../../components/ConsolidateFeaturesModal";
-import { withKeyRotation } from "../../utils/geminiClient";
+import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock dependencies
 vi.mock("lucide-react", () => ({
@@ -40,7 +40,7 @@ vi.mock("@google/genai", () => ({
 }));
 
 vi.mock("../../utils/geminiClient", () => ({
-  withKeyRotation: vi.fn(),
+  withModelFallback: vi.fn(),
 }));
 
 // Mock Tooltip to just render its children to avoid testing tooltip internals
@@ -149,7 +149,7 @@ describe("ConsolidateFeaturesModal", () => {
       }),
     };
 
-    (withKeyRotation as any).mockImplementation(async (callback: any) => {
+    (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
         models: {
           generateContent: vi.fn().mockResolvedValue(mockApiResponse),
@@ -196,7 +196,7 @@ describe("ConsolidateFeaturesModal", () => {
       text: JSON.stringify({ consolidations: [] }),
     };
 
-    (withKeyRotation as any).mockImplementation(async (callback: any) => {
+    (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
         models: {
           generateContent: vi.fn().mockResolvedValue(mockApiResponse),
@@ -229,7 +229,7 @@ describe("ConsolidateFeaturesModal", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    (withKeyRotation as any).mockRejectedValue(new Error("API failed"));
+    (withModelFallback as any).mockRejectedValue(new Error("API failed"));
 
     render(
       <ConsolidateFeaturesModal
@@ -267,7 +267,7 @@ describe("ConsolidateFeaturesModal", () => {
       }),
     };
 
-    (withKeyRotation as any).mockImplementation(async (callback: any) => {
+    (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
         models: {
           generateContent: vi.fn().mockResolvedValue(mockApiResponse),
@@ -335,7 +335,7 @@ describe("ConsolidateFeaturesModal", () => {
       }),
     };
 
-    (withKeyRotation as any).mockImplementation(async (callback: any) => {
+    (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
         models: {
           generateContent: vi.fn().mockResolvedValue(mockApiResponse),

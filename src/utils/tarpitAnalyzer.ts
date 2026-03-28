@@ -1,4 +1,4 @@
-import { withKeyRotation } from "./geminiClient";
+import { withModelFallback } from "./aiClient";
 
 export interface TarpitAnalysisResult {
   isTarpit: boolean;
@@ -26,15 +26,18 @@ Evaluate this product and respond with a JSON object strictly following this str
 `;
 
   try {
-    const response = await withKeyRotation(async (ai, model) => {
-      return ai.models.generateContent({
-        model: model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
-    });
+    const response = await withModelFallback(
+      async (ai, model) => {
+        return ai.models.generateContent({
+          model: model,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+          },
+        });
+      },
+      { tier: "fast" },
+    );
 
     const text = response.text || "{}";
     const result = JSON.parse(text) as TarpitAnalysisResult;

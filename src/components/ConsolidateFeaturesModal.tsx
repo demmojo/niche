@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Combine, Loader2, Check } from "lucide-react";
 import { Tooltip } from "./Tooltip";
 import { Type } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 
 /**
  * Props for the ConsolidateFeaturesModal component.
@@ -74,39 +74,42 @@ Competitor Data:
 ${JSON.stringify(allFeatures, null, 2)}
 `;
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                consolidations: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      originalFeatures: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING },
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  consolidations: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        originalFeatures: {
+                          type: Type.ARRAY,
+                          items: { type: Type.STRING },
+                        },
+                        suggestedName: { type: Type.STRING },
+                        reasoning: { type: Type.STRING },
                       },
-                      suggestedName: { type: Type.STRING },
-                      reasoning: { type: Type.STRING },
+                      required: [
+                        "originalFeatures",
+                        "suggestedName",
+                        "reasoning",
+                      ],
                     },
-                    required: [
-                      "originalFeatures",
-                      "suggestedName",
-                      "reasoning",
-                    ],
                   },
                 },
               },
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "fast" },
+      );
 
       const result = JSON.parse(response.text || "{}");
       setSuggestions(result.consolidations || []);

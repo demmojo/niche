@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import Markdown from "react-markdown";
 
 interface DataPoint {
@@ -294,10 +294,11 @@ export const DataPointsTable: React.FC<{
     if (!actualFeatureDetails[row.id]) {
       setIsLoadingDetails((prev) => ({ ...prev, [row.id]: true }));
       try {
-        const response = await withKeyRotation(async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
-            contents: `You are an expert market analyst. Provide a detailed breakdown of the feature "${row.value}" in the context of form builders and data collection tools.
+        const response = await withModelFallback(
+          async (ai, model) => {
+            return await ai.models.generateContent({
+              model: model,
+              contents: `You are an expert market analyst. Provide a detailed breakdown of the feature "${row.value}" in the context of form builders and data collection tools.
 
 Format your response in Markdown using the exact structure below:
 
@@ -311,8 +312,10 @@ Format your response in Markdown using the exact structure below:
 (Specific details on how the companies that have this feature implement it: ${row.companies?.join(", ")})
 
 Keep the response concise, professional, and highly readable.`,
-          });
-        });
+            });
+          },
+          { tier: "pro" },
+        );
         actualSetFeatureDetails((prev) => ({
           ...prev,
           [row.id]: response.text || "No details available.",
@@ -344,10 +347,11 @@ Keep the response concise, professional, and highly readable.`,
   const handleGenerateStories = async (row: DataPoint) => {
     setIsGeneratingStories((prev) => ({ ...prev, [row.id]: true }));
     try {
-      const response = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContent({
-          model: model,
-          contents: `You are an expert product manager. Based on the feature "${row.value}", generate a set of user stories and actionable development tasks.
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContent({
+            model: model,
+            contents: `You are an expert product manager. Based on the feature "${row.value}", generate a set of user stories and actionable development tasks.
           
 Context:
 - Feature: ${row.value}
@@ -368,8 +372,10 @@ Format your response in Markdown using the exact structure below:
 - [ ] Task 2
 
 Keep it concise and actionable.`,
-        });
-      });
+          });
+        },
+        { tier: "pro" },
+      );
       setUserStories((prev) => ({
         ...prev,
         [row.id]: response.text || "No user stories generated.",
@@ -388,10 +394,11 @@ Keep it concise and actionable.`,
   const handleSuggestFeature = async () => {
     setIsSuggestingFeature(true);
     try {
-      const response = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContent({
-          model: model,
-          contents: `Analyze the following feature data and suggest the next feature we should build to increase customer satisfaction and reduce customer churn. The "buySwitchScore" represents how likely the feature is to convince users to buy or switch to our product, calculated based on recent customer trends (1-2 years), SEO search volume, and ad word usage.
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContent({
+            model: model,
+            contents: `Analyze the following feature data and suggest the next feature we should build to increase customer satisfaction and reduce customer churn. The "buySwitchScore" represents how likely the feature is to convince users to buy or switch to our product, calculated based on recent customer trends (1-2 years), SEO search volume, and ad word usage.
           
 Data:
 ${JSON.stringify(
@@ -410,8 +417,10 @@ ${JSON.stringify(
 )}
 
 Provide a concise, actionable recommendation in Markdown format.`,
-        });
-      });
+          });
+        },
+        { tier: "pro" },
+      );
       setSuggestedFeature(response.text || "No suggestion generated.");
     } catch (error) {
       console.error("Failed to suggest feature:", error);

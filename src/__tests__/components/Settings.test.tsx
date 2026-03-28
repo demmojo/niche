@@ -36,8 +36,8 @@ vi.mock("../../../src/utils/usageTracker", () => ({
 }));
 
 vi.mock("../../../src/utils/aiClient", () => ({
-  getSelectedModels: vi.fn(),
-  setSelectedModels: vi.fn(),
+  getMainModel: vi.fn(),
+  setMainModel: vi.fn(),
   fetchAvailableModels: vi.fn(),
 }));
 
@@ -96,9 +96,9 @@ describe("Settings Component", () => {
       mockResetTime,
     );
 
-    (aiClient.getSelectedModels as ReturnType<typeof vi.fn>).mockReturnValue([
+    (aiClient.getMainModel as ReturnType<typeof vi.fn>).mockReturnValue(
       "gemini-3.1-pro-preview",
-    ]);
+    );
     (
       aiClient.fetchAvailableModels as ReturnType<typeof vi.fn>
     ).mockResolvedValue([
@@ -317,62 +317,13 @@ describe("Settings Component", () => {
       });
 
       const dropdowns = screen.getAllByRole("combobox");
-      expect(dropdowns).toHaveLength(3);
+      expect(dropdowns).toHaveLength(1);
 
       await act(async () => {
-        fireEvent.change(dropdowns[1], { target: { value: "claude-3-opus" } });
+        fireEvent.change(dropdowns[0], { target: { value: "claude-3-opus" } });
       });
 
-      expect(aiClient.setSelectedModels).toHaveBeenCalledWith([
-        "gemini-3.1-pro-preview",
-        "claude-3-opus",
-      ]);
-    });
-
-    it("filters out empty values from the middle of the array", async () => {
-      // Start with ['gemini-3.1-pro-preview', 'claude-3-opus', 'gemini-3.1-pro-preview']
-      (aiClient.getSelectedModels as ReturnType<typeof vi.fn>).mockReturnValue([
-        "gemini-3.1-pro-preview",
-        "claude-3-opus",
-        "gemini-3.1-pro-preview",
-      ]);
-
-      await act(async () => {
-        view = render(<Settings />);
-      });
-
-      const dropdowns = screen.getAllByRole("combobox");
-      expect(dropdowns).toHaveLength(3);
-
-      // Change middle model to empty string
-      await act(async () => {
-        fireEvent.change(dropdowns[1], { target: { value: "" } });
-      });
-
-      // Should compact the array to ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview']
-      expect(aiClient.setSelectedModels).toHaveBeenCalledWith([
-        "gemini-3.1-pro-preview",
-        "gemini-3.1-pro-preview",
-      ]);
-    });
-
-    it("ensures primary model defaults to gemini-3.1-pro-preview if cleared", async () => {
-      await act(async () => {
-        view = render(<Settings />);
-      });
-
-      const dropdowns = screen.getAllByRole("combobox");
-      expect(dropdowns).toHaveLength(3);
-
-      // Change primary model to empty string
-      await act(async () => {
-        fireEvent.change(dropdowns[0], { target: { value: "" } });
-      });
-
-      // Should set primary model to gemini-3.1-pro-preview
-      expect(aiClient.setSelectedModels).toHaveBeenCalledWith([
-        "gemini-3.1-pro-preview",
-      ]);
+      expect(aiClient.setMainModel).toHaveBeenCalledWith("claude-3-opus");
     });
   });
 
@@ -635,9 +586,9 @@ describe("Settings Component", () => {
     });
 
     it("handles non-pro model daily limits", async () => {
-      (aiClient.getSelectedModels as ReturnType<typeof vi.fn>).mockReturnValue([
+      (aiClient.getMainModel as ReturnType<typeof vi.fn>).mockReturnValue(
         "gemini-3-flash-preview",
-      ]);
+      );
       (usageTracker.getUsageStats as ReturnType<typeof vi.fn>).mockReturnValue({
         date: "2023-01-01",
         services: {

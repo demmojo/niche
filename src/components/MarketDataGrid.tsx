@@ -10,7 +10,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { GoogleGenAI, Type } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import { useFirebaseSync } from "../hooks/useFirebaseSync";
 import Markdown from "react-markdown";
 
@@ -145,28 +145,39 @@ export default function MarketDataGrid({
         Each key should contain an array of 2-3 short, strategic bullet points.
       `;
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-                opportunities: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  weaknesses: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  opportunities: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  threats: { type: Type.ARRAY, items: { type: Type.STRING } },
                 },
-                threats: { type: Type.ARRAY, items: { type: Type.STRING } },
+                required: [
+                  "strengths",
+                  "weaknesses",
+                  "opportunities",
+                  "threats",
+                ],
               },
-              required: ["strengths", "weaknesses", "opportunities", "threats"],
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "pro" },
+      );
 
       const parsed = JSON.parse(response.text || "{}");
       if (parsed.strengths) {

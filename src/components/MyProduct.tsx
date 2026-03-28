@@ -16,7 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import Markdown from "react-markdown";
 import { Tooltip } from "./Tooltip";
 import ExportButton from "./ExportButton";
@@ -264,15 +264,18 @@ export const MyProduct: React.FC<MyProductProps> = ({
       Context: ${context}
       `;
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
-      });
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+            },
+          });
+        },
+        { tier: "pro" },
+      );
 
       const text = response.text || "[]";
       const suggestions = JSON.parse(text);

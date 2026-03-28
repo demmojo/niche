@@ -1,4 +1,4 @@
-import { withKeyRotation } from "./geminiClient";
+import { withModelFallback } from "./aiClient";
 import { downscaleImageBase64 } from "./imageUtils";
 
 export interface BoundingBox {
@@ -75,14 +75,17 @@ export async function extractFeaturesFromVisuals(
   }]`;
 
   try {
-    const response = await withKeyRotation(async (ai, model) => {
-      // In reality, you would pass the image part to the multimodal model
-      return ai.models.generateContent({
-        model: model, // Prefer gemini-1.5-pro for vision tasks
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      });
-    });
+    const response = await withModelFallback(
+      async (ai, model) => {
+        // In reality, you would pass the image part to the multimodal model
+        return ai.models.generateContent({
+          model: model, // Prefer gemini-1.5-pro for vision tasks
+          contents: prompt,
+          config: { responseMimeType: "application/json" },
+        });
+      },
+      { tier: "pro" },
+    );
 
     const text = response.text || "[]";
     return JSON.parse(text) as ExtractedFeature[];

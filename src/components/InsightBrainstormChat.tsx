@@ -11,7 +11,7 @@ import {
   Save,
 } from "lucide-react";
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import { getErrorMessage } from "../utils/errorHandler";
 import { supabase } from "../utils/hashing";
 import Markdown from "react-markdown";
@@ -252,22 +252,25 @@ export function InsightBrainstormChat({
         Respond naturally and concisely.
       `;
 
-      const responseStream = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContentStream({
-          model: model,
-          contents: prompt,
-          config: {
-            tools: [
-              {
-                functionDeclarations: [
-                  saveInsightFunctionDeclaration,
-                  getFullEntityDetailsFunctionDeclaration,
-                ],
-              },
-            ],
-          },
-        });
-      });
+      const responseStream = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContentStream({
+            model: model,
+            contents: prompt,
+            config: {
+              tools: [
+                {
+                  functionDeclarations: [
+                    saveInsightFunctionDeclaration,
+                    getFullEntityDetailsFunctionDeclaration,
+                  ],
+                },
+              ],
+            },
+          });
+        },
+        { tier: "pro" },
+      );
 
       let fullText = "";
       let hasFunctionCall = false;

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { MyProduct, MyProductData } from "../../../src/components/MyProduct";
-import { withKeyRotation } from "../../../src/utils/geminiClient";
+import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock lucide icons
 vi.mock("lucide-react", () => ({
@@ -55,7 +55,7 @@ vi.mock("../../../src/components/Tooltip", () => ({
 
 // Mock Gemini Client
 vi.mock("../../../src/utils/geminiClient", () => ({
-  withKeyRotation: vi.fn(),
+  withModelFallback: vi.fn(),
 }));
 
 // Mock @google/genai
@@ -254,7 +254,7 @@ describe("MyProduct Component", () => {
     const mockAiResponse = {
       text: JSON.stringify(["AI Strategy 1", "AI Strategy 2"]),
     };
-    (withKeyRotation as any).mockResolvedValue(mockAiResponse);
+    (withModelFallback as any).mockResolvedValue(mockAiResponse);
 
     render(<MyProductWrapper />);
 
@@ -264,7 +264,7 @@ describe("MyProduct Component", () => {
     expect(screen.getByText("Generating...")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(withKeyRotation).toHaveBeenCalled();
+      expect(withModelFallback).toHaveBeenCalled();
       expect(screen.getByText("AI Strategy 1")).toBeInTheDocument();
       expect(screen.getByText("AI Strategy 2")).toBeInTheDocument();
     });

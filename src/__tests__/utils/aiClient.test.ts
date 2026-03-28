@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fetchAvailableModels,
-  getSelectedModels,
-  setSelectedModels,
+  getMainModel,
+  setMainModel,
   withModelFallback,
 } from "../../utils/aiClient";
 import * as apiKeys from "../../utils/apiKeys";
@@ -71,19 +71,19 @@ describe("aiClient utils", () => {
     vi.clearAllMocks();
   });
 
-  describe("getSelectedModels / setSelectedModels", () => {
-    it("returns default gemini model when local storage is empty", () => {
-      expect(getSelectedModels()).toEqual(["gemini-3-flash-preview"]);
+  describe("getMainModel / setMainModel", () => {
+    it("returns default auto model when local storage is empty", () => {
+      expect(getMainModel()).toEqual("auto");
     });
 
-    it("returns default gemini model when local storage is invalid JSON", () => {
+    it("returns auto when local storage has invalid old data", () => {
       localStorage.setItem("ai_selected_models", "{ invalid json ]");
-      expect(getSelectedModels()).toEqual(["gemini-3-flash-preview"]);
+      expect(getMainModel()).toEqual("auto");
     });
 
-    it("setSelectedModels and getSelectedModels work together", () => {
-      setSelectedModels(["gpt-4o", "claude-3-opus-20240229"]);
-      expect(getSelectedModels()).toEqual(["gpt-4o", "claude-3-opus-20240229"]);
+    it("setMainModel and getMainModel work together", () => {
+      setMainModel("gemini-1.5-pro");
+      expect(getMainModel()).toEqual("gemini-1.5-pro");
     });
   });
 
@@ -142,32 +142,9 @@ describe("aiClient utils", () => {
   });
 
   describe("withModelFallback & AIClient basics", () => {
-    it("throws if no AI models selected", async () => {
-      setSelectedModels([]);
-      await expect(withModelFallback(async () => {})).rejects.toThrow(
-        "No AI models selected",
-      );
-    });
-
-    it("throws if no API keys are available for any configured model", async () => {
-      setSelectedModels(["gemini-3.1-pro-preview", "gpt-4o"]);
-      mockKeys["gemini"] = null;
-      mockKeys["openai"] = null;
-
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
-
-      await expect(withModelFallback(async () => {})).rejects.toThrow(
-        "No API key available for any of the configured models.",
-      );
-
-      consoleWarnSpy.mockRestore();
-    });
-
     it("uses primary model if successful", async () => {
       mockKeys["openai"] = "test-key";
-      setSelectedModels(["gpt-4o"]);
+      setMainModel("gpt-4o");
 
       const mockOperation = vi.fn().mockResolvedValue("success");
       const result = await withModelFallback(mockOperation);
@@ -180,7 +157,7 @@ describe("aiClient utils", () => {
     it("falls back to second model if primary fails with rate limit error", async () => {
       mockKeys["openai"] = "test-key";
       mockKeys["anthropic"] = "test-key2";
-      setSelectedModels(["gpt-4o", "claude-3-5-sonnet-20241022"]);
+      setMainModel("auto");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -204,7 +181,7 @@ describe("aiClient utils", () => {
       expect(mockOperation).toHaveBeenNthCalledWith(
         2,
         expect.anything(),
-        "claude-3-5-sonnet-20241022",
+        "claude-3-5-sonnet-20240620",
       );
 
       consoleErrorSpy.mockRestore();
@@ -212,7 +189,7 @@ describe("aiClient utils", () => {
 
     it("throws custom RateLimit error when all models fail and last error is rate limit", async () => {
       mockKeys["openai"] = "test-key";
-      setSelectedModels(["gpt-4o"]);
+      setMainModel("auto");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -230,7 +207,7 @@ describe("aiClient utils", () => {
     it("throws custom RateLimit:GlobalKey error when all models fail and no custom key is used", async () => {
       process.env.GEMINI_API_KEY = "env-key";
       mockKeys["gemini"] = null;
-      setSelectedModels(["gemini-3.1-pro-preview"]);
+      setMainModel("gemini-1.5-pro");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -247,7 +224,7 @@ describe("aiClient utils", () => {
 
     it("throws generic error when all models fail and last error is NOT a rate limit", async () => {
       mockKeys["openai"] = "test-key";
-      setSelectedModels(["gpt-4o"]);
+      setMainModel("auto");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -265,7 +242,7 @@ describe("aiClient utils", () => {
     it("respects timeout logic and falls back", async () => {
       mockKeys["openai"] = "test-key";
       mockKeys["gemini"] = "test-key2";
-      setSelectedModels(["gpt-4o", "gemini-3.1-pro-preview"]);
+      setMainModel("auto");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -279,7 +256,11 @@ describe("aiClient utils", () => {
         })
         .mockResolvedValueOnce("fast fallback result");
 
-      const result = await withModelFallback(mockOperation, 50);
+      const result = await withModelFallback(
+        mockOperation,
+        { tier: "fast" },
+        50,
+      );
 
       expect(result).toBe("fast fallback result");
       expect(mockOperation).toHaveBeenCalledTimes(2);
@@ -293,7 +274,7 @@ describe("aiClient utils", () => {
 
     beforeEach(async () => {
       mockKeys["gemini"] = "test-key";
-      setSelectedModels(["gemini-3.1-pro-preview"]);
+      setMainModel("gemini-1.5-pro");
       await withModelFallback(async (ai) => {
         aiClient = ai;
         return true;

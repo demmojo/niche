@@ -1847,21 +1847,24 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
             console.warn("Apollo search failed, falling back to LLM", err);
           }
 
-          const response = await withModelFallback(async (ai, model) => {
-            return await ai.generateContent(model, {
-              contents:
-                `Based on these known competitors in the space of ${myProductData.name || "this industry"}: ` +
-                knownNames +
-                `. Identify up to 5 emerging or lesser-known competitors that are NOT in this list. Return ONLY a JSON array of their website domains (e.g. ["example.com", "test.io"]).`,
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
+          const response = await withModelFallback(
+            async (ai, model) => {
+              return await ai.generateContent(model, {
+                contents:
+                  `Based on these known competitors in the space of ${myProductData.name || "this industry"}: ` +
+                  knownNames +
+                  `. Identify up to 5 emerging or lesser-known competitors that are NOT in this list. Return ONLY a JSON array of their website domains (e.g. ["example.com", "test.io"]).`,
+                config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
                 },
-              },
-            });
-          });
+              });
+            },
+            { tier: "fast" },
+          );
           const llmDomains = JSON.parse(response.text || "[]");
           newCompetitorDomains = [
             ...new Set([...apolloDomains, ...llmDomains]),
@@ -2215,14 +2218,17 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
                 "pending",
               );
               try {
-                const response = await withModelFallback(async (ai, model) => {
-                  return await ai.generateContent(model, {
-                    contents: `Search the web for: ${query}. Provide a brief summary of the top results.`,
-                    config: {
-                      tools: [{ googleSearch: {} }], // Enables native Gemini Grounding
-                    },
-                  });
-                });
+                const response = await withModelFallback(
+                  async (ai, model) => {
+                    return await ai.generateContent(model, {
+                      contents: `Search the web for: ${query}. Provide a brief summary of the top results.`,
+                      config: {
+                        tools: [{ googleSearch: {} }], // Enables native Gemini Grounding
+                      },
+                    });
+                  },
+                  { tier: "fast" },
+                );
 
                 const summary = response.text || "No summary generated.";
                 searchData.push({ query, summary, rawResults: "" });
@@ -2325,9 +2331,10 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
               "Synthesizing new competitor profiles...",
               "pending",
             );
-            const response = await withModelFallback(async (ai, model) => {
-              return await ai.generateContent(model, {
-                contents: `Based on the following Apollo.io enrichment data and Google Search news, generate complete competitor profiles for the newly discovered domains: ${newCompetitorDomains.join("\n, ")}. 
+            const response = await withModelFallback(
+              async (ai, model) => {
+                return await ai.generateContent(model, {
+                  contents: `Based on the following Apollo.io enrichment data and Google Search news, generate complete competitor profiles for the newly discovered domains: ${newCompetitorDomains.join("\n, ")}. 
 
 CRITICAL: You must evaluate each domain using a True Competitor Score methodology (0-100). Calculate this by summing:
 1. Target Audience Overlap (0-25 points)
@@ -2372,90 +2379,92 @@ Return a JSON array of objects matching this exact structure:
     "lastUpdated": "ISO date string"
   }
 }`,
-                config: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        isTrueCompetitor: { type: Type.BOOLEAN },
-                        trueCompetitorScore: { type: Type.NUMBER },
-                        disqualificationReason: { type: Type.STRING },
-                        competitorData: {
-                          type: Type.OBJECT,
-                          properties: {
-                            id: { type: Type.STRING },
-                            name: { type: Type.STRING },
-                            website: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            freeTier: { type: Type.STRING },
-                            spamProtection: { type: Type.STRING },
-                            integrations: {
-                              type: Type.ARRAY,
-                              items: { type: Type.STRING },
+                  config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          isTrueCompetitor: { type: Type.BOOLEAN },
+                          trueCompetitorScore: { type: Type.NUMBER },
+                          disqualificationReason: { type: Type.STRING },
+                          competitorData: {
+                            type: Type.OBJECT,
+                            properties: {
+                              id: { type: Type.STRING },
+                              name: { type: Type.STRING },
+                              website: { type: Type.STRING },
+                              description: { type: Type.STRING },
+                              freeTier: { type: Type.STRING },
+                              spamProtection: { type: Type.STRING },
+                              integrations: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                              },
+                              targetAudience: { type: Type.STRING },
+                              marketSegments: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                              },
+                              dataSovereignty: { type: Type.STRING },
+                              sovereigntyScore: {
+                                type: Type.STRING,
+                                enum: ["low", "medium", "high"],
+                              },
+                              logoUrl: { type: Type.STRING },
+                              financialSnapshot: { type: Type.STRING },
+                              fundingStage: { type: Type.STRING },
+                              estimatedARR: { type: Type.STRING },
+                              estimatedUserBase: { type: Type.STRING },
+                              coreFeatures: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING },
+                              },
+                              pricingModel: { type: Type.STRING },
+                              howWeCompare: { type: Type.STRING },
+                              competitorScore: { type: Type.NUMBER },
+                              trustScore: { type: Type.NUMBER },
+                              marketCommonalityIndex: { type: Type.NUMBER },
+                              resourceSimilarityScore: { type: Type.NUMBER },
+                              lastUpdated: { type: Type.STRING },
                             },
-                            targetAudience: { type: Type.STRING },
-                            marketSegments: {
-                              type: Type.ARRAY,
-                              items: { type: Type.STRING },
-                            },
-                            dataSovereignty: { type: Type.STRING },
-                            sovereigntyScore: {
-                              type: Type.STRING,
-                              enum: ["low", "medium", "high"],
-                            },
-                            logoUrl: { type: Type.STRING },
-                            financialSnapshot: { type: Type.STRING },
-                            fundingStage: { type: Type.STRING },
-                            estimatedARR: { type: Type.STRING },
-                            estimatedUserBase: { type: Type.STRING },
-                            coreFeatures: {
-                              type: Type.ARRAY,
-                              items: { type: Type.STRING },
-                            },
-                            pricingModel: { type: Type.STRING },
-                            howWeCompare: { type: Type.STRING },
-                            competitorScore: { type: Type.NUMBER },
-                            trustScore: { type: Type.NUMBER },
-                            marketCommonalityIndex: { type: Type.NUMBER },
-                            resourceSimilarityScore: { type: Type.NUMBER },
-                            lastUpdated: { type: Type.STRING },
+                            required: [
+                              "id",
+                              "name",
+                              "website",
+                              "description",
+                              "freeTier",
+                              "spamProtection",
+                              "integrations",
+                              "targetAudience",
+                              "marketSegments",
+                              "dataSovereignty",
+                              "sovereigntyScore",
+                              "logoUrl",
+                              "financialSnapshot",
+                              "coreFeatures",
+                              "pricingModel",
+                              "howWeCompare",
+                              "competitorScore",
+                              "trustScore",
+                              "marketCommonalityIndex",
+                              "resourceSimilarityScore",
+                            ],
                           },
-                          required: [
-                            "id",
-                            "name",
-                            "website",
-                            "description",
-                            "freeTier",
-                            "spamProtection",
-                            "integrations",
-                            "targetAudience",
-                            "marketSegments",
-                            "dataSovereignty",
-                            "sovereigntyScore",
-                            "logoUrl",
-                            "financialSnapshot",
-                            "coreFeatures",
-                            "pricingModel",
-                            "howWeCompare",
-                            "competitorScore",
-                            "trustScore",
-                            "marketCommonalityIndex",
-                            "resourceSimilarityScore",
-                          ],
                         },
+                        required: [
+                          "isTrueCompetitor",
+                          "trueCompetitorScore",
+                          "competitorData",
+                        ],
                       },
-                      required: [
-                        "isTrueCompetitor",
-                        "trueCompetitorScore",
-                        "competitorData",
-                      ],
                     },
                   },
-                },
-              });
-            });
+                });
+              },
+              { tier: "pro" },
+            );
 
             const results = JSON.parse(response.text || "[]");
             const validCompetitors: Competitor[] = [];
@@ -2574,67 +2583,70 @@ Return a JSON array of objects matching this exact structure:
 
           setRawContextData(contextData);
 
-          const response = await withModelFallback(async (ai, model) => {
-            return await ai.generateContent(model, {
-              contents:
-                "Analyze the following competitor data, Apollo.io enrichment data, and recent Google Search news. Provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Keep it under 150 words. Also generate 3-5 specific, actionable insights (opportunities, threats, or trends) based on this data, and estimate some high-level market metrics. \n\nData: " +
-                JSON.stringify(contextData),
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.OBJECT,
-                  properties: {
-                    systemContext: {
-                      type: Type.STRING,
-                      description:
-                        "A concise, high-level summary of the current market landscape, key threats, and top opportunities.",
-                    },
-                    insights: {
-                      type: Type.ARRAY,
-                      items: {
-                        type: Type.OBJECT,
-                        properties: {
-                          title: { type: Type.STRING },
-                          description: { type: Type.STRING },
-                          category: {
-                            type: Type.STRING,
-                            enum: ["opportunity", "threat", "trend"],
-                          },
-                          impact: {
-                            type: Type.STRING,
-                            enum: ["low", "medium", "high", "critical"],
-                          },
-                        },
-                        required: [
-                          "title",
-                          "description",
-                          "category",
-                          "impact",
-                        ],
+          const response = await withModelFallback(
+            async (ai, model) => {
+              return await ai.generateContent(model, {
+                contents:
+                  "Analyze the following competitor data, Apollo.io enrichment data, and recent Google Search news. Provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Keep it under 150 words. Also generate 3-5 specific, actionable insights (opportunities, threats, or trends) based on this data, and estimate some high-level market metrics. \n\nData: " +
+                  JSON.stringify(contextData),
+                config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                      systemContext: {
+                        type: Type.STRING,
+                        description:
+                          "A concise, high-level summary of the current market landscape, key threats, and top opportunities.",
                       },
-                    },
-                    metrics: {
-                      type: Type.OBJECT,
-                      properties: {
-                        topIntegrations: { type: Type.STRING },
-                        estimatedMarketValue: { type: Type.STRING },
-                        trends: {
+                      insights: {
+                        type: Type.ARRAY,
+                        items: {
                           type: Type.OBJECT,
                           properties: {
-                            tracked: { type: Type.STRING },
-                            pricingChanges: { type: Type.STRING },
-                            featuresIndexed: { type: Type.STRING },
-                            estimatedMarketValue: { type: Type.STRING },
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            category: {
+                              type: Type.STRING,
+                              enum: ["opportunity", "threat", "trend"],
+                            },
+                            impact: {
+                              type: Type.STRING,
+                              enum: ["low", "medium", "high", "critical"],
+                            },
+                          },
+                          required: [
+                            "title",
+                            "description",
+                            "category",
+                            "impact",
+                          ],
+                        },
+                      },
+                      metrics: {
+                        type: Type.OBJECT,
+                        properties: {
+                          topIntegrations: { type: Type.STRING },
+                          estimatedMarketValue: { type: Type.STRING },
+                          trends: {
+                            type: Type.OBJECT,
+                            properties: {
+                              tracked: { type: Type.STRING },
+                              pricingChanges: { type: Type.STRING },
+                              featuresIndexed: { type: Type.STRING },
+                              estimatedMarketValue: { type: Type.STRING },
+                            },
                           },
                         },
                       },
                     },
+                    required: ["systemContext", "insights", "metrics"],
                   },
-                  required: ["systemContext", "insights", "metrics"],
                 },
-              },
-            });
-          });
+              });
+            },
+            { tier: "pro" },
+          );
 
           setActiveTasks((prev) =>
             prev.map((t) => (t.id === "5" ? { ...t, progress: 100 } : t)),
@@ -3298,34 +3310,37 @@ The markdown MUST follow this exact structure:
       const exaData = await exaResponse.json();
 
       // Pass to Gemini to extract insights
-      const geminiResponse = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Extract insights from these news highlights: ${JSON.stringify(exaData.results)}. Identify opportunities, threats, or trends. Return as a JSON array of insights.`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  category: {
-                    type: Type.STRING,
-                    enum: ["opportunity", "threat", "trend"],
+      const geminiResponse = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Extract insights from these news highlights: ${JSON.stringify(exaData.results)}. Identify opportunities, threats, or trends. Return as a JSON array of insights.`,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    category: {
+                      type: Type.STRING,
+                      enum: ["opportunity", "threat", "trend"],
+                    },
+                    impact: {
+                      type: Type.STRING,
+                      enum: ["low", "medium", "high", "critical"],
+                    },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } },
                   },
-                  impact: {
-                    type: Type.STRING,
-                    enum: ["low", "medium", "high", "critical"],
-                  },
-                  tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  required: ["title", "description", "category", "impact"],
                 },
-                required: ["title", "description", "category", "impact"],
               },
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "fast" },
+      );
 
       const parsed = JSON.parse(geminiResponse.text);
 
@@ -3400,84 +3415,87 @@ The markdown MUST follow this exact structure:
       runDiscovery,
     );
     try {
-      const response = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Identify 1 or 2 emerging or lesser-known competitors relevant to: ${myProductData.name || "our product"}. Do not return the main dominant players. Provide detailed data and simulate 2-4 data sources (website, linkedin, crunchbase, news) for each to establish a trust score.`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  website: { type: Type.STRING },
-                  freeTier: { type: Type.STRING },
-                  spamProtection: { type: Type.STRING },
-                  integrations: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                  targetAudience: { type: Type.STRING },
-                  dataSovereignty: { type: Type.STRING },
-                  sovereigntyScore: {
-                    type: Type.STRING,
-                    description: "low, medium, or high",
-                  },
-                  financialSnapshot: { type: Type.STRING },
-                  coreFeatures: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                  howWeCompare: { type: Type.STRING },
-                  competitorScore: { type: Type.NUMBER },
-                  sources: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        type: {
-                          type: Type.STRING,
-                          description:
-                            "website, api, screenshot, database, github, linkedin, crunchbase, news",
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Identify 1 or 2 emerging or lesser-known competitors relevant to: ${myProductData.name || "our product"}. Do not return the main dominant players. Provide detailed data and simulate 2-4 data sources (website, linkedin, crunchbase, news) for each to establish a trust score.`,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    website: { type: Type.STRING },
+                    freeTier: { type: Type.STRING },
+                    spamProtection: { type: Type.STRING },
+                    integrations: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    targetAudience: { type: Type.STRING },
+                    dataSovereignty: { type: Type.STRING },
+                    sovereigntyScore: {
+                      type: Type.STRING,
+                      description: "low, medium, or high",
+                    },
+                    financialSnapshot: { type: Type.STRING },
+                    coreFeatures: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    howWeCompare: { type: Type.STRING },
+                    competitorScore: { type: Type.NUMBER },
+                    sources: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          type: {
+                            type: Type.STRING,
+                            description:
+                              "website, api, screenshot, database, github, linkedin, crunchbase, news",
+                          },
+                          sourceUrl: { type: Type.STRING },
+                          excerpt: { type: Type.STRING },
+                          confidenceLevel: {
+                            type: Type.STRING,
+                            description: "High, Medium, Low",
+                          },
+                          isDeduced: { type: Type.BOOLEAN },
                         },
-                        sourceUrl: { type: Type.STRING },
-                        excerpt: { type: Type.STRING },
-                        confidenceLevel: {
-                          type: Type.STRING,
-                          description: "High, Medium, Low",
-                        },
-                        isDeduced: { type: Type.BOOLEAN },
+                        required: [
+                          "type",
+                          "sourceUrl",
+                          "excerpt",
+                          "confidenceLevel",
+                        ],
                       },
-                      required: [
-                        "type",
-                        "sourceUrl",
-                        "excerpt",
-                        "confidenceLevel",
-                      ],
                     },
                   },
+                  required: [
+                    "name",
+                    "website",
+                    "freeTier",
+                    "spamProtection",
+                    "integrations",
+                    "targetAudience",
+                    "dataSovereignty",
+                    "sovereigntyScore",
+                    "financialSnapshot",
+                    "coreFeatures",
+                    "howWeCompare",
+                    "competitorScore",
+                    "sources",
+                  ],
                 },
-                required: [
-                  "name",
-                  "website",
-                  "freeTier",
-                  "spamProtection",
-                  "integrations",
-                  "targetAudience",
-                  "dataSovereignty",
-                  "sovereigntyScore",
-                  "financialSnapshot",
-                  "coreFeatures",
-                  "howWeCompare",
-                  "competitorScore",
-                  "sources",
-                ],
               },
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "fast" },
+      );
 
       const newComps = JSON.parse(response.text || "[]");
 
@@ -3593,60 +3611,63 @@ The markdown MUST follow this exact structure:
         stats,
       });
 
-      const response = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Analyze this entire system data and provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Also generate 3-5 new strategic insights based on this data, and estimate some high-level market metrics.\n\nData: ${systemData}`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                summary: {
-                  type: Type.STRING,
-                  description:
-                    "A concise, high-level summary of the current market landscape.",
-                },
-                insights: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      title: { type: Type.STRING },
-                      description: { type: Type.STRING },
-                      category: {
-                        type: Type.STRING,
-                        enum: ["opportunity", "threat", "trend"],
-                      },
-                      impact: {
-                        type: Type.STRING,
-                        enum: ["low", "medium", "high", "critical"],
-                      },
-                    },
-                    required: ["title", "description", "category", "impact"],
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Analyze this entire system data and provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Also generate 3-5 new strategic insights based on this data, and estimate some high-level market metrics.\n\nData: ${systemData}`,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  summary: {
+                    type: Type.STRING,
+                    description:
+                      "A concise, high-level summary of the current market landscape.",
                   },
-                },
-                metrics: {
-                  type: Type.OBJECT,
-                  properties: {
-                    topIntegrations: { type: Type.STRING },
-                    estimatedMarketValue: { type: Type.STRING },
-                    trends: {
+                  insights: {
+                    type: Type.ARRAY,
+                    items: {
                       type: Type.OBJECT,
                       properties: {
-                        tracked: { type: Type.STRING },
-                        pricingChanges: { type: Type.STRING },
-                        featuresIndexed: { type: Type.STRING },
-                        estimatedMarketValue: { type: Type.STRING },
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        category: {
+                          type: Type.STRING,
+                          enum: ["opportunity", "threat", "trend"],
+                        },
+                        impact: {
+                          type: Type.STRING,
+                          enum: ["low", "medium", "high", "critical"],
+                        },
+                      },
+                      required: ["title", "description", "category", "impact"],
+                    },
+                  },
+                  metrics: {
+                    type: Type.OBJECT,
+                    properties: {
+                      topIntegrations: { type: Type.STRING },
+                      estimatedMarketValue: { type: Type.STRING },
+                      trends: {
+                        type: Type.OBJECT,
+                        properties: {
+                          tracked: { type: Type.STRING },
+                          pricingChanges: { type: Type.STRING },
+                          featuresIndexed: { type: Type.STRING },
+                          estimatedMarketValue: { type: Type.STRING },
+                        },
                       },
                     },
                   },
                 },
+                required: ["summary", "insights", "metrics"],
               },
-              required: ["summary", "insights", "metrics"],
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "pro" },
+      );
 
       const result = JSON.parse(response.text || "{}");
       const diffs: any[] = [];
@@ -3785,16 +3806,19 @@ Keep the summary concise and grounded in reality. Ask a follow-up question to va
         },
       };
 
-      const responseStream = await withModelFallback(async (ai, model) => {
-        return await ai.generateContentStream(model, {
-          contents: systemPrompt,
-          config: {
-            tools: [
-              { functionDeclarations: [suggestInsightFunctionDeclaration] },
-            ],
-          },
-        });
-      });
+      const responseStream = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContentStream(model, {
+            contents: systemPrompt,
+            config: {
+              tools: [
+                { functionDeclarations: [suggestInsightFunctionDeclaration] },
+              ],
+            },
+          });
+        },
+        { tier: "pro" },
+      );
 
       let fullText = "";
       let suggestedInsight: any = undefined;
@@ -3978,14 +4002,19 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
         { id: messageId, role: "assistant", content: "" },
       ]);
 
-      const responseStream = await withModelFallback(async (ai, model) => {
-        return await ai.generateContentStream(model, {
-          contents: `${systemPrompt}${mentionContext}\n\nChat History:\n${formattedHistory}\n\nUser: ${messageText}`,
-          config: {
-            tools: [{ functionDeclarations: [saveInsightFunctionDeclaration] }],
-          },
-        });
-      });
+      const responseStream = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContentStream(model, {
+            contents: `${systemPrompt}${mentionContext}\n\nChat History:\n${formattedHistory}\n\nUser: ${messageText}`,
+            config: {
+              tools: [
+                { functionDeclarations: [saveInsightFunctionDeclaration] },
+              ],
+            },
+          });
+        },
+        { tier: "pro" },
+      );
 
       let fullText = "";
       let hasFunctionCall = false;
@@ -6803,11 +6832,14 @@ function ScoutPage({
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Analyze the following competitor data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
-        });
-      });
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Analyze the following competitor data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
+          });
+        },
+        { tier: "fast" },
+      );
       setAnalysisResult(response.text || "[]");
     } catch (error: any) {
       console.error(error);
@@ -7606,11 +7638,14 @@ function SourcePage({
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Analyze the following source data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
-        });
-      });
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Analyze the following source data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
+          });
+        },
+        { tier: "fast" },
+      );
       setAnalysisResult(response.text || "[]");
     } catch (error: any) {
       console.error(error);
@@ -7907,11 +7942,14 @@ function SummaryPage({
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      const response = await withModelFallback(async (ai, model) => {
-        return await ai.generateContent(model, {
-          contents: `Analyze the following summary data. Return the source data as tables or excerpts and a summary explaining why this matters. Title: ${title}\nValue: ${value}\nTrend: ${trend}\nStats: ${JSON.stringify(stats)}`,
-        });
-      });
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.generateContent(model, {
+            contents: `Analyze the following summary data. Return the source data as tables or excerpts and a summary explaining why this matters. Title: ${title}\nValue: ${value}\nTrend: ${trend}\nStats: ${JSON.stringify(stats)}`,
+          });
+        },
+        { tier: "fast" },
+      );
       setAnalysisResult(response.text || "No analysis generated.");
     } catch (error: any) {
       console.error(error);

@@ -36,7 +36,7 @@ describe("MindmapAIChat Component", () => {
 
   it("renders chat interface and sends a message", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withKeyRotation").mockResolvedValue({
+    vi.spyOn(geminiClient, "withModelFallback").mockResolvedValue({
       text: "Here is your AI answer",
     });
 
@@ -104,7 +104,7 @@ describe("MindmapAIChat Component", () => {
 
   it("can pin an AI response to the board", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withKeyRotation").mockResolvedValue({
+    vi.spyOn(geminiClient, "withModelFallback").mockResolvedValue({
       text: "A very good point",
     });
 
@@ -139,7 +139,7 @@ describe("MindmapAIChat Component", () => {
 
   it("handles error during AI generation", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withKeyRotation").mockRejectedValue(
+    vi.spyOn(geminiClient, "withModelFallback").mockRejectedValue(
       new Error("Network error"),
     );
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ArrowRight, X, Loader2, MessageSquare } from "lucide-react";
 import { GoogleGenAI, Type } from "@google/genai";
-import { withKeyRotation } from "../utils/geminiClient";
+import { withModelFallback } from "../utils/aiClient";
 import { getErrorMessage } from "../utils/errorHandler";
 import Markdown from "react-markdown";
 
@@ -96,23 +96,26 @@ export function InsightGeneratorModal({
         - "options": An array of 2-4 short string options for me to choose from.
       `;
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                message: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  message: { type: Type.STRING },
+                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ["message", "options"],
               },
-              required: ["message", "options"],
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "fast" },
+      );
 
       const data = JSON.parse(
         response.text ||
@@ -193,33 +196,36 @@ export function InsightGeneratorModal({
         - "insight": (Optional) If isFinal is true, provide the insight object with { "title": string, "description": string, "category": "opportunity"|"threat"|"trend", "impact": "high"|"medium"|"low" }
       `;
 
-      const response = await withKeyRotation(async (ai, model) => {
-        return await ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                isFinal: { type: Type.BOOLEAN },
-                message: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                insight: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    impact: { type: Type.STRING },
+      const response = await withModelFallback(
+        async (ai, model) => {
+          return await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  isFinal: { type: Type.BOOLEAN },
+                  message: { type: Type.STRING },
+                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  insight: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING },
+                      description: { type: Type.STRING },
+                      category: { type: Type.STRING },
+                      impact: { type: Type.STRING },
+                    },
                   },
                 },
+                required: ["isFinal", "message"],
               },
-              required: ["isFinal", "message"],
             },
-          },
-        });
-      });
+          });
+        },
+        { tier: "pro" },
+      );
 
       const data = JSON.parse(
         response.text ||

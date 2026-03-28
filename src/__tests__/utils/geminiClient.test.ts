@@ -7,8 +7,8 @@ import {
   setSelectedModel,
   getGeminiClient,
   rotateGeminiKey,
-  withKeyRotation,
 } from "../../utils/geminiClient";
+import { withModelFallback } from "../../utils/aiClient";
 import * as apiKeys from "../../utils/apiKeys";
 import * as usageTracker from "../../utils/usageTracker";
 import { GoogleGenAI } from "@google/genai";
@@ -101,7 +101,7 @@ describe("geminiClient", () => {
     });
   });
 
-  describe("withKeyRotation", () => {
+  describe("withModelFallback", () => {
     let consoleWarnSpy: any;
 
     beforeEach(() => {
@@ -115,7 +115,7 @@ describe("geminiClient", () => {
     it("throws error if no key is available", async () => {
       delete process.env.GEMINI_API_KEY;
       vi.mocked(apiKeys.getCustomApiKey).mockReturnValue(null);
-      await expect(withKeyRotation(async () => "test")).rejects.toThrow(
+      await expect(withModelFallback(async () => "test")).rejects.toThrow(
         /No Gemini API key/,
       );
     });
@@ -124,7 +124,7 @@ describe("geminiClient", () => {
       vi.mocked(apiKeys.getCustomApiKey).mockReturnValue("valid-key");
       const op = vi.fn().mockResolvedValue("success-result");
 
-      const result = await withKeyRotation(op);
+      const result = await withModelFallback(op);
 
       expect(result).toBe("success-result");
       expect(op).toHaveBeenCalled();
@@ -145,7 +145,7 @@ describe("geminiClient", () => {
         .mockRejectedValueOnce(new Error("timed out"))
         .mockResolvedValueOnce("success-after-retry");
 
-      const result = await withKeyRotation(op, 50);
+      const result = await withModelFallback(op, { tier: "fast" }, 50);
 
       expect(result).toBe("success-after-retry");
       expect(op).toHaveBeenCalledTimes(2);
@@ -172,7 +172,7 @@ describe("geminiClient", () => {
         .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValueOnce("success");
 
-      const result = await withKeyRotation(op);
+      const result = await withModelFallback(op);
 
       expect(result).toBe("success");
       expect(op).toHaveBeenCalledTimes(2);
@@ -188,7 +188,7 @@ describe("geminiClient", () => {
         .mockRejectedValueOnce(notFoundError)
         .mockResolvedValueOnce("success");
 
-      const result = await withKeyRotation(op);
+      const result = await withModelFallback(op);
 
       expect(result).toBe("success");
       expect(op).toHaveBeenCalledTimes(2);
@@ -204,7 +204,7 @@ describe("geminiClient", () => {
       });
       const op = vi.fn().mockRejectedValue(new Error(complexErrorStr)); // both calls fail
 
-      await expect(withKeyRotation(op)).rejects.toThrow(/API Quota Exceeded/);
+      await expect(withModelFallback(op)).rejects.toThrow(/API Quota Exceeded/);
     });
 
     it("formats error on complete failure (503 server error)", async () => {
@@ -213,7 +213,7 @@ describe("geminiClient", () => {
       const err = new Error("503 Service Unavailable");
       const op = vi.fn().mockRejectedValue(err);
 
-      await expect(withKeyRotation(op)).rejects.toThrow(
+      await expect(withModelFallback(op)).rejects.toThrow(
         /Gemini API is currently experiencing issues/,
       );
     });
@@ -223,7 +223,7 @@ describe("geminiClient", () => {
 
       const op = vi.fn().mockRejectedValue("Just a random string error");
 
-      await expect(withKeyRotation(op)).rejects.toThrow(
+      await expect(withModelFallback(op)).rejects.toThrow(
         "Just a random string error",
       );
     });
