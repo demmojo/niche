@@ -189,3 +189,20 @@ export interface RawDataMetric {
   is_pinned: boolean;
   created_at: string;
 }
+
+export type DLQStatus = "pending" | "retrying" | "resolved" | "terminal";
+
+export interface DLQRecord {
+  id: string;
+  original_record_id?: string;
+  job_type: string;
+  payload: any;
+  error_details: any;
+  status: DLQStatus;
+  attempt_count: number;
+  max_attempts: number;
+  next_retry_at: string;
+  idempotency_key?: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -81,6 +81,7 @@ import {
   HelpCircle,
   Combine,
   Upload,
+  AlertTriangle,
   Package,
 } from "lucide-react";
 import { getCustomApiKey } from "./utils/apiKeys";
@@ -103,6 +104,7 @@ import { Settings as SettingsComponent } from "./components/Settings";
 import { AlphaBadge } from "./components/AlphaBadge";
 import { SupportHelpPage } from "./components/SupportHelpPage";
 import { SuperadminDashboard } from "./components/SuperadminDashboard";
+import { DLQViewer } from "./components/DLQViewer";
 import { LimitReachedModal } from "./components/LimitReachedModal";
 import { RateLimitModal } from "./components/RateLimitModal";
 import { checkAlphaLimit, recordAlphaUsage } from "./utils/alphaUsageLimiter";
@@ -4413,6 +4415,19 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               }}
             />
           )}
+          {isSuperadmin && (
+            <NavItem
+              icon={<AlertTriangle size={18} />}
+              label="DLQ Admin"
+              active={activeTab === "dlq"}
+              onClick={() => {
+                setActiveTab("dlq");
+                setSelectedCompetitorId(null);
+                setSelectedSourceId(null);
+                setSelectedSummaryId(null);
+              }}
+            />
+          )}
         </nav>
 
         <div className="mt-auto p-4 border-t border-ink-dark/20 shrink-0 bg-paper-light">
@@ -6338,6 +6353,16 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               !selectedCompetitorId && (
                 <div className="h-[calc(100vh-120px)] w-full overflow-y-auto">
                   <SuperadminDashboard isSuperadmin={isSuperadmin} />
+                </div>
+              )}
+
+            {/* DLQ ADMIN TAB */}
+            {activeTab === "dlq" &&
+              !selectedSourceId &&
+              !selectedSummaryId &&
+              !selectedCompetitorId && (
+                <div className="h-[calc(100vh-120px)] w-full overflow-y-auto">
+                  <DLQViewer />
                 </div>
               )}
 
