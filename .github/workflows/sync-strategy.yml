@@ -1,0 +1,41 @@
+name: "Sync Master Strategy Document"
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'openspec/**'
+      - 'src/**'
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 15 # Required to pull git history for the generation script
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install Dependencies
+        run: npm ci
+        
+      - name: Extract Roadmap & Generate Docs
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          npx tsx scripts/openspec-cli/roadmap-extractor.ts
+          npx tsx scripts/openspec-cli/index.ts generate-docs
+          
+      - name: Auto-Commit Documentation Updates
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(docs): auto-sync master strategy document and roadmap"
+          file_pattern: "README.md docs/ROADMAP.md docs/ROADMAP.yaml"
+          commit_user_name: "NicheAI Bot"
+          commit_user_email: "mo.hassaniv@gmail.com"

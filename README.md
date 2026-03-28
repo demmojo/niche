@@ -83,6 +83,8 @@ Our design philosophy focuses on "First Principles Education" and "Guided Journe
 
 This project uses Spec-Driven Development via OpenSpec. Below is the live status of our planned, active, and completed features.
 
+> **Note:** For a deep dive into our product philosophy, business model, and architectural constraints, please review our [Master Context Document](docs/nicheai-master-context.md) and the `docs/strategy/` directory.
+
 <!-- OPENSPEC_TABLE_START -->
 
 | Feature                                | Summary                                                                                                                            | Status      | Link                                                                 |
