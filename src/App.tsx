@@ -99,7 +99,7 @@ import { InsightQuestModal } from "./components/InsightQuestModal";
 import { InsightGeneratorModal } from "./components/InsightGeneratorModal";
 import LensStrategyConsole from "./components/lens/LensStrategyConsole";
 import { VisualWhiteboard } from "./components/whiteboard/VisualWhiteboard";
-import { AnalyticalTemplateSystem } from "./components/AnalyticalTemplateSystem";
+import { StrategyToolbox } from "./components/StrategyToolbox";
 import { useVisualKnowledgeStore } from "./store/visualKnowledgeStore";
 import { Settings as SettingsComponent } from "./components/Settings";
 import { AlphaBadge } from "./components/AlphaBadge";
@@ -112,6 +112,7 @@ import { checkAlphaLimit, recordAlphaUsage } from "./utils/alphaUsageLimiter";
 import { Heart } from "lucide-react";
 
 import { MarketValueNotebook } from "./components/MarketValueNotebook";
+import { RapidPdlcWorkflow } from "./components/RapidPdlcWorkflow";
 import { DataPointsTable } from "./components/DataPointsTable";
 import { MyProduct, MyProductData } from "./components/MyProduct";
 import { useAuth } from "./components/AuthProvider";
@@ -822,7 +823,7 @@ function AuthScreen() {
 
 function SyncNowButton({
   isSyncing,
-  syncTimeRemaining,
+  syncProgress,
   handleGlobalSync,
   setShowSyncInfo,
 }: any) {
@@ -836,14 +837,14 @@ function SyncNowButton({
         }`}
       >
         <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
-        {isSyncing ? `Syncing... (${syncTimeRemaining}s)` : "Sync Now"}
+        {isSyncing ? `Syncing... (${syncProgress}%)` : "Sync Now"}
       </button>
 
       {/* Tooltip */}
       <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
         <p className="text-sm text-ink-dark mb-2">
           {isSyncing
-            ? `Sync in progress. Please wait approximately ${syncTimeRemaining} seconds for background tasks to complete.`
+            ? `Sync in progress. Background tasks are ${syncProgress}% complete.`
             : "Fetch the latest data across all competitors and queue proposed updates for manual review."}
         </p>
         <button
@@ -1568,10 +1569,16 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     new Date().toISOString(),
   );
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncTimeRemaining, setSyncTimeRemaining] = useState(0);
   const [activeTasks, setActiveTasks] = useState<
     { id: string; name: string; progress: number }[]
   >([]);
+  const syncProgress = useMemo(() => {
+    if (!isSyncing || activeTasks.length === 0) return 0;
+    const completedStages = activeTasks.filter(
+      (t) => t.progress === 100,
+    ).length;
+    return Math.round((completedStages / activeTasks.length) * 100);
+  }, [isSyncing, activeTasks]);
 
   useEffect(() => {
     if (!isSyncing || activeTasks.length === 0) return;
@@ -1724,7 +1731,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     }
     if (isSyncing && startStage === 1) {
       addToast(
-        "Sync already in progress. Estimated time: " + syncTimeRemaining + "s",
+        "Sync already in progress. " + syncProgress + "% complete.",
         "info",
       );
       return;
@@ -1738,7 +1745,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     );
     setIsSyncing(true);
     if (startStage === 1) {
-      setSyncTimeRemaining(45);
+      // setSyncTimeRemaining is removed
       setActiveTasks([
         { id: "1", name: "Discovering new market entrants", progress: 0 },
         {
@@ -2782,7 +2789,7 @@ Return a JSON array of objects matching this exact structure:
 
                 const response = await withModelFallback(async (ai, model) => {
                   return await ai.generateContent(model, {
-                    contents: `You are an expert market analyst. For each of the following features, provide a detailed breakdown in the context of form builders and data collection tools.
+                    contents: `You are an expert market analyst. For each of the following features, provide a detailed breakdown in the context of ${myProductData.name || "the product's market"}.
                   
 Features to analyze:
 ${batch.map((f) => `- ${f} (Companies: ${featureMap[f].join("\n, ")})`).join("\n\n")}
@@ -2863,7 +2870,7 @@ The markdown MUST follow this exact structure:
       });
     } finally {
       setIsSyncing(false);
-      setSyncTimeRemaining(0);
+      // setSyncTimeRemaining is removed
       setTimeout(() => {
         setActiveTasks([]);
       }, 3000);
@@ -4294,6 +4301,17 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
         <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
           <NavItem
+            icon={<Zap size={18} />}
+            label="Rapid PDLC"
+            active={activeTab === "rapid-pdlc"}
+            onClick={() => {
+              setActiveTab("rapid-pdlc");
+              setSelectedCompetitorId(null);
+              setSelectedSourceId(null);
+              setSelectedSummaryId(null);
+            }}
+          />
+          <NavItem
             icon={<LayoutDashboard size={18} />}
             label="Dashboard"
             active={activeTab === "dashboard"}
@@ -4928,7 +4946,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             </Tooltip>
             <SyncNowButton
               isSyncing={isSyncing}
-              syncTimeRemaining={syncTimeRemaining}
+              syncProgress={syncProgress}
               handleGlobalSync={() => {
                 if (syncQueue.length > 0) {
                   addToast(
@@ -4976,6 +4994,11 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             {/* SUMMARY PAGE */}
             {!selectedSourceId && selectedSummaryId && (
               <SummaryPage
+                productContext={
+                  myProductData.name ||
+                  myProductData.description ||
+                  "the product's market"
+                }
                 title={selectedSummaryId}
                 value={
                   selectedSummaryId === "Competitors Tracked"
@@ -6391,7 +6414,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             {/* ANALYTICAL TEMPLATES TAB */}
             {activeTab === "templates" && (
               <div className="h-[calc(100vh-120px)] w-full overflow-hidden border border-ink-dark/20 shadow-sm rounded-xl">
-                <AnalyticalTemplateSystem />
+                <StrategyToolbox />
               </div>
             )}
 
@@ -6486,6 +6509,12 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             )}
 
             {/* ACTION CENTER TAB */}
+            {activeTab === "rapid-pdlc" && (
+              <div className="h-full">
+                <RapidPdlcWorkflow />
+              </div>
+            )}
+
             {activeTab === "actions" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex justify-between items-end mb-8 mt-4">
@@ -6524,11 +6553,8 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                       {isSyncing ? (
                         <div className="space-y-6">
                           <p className="text-sm text-[#8A8A8A] ">
-                            A sync operation is currently running. Estimated
-                            time remaining:{" "}
-                            <span className="font-bold">
-                              {syncTimeRemaining}s
-                            </span>
+                            A sync operation is currently running. Progress:{" "}
+                            <span className="font-bold">{syncProgress}%</span>
                           </p>
                           <div className="space-y-4">
                             {activeTasks.map((task) => (
@@ -6565,7 +6591,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                           <div className="mt-6 flex flex-wrap justify-center gap-4">
                             <SyncNowButton
                               isSyncing={isSyncing}
-                              syncTimeRemaining={syncTimeRemaining}
+                              syncProgress={syncProgress}
                               handleGlobalSync={() => {
                                 if (syncQueue.length > 0) {
                                   addToast(
@@ -7969,6 +7995,7 @@ function SourcePage({
 }
 
 function SummaryPage({
+  productContext,
   title,
   value,
   icon,
@@ -8146,6 +8173,7 @@ function SummaryPage({
         ) : (
           <div className="mt-8 mb-8">
             <DataPointsTable
+              productContext={productContext}
               type={title}
               data={competitors}
               featureDetails={featureDetails}

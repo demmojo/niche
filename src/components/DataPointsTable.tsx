@@ -42,12 +42,14 @@ export const DataPointsTable: React.FC<{
     React.SetStateAction<Record<string, string>>
   >;
   onAddFeatureToProduct?: (featureName: string) => void;
+  productContext?: string;
 }> = ({
   type,
   data,
   featureDetails,
   setFeatureDetails,
   onAddFeatureToProduct,
+  productContext = "the product's market",
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -297,9 +299,14 @@ export const DataPointsTable: React.FC<{
         const response = await withModelFallback(
           async (ai, model) => {
             return await ai.generateContent(model, {
-              contents: `You are an expert market analyst. Provide a detailed breakdown of the feature "${row.value}" in the context of form builders and data collection tools.
+              contents: `You are an expert market analyst. (Context)
+Provide a detailed breakdown of a feature in the context of ${productContext}. (Objective)
+Keep the response concise, professional, and highly readable. (Style & Tone)
+Your audience is a product team assessing competitive features. (Audience)
+Format your response in Markdown using the exact structure below. (Response)
 
-Format your response in Markdown using the exact structure below:
+<feature_name>${row.value}</feature_name>
+<implementing_companies>${row.companies?.join(", ")}</implementing_companies>
 
 ### Overview
 (Brief explanation of what the feature is and why it matters in the market)
@@ -308,9 +315,7 @@ Format your response in Markdown using the exact structure below:
 (Bullet points of common sub-features, capabilities, or technical requirements)
 
 ### Company Implementations
-(Specific details on how the companies that have this feature implement it: ${row.companies?.join(", ")})
-
-Keep the response concise, professional, and highly readable.`,
+(Specific details on how the implementing companies implement it)`,
             });
           },
           { tier: "pro" },
