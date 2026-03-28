@@ -302,7 +302,7 @@ export const dictionary = {
         },
         detailedLogs: {
           title: "Detailed Logs",
-          desc: "View the raw JSON of any system event.",
+          desc: "View the JSON of system events (sanitized for non-superadmins).",
         },
       },
       steps: {
