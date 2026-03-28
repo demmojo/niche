@@ -30,6 +30,40 @@ type RoadmapFeature = {
   source_file: string;
 };
 
+import { z } from "zod";
+import { Schema } from "@google/genai";
+
+const featureSchema: Schema = {
+  type: "object" as any,
+  properties: {
+    id: {
+      type: "string" as any,
+      description: "A unique kebab-case identifier for the feature",
+    },
+    title: {
+      type: "string" as any,
+      description:
+        "A visionary, action-oriented title for the feature or refactor",
+    },
+    domain: {
+      type: "string" as any,
+      description:
+        "The primary domain of expertise: 'Product', 'Design', 'Architecture', or 'Machine Learning'",
+    },
+    description: {
+      type: "string" as any,
+      description:
+        "Detailed strategic description of the future feature or refactor, explicitly tied to current (2026) user behavior, market data, or AI interaction paradigms.",
+    },
+    strategic_value: {
+      type: "string" as any,
+      description:
+        "Why this matters to the business or market (e.g., 'Captures emerging 2026 prompt-driven dev trend', 'Reduces cognitive load by 10x', 'Creates a defensible AI data moat')",
+    },
+  },
+  required: ["id", "title", "domain", "description", "strategic_value"],
+};
+
 async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
   const specFiles = stagedFiles.filter(
     (f) =>
@@ -98,49 +132,13 @@ ${fileContent}`;
         config: {
           responseMimeType: "application/json",
           responseSchema: {
-            type: "object",
+            type: "object" as any,
             properties: {
               features: {
-                type: "array",
+                type: "array" as any,
                 description:
                   "List of strategically analyzed future roadmap items",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: {
-                      type: "string",
-                      description:
-                        "A unique kebab-case identifier for the feature",
-                    },
-                    title: {
-                      type: "string",
-                      description:
-                        "A visionary, action-oriented title for the feature or refactor",
-                    },
-                    domain: {
-                      type: "string",
-                      description:
-                        "The primary domain of expertise: 'Product', 'Design', 'Architecture', or 'Machine Learning'",
-                    },
-                    description: {
-                      type: "string",
-                      description:
-                        "Detailed strategic description of the future feature or refactor, explicitly tied to current (2026) user behavior, market data, or AI interaction paradigms.",
-                    },
-                    strategic_value: {
-                      type: "string",
-                      description:
-                        "Why this matters to the business or market (e.g., 'Captures emerging 2026 prompt-driven dev trend', 'Reduces cognitive load by 10x', 'Creates a defensible AI data moat')",
-                    },
-                  },
-                  required: [
-                    "id",
-                    "title",
-                    "domain",
-                    "description",
-                    "strategic_value",
-                  ],
-                },
+                items: featureSchema,
               },
             },
             required: ["features"],
