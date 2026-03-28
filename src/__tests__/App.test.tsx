@@ -35,7 +35,7 @@ describe("App Integration", () => {
   beforeEach(() => {
     window.localStorage.clear();
     // Set URL so WORKSPACE_ID is predictable
-    delete window.location;
+    delete (window as any).location;
     window.location = new URL("http://localhost/?w=test-workspace") as any;
 
     window.localStorage.setItem(
@@ -73,7 +73,7 @@ describe("App Integration", () => {
       originalConsoleWarn(...args);
     };
 
-    let getByText, getAllByText;
+    let getByText: any, getAllByText: any;
 
     await act(async () => {
       const result = render(<App />);

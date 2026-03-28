@@ -13,6 +13,7 @@ export const redeemInvite = functions.https.onCall(async (request) => {
     );
   }
 
+  const auth = request.auth;
   const token = request.data.token;
   if (!token || typeof token !== "string") {
     throw new functions.https.HttpsError(
@@ -43,10 +44,7 @@ export const redeemInvite = functions.https.onCall(async (request) => {
 
       // 3. Security Check: Email match
       // Ensures users can't forward invite links to other accounts
-      if (
-        inviteData.email.toLowerCase() !==
-        request.auth.token.email?.toLowerCase()
-      ) {
+      if (inviteData.email.toLowerCase() !== auth.token.email?.toLowerCase()) {
         throw new functions.https.HttpsError(
           "permission-denied",
           "This invite was sent to a different email address.",
@@ -78,19 +76,19 @@ export const redeemInvite = functions.https.onCall(async (request) => {
       // 5. Atomic Update: Add to workspace and mark invite accepted
       if (workspaceSnap.exists) {
         transaction.update(workspaceRef, {
-          members: admin.firestore.FieldValue.arrayUnion(request.auth.uid),
+          members: admin.firestore.FieldValue.arrayUnion(auth.uid),
         });
       } else {
         // If workspace somehow doesn't exist, create it with this user as a member
         transaction.set(workspaceRef, {
-          members: [request.auth.uid],
+          members: [auth.uid],
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
 
       transaction.update(inviteDoc.ref, {
         status: "accepted",
-        acceptedByUid: request.auth.uid,
+        acceptedByUid: auth.uid,
         redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 

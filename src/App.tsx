@@ -3778,7 +3778,7 @@ Keep the summary concise and grounded in reality. Ask a follow-up question to va
       });
 
       let fullText = "";
-      let suggestedInsight = undefined;
+      let suggestedInsight: any = undefined;
       const messageId = Date.now().toString();
 
       setChatHistory((prev) => [
@@ -4930,7 +4930,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                 featureDetails={featureDetails}
                 setFeatureDetails={setFeatureDetails}
                 onBack={() => setSelectedSummaryId(null)}
-                onAddFeatureToProduct={(featureName) => {
+                onAddFeatureToProduct={(featureName: string) => {
                   if (
                     !myProductData.features.some((f) => f.name === featureName)
                   ) {
@@ -5183,7 +5183,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                             />
                             <RechartsTooltip
                               cursor={{ strokeDasharray: "3 3" }}
-                              formatter={(value: number, name: string) => [
+                              formatter={(value: any, name: any) => [
                                 value,
                                 name,
                               ]}

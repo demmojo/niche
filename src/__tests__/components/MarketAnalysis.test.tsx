@@ -10,7 +10,7 @@ vi.mock("firebase/firestore", () => ({ getFirestore: vi.fn() }));
 vi.mock("firebase/auth", () => ({ getAuth: vi.fn() }));
 vi.mock("../../hooks/useFirebaseSync", () => ({
   default: () => ({ syncData: vi.fn(), isSyncing: false }),
-  useFirebaseSync: (key, initialValue) => {
+  useFirebaseSync: (key: string, initialValue: any) => {
     const React = require("react");
     const [val, setVal] = React.useState(initialValue);
     return [val, setVal];
@@ -37,21 +37,21 @@ vi.mock("lucide-react", () => ({
 
 vi.mock("motion/react", () => ({
   motion: {
-    div: ({ children, className, ...props }) => (
+    div: ({ children, className, ...props }: any) => (
       <div className={className} data-testid="motion-div" {...props}>
         {children}
       </div>
     ),
   },
-  AnimatePresence: ({ children }) => <>{children}</>,
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
 vi.mock("react-markdown", () => ({
-  default: ({ children }) => <div data-testid="markdown">{children}</div>,
+  default: ({ children }: any) => <div data-testid="markdown">{children}</div>,
 }));
 
 vi.mock("../../components/Tooltip", () => ({
-  Tooltip: ({ children, content }) => (
+  Tooltip: ({ children, content }: any) => (
     <div data-testid="tooltip" data-content={content}>
       {children}
     </div>
@@ -60,7 +60,7 @@ vi.mock("../../components/Tooltip", () => ({
 
 HTMLElement.prototype.scrollIntoView = vi.fn();
 
-const mockKeyRotation = (resolvesToText) => {
+const mockKeyRotation = (resolvesToText: any) => {
   server.use(
     http.post(
       "https://generativelanguage.googleapis.com/*",
@@ -375,7 +375,7 @@ describe("MarketAnalysis Component", () => {
 
     render(<MarketAnalysis {...defaultProps} />);
     const mailBtn = screen.getByTestId("icon-mail").parentElement;
-    fireEvent.click(mailBtn);
+    fireEvent.click(mailBtn!);
     expect(
       screen.getByText("Retrieving missives from the Board..."),
     ).toBeInTheDocument();
