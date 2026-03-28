@@ -296,8 +296,7 @@ export const DataPointsTable: React.FC<{
       try {
         const response = await withModelFallback(
           async (ai, model) => {
-            return await ai.models.generateContent({
-              model: model,
+            return await ai.generateContent(model, {
               contents: `You are an expert market analyst. Provide a detailed breakdown of the feature "${row.value}" in the context of form builders and data collection tools.
 
 Format your response in Markdown using the exact structure below:
@@ -349,8 +348,7 @@ Keep the response concise, professional, and highly readable.`,
     try {
       const response = await withModelFallback(
         async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
+          return await ai.generateContent(model, {
             contents: `You are an expert product manager. Based on the feature "${row.value}", generate a set of user stories and actionable development tasks.
           
 Context:
@@ -396,8 +394,7 @@ Keep it concise and actionable.`,
     try {
       const response = await withModelFallback(
         async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
+          return await ai.generateContent(model, {
             contents: `Analyze the following feature data and suggest the next feature we should build to increase customer satisfaction and reduce customer churn. The "buySwitchScore" represents how likely the feature is to convince users to buy or switch to our product, calculated based on recent customer trends (1-2 years), SEO search volume, and ad word usage.
           
 Data:

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MindmapAIChat } from "../../../components/whiteboard/MindmapAIChat";
 import { useVisualKnowledgeStore } from "../../../store/visualKnowledgeStore";
-import * as geminiClient from "../../../utils/geminiClient";
+import * as aiClient from "../../../utils/aiClient";
 
 // Mock scrollIntoView
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -36,7 +36,7 @@ describe("MindmapAIChat Component", () => {
 
   it("renders chat interface and sends a message", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withModelFallback").mockResolvedValue({
+    vi.spyOn(aiClient, "withModelFallback").mockResolvedValue({
       text: "Here is your AI answer",
     });
 
@@ -104,7 +104,7 @@ describe("MindmapAIChat Component", () => {
 
   it("can pin an AI response to the board", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withModelFallback").mockResolvedValue({
+    vi.spyOn(aiClient, "withModelFallback").mockResolvedValue({
       text: "A very good point",
     });
 
@@ -139,7 +139,7 @@ describe("MindmapAIChat Component", () => {
 
   it("handles error during AI generation", async () => {
     const user = userEvent.setup();
-    vi.spyOn(geminiClient, "withModelFallback").mockRejectedValue(
+    vi.spyOn(aiClient, "withModelFallback").mockRejectedValue(
       new Error("Network error"),
     );
 

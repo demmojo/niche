@@ -28,8 +28,7 @@ Evaluate this product and respond with a JSON object strictly following this str
   try {
     const response = await withModelFallback(
       async (ai, model) => {
-        return ai.models.generateContent({
-          model: model,
+        return ai.generateContent(model, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",

@@ -78,8 +78,8 @@ export async function extractFeaturesFromVisuals(
     const response = await withModelFallback(
       async (ai, model) => {
         // In reality, you would pass the image part to the multimodal model
-        return ai.models.generateContent({
-          model: model, // Prefer gemini-1.5-pro for vision tasks
+        return ai.generateContent(model, {
+          // Prefer gemini-1.5-pro for vision tasks
           contents: prompt,
           config: { responseMimeType: "application/json" },
         });

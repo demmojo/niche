@@ -24,7 +24,7 @@ vi.mock("@google/genai", () => ({
 }));
 
 // Mock gemini client wrapper
-vi.mock("../../utils/geminiClient", () => ({
+vi.mock("../../utils/aiClient", () => ({
   withModelFallback: vi.fn(),
 }));
 
@@ -203,10 +203,7 @@ describe("DataPointsTable", () => {
         .fn()
         .mockResolvedValue({ text: "Mock AI Feature Details" });
       (withModelFallback as any).mockImplementation(async (cb: any) => {
-        return cb(
-          { models: { generateContent: mockGenerateContent } },
-          "gemini-1.5-pro",
-        );
+        return cb({ generateContent: mockGenerateContent }, "gemini-1.5-pro");
       });
 
       render(
@@ -238,10 +235,7 @@ describe("DataPointsTable", () => {
         .mockResolvedValueOnce({ text: "Mock AI User Stories" });
 
       (withModelFallback as any).mockImplementation(async (cb: any) => {
-        return cb(
-          { models: { generateContent: mockGenerateContent } },
-          "gemini-1.5-pro",
-        );
+        return cb({ generateContent: mockGenerateContent }, "gemini-1.5-pro");
       });
 
       render(
@@ -272,10 +266,7 @@ describe("DataPointsTable", () => {
         .fn()
         .mockResolvedValue({ text: "Mock AI Suggested Feature" });
       (withModelFallback as any).mockImplementation(async (cb: any) => {
-        return cb(
-          { models: { generateContent: mockGenerateContent } },
-          "gemini-1.5-pro",
-        );
+        return cb({ generateContent: mockGenerateContent }, "gemini-1.5-pro");
       });
 
       render(
@@ -341,10 +332,7 @@ describe("DataPointsTable", () => {
         .mockResolvedValue({ text: "Details" });
       (withModelFallback as any)
         .mockImplementationOnce(async (cb: any) =>
-          cb(
-            { models: { generateContent: mockGenerateContent } },
-            "gemini-1.5-pro",
-          ),
+          cb({ generateContent: mockGenerateContent }, "gemini-1.5-pro"),
         )
         .mockRejectedValueOnce(new Error("API Error"));
 

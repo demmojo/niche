@@ -78,7 +78,7 @@ export const rotateGeminiKey = () => {
  * @example
  * ```ts
  * const result = await withModelFallback(
- *   async (ai, model) => await ai.models.generateContent({ model, contents: prompt }),
+ *   async (ai, model) => await ai.generateContent(model, { contents: prompt }),
  *   120000
  * );
  * ```

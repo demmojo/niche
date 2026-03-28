@@ -254,8 +254,7 @@ export function InsightBrainstormChat({
 
       const responseStream = await withModelFallback(
         async (ai, model) => {
-          return await ai.models.generateContentStream({
-            model: model,
+          return await ai.generateContentStream(model, {
             contents: prompt,
             config: {
               tools: [

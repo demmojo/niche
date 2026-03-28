@@ -98,8 +98,7 @@ export function InsightGeneratorModal({
 
       const response = await withModelFallback(
         async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
+          return await ai.generateContent(model, {
             contents: prompt,
             config: {
               responseMimeType: "application/json",
@@ -198,8 +197,7 @@ export function InsightGeneratorModal({
 
       const response = await withModelFallback(
         async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
+          return await ai.generateContent(model, {
             contents: prompt,
             config: {
               responseMimeType: "application/json",

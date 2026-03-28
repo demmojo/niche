@@ -169,19 +169,19 @@ describe("aiClient utils", () => {
         .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValueOnce("success2");
 
-      const result = await withModelFallback(mockOperation);
+      const result = await withModelFallback(mockOperation, { tier: "pro" });
 
       expect(result).toBe("success2");
       expect(mockOperation).toHaveBeenCalledTimes(2);
       expect(mockOperation).toHaveBeenNthCalledWith(
         1,
         expect.anything(),
-        "gpt-4o",
+        "claude-3-5-sonnet-20240620",
       );
       expect(mockOperation).toHaveBeenNthCalledWith(
         2,
         expect.anything(),
-        "claude-3-5-sonnet-20240620",
+        "gpt-4o",
       );
 
       consoleErrorSpy.mockRestore();

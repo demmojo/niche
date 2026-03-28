@@ -39,7 +39,7 @@ vi.mock("@google/genai", () => ({
   },
 }));
 
-vi.mock("../../utils/geminiClient", () => ({
+vi.mock("../../utils/aiClient", () => ({
   withModelFallback: vi.fn(),
 }));
 
@@ -151,9 +151,7 @@ describe("ConsolidateFeaturesModal", () => {
 
     (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
-        models: {
-          generateContent: vi.fn().mockResolvedValue(mockApiResponse),
-        },
+        generateContent: vi.fn().mockResolvedValue(mockApiResponse),
       };
       return callback(mockAi, "mock-model");
     });
@@ -198,9 +196,7 @@ describe("ConsolidateFeaturesModal", () => {
 
     (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
-        models: {
-          generateContent: vi.fn().mockResolvedValue(mockApiResponse),
-        },
+        generateContent: vi.fn().mockResolvedValue(mockApiResponse),
       };
       return callback(mockAi, "mock-model");
     });
@@ -269,9 +265,7 @@ describe("ConsolidateFeaturesModal", () => {
 
     (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
-        models: {
-          generateContent: vi.fn().mockResolvedValue(mockApiResponse),
-        },
+        generateContent: vi.fn().mockResolvedValue(mockApiResponse),
       };
       return callback(mockAi, "mock-model");
     });
@@ -337,9 +331,7 @@ describe("ConsolidateFeaturesModal", () => {
 
     (withModelFallback as any).mockImplementation(async (callback: any) => {
       const mockAi = {
-        models: {
-          generateContent: vi.fn().mockResolvedValue(mockApiResponse),
-        },
+        generateContent: vi.fn().mockResolvedValue(mockApiResponse),
       };
       return callback(mockAi, "mock-model");
     });

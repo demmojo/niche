@@ -54,7 +54,7 @@ vi.mock("../../../src/components/Tooltip", () => ({
 }));
 
 // Mock Gemini Client
-vi.mock("../../../src/utils/geminiClient", () => ({
+vi.mock("../../../src/utils/aiClient", () => ({
   withModelFallback: vi.fn(),
 }));
 

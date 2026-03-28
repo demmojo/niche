@@ -230,8 +230,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
 
       const response = await withModelFallback(
         async (ai, model) => {
-          return ai.models.generateContent({
-            model: model,
+          return ai.generateContent(model, {
             contents: parts,
             config: {
               responseMimeType: "application/json",

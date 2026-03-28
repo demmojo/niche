@@ -76,8 +76,7 @@ ${JSON.stringify(allFeatures, null, 2)}
 
       const response = await withModelFallback(
         async (ai, model) => {
-          return ai.models.generateContent({
-            model: model,
+          return ai.generateContent(model, {
             contents: prompt,
             config: {
               responseMimeType: "application/json",
