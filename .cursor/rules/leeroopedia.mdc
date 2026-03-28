@@ -1,0 +1,51 @@
+---
+description: Use Leeroopedia MCP to fetch grounded ML/AI best practices, build and review ML plans, debug failures, verify code/math correctness, and expand KB citations.
+globs: *
+---
+
+# Leeroopedia MCP
+
+Leeroopedia is an ML/AI knowledge wiki. This skill teaches you when and how to call the Leeroopedia MCP tools so answers are grounded in documented best practices (not guesswork).
+
+## Default behavior
+
+Use Leeroopedia MCP whenever the user asks anything that depends on **ML/AI framework specifics** or **best practices** (fine-tuning, post-training, inference serving, CUDA/Triton kernels, distributed training, RAG/agents, evaluation, config formats, API contracts, performance tuning).
+
+If the question is purely general software engineering (no ML/AI-specific uncertainty), you may answer without tools.
+
+## Grounding policy
+
+1. **Prefer tool-grounded answers over memory.** If you are not 100% sure about an ML/AI detail, call a tool.
+2. **Cite sources.** When tools return `[PageID]` citations, preserve them in your final answer.
+3. **Expand citations when needed.** If the user asks “show me the source”, “give the full reference”, or you need precise details, call `get_page` on the cited `[PageID]`.
+4. **Use parallel searches.** For ambiguous topics, call `search_knowledge` multiple times with different angles (faster and higher recall than a single broad query).
+
+## Tool selection guide
+
+### 1) `search_knowledge(query, context?)`
+**Use when:** you need documented facts: framework behavior, APIs, configs, conventions, design patterns, tradeoffs.  
+**How to query well:**
+- Include framework + component + intent + constraints (model size, GPUs, latency/throughput target, memory limit, etc.)
+- Ask narrow questions; do multiple calls instead of one giant query.
+- Add `context` if you’re implementing a specific system.
+
+### 2) `build_plan(goal, constraints?)`
+**Use when:** the user wants an end-to-end or multi-step implementation plan (pipelines, training runs, deployments, evaluations).  
+
+### 3) `review_plan(proposal, goal)`
+**Use when:** the user has a draft plan (or you wrote one) and wants a sanity check against best practices.  
+
+### 4) `verify_code_math(code_snippet, concept_name)`
+**Use when:** verifying correctness of math/ML logic, algorithmic implementation, or API usage in a critical snippet.  
+
+### 5) `diagnose_failure(symptoms, logs)`
+**Use when:** training/inference/deployment is failing (OOM, divergence, NaNs, hangs, bad throughput, wrong outputs, dependency conflicts).  
+
+### 6) `propose_hypothesis(current_status, recent_experiments?)`
+**Use when:** the user is stuck or needs ranked next steps (design choices, debugging strategy, alternative approaches).  
+
+### 7) `query_hyperparameter_priors(query)`
+**Use when:** the user asks “what LR / batch size / LoRA rank / weight decay / scheduler / etc should I use?”  
+
+### 8) `get_page(page_id)`
+**Use when:** you need the full KB page for a cited source or you already know the exact page ID.  
