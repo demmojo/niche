@@ -1,0 +1,16 @@
+---
+description: Enforces reading and updating OpenSpec files (tasks.md, spec.md) during feature implementation.
+alwaysApply: true
+---
+
+# OpenSpec Workflow
+
+This project relies on `openspec/changes/` directories containing `proposal.md`, `design.md`, `specs/`, and `tasks.md` files to document and guide feature implementation.
+
+When asked to implement a feature or fix a bug that has an associated OpenSpec in the `openspec/changes/` directory, you must follow this workflow:
+
+1. **Locate the Spec**: Search `openspec/changes/` for the relevant feature directory.
+2. **Read the Context**: Use the Read tool to parse `proposal.md`, `design.md`, and `specs/<feature-name>/spec.md`. Understand the full context, rationale, and requirements before coding.
+3. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined.
+4. **Update Progress**: As you complete each task in `tasks.md`, you MUST use the Write or Edit tool to update the file, marking the task as done by changing `- [ ]` to `- [x]`. 
+5. **Strict Adherence**: Do not deviate from the architecture or decisions outlined in `design.md` and `spec.md` without explicit user permission. If a requirement or task is unclear, ask the user.

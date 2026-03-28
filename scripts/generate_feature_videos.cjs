@@ -33,7 +33,8 @@ async function run() {
   // Feature 1: Automated Market Intelligence (News Article Search)
   console.log('Recording Automated Market Intelligence...');
   const context1 = await browser.newContext({
-    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } }
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
   });
   const page1 = await context1.newPage();
   await mockAuth(page1);
@@ -42,7 +43,9 @@ async function run() {
     // Navigate with mock auth and unique workspace ID
     const wid = 'test-workspace-' + Date.now();
     await page1.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
-    await page1.waitForTimeout(5000); // Wait for app to render
+    await page1.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    // IMPORTANT: Let react components fully mount before recording starts
+    await page1.waitForTimeout(4000);
     
     // Navigate to Raw Data / Background Tasks tab
     const rawDataBtn = page1.locator('button:has-text("Raw Data")').first();
@@ -74,7 +77,8 @@ async function run() {
   // Feature 2: Visual Intelligence (Mindmap Explorer & Market Value Notebook)
   console.log('Recording Visual Intelligence...');
   const context2 = await browser.newContext({
-    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } }
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
   });
   const page2 = await context2.newPage();
   await mockAuth(page2);
@@ -82,7 +86,9 @@ async function run() {
   try {
     const wid = 'test-workspace-' + Date.now();
     await page2.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
-    await page2.waitForTimeout(5000); // Wait for app to render
+    await page2.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    // IMPORTANT: Let react components fully mount before recording starts
+    await page2.waitForTimeout(4000);
     
     const marketAnalysisBtn = page2.locator('button:has-text("Market Analysis")').first();
     if (await marketAnalysisBtn.isVisible()) {
@@ -104,7 +110,8 @@ async function run() {
   // Feature 3: Actionable Outputs (Documentation Wizard)
   console.log('Recording Documentation Wizard...');
   const context3 = await browser.newContext({
-    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } }
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
   });
   const page3 = await context3.newPage();
   await mockAuth(page3);
@@ -112,7 +119,9 @@ async function run() {
   try {
     const wid = 'test-workspace-' + Date.now();
     await page3.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
-    await page3.waitForTimeout(5000); // Wait for app to render
+    await page3.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    // IMPORTANT: Let react components fully mount before recording starts
+    await page3.waitForTimeout(4000);
     
     const myProductBtn = page3.locator('button:has-text("My Product")').first();
     if (await myProductBtn.isVisible()) {
@@ -137,7 +146,8 @@ async function run() {
   // Feature 4: Human-in-the-loop Trust (Data Sync Review)
   console.log('Recording Data Sync Review...');
   const context4 = await browser.newContext({
-    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } }
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
   });
   const page4 = await context4.newPage();
   await mockAuth(page4);
@@ -145,7 +155,9 @@ async function run() {
   try {
     const wid = 'test-workspace-' + Date.now();
     await page4.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
-    await page4.waitForTimeout(5000); // Wait for app to render
+    await page4.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    // IMPORTANT: Let react components fully mount before recording starts
+    await page4.waitForTimeout(4000);
     
     const syncBtn = page4.locator('button:has-text("Sync Pending Review")').first();
     if (await syncBtn.isVisible()) {
@@ -172,7 +184,9 @@ async function run() {
   try {
     const wid = 'test-workspace-' + Date.now();
     await page5.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
-    await page5.waitForTimeout(5000); // Wait for app to render
+    await page5.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    // IMPORTANT: Let react components fully mount before recording starts
+    await page5.waitForTimeout(4000);
     
     const settingsBtn = page5.locator('button:has-text("Settings")').first();
     if (await settingsBtn.isVisible()) {
