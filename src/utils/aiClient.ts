@@ -45,7 +45,7 @@ export const getMainModel = (): string => {
       // Ignore
     }
   }
-  return "auto";
+  return "default-pro";
 };
 
 /**
@@ -60,75 +60,61 @@ export const setMainModel = (model: string) => {
  *
  */
 export const fetchAvailableModels = async (): Promise<AIModel[]> => {
-  const models: AIModel[] = [
-    {
-      id: "gemini-3.1-pro-preview",
-      name: "Gemini 3.1 Pro Preview",
-      provider: "gemini",
-    },
-    {
-      id: "gemini-3.1-flash-lite-preview",
-      name: "Gemini 3.1 Flash Lite Preview",
-      provider: "gemini",
-    },
-    {
-      id: "gemini-3-flash-preview",
-      name: "Gemini 3.0 Flash Preview",
-      provider: "gemini",
-    },
-  ];
+  const models: AIModel[] = [];
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/models");
+    const json = await res.json();
+    const orModels = json.data || [];
 
-  const openaiKey = getCustomApiKey("openai");
-  if (openaiKey) {
-    try {
-      const openai = new OpenAI({
-        apiKey: openaiKey,
-        dangerouslyAllowBrowser: true,
-      });
-      const list = await openai.models.list();
-      const chatModels = list.data.filter(
-        (m) =>
-          m.id.startsWith("gpt-4") ||
-          m.id.startsWith("gpt-3.5") ||
-          m.id.startsWith("o1") ||
-          m.id.startsWith("o3"),
-      );
-      chatModels.forEach((m) =>
-        models.push({ id: m.id, name: `OpenAI: ${m.id}`, provider: "openai" }),
-      );
-    } catch (e) {
-      console.error("Failed to fetch OpenAI models", e);
-    }
+    orModels.forEach((m: any) => {
+      let provider: ApiService | null = null;
+      let id = m.id;
+
+      // Filter cleanly mapped models
+      if (id.startsWith("google/") && !id.includes(":")) {
+        provider = "gemini";
+        id = id.replace("google/", "");
+      } else if (id.startsWith("openai/") && !id.includes(":")) {
+        provider = "openai";
+        id = id.replace("openai/", "");
+      } else if (id.startsWith("anthropic/") && !id.includes(":")) {
+        provider = "anthropic";
+        id = id.replace("anthropic/", "");
+      }
+
+      if (provider) {
+        // avoid duplicates
+        if (!models.some((existing) => existing.id === id)) {
+          models.push({ id, name: m.name, provider });
+        }
+      }
+    });
+  } catch (e) {
+    console.error("Failed to fetch models from OpenRouter", e);
   }
 
-  const anthropicKey = getCustomApiKey("anthropic");
-  if (anthropicKey) {
-    try {
-      models.push(
-        {
-          id: "claude-3-7-sonnet-20250219",
-          name: "Claude 3.7 Sonnet",
-          provider: "anthropic",
-        },
-        {
-          id: "claude-3-5-sonnet-20241022",
-          name: "Claude 3.5 Sonnet",
-          provider: "anthropic",
-        },
-        {
-          id: "claude-3-5-haiku-20241022",
-          name: "Claude 3.5 Haiku",
-          provider: "anthropic",
-        },
-        {
-          id: "claude-3-opus-20240229",
-          name: "Claude 3 Opus",
-          provider: "anthropic",
-        },
-      );
-    } catch (e) {
-      console.error("Failed to load Anthropic models", e);
-    }
+  // Fallback defaults if fetch fails
+  if (models.length === 0) {
+    [
+      "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+    ].forEach((id) =>
+      models.push({ id, name: `Google: ${id}`, provider: "gemini" }),
+    );
+
+    ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini"].forEach((id) =>
+      models.push({ id, name: `OpenAI: ${id}`, provider: "openai" }),
+    );
+
+    [
+      "claude-3-7-sonnet-20250219",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-5-haiku-20241022",
+      "claude-3-opus-20240229",
+    ].forEach((id) =>
+      models.push({ id, name: `Anthropic: ${id}`, provider: "anthropic" }),
+    );
   }
 
   return models;
@@ -341,23 +327,41 @@ export const withModelFallback = async <T>(
   config: { tier: "fast" | "pro" } = { tier: "fast" },
   timeoutMs: number = 120000,
 ): Promise<T> => {
-  const mainModel = getMainModel();
+  let mainModel = getMainModel();
+
+  // Backwards compatibility with 'auto'
+  if (mainModel === "auto") mainModel = "default-pro";
 
   let modelsToTry: string[] = [];
 
-  if (mainModel !== "auto") {
-    modelsToTry = [mainModel];
+  if (mainModel === "default-pro") {
+    // Always use pro models in default mode, prioritized by keys
+    modelsToTry = [...proModels];
+  } else if (mainModel === "auto-gemini-optimized") {
+    modelsToTry =
+      config.tier === "pro"
+        ? ["gemini-3.1-pro-preview"]
+        : ["gemini-3-flash-preview"];
+  } else if (mainModel === "auto-openai-optimized") {
+    modelsToTry = config.tier === "pro" ? ["gpt-4o"] : ["gpt-4o-mini"];
+  } else if (mainModel === "auto-anthropic-optimized") {
+    modelsToTry =
+      config.tier === "pro"
+        ? ["claude-3-7-sonnet-20250219"]
+        : ["claude-3-5-haiku-20241022"];
   } else {
-    // Smart Routing Logic based on Tier
-    const tierModels = config.tier === "pro" ? proModels : fastModels;
+    // User picked a specific model ID (BYOK)
+    modelsToTry = [mainModel];
+  }
 
-    // Prioritize models that have custom API keys configured
-    const modelsWithKeys = tierModels.filter((model) => {
+  // If we are using the default-pro routing, we should try models that have keys first
+  if (mainModel === "default-pro") {
+    const modelsWithKeys = modelsToTry.filter((model) => {
       const provider = getProviderForModel(model);
       return getCustomApiKey(provider) !== null;
     });
 
-    const fallbackModels = tierModels.filter((model) => {
+    const fallbackModels = modelsToTry.filter((model) => {
       const provider = getProviderForModel(model);
       return (
         getCustomApiKey(provider) === null &&
@@ -367,11 +371,7 @@ export const withModelFallback = async <T>(
     });
 
     modelsToTry = [...modelsWithKeys, ...fallbackModels];
-
-    if (modelsToTry.length === 0) {
-      // Fallback if no keys are found at all, but gemini might have env
-      modelsToTry = tierModels;
-    }
+    if (modelsToTry.length === 0) modelsToTry = [...proModels];
   }
 
   if (modelsToTry.length === 0)

@@ -62,7 +62,17 @@ export const Settings: React.FC = () => {
 
   // Determine daily limit based on model (fallback if no rate limit headers)
   const primaryModel =
-    mainModel === "auto" ? "gemini-3.1-pro-preview" : mainModel;
+    mainModel === "default-pro"
+      ? "gemini-3.1-pro-preview"
+      : mainModel === "auto-gemini-optimized"
+        ? "gemini-3.1-pro-preview"
+        : mainModel === "auto-openai-optimized"
+          ? "gpt-4o"
+          : mainModel === "auto-anthropic-optimized"
+            ? "claude-3-7-sonnet-20250219"
+            : mainModel === "auto"
+              ? "gemini-3.1-pro-preview"
+              : mainModel;
   const isProModel =
     primaryModel.includes("pro") ||
     primaryModel.includes("sonnet") ||
@@ -280,11 +290,12 @@ export const Settings: React.FC = () => {
                 </h3>
               </div>
               <p className="mb-4 text-xs text-ink-dark/60">
-                Select your preferred AI model. If you select "Auto (Smart
-                Routing)", NicheAI will dynamically route requests between fast
-                models (like Gemini Flash) and complex models (like Claude
-                Sonnet) based on the task and your available API keys, with
-                automatic fallbacks for rate limits.
+                Select your preferred AI model. "Default" uses the highest-tier
+                Pro models for everything. "Optimized" options dynamically route
+                requests between fast models (like Gemini Flash) and complex
+                models (like Gemini Pro) within the same provider to balance
+                speed, cost, and quality. You can also explicitly select a
+                specific model if you bring your own API key.
               </p>
               <div className="max-w-md space-y-4">
                 <div>
@@ -297,14 +308,30 @@ export const Settings: React.FC = () => {
                       onChange={handleMainModelChange}
                       className="w-full bg-paper-base border border-ink-dark/20 text-ink-dark text-sm rounded-lg focus:ring-ink-dark focus:border-ink-dark block p-2.5"
                     >
-                      <option value="auto">
-                        Auto (Smart Routing) - Recommended
-                      </option>
-                      {availableModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.provider})
+                      <optgroup label="Smart Routing (NicheAI Default)">
+                        <option value="default-pro">
+                          Default (All Pro Models) - Recommended
                         </option>
-                      ))}
+                        <option value="auto">Auto (Legacy)</option>
+                      </optgroup>
+                      <optgroup label="Optimized Options (Routes Pro/Flash based on task)">
+                        <option value="auto-gemini-optimized">
+                          Google Gemini (Optimized)
+                        </option>
+                        <option value="auto-openai-optimized">
+                          OpenAI ChatGPT (Optimized)
+                        </option>
+                        <option value="auto-anthropic-optimized">
+                          Anthropic Claude (Optimized)
+                        </option>
+                      </optgroup>
+                      <optgroup label="Bring Your Own Key (Force Specific Model)">
+                        {availableModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.provider.toUpperCase()}: {m.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                 </div>

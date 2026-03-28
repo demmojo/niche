@@ -108,8 +108,8 @@ describe("Settings Component", () => {
         provider: "gemini",
       },
       {
-        id: "gemini-3.1-pro-preview",
-        name: "Gemini 3.1 Flash Preview",
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash Preview",
         provider: "gemini",
       },
       { id: "claude-3-opus", name: "Claude 3 Opus", provider: "anthropic" },

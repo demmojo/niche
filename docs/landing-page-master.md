@@ -24,10 +24,10 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/automated-market-intelligence.webm" autoplay loop muted playsinline></video>`
 
-### 2. Visual Intelligence (Visual Whiteboard & Next-Gen Analytics)
+### 2. Visual Intelligence (Analytical Template System & Whiteboards)
 
 - **Value Prop:** "See your market, don't just read about it."
-- **Description:** Transform static competitor lists into dynamic, interactive React Flow whiteboards with bi-directional linking. Utilize our Next-Generation Analytics Platform for powerful charts, tables, and generative narrative insights powered by a self-learning data pipeline.
+- **Description:** Transform static competitor lists into dynamic, interactive React Flow whiteboards with bi-directional linking. Utilize our new Analytical Template System to switch between read-optimized Presentation Dashboards and write-optimized Strategy Workspaces (SWOT, Lean Canvas) with AI generative pre-fill.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/visual-intelligence.webm" autoplay loop muted playsinline></video>`
 

@@ -381,6 +381,38 @@ const getPageGuides = (): Record<string, GuideData> => ({
     ],
     proTip: tMessage(dictionary.actions.guide.proTip),
   },
+  templates: {
+    title: "Analytical Template System",
+    description:
+      "Launch specialized engines for presenting data or performing generative strategic analysis.",
+    icon: <LayoutDashboard size={28} />,
+    color: "text-cyan-500",
+    bgGlow: "bg-cyan-500/20",
+    capabilities: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        title: "Presentation Dashboards",
+        desc: "Read-optimized, high-density visual dashboards for executive overviews.",
+      },
+      {
+        icon: <Combine size={20} />,
+        title: "Strategy Workspaces",
+        desc: "Write-optimized, generative workspaces for SWOT and Lean Canvas analysis.",
+      },
+      {
+        icon: <Wand2 size={20} />,
+        title: "Generative Pre-fill",
+        desc: "AI automatically pre-fills strategy templates with known market data.",
+      },
+    ],
+    steps: [
+      "Select a template category from the gallery.",
+      "Explore high-level KPIs in Presentation mode.",
+      "Use Strategy mode to brainstorm and auto-save strategic inputs.",
+    ],
+    proTip:
+      "Use the AI Strategy Copilot in the left pane of Strategy templates to request real-time market insights while you fill out your canvas.",
+  },
   settings: {
     title: tMessage(dictionary.settings.guide.title),
     description: tMessage(dictionary.settings.guide.description),

@@ -82,6 +82,7 @@ import {
   Upload,
   Package,
   AlertTriangle,
+  LayoutTemplate,
 } from "lucide-react";
 import { getCustomApiKey } from "./utils/apiKeys";
 import { trackRequest, updateRateLimits } from "./utils/usageTracker";
@@ -98,6 +99,7 @@ import { InsightQuestModal } from "./components/InsightQuestModal";
 import { InsightGeneratorModal } from "./components/InsightGeneratorModal";
 import LensStrategyConsole from "./components/lens/LensStrategyConsole";
 import { VisualWhiteboard } from "./components/whiteboard/VisualWhiteboard";
+import { AnalyticalTemplateSystem } from "./components/AnalyticalTemplateSystem";
 import { useVisualKnowledgeStore } from "./store/visualKnowledgeStore";
 import { Settings as SettingsComponent } from "./components/Settings";
 import { AlphaBadge } from "./components/AlphaBadge";
@@ -4380,6 +4382,17 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             }}
           />
           <NavItem
+            icon={<LayoutTemplate size={18} />}
+            label="Analytical Templates"
+            active={activeTab === "templates"}
+            onClick={() => {
+              setActiveTab("templates");
+              setSelectedCompetitorId(null);
+              setSelectedSourceId(null);
+              setSelectedSummaryId(null);
+            }}
+          />
+          <NavItem
             icon={<Settings size={18} />}
             label="Settings"
             active={activeTab === "settings"}
@@ -6374,6 +6387,13 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                   <SettingsComponent />
                 </div>
               )}
+
+            {/* ANALYTICAL TEMPLATES TAB */}
+            {activeTab === "templates" && (
+              <div className="h-[calc(100vh-120px)] w-full overflow-hidden border border-ink-dark/20 shadow-sm rounded-xl">
+                <AnalyticalTemplateSystem />
+              </div>
+            )}
 
             <LimitReachedModal
               isOpen={isLimitModalOpen}

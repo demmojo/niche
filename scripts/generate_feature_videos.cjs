@@ -172,37 +172,37 @@ async function run() {
     await dismissModals(page2);
     await injectCursor(page2);
     
-    const mindmapBtn = page2.locator('button:has-text("Mindmap Explorer")').first();
-    if (await mindmapBtn.isVisible()) {
-      await humanClick(page2, mindmapBtn);
-      await page2.waitForTimeout(4000); // Watch the mindmap render
+    const templatesBtn = page2.locator('button:has-text("Analytical Templates")').first();
+    if (await templatesBtn.isVisible()) {
+      await humanClick(page2, templatesBtn);
+      await page2.waitForTimeout(4000); // Watch the gallery render
       
-      // Move and expand a node in React Flow (approximate click in the center of the canvas where nodes are)
-      const canvas = page2.locator('.react-flow__pane').first();
-      if (await canvas.isVisible()) {
-        await humanClick(page2, canvas); // Try clicking to focus/interact
-      }
-      await page2.waitForTimeout(2000);
-      
-      // Go back to Dashboard to find the Notebook
-      const dashBtn = page2.locator('button:has-text("Dashboard")').first();
-      await humanClick(page2, dashBtn);
-      await page2.waitForTimeout(2000);
-      
-      // Click the Market Value card
-      const mvCard = page2.locator('h3:has-text("Est. Market Value"), h3:has-text("Estimated Market Value")').first();
-      if (await mvCard.isVisible()) {
-        await humanClick(page2, mvCard);
-        await page2.waitForTimeout(2000);
+      // Select Presentation Template
+      const presentationCard = page2.locator('div.cursor-pointer:has-text("Market Size by Competitor")').first();
+      if (await presentationCard.isVisible()) {
+        await humanClick(page2, presentationCard);
+        await page2.waitForTimeout(3000); // Admire the dashboard
         
-        await page2.mouse.wheel(0, 500); // Scroll to Notebook
-        await page2.waitForTimeout(1500);
-        
-        const calcBtn = page2.locator('button:has-text("Calculate Custom Target")').first();
-        if (await calcBtn.isVisible()) {
-          await humanClick(page2, calcBtn);
-          await page2.waitForTimeout(3500);
+        // Go back to gallery
+        const backBtn = page2.locator('button:has-text("Back to Gallery")').first();
+        if (await backBtn.isVisible()) {
+            await humanClick(page2, backBtn);
+            await page2.waitForTimeout(1500);
         }
+      }
+      
+      // Select Strategy Template
+      const swotCard = page2.locator('div.cursor-pointer:has-text("SWOT Analysis")').first();
+      if (await swotCard.isVisible()) {
+          await humanClick(page2, swotCard);
+          await page2.waitForTimeout(3000); // Watch it render and prefill
+          
+          const textarea = page2.locator('textarea[placeholder="What could be improved?"]').first();
+          if (await textarea.isVisible()) {
+              await humanClick(page2, textarea);
+              await page2.keyboard.type(" Needs more integrations", { delay: 50 });
+              await page2.waitForTimeout(2000); // Watch it auto-save
+          }
       }
     } else {
       await page2.waitForTimeout(3000);
