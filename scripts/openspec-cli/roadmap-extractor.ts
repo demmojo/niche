@@ -23,8 +23,9 @@ dotenv.config();
 type RoadmapFeature = {
   id: string;
   title: string;
+  domain: string;
   description: string;
-  category: string;
+  strategic_value: string;
   status: string;
   source_file: string;
 };
@@ -76,14 +77,16 @@ async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
     for (const file of specFiles) {
       const fileContent = await fs.readFile(file, "utf-8");
 
-      const prompt = `You are an expert Product Manager and AI Strategist. 
+      const prompt = `You are an elite ensemble of tech strategists: an Expert Product Manager, a Visionary UX Designer, a Staff Architect, and a Lead ML Engineer. 
+Your goal is not just to extract deferred tasks, but to strategically analyze the feature spec and propose high-leverage future evolutions for our living roadmap.
+
 Review the following feature specification file.
 
-1. Identify any deferred features, "Non-Goals", "Alternatives Considered", or "Risks / Trade-offs" that were skipped for complexity or time.
-2. Elevate these technical compromises into 1-3 visionary, user-facing "Wow" features for our future roadmap.
-3. Transform boring technical debt into exciting product capabilities.
+1. Actively apply your domains of expertise to identify missing opportunities, architectural limits, UX friction, and product expansion possibilities.
+2. Read "Non-Goals", "Alternatives Considered", "Risks / Trade-offs", and the general design. Transform these technical compromises into 1-4 visionary "Wow" features, architectural evolutions, or ML enhancements.
+3. For each item, specify its primary domain and clearly articulate the strategic value it brings to the user or business.
 
-Please extract features from this specification:
+Please strategically analyze and extract features from this specification:
 ${fileContent}`;
 
       const response = await ai.models.generateContent({
@@ -96,7 +99,8 @@ ${fileContent}`;
             properties: {
               features: {
                 type: "array",
-                description: "List of extracted visionary features",
+                description:
+                  "List of strategically analyzed future roadmap items",
                 items: {
                   type: "object",
                   properties: {
@@ -108,20 +112,31 @@ ${fileContent}`;
                     title: {
                       type: "string",
                       description:
-                        "A visionary, user-facing title for the feature",
+                        "A visionary, action-oriented title for the feature or refactor",
+                    },
+                    domain: {
+                      type: "string",
+                      description:
+                        "The primary domain of expertise: 'Product', 'Design', 'Architecture', or 'Machine Learning'",
                     },
                     description: {
                       type: "string",
                       description:
-                        "A detailed description of the feature, framing the technical compromise as a magical product capability",
+                        "Detailed strategic description of the future feature or refactor.",
                     },
-                    category: {
+                    strategic_value: {
                       type: "string",
                       description:
-                        "Category, e.g., 'Performance', 'UX Wow', 'Architecture'",
+                        "Why this matters (e.g., 'Unlocks viral growth', 'Reduces latency by 10x', 'Creates an AI data flywheel')",
                     },
                   },
-                  required: ["id", "title", "description", "category"],
+                  required: [
+                    "id",
+                    "title",
+                    "domain",
+                    "description",
+                    "strategic_value",
+                  ],
                 },
               },
             },
@@ -161,11 +176,12 @@ ${fileContent}`;
       await fs.writeFile(roadmapYamlPath, newYamlContent);
 
       // Re-compile MD
-      let mdContent = `# Product Roadmap\n\nThis is a living document, automatically populated by the AI Product Roadmap Extractor based on deferred features, non-goals, and technical compromises discovered in our OpenSpec \`design.md\` and \`proposal.md\` files during the git lifecycle.\n\n## Future Potential & Wow Features\n\n*(Run \`git commit\` on any updated OpenSpec to automatically see extracted features here)*\n\n`;
+      let mdContent = `# Product Roadmap\n\nThis is a living document, automatically populated by the AI Product Roadmap Extractor. It transforms deferred features, non-goals, and technical compromises discovered in our OpenSpec \`design.md\` and \`proposal.md\` files into strategic product, design, architecture, and machine learning evolutions.\n\n## Future Potential & Strategic Evolutions\n\n*(Run \`git commit\` on any updated OpenSpec to automatically see extracted features here)*\n\n`;
 
       for (const f of existingRoadmap.features) {
         mdContent += `### ${f.title}\n\n`;
-        mdContent += `- **Category:** ${f.category}\n`;
+        mdContent += `- **Domain:** ${f.domain}\n`;
+        mdContent += `- **Strategic Value:** ${f.strategic_value}\n`;
         mdContent += `- **Status:** ${f.status}\n`;
         mdContent += `- **Source:** \`${f.source_file}\`\n\n`;
         mdContent += `${f.description}\n\n`;
