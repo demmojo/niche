@@ -1,9 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TarpitWarningModal } from "../../components/TarpitWarningModal";
 
+// Mock Auth Provider
+vi.mock("../../components/AuthProvider", () => ({
+  useAuth: vi.fn(),
+}));
+import { useAuth } from "../../components/AuthProvider";
+
 describe("TarpitWarningModal", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default to authenticated for existing tests
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "test-user" } } as any);
+  });
+
   const mockCompetitors = Array(50).fill({
     name: "Competitor",
     trueCompetitorScore: 0.9,
@@ -53,20 +65,31 @@ describe("TarpitWarningModal", () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it("shows evolution diff when primary button is clicked", async () => {
+  it("implements the Reverse Demo Hook and presents a PQL gate for deep report", async () => {
+    // 1. GIVEN the unauthenticated user views the immediate Tarpit Warning (Reverse Demo Hook)
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any);
     const user = userEvent.setup();
     render(<TarpitWarningModal {...defaultProps} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Tarpit Warning" }),
+    ).toBeInTheDocument();
+
+    // 2. WHEN the user attempts to view deeper value (the 3 sub-niches)
     const viewNichesBtn = screen.getByRole("button", {
       name: /VIEW 3 LUCRATIVE SUB-NICHES/i,
     });
     await user.click(viewNichesBtn);
 
-    // Check for evolution diff content
+    // 3. THEN the UI should present a PQL sign-up gate instead of immediately showing the data
+    const pqlDialog = await screen.findByRole("dialog", {
+      name: /unlock deep report/i,
+    });
+    expect(pqlDialog).toBeInTheDocument();
+
     expect(
-      screen.getByRole("heading", { name: "Evolution Diff" }),
+      screen.getByRole("button", { name: /create account to view/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Hard Mode (Tarpit)")).toBeInTheDocument();
-    expect(screen.getByText("Easy Mode (Niche)")).toBeInTheDocument();
   });
 
   it("can navigate back to warning from evolution diff", async () => {

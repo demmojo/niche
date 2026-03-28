@@ -1,0 +1,35 @@
+---
+name: Frontend Growth & PLG Architecture
+description: Enforces Product-Led Growth (PLG) principles, Reverse Demo patterns, Progressive Profiling, and Server-Side PQL Gating to maximize conversion and prevent Denial of Wallet (DoW).
+globs: src/components/**/*.tsx, src/pages/**/*.tsx, src/server/**/*.ts, src/features/**/*.tsx, src/server/middleware/**/*.ts
+---
+
+# Frontend Growth & PLG Architecture
+
+This rule formalizes the architectural standards for Product-Led Growth (PLG) within NicheAI. Every user-facing flow must be engineered to minimize friction, prove value instantly, and securely gate expensive compute.
+
+## 1. The Reverse Demo Pattern (Zero-Shot Value)
+**Architectural Principle:** "Show the output before requesting the input."
+- **Zero-Shot Value Dashboards:** Design UX flows to offer partial AI validation matrices, insights, or a "Validated Niche of the Day" *prior* to hitting a sign-up wall. Let users tweak low-friction variables to experience the product immediately.
+- **Denial of Wallet (DoW) Prevention:** Unauthenticated Reverse Demos must **NEVER** invoke expensive APIs (e.g., Gemini 3.1 Pro or Exa). Serve pre-generated cached reports (SCD Type 2) or use lightweight models like Gemini Flash-Lite.
+- **Seamless Auth Transitions:** When a user hits the auth wall, pass a temporary session ID through the OAuth `state` parameter. The post-login redirect must immediately hydrate the user's workspace without dropping their session context.
+
+## 2. 3-Tier Progressive Profiling
+**Architectural Principle:** Abandon heavy, upfront sign-up forms in favor of context-aware, progressive disclosure using the "One-Screen, One-Ask" rule.
+- **The 3 Tiers:**
+  1. **Tier 1:** Auth (Minimal friction)
+  2. **Tier 2:** Enrichment (Basic user/market context)
+  3. **Tier 3:** Intent Signals (Deep product/problem needs)
+- **Strict Cognitive Limit:** Enforce a hard technical limit of **3 to 5 input fields maximum** per enrichment tier. Exceeding this limit causes conversion rates to plummet and violates our cognitive load strategy.
+
+## 3. Server-Side PQL (Product Qualified Lead) Gating
+**Architectural Principle:** The client drives the PQL scoring UX, but the Express BFF **must independently cryptographically verify** the state to prevent API abuse.
+- **Firebase Anonymous Auth:** Assign UIDs to unauthenticated visitors. Store their interaction state and limits in a locked Firestore document (`users/{uid}/pqlState`).
+- **BFF Enforcement:** The Express server reads `pqlState` to enforce the PQL gate *before* triggering any LLM or scraping routes.
+- **App Check Attestation:** To block malicious bot scripts from looping `signInAnonymously()` to bypass limits, the Express BFF MUST verify a **Firebase App Check (reCAPTCHA v3)** token via `firebase-admin/app-check` middleware before invoking AI routes.
+- **Ghost Session Management:** Configure a **Firestore TTL** policy (e.g., 72 hours) on the `pqlState` collection to automatically delete abandoned anonymous sessions and prevent billing bloat.
+
+## 4. Time-to-Value (TTV) Telemetry
+**Architectural Principle:** NicheAI targets a Time-to-Value of **< 5 minutes** for new users.
+- **`posthog-mcp` Integration:** Conceptually integrate analytics infrastructure (e.g., PostHog) to explicitly track a `TTV_Achieved` event when the user receives their first actionable market validation.
+- **Automated Alerts:** Funnel drop-offs and TTV metrics are first-class architectural concerns. If telemetry indicates median TTV exceeds 5 minutes, it triggers an automated UX review to identify high-friction steps for further Progressive Profiling optimization.

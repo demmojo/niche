@@ -30,6 +30,7 @@ This file is placed at `openspec/changes/<feature-name>/.openspec.yaml`
 ```yaml
 schema: spec-driven
 status: draft # Options: draft, active, implemented, superseded, archived
+learnings_extracted: false
 created: YYYY-MM-DD
 # superseded_by: [other-feature-name] (if applicable)
 ```

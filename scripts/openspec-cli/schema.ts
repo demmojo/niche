@@ -26,6 +26,7 @@ export const OpenSpecSchema = z.object({
   depends_on: z.array(z.string()).optional(),
   blocks: z.array(z.string()).optional(),
   name: z.string().optional(),
+  learnings_extracted: z.boolean().optional(),
 });
 
 export type OpenSpec = z.infer<typeof OpenSpecSchema>;

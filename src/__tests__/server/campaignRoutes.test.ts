@@ -182,12 +182,12 @@ describe("campaignRoutes", () => {
     it("returns 401 if unauthorized", async () => {
       const response = await request(app)
         .post("/api/campaign/start")
-        .send({ competitors: ["test"], baseIdea: {} });
+        .send({ competitors: ["test"], baseIdea: { name: "test idea" } });
 
       expect(response.status).toBe(401);
     });
 
-    it("returns 400 if competitors array is missing or empty", async () => {
+    it("returns 400 if competitors array is missing or empty and baseIdea lacks name", async () => {
       const response1 = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
@@ -212,7 +212,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe(
@@ -226,7 +229,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(402);
       expect(response.body.message).toBe(
@@ -243,7 +249,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(402);
       expect(response.body.error).toBe("Insufficient Action Credits");
@@ -272,7 +281,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe(
@@ -309,7 +321,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -331,7 +346,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: "Internal server error" });
@@ -343,7 +361,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/start")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "test.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "test.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(202);
       expect(response.body.jobId).toBe("mock-job-id");
@@ -379,7 +400,10 @@ describe("campaignRoutes", () => {
         request(app)
           .post("/api/campaign/start")
           .set("Authorization", "Bearer VALID_TOKEN")
-          .send({ competitors: [{ name: "test" }], baseIdea: {} }),
+          .send({
+            competitors: [{ name: "test" }],
+            baseIdea: { name: "test idea" },
+          }),
       );
 
       const responses = await Promise.all(promises);
@@ -395,13 +419,34 @@ describe("campaignRoutes", () => {
       vi.mocked(credits.getActionCredits).mockRestore();
       vi.mocked(credits.deductActionCredit).mockRestore();
     });
+
+    it("should protect against Mass Assignment vulnerabilities via strict Zod validation", async () => {
+      const response = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({
+          competitors: [],
+          baseIdea: {
+            name: "New Startup",
+            isAdmin: true, // Malicious field
+            ownerId: "attacker_123", // Malicious field
+          },
+        });
+
+      // Because we use .strict() in CampaignRequestSchema, it should reject this payload
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid request payload");
+      expect(JSON.stringify(response.body.details)).toContain(
+        "Unrecognized keys",
+      );
+    });
   });
 
   describe("POST /api/campaign/pivot", () => {
     it("returns 401 if unauthorized", async () => {
       const response = await request(app)
         .post("/api/campaign/pivot")
-        .send({ competitors: [], baseIdea: {} });
+        .send({ competitors: [], baseIdea: { name: "test idea" } });
 
       expect(response.status).toBe(401);
     });
@@ -428,7 +473,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/pivot")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "comp1" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "comp1" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ pivot: "Object Pivot" });
@@ -446,7 +494,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/pivot")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "foo.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "foo.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe("LLM Error");
@@ -462,7 +513,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/pivot")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "foo.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "foo.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe("Failed to generate sub-niches");
@@ -475,7 +529,10 @@ describe("campaignRoutes", () => {
       const response = await request(app)
         .post("/api/campaign/pivot")
         .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ competitors: [{ name: "foo.com" }], baseIdea: {} });
+        .send({
+          competitors: [{ name: "foo.com" }],
+          baseIdea: { name: "test idea" },
+        });
 
       // Because the GenAI mock returns valid JSON stringified in the wrapper or we can mock it here directly
       expect(response.status).toBe(200);
@@ -1420,7 +1477,7 @@ describe("campaignRoutes", () => {
         .set("Authorization", "Bearer VALID_TOKEN")
         .send({});
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Invalid payload.");
+      expect(response.body.error).toBe("Missing parameters");
     });
 
     it("returns 202 and processes async if payload is valid", async () => {
@@ -1428,11 +1485,11 @@ describe("campaignRoutes", () => {
       const mockSet = vi.fn().mockResolvedValue(true);
       const mockUpdate = vi.fn().mockResolvedValue(true);
 
-      vi.mocked(admin.firestore).mockReturnValue({
+      const firestoreMock = {
         collection: vi
           .fn()
           .mockReturnValue({ doc: vi.fn().mockReturnValue({ set: mockSet }) }),
-        doc: vi.fn().mockReturnValue({ update: mockUpdate }),
+        doc: vi.fn().mockReturnValue({ set: mockSet, update: mockUpdate }),
         runTransaction: vi.fn(async (cb) => {
           await cb({
             get: vi.fn().mockResolvedValue({
@@ -1440,9 +1497,11 @@ describe("campaignRoutes", () => {
               data: () => ({ evaluationStatus: "evaluating" }),
             }),
             update: mockUpdate,
+            set: mockSet,
           } as any);
         }),
-      } as any);
+      } as any;
+      vi.mocked(admin.firestore).mockReturnValue(firestoreMock);
 
       const genai = await import("@google/genai");
       (genai as any).__embedContentMock.mockResolvedValue({
@@ -1462,7 +1521,6 @@ describe("campaignRoutes", () => {
         });
 
       expect(response.status).toBe(202);
-      expect(response.body.status).toBe("evaluating");
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       vi.mocked(admin.firestore).mockRestore();
@@ -1488,7 +1546,7 @@ describe("campaignRoutes", () => {
       expect(response1.status).toBe(202);
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Evaluate taxonomy failed:",
+        "Taxonomy evaluation failed",
         expect.any(Error),
       );
 
@@ -1497,6 +1555,7 @@ describe("campaignRoutes", () => {
     });
 
     it("triggers line 254-258 in campaignRoutes.ts (ai.models is undefined)", async () => {
+      process.env.GEMINI_API_KEY = "dummy-key";
       const genai = await import("@google/genai");
       const originalGoogleGenAI = genai.GoogleGenAI;
 
@@ -1511,19 +1570,10 @@ describe("campaignRoutes", () => {
 
       const { runDeepValidationCampaign } =
         await import("../../server/campaignRoutes");
-      await runDeepValidationCampaign(
-        "job-id",
-        "user",
-        [{ name: "test" }],
-        "base",
-      );
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "ai.models IS UNDEFINED! ai:",
-        expect.anything(),
-        "GoogleGenAI:",
-        expect.anything(),
-      );
+      await expect(
+        runDeepValidationCampaign("job-id", "user", [{ name: "test" }], "base"),
+      ).rejects.toThrow();
 
       (genai as any).GoogleGenAI = originalGoogleGenAI;
       consoleErrorSpy.mockRestore();

@@ -1,5 +1,9 @@
 import { Piscina } from "piscina";
+import { fileURLToPath } from "url";
 import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { supabase } from "../utils/hashing";
 
 // Note: Piscina filename must end in .js or .mjs after TypeScript compilation,

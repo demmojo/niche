@@ -8,6 +8,7 @@ import {
   Info,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "./AuthProvider";
 
 interface TarpitWarningModalProps {
   isOpen: boolean;
@@ -17,9 +18,6 @@ interface TarpitWarningModalProps {
   scoreResult?: any;
 }
 
-/**
- *
- */
 export function TarpitWarningModal({
   isOpen,
   onClose,
@@ -28,6 +26,16 @@ export function TarpitWarningModal({
   scoreResult,
 }: TarpitWarningModalProps) {
   const [showEvolutionDiff, setShowEvolutionDiff] = useState(false);
+  const [showPqlGate, setShowPqlGate] = useState(false);
+  const { user } = useAuth();
+
+  const handleDeepReportClick = () => {
+    if (!user || user.isAnonymous) {
+      setShowPqlGate(true);
+    } else {
+      setShowEvolutionDiff(true);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -168,7 +176,7 @@ export function TarpitWarningModal({
         {/* Action Area */}
         <div className="flex flex-col gap-4">
           <button
-            onClick={() => setShowEvolutionDiff(true)}
+            onClick={handleDeepReportClick}
             className="w-full flex items-center justify-between px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-none transition-colors group"
           >
             <span className="tracking-wide">VIEW 3 LUCRATIVE SUB-NICHES</span>
@@ -191,7 +199,38 @@ export function TarpitWarningModal({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-        {!showEvolutionDiff ? (
+        {showPqlGate ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="w-full max-w-lg bg-slate-900 text-slate-200 shadow-2xl p-8 border border-slate-800"
+            role="dialog"
+            aria-label="Unlock Deep Report"
+          >
+            <h2 className="text-2xl font-black text-white tracking-tight mb-4">
+              Unlock Deep Report
+            </h2>
+            <p className="text-slate-400 mb-6">
+              You've seen the raw risk score. Create an account to unlock the 3
+              lucrative sub-niches and the full evolution diff.
+            </p>
+            <div className="flex gap-4">
+              <button
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                onClick={() => {}} // Placeholder for auth trigger
+              >
+                Create Account to View
+              </button>
+              <button
+                className="px-6 py-3 text-slate-400 hover:text-white"
+                onClick={() => setShowPqlGate(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        ) : !showEvolutionDiff ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

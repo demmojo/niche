@@ -46,21 +46,27 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
   const [pastedCode, setPastedCode] = useState("");
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [proposedUpdate, setProposedUpdate] = useState<any>(null);
-  const [isValidating, setIsValidating] = useState(false);
+  const STATE_IDLE = "idle";
+  const STATE_MUTATING = "mutating";
+  const STATE_SNAPSHOT_RECEIVED = "snapshot_received";
+  const STATE_ERROR = "error";
+
+  const [validationState, setValidationState] = useState<string>(STATE_IDLE);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     if (!reviewJobId) return;
 
-    const unsub = onSnapshot(doc(db, "ReviewJobs", reviewJobId), (doc) => {
-      const data = doc.data();
+    const unsub = onSnapshot(doc(db, "ReviewJobs", reviewJobId), (docSnap) => {
+      const data = docSnap.data();
       if (!data) return;
 
       if (data.status === "completed") {
         setProposedUpdate(data.result);
-        setIsValidating(false);
+        setValidationState(STATE_SNAPSHOT_RECEIVED);
       } else if (data.status === "failed") {
-        alert("Validation failed: " + data.error);
-        setIsValidating(false);
+        setErrorMessage("Validation failed: " + data.error);
+        setValidationState(STATE_ERROR);
         setReviewJobId(null);
       }
     });
@@ -73,7 +79,8 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
    */
   const handleValidate = async () => {
     if (!pastedCode || !brandIdentity) return;
-    setIsValidating(true);
+    setValidationState(STATE_MUTATING);
+    setErrorMessage("");
     setProposedUpdate(null);
 
     try {
@@ -107,10 +114,15 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
 
       if (!res.ok) throw new Error("Failed to start review job");
       const data = await res.json();
-      setReviewJobId(data.jobId);
+
+      // If snapshot somehow already beat us to setting state, ignore
+      setReviewJobId((prevId) => {
+        if (validationState === STATE_SNAPSHOT_RECEIVED) return prevId;
+        return data.jobId;
+      });
     } catch (e: any) {
-      alert(e.message);
-      setIsValidating(false);
+      setErrorMessage(e.message);
+      setValidationState(STATE_ERROR);
     }
   };
 
@@ -333,10 +345,12 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               {!proposedUpdate ? (
                 <button
                   onClick={handleValidate}
-                  disabled={isValidating || !pastedCode}
+                  disabled={validationState === STATE_MUTATING || !pastedCode}
                   className="bg-[#CCFF00] text-[#0C0C0C] font-bold py-3 rounded hover:bg-[#B3E600] disabled:opacity-50"
                 >
-                  {isValidating ? "Validating Code..." : "Run AI Validation"}
+                  {validationState === STATE_MUTATING
+                    ? "Validating Code..."
+                    : "Run AI Validation"}
                 </button>
               ) : (
                 <div className="bg-[#1A1A1A] border border-[#333333] p-4 rounded text-sm space-y-3">

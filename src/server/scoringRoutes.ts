@@ -7,7 +7,9 @@ import {
 } from "../utils/scoringEngine";
 import Exa from "exa-js";
 import { GoogleGenAI, Type } from "@google/genai";
-import * as admin from "firebase-admin";
+import * as adminNamespace from "firebase-admin";
+const admin: typeof adminNamespace =
+  (adminNamespace as any).default || adminNamespace;
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod";
 

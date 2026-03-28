@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
-import * as admin from "firebase-admin";
+import * as adminNamespace from "firebase-admin";
+const admin = adminNamespace;
 import pMap from "p-map";
 import { getActionCredits, deductActionCredit } from "./credits";
 import {
@@ -15,8 +16,10 @@ import {
 } from "../utils/scoringEngine";
 import { campaignLimiter, fakeDoorSignalLimiter } from "./rateLimit";
 import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { networkIoQueue } from "./queues";
 import express from "express";
+import Exa from "exa-js";
 import {
   FakeDoorSignalInputSchema,
   ForkProductInputSchema,
@@ -32,10 +35,40 @@ const CompetitorSchema = z
   })
   .passthrough(); // Allow extra fields but validate the core ones
 
-const CampaignRequestSchema = z.object({
-  competitors: z.array(CompetitorSchema).min(1).max(50),
-  baseIdea: z.string().max(10000).optional().or(z.object({}).passthrough()),
-});
+const CampaignRequestSchema = z
+  .object({
+    competitors: z.array(CompetitorSchema).optional().default([]),
+    baseIdea: z
+      .union([
+        z.string().max(10000),
+        z
+          .object({
+            name: z.string().min(1).max(500),
+            description: z.string().max(10000).optional(),
+          })
+          .strict(),
+      ])
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // If no competitors, baseIdea MUST be an object with a non-empty name
+      if (data.competitors.length === 0) {
+        if (
+          !data.baseIdea ||
+          typeof data.baseIdea !== "object" ||
+          !("name" in data.baseIdea)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message:
+        "If competitors are empty, baseIdea with a name must be provided to discover competitors.",
+    },
+  );
 
 export const campaignRouter = Router();
 
@@ -104,6 +137,145 @@ Each subNiche should have:
 
 const MAX_COMPETITORS = 100;
 
+const DiscoveredCompetitorSchema = z.object({
+  name: z.string(),
+  domain: z.string(),
+  description: z.string(),
+  similarityScore: z.number().min(0).max(100),
+  matchTier: z.enum(["Direct", "Adjacent", "Legacy"]),
+  matchRationale: z.string(),
+});
+
+const DiscoverCompetitorsRequestSchema = z.object({
+  baseIdea: z.string().max(10000).optional().or(z.object({}).passthrough()),
+});
+
+// Helper for Exa domain search using heuristics
+async function fetchExaCompetitors(baseIdea: any) {
+  const exaKey = process.env.EXA_API_KEY;
+  if (!exaKey) return [];
+  const exa = new Exa(exaKey);
+  const ideaStr =
+    typeof baseIdea === "string"
+      ? baseIdea
+      : `${baseIdea?.name || "product"}: ${baseIdea?.description || "startup"}`;
+
+  try {
+    const exaResponse = await exa.searchAndContents(ideaStr, {
+      type: "neural",
+      numResults: 7, // Fetch a bit more to filter down
+      text: { maxCharacters: 800 },
+      includeDomains: ["reddit.com", "g2.com"], // Use Exa's native includeDomains filter
+    });
+    return exaResponse.results;
+  } catch (error) {
+    console.error("Exa discovery error:", error);
+    return [];
+  }
+}
+
+campaignRouter.post(
+  "/discover-competitors",
+  requireAuth,
+  fakeDoorSignalLimiter, // Reusing a light rate limiter
+  async (req: AuthenticatedRequest, res: any) => {
+    try {
+      const validationResult = DiscoverCompetitorsRequestSchema.safeParse(
+        req.body || {},
+      );
+      if (!validationResult.success) {
+        return res.status(400).json({
+          error: "Invalid request payload",
+          details: validationResult.error.format(),
+        });
+      }
+
+      const { baseIdea } = validationResult.data;
+      if (
+        !baseIdea ||
+        (typeof baseIdea === "object" && Object.keys(baseIdea).length === 0)
+      ) {
+        return res.json({ competitors: [] });
+      }
+
+      const exaResults = await fetchExaCompetitors(baseIdea);
+      if (exaResults.length === 0) {
+        return res.json({ competitors: [] });
+      }
+
+      const { withModelFallback } = await import("../utils/aiClient");
+
+      const prompt = `You are a strategic product analyst. I have a product idea and a list of search results.
+Your job is to identify the actual competitor products from these search results, and score them based on Job-to-be-Done, Audience, and Mechanism overlap.
+
+Product Idea: ${JSON.stringify(baseIdea)}
+
+Search Results: ${JSON.stringify(exaResults.map((r: any) => ({ url: r.url, title: r.title, text: r.text })))}
+
+Extract the top 3 to 5 actual software products/competitors found in these results. 
+For each, provide:
+- name: The product name
+- domain: Their website URL (extracted from the search result URL if possible)
+- description: A brief 1-2 sentence description
+- similarityScore: 0-100 score based on (JTBD * 0.5) + (Audience * 0.3) + (Mechanism * 0.2)
+- matchTier: "Direct" (80-100), "Adjacent" (50-79), or "Legacy" (<50)
+- matchRationale: One concise sentence explaining exactly *why* they match based on the 3 factors.
+
+Return the result strictly adhering to the JSON schema.`;
+
+      const ListSchema = z.object({
+        competitors: z.array(DiscoveredCompetitorSchema),
+      });
+
+      const responseText = await withModelFallback(
+        async (ai: any, modelName: string) => {
+          const m = ai.models
+            ? ai
+            : new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const res = await m.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+              responseSchema: zodToJsonSchema(ListSchema as any) as any,
+            },
+          });
+          return res.text;
+        },
+        { capability: "data-extraction" as any },
+      );
+
+      let parsed;
+      try {
+        parsed = JSON.parse(responseText);
+        // Handle Gemini returning it wrapped or unwrapped depending on strict schema compliance
+        if (!parsed.competitors && Array.isArray(parsed)) {
+          parsed = { competitors: parsed };
+        }
+      } catch (e) {
+        console.error("Failed to parse LLM discovery response:", e);
+        // Graceful degradation: return raw Exa results
+        return res.json({
+          competitors: exaResults.slice(0, 5).map((r: any) => ({
+            name: r.title || r.url,
+            domain: r.url,
+            description: r.text ? r.text.substring(0, 200) : "",
+            similarityScore: 0,
+            matchTier: "Adjacent",
+            matchRationale: "Discovered via web search.",
+          })),
+        });
+      }
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Competitor discovery error:", error);
+      res.status(500).json({ error: "Internal server error during discovery" });
+    }
+  },
+);
+
 // Apply stateless API rate limiter for validation campaign (BFF Route)
 campaignRouter.post(
   "/start",
@@ -111,12 +283,17 @@ campaignRouter.post(
   campaignLimiter,
   async (req: AuthenticatedRequest, res: any) => {
     try {
+      // #region agent log
+      // #endregion
       const userId = req.user?.uid;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       // 0. Strict Schema Validation (Zod)
+      console.log("BODY", req.body);
       const validationResult = CampaignRequestSchema.safeParse(req.body || {});
       if (!validationResult.success) {
+        // #region agent log
+        // #endregion
         return res.status(400).json({
           error: "Invalid request payload",
           details: validationResult.error.format(),
@@ -131,6 +308,8 @@ campaignRouter.post(
       const costPerCampaign = 1; // Or derived from competitors.length
       const currentCredits = await getActionCredits(userId);
       if (currentCredits < costPerCampaign) {
+        // #region agent log
+        // #endregion
         return res.status(402).json({
           error: "Insufficient Action Credits",
           message: "You have exhausted your monthly validation credits.",
@@ -141,6 +320,8 @@ campaignRouter.post(
       try {
         await deductActionCredit(userId, costPerCampaign);
       } catch (deductErr: any) {
+        // #region agent log
+        // #endregion
         console.error(
           `Failed to reserve credits for user ${userId}:`,
           deductErr,
@@ -158,6 +339,8 @@ campaignRouter.post(
       }
 
       // 3. Insert row/document into campaign_jobs (Firestore)
+      // #region agent log
+      // #endregion
       const jobRef = await db.collection("campaign_jobs").add({
         userId,
         status: "queued",
@@ -168,10 +351,14 @@ campaignRouter.post(
       });
 
       const jobId = jobRef.id;
+      // #region agent log
+      // #endregion
 
       // 4. Enqueue to BullMQ (Durable Jobs)
       const idempotencyKey = `campaign_${jobId}_${Date.now()}`;
       try {
+        // #region agent log
+        // #endregion
         // Pass the job to the existing Network queue for processing
         await networkIoQueue.add(
           "run-validation-campaign",
@@ -195,6 +382,8 @@ campaignRouter.post(
           .status(202)
           .json({ jobId, message: "Campaign queued successfully." });
       } catch (queueErr: any) {
+        // #region agent log
+        // #endregion
         // 5. Commit/Rollback: The enqueue failed, so we MUST refund the user locally.
         console.error(
           `Failed to queue campaign ${jobId}. Rolling back credits:`,
@@ -221,6 +410,8 @@ campaignRouter.post(
         });
       }
     } catch (error: any) {
+      // #region agent log
+      // #endregion
       console.error("Campaign start error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
@@ -239,8 +430,13 @@ export async function runDeepValidationCampaign(
   const db = admin.firestore();
   const jobRef = db.collection("campaign_jobs").doc(jobId);
 
+  let activeCompetitors = [...competitors];
+
+  // #region agent log
+  // #endregion
+
   // Hard cap to prevent asymmetric resource exhaustion
-  const safeCompetitors = competitors.slice(0, MAX_COMPETITORS);
+  const safeCompetitors = activeCompetitors.slice(0, MAX_COMPETITORS);
   let completedCount = 0;
 
   // We use Gemini 768D dimensions for performance

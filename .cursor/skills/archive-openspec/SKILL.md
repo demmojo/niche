@@ -17,7 +17,9 @@ Use the `Shell` or `Read` tools to check:
 
 1. Does the directory `openspec/changes/<feature-name>` exist?
 2. Are all tasks in `tasks.md` checked off (`- [x]`)?
-3. Have the changes been reviewed/verified by the user? (If in doubt, ask the user before proceeding.)
+3. Read `openspec/changes/<feature-name>/.openspec.yaml`. Does it contain `learnings_extracted: true`?
+   - **CRITICAL:** If `learnings_extracted` is missing or `false`, you MUST abort the archive process and immediately run the `.cursor/skills/extract-lessons/SKILL.md` skill to complete Phase 2.5 of the OpenSpec workflow.
+4. Have the changes been reviewed/verified by the user? (If in doubt, ask the user before proceeding.)
 
 ### 2. Prepare the Destination
 

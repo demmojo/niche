@@ -8,7 +8,13 @@ import {
   createUserWithEmailAndPassword,
   signInWithCustomToken,
 } from "firebase/auth";
-import { getFirestore, setLogLevel, disableNetwork } from "firebase/firestore";
+import {
+  getFirestore,
+  setLogLevel,
+  disableNetwork,
+  memoryLocalCache,
+  initializeFirestore,
+} from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
 /**
@@ -32,13 +38,29 @@ const getApiKey = () => {
   return undefined;
 };
 
+const isTestEnv =
+  typeof process !== "undefined" && process.env.NODE_ENV === "test";
+
 const configToUse = {
   ...firebaseConfig,
   apiKey: getApiKey() || firebaseConfig.apiKey,
+  ...(isTestEnv
+    ? {
+        projectId: `demo-nicheai-test-${process.env.VITEST_POOL_ID || "default"}`,
+      }
+    : {}),
 };
 
 const defaultApp = initializeApp(configToUse);
-const defaultDb = getFirestore(defaultApp, firebaseConfig.firestoreDatabaseId);
+
+const defaultDb = isTestEnv
+  ? initializeFirestore(
+      defaultApp,
+      { localCache: memoryLocalCache() },
+      firebaseConfig.firestoreDatabaseId,
+    )
+  : getFirestore(defaultApp, firebaseConfig.firestoreDatabaseId);
+
 const defaultAuth = getAuth(defaultApp);
 
 // Suppress internal Firestore logs, especially for quota exceeded errors
@@ -46,6 +68,9 @@ setLogLevel("silent");
 
 // Track active impersonation app
 let impersonationApp: any = null;
+
+export const getAppInstance = () => defaultApp;
+export const getDbInstance = () => defaultDb;
 
 // Proxy objects that forward to the impersonation app if it exists, otherwise default app
 export const db = new Proxy(defaultDb, {

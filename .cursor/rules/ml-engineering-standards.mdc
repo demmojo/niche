@@ -1,0 +1,36 @@
+---
+description: Formalizes Async ML Orchestration, V8 Execution, Zero Data Loss, and Schema Drift standards.
+globs: src/server/**/*.ts, src/services/**/*.ts, src/server/workers/**/*.ts
+---
+
+# ML Engineering Standards & Architecture
+
+As an architectural mandate for NicheAI, all asynchronous ML orchestration, LLM output handling, and V8 performance execution must strictly adhere to the following standards. These rules ensure system resilience, zero data loss, and optimal execution without memory leaks.
+
+## 1. Async ML Orchestration (MLP Focus)
+Do not block the main Node.js thread for heavy ML processing or LLM network calls.
+- **The Pipeline**: Use the `HTTP 202 Accepted` pattern. When a client requests a heavy ML task, you MUST insert the job into Firestore (`status: 'pending'`) *before* returning `202 Accepted` with a `jobId`.
+- **Concurrency**: Use an In-Memory Queue (`p-queue`) to manage bounded concurrency (e.g., `concurrency: 5`, `queue.size` max 100). If the queue is full, Express must return `HTTP 429` (Load Shedding) to prevent V8 OOM crashes.
+- **Client Subscription**: The frontend must subscribe to the job's progress via Firestore `onSnapshot` listeners hooked to the `jobId`.
+
+## 2. Zero Data Loss (The 3 Pillars)
+To survive multi-instance cluster scale-downs or OOM crashes without dropping jobs, all ML workers must guarantee zero data loss through:
+- **Heartbeats & Worker ID Leasing**: Active workers must update an `updatedAt` timestamp with `FieldValue.serverTimestamp()` on the job document every 30 seconds. Instances MUST assign a unique `workerId` to active jobs. Every subsequent heartbeat must include a precondition check ensuring the `workerId` hasn't changed to prevent zombie processes.
+- **Transactional Recovery Sweeps**: On server boot, implement a recovery sweep that identifies orphaned jobs (`status === 'processing'` and `updatedAt < NOW() - 2 minutes`). This MUST use `runTransaction` to lock the job before claiming it, preventing split-brain thundering herds when multiple instances boot.
+- **Graceful Shutdown**: Workers must intercept `SIGTERM` / `SIGINT`. Upon receiving a shutdown signal, call `queue.pause()` to stop accepting new jobs, wait for active jobs to finish (up to the host's 30s timeout), and update any remaining active jobs in Firestore to `interrupted` before calling `process.exit(0)`.
+
+## 3. V8 Execution & Performance
+Avoid thread-hopping overhead and garbage collection (GC) pauses during intensive scoring or data processing.
+- **Synchronous Math**: Keep math operations taking `<10ms` (e.g., small array scoring) **synchronous on the main thread**. Do not use `worker_threads` for micro-tasks (zero-copy overhead).
+- **Pre-allocation**: For ML scoring loops, use pre-allocated `Float32Array` scratchpads. Reject `SharedArrayBuffer` for sync logic.
+- **Round-Trip Transfers**: When `worker_threads` are necessary, you MUST transfer memory ownership using `postMessage(data, [data.buffer])`. Because this detaches the buffer from the main thread (causing "lost scratchpads" and GC pressure), workers MUST implement a **Round-Trip Transfer**, passing the exact same `ArrayBuffer` back to the main thread pool upon completion.
+
+## 4. Schema Drift Fallback & Output Sanitization
+LLM outputs are inherently volatile. Defend against schema drift and injection strictly at the parsing boundary.
+- **Native Structured Outputs**: Mandate the use of native Gemini Structured Outputs via `zodToJsonSchema` to enforce shape at the API level. Only use manual 1-2 retry loops for semantic `.refine()` failures that JSON Schema cannot enforce.
+- **AST-Based Sanitization**: If semantic retries exhaust, gracefully degrade to rendering a `<MarkdownFallback />`. **NEVER use Regex for XSS stripping**, as it is an architectural anti-pattern and highly prone to XSS traps. Use `DOMPurify` (client-side) or `rehype-sanitize` for AST-based sanitization.
+
+## 5. Streaming JSON Safeties
+When streaming partial LLM responses back to the client, the boundary must be fault-tolerant.
+- **Partial JSON Parsing**: When yielding LLM JSON via SSE to the React UI, native `JSON.parse` will throw `SyntaxError` on every chunk until complete. You MUST implement a **partial JSON parser** (e.g., `partial-json` or Vercel AI SDK logic) to stream incomplete ASTs safely.
+- **Token Limits**: Always inspect the Gemini response metadata for `finishReason === 'MAX_TOKENS'` or `finishReason === 'SAFETY'`. If truncated, safely close the AST via the partial parser or explicitly trigger the Markdown fallback rather than throwing a fatal 500 error that crashes the UI.

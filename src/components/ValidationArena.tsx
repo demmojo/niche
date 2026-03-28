@@ -74,8 +74,8 @@ export function ValidationArena({
 
       startTransition(() => {
         setState({ type: "success", message: "Variant successfully created!" });
-        setTimeout(() => setState({ type: "idle" }), 3000);
       });
+      setTimeout(() => setState({ type: "idle" }), 3000);
     } catch (e: any) {
       setState({ type: "error", message: e.message });
     }
@@ -103,8 +103,8 @@ export function ValidationArena({
           type: "success",
           message: "Winner locked! Generating OpenSpec...",
         });
-        setTimeout(() => setState({ type: "idle" }), 3000);
       });
+      setTimeout(() => setState({ type: "idle" }), 3000);
     } catch (e: any) {
       setState({ type: "error", message: e.message });
     }

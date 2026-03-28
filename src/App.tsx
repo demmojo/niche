@@ -1351,7 +1351,7 @@ function WorkspaceApp({ user, logout }: any) {
           </div>
           <div className="w-px h-6 bg-ink-dark/10"></div>
           <ProductSwitcher
-            products={products}
+            products={products as any}
             activeProductId={activeProductId}
             onSelectProduct={setActiveProductId}
             isSuperadmin={isSuperadmin}
@@ -1617,13 +1617,9 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   const [tarpitCompetitors, setTarpitCompetitors] = useState<any[]>([]);
   const credits = useActionCredits();
 
-  const { isLocked: isStartingCampaign, executeTask: startCampaignTask } =
+  const { isPending: isStartingCampaign, executeTask: startCampaignTask } =
     useSafeAITask({
       timeoutMs: 30000,
-      onTimeout: () => {
-        addToast("Analysis took too long. Please try again.", "error");
-        setIsSyncing(false);
-      },
       onError: (err) => {
         addToast(err.message || "Failed to start campaign", "error");
         setIsSyncing(false);
@@ -4260,7 +4256,9 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                             </button>
                           </Tooltip>
                           <Tooltip
-                            content="Manually merge taxonomy features (HITL)"
+                            content={
+                              "Manually merge taxonomy features (HITL)" as any
+                            }
                             position="top"
                           >
                             <button

@@ -374,7 +374,7 @@ Respond in JSON according to the schema. If the code ignores the brand tone or s
       config: {
         temperature: 0.1,
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(ArtifactSemanticSchema) as any,
+        responseSchema: zodToJsonSchema(ArtifactSemanticSchema as any) as any,
       },
     });
 

@@ -22,12 +22,18 @@ Before you propose a new feature, run `/plan`, or create a new OpenSpec:
 5. **Future Roadmap Extractor:** While creating plans or specs, make sure to explicitly populate a "Future Considerations" or "Architectural, Design and Future Potential To Dos" section at the end of `design.md` or the plan file. This feeds the living `docs/ROADMAP.md` document during the git commit lifecycle.
 6. **Validate Specs:** Run `npx tsx scripts/openspec-cli/index.ts validate` to ensure the DAG is acyclic and valid. Then run `npx tsx scripts/openspec-cli/index.ts ai-eval` to do a semantic pass.
 
+## Phase 2.5: Continual Learning & Extraction
+Before a verified spec is archived, you must extract key learnings and friction points:
+
+1. **Extract Lessons:** Check the `.openspec.yaml` file for `learnings_extracted: true`. If it is false or missing, you MUST run the `extract-lessons` skill. This will review `tasks.md`, `git diff origin/master...HEAD`, and chat/terminal history to synthesize new rules for `.cursor/rules/` and `AGENTS.md`.
+2. **Commit Knowledge:** Present the drafted rules to the user for approval. Once approved and saved, update `.openspec.yaml` to set `learnings_extracted: true`.
+
 ## Post-Implementation / Archive Phase
-Once an OpenSpec is fully implemented and verified, it must be properly archived to keep the active workspace clean:
+Once an OpenSpec is fully implemented, verified, and its learnings are extracted, it must be properly archived to keep the active workspace clean:
 
 1. **Verify Completion:** Ensure all tasks in `tasks.md` are marked as done (`- [x]`) and the code passes linting/tests.
 2. **Update Status:** Change the `status` field in `.openspec.yaml` to `implemented` (or `completed`).
-3. **Archive the Spec:** Move the entire feature directory from `openspec/changes/<feature-name>` to `openspec/archive/changes/<feature-name>`. Block archiving unless tests pass and coverage is >= 90%.
+3. **Archive the Spec:** Move the entire feature directory from `openspec/changes/<feature-name>` to `openspec/archive/changes/<feature-name>`. Block archiving unless tests pass, coverage is >= 90%, and `learnings_extracted` is `true`.
 4. **Archive the Original Plan:** If a raw markdown plan exists in `openspec/plans/` that corresponds to this feature, move it to `openspec/archive/plans/`. Never leave implemented raw markdown plans in the active `openspec/plans/` directory.
 
 > **Tip:** You can use the `.cursor/skills/archive-openspec/SKILL.md` skill to automate moving a completed feature to the archive.

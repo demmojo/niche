@@ -2,7 +2,9 @@ import { Queue, Worker, QueueEvents } from "bullmq";
 import Redis from "ioredis";
 import * as dotenv from "dotenv";
 import { publishSseEvent } from "./sse";
-import * as admin from "firebase-admin";
+import * as adminNamespace from "firebase-admin";
+const admin: typeof adminNamespace =
+  (adminNamespace as any).default || adminNamespace;
 
 dotenv.config();
 
@@ -76,7 +78,11 @@ export const requestUserConsent = async (
 import Exa from "exa-js";
 
 import { Piscina } from "piscina";
+import { fileURLToPath } from "url";
 import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Taxonomy Merge Outbox Worker (Phase 5) ---
 let taxonomyPool: Piscina;
@@ -209,6 +215,17 @@ export const startNetworkIoWorker = () => {
   const worker = new Worker(
     "network-io-queue",
     async (job) => {
+      if (job.name === "run-validation-campaign") {
+        const { runDeepValidationCampaign } = await import("./campaignRoutes");
+        await runDeepValidationCampaign(
+          job.data.jobId,
+          job.data.userId,
+          job.data.competitors,
+          job.data.baseIdea,
+        );
+        return { success: true };
+      }
+
       publishSseEvent(job.id || "unknown", "progress", {
         status: "Scraping competitor via Exa...",
         progress: 20,

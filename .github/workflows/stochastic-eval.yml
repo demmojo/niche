@@ -1,0 +1,31 @@
+name: Stochastic Evaluation Layer
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/server/services/**'
+      - 'src/server/workers/**'
+      - 'src/utils/tarpitAnalyzer.ts'
+
+jobs:
+  eval-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: Run Stochastic Evaluation Layer
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+        # We target specific non-deterministic files rather than standard unit tests
+        run: npx vitest run src/__tests__/eval/ --config vitest.eval.config.ts

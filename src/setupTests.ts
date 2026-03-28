@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+import { teardownFirebase } from "./test-utils/firebase-setup"; // Import this first to set env vars
 import { expect, afterEach, beforeAll, afterAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
@@ -88,11 +89,17 @@ afterEach(() => {
   }
   server.resetHandlers();
   vi.clearAllMocks();
-  vi.clearAllTimers();
+  try {
+    vi.runOnlyPendingTimers();
+  } catch (e) {
+    // Ignored if fake timers aren't active
+  }
+  vi.useRealTimers();
   // Reset Zustand state to prevent leakage between tests
   testVisualKnowledgeStore.setState(initialVisualKnowledgeState, true);
 });
 
-afterAll(() => {
+afterAll(async () => {
   server.close();
+  await teardownFirebase();
 });

@@ -161,6 +161,7 @@ Output requirements:
   const yamlData: any = {
     schema: "spec-driven",
     status: "draft",
+    learnings_extracted: false,
     created: new Date().toISOString().split("T")[0],
   };
   if (result.depends_on && result.depends_on.length > 0) {
