@@ -13,7 +13,15 @@ vi.mock("../../../services/lensAiService", () => ({
   generateLensChatResponse: vi.fn(),
 }));
 
-const mockStats = { tracked: 0, new: 0, actionable: 0, alerts: 0 };
+const mockStats = {
+  tracked: 0,
+  new: 0,
+  actionable: 0,
+  alerts: 0,
+  pricingChanges: 0,
+  featuresIndexed: 0,
+  topIntegrations: "None",
+};
 const mockCompetitors: any[] = [];
 const mockInsights: any[] = [];
 const mockRawData: any[] = [];
@@ -50,7 +58,6 @@ describe("LensStrategyConsole", () => {
       message: "Deep analysis complete. I have some suggestions.",
       suggestions: [
         {
-          id: "s1",
           type: "feature",
           title: "New AI Tool",
           description: "Add an AI tool.",
@@ -140,7 +147,6 @@ describe("LensStrategyConsole", () => {
       message: "Analysis with feature.",
       suggestions: [
         {
-          id: "s1",
           type: "feature",
           title: "Feature X",
           description: "Desc X",
@@ -182,7 +188,6 @@ describe("LensStrategyConsole", () => {
       message: "Analysis with feature.",
       suggestions: [
         {
-          id: "s1",
           type: "feature",
           title: "Feature To Dismiss",
           description: "Desc",

@@ -42,10 +42,11 @@ const mockInsights = [
     id: "1",
     title: "Insight 1",
     description: "Desc 1",
-    source: "Market",
-    category: "trend",
-    impact: "medium",
+    source: "Market" as any,
+    category: "trend" as any,
+    impact: "high" as any,
     timestamp: "now",
+    relevanceScore: 90,
   },
 ];
 

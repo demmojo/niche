@@ -17,9 +17,7 @@ import {
   MousePointerClick,
   RefreshCw,
   AlertCircle,
-  Info,
 } from "lucide-react";
-import { Tooltip } from "./Tooltip";
 
 interface FakeDoorMetricsProps {
   siteToken?: string;
@@ -120,12 +118,6 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
         <h3 className="text-xl font-bold text-ink-dark flex items-center gap-2">
           <Target className="text-emerald-500" size={24} /> Fake Door Validation
           Metrics
-          <Tooltip content="Metrics from testing user interest (e.g., clicks on 'Get Early Access') before the product is fully built to validate demand.">
-            <Info
-              size={16}
-              className="text-ink-muted hover:text-ink-dark transition-colors cursor-help"
-            />
-          </Tooltip>
         </h3>
         <button
           onClick={fetchMetrics}
@@ -137,48 +129,24 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6">
-          <div className="flex items-center justify-between text-ink-muted mb-2">
-            <div className="flex items-center gap-2">
-              <Eye size={16} /> Page Views
-            </div>
-            <Tooltip content="Total number of times your fake door page was loaded.">
-              <Info
-                size={14}
-                className="hover:text-ink-dark transition-colors cursor-help"
-              />
-            </Tooltip>
+          <div className="flex items-center gap-2 text-ink-muted mb-2">
+            <Eye size={16} /> Page Views
           </div>
           <div className="text-3xl font-bold text-ink-dark">
             {metrics.pageViews.toLocaleString()}
           </div>
         </div>
         <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6">
-          <div className="flex items-center justify-between text-ink-muted mb-2">
-            <div className="flex items-center gap-2">
-              <Users size={16} /> Unique Visitors
-            </div>
-            <Tooltip content="Total number of unique individuals who viewed your fake door page.">
-              <Info
-                size={14}
-                className="hover:text-ink-dark transition-colors cursor-help"
-              />
-            </Tooltip>
+          <div className="flex items-center gap-2 text-ink-muted mb-2">
+            <Users size={16} /> Unique Visitors
           </div>
           <div className="text-3xl font-bold text-ink-dark">
             {metrics.uniqueVisitors.toLocaleString()}
           </div>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 relative">
-          <div className="flex items-center justify-between text-emerald-800 mb-2">
-            <div className="flex items-center gap-2">
-              <MousePointerClick size={16} /> Conversion Rate
-            </div>
-            <Tooltip content="Percentage of unique visitors who clicked on your primary call-to-action (e.g. 'Get Early Access').">
-              <Info
-                size={14}
-                className="hover:text-emerald-900 transition-colors cursor-help"
-              />
-            </Tooltip>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+          <div className="flex items-center gap-2 text-emerald-800 mb-2">
+            <MousePointerClick size={16} /> Conversion Rate
           </div>
           <div className="text-3xl font-bold text-emerald-600">
             {metrics.conversionRate}
@@ -188,14 +156,8 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
           </p>
         </div>
         <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 overflow-hidden">
-          <div className="flex items-center justify-between text-ink-muted mb-2">
-            <div className="flex items-center gap-2">Top Referrers</div>
-            <Tooltip content="The websites that sent the most traffic to your fake door page.">
-              <Info
-                size={14}
-                className="hover:text-ink-dark transition-colors cursor-help"
-              />
-            </Tooltip>
+          <div className="flex items-center gap-2 text-ink-muted mb-2">
+            Top Referrers
           </div>
           <div className="text-sm font-medium text-ink-dark truncate">
             {metrics.referrers[0]}
@@ -207,17 +169,9 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
       </div>
 
       <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 h-80">
-        <div className="flex items-center gap-2 mb-4">
-          <h4 className="font-bold text-ink-dark text-sm">
-            Conversion Intent over Time
-          </h4>
-          <Tooltip content="A daily breakdown showing total views alongside the number of clicks indicating user intent.">
-            <Info
-              size={14}
-              className="text-ink-muted hover:text-ink-dark transition-colors cursor-help"
-            />
-          </Tooltip>
-        </div>
+        <h4 className="font-bold text-ink-dark mb-4 text-sm">
+          Conversion Intent over Time
+        </h4>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={data}
