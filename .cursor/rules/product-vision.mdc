@@ -1,0 +1,30 @@
+---
+description: Central product vision and mission for NicheAI. Always apply this to understand what the product is, who it serves, and why we are building it.
+alwaysApply: true
+---
+
+# Product Vision: NicheAI
+
+## What is NicheAI?
+NicheAI is a strategic ideation, validation, and product development platform designed specifically for founders, indie hackers, and small teams. It acts as an opinionated AI Co-Founder and Product Strategist.
+
+## The Core Problem
+Founders often fail because they:
+1. Suffer from analysis paralysis or feature bloat.
+2. Build horizontal "tarpit" ideas (e.g., "another CRM" or "another project management tool").
+3. Conduct slow, manual market research that is disconnected from the actual product-building cycle.
+4. Fail to focus on highly specific, underserved niches where they can actually compete and win.
+
+## The Solution
+NicheAI takes founders on a guided, opinionated journey:
+- **Ideation & Discovery:** Guides founders away from saturated markets and helps them discover hyper-niche, defensible opportunities.
+- **Validation:** Uses the best competitor and real market intelligence (e.g., Exa, Apollo) to validate the niche *before* writing code.
+- **Actionable Execution:** Translates abstract ideas and validated market data into concrete product specifications, market experiments, and (soon) fully deployed, pixel-perfect web applications via AI-assisted code generation.
+
+## Key Principles
+- **Niche over Horizontal:** Always steer features, designs, and copy toward specificity. Broad is bad; hyper-niche is good.
+- **Guided Experience:** Do not give users a blank canvas. Give them opinionated wizards, step-by-step flows, and actionable intelligence.
+- **Market-Driven:** Product decisions should be driven by real market gaps (e.g., negative reviews on G2/Capterra, unmet "Jobs To Be Done"), not just gut feeling.
+- **Distribution-First:** The platform should inherently help founders think about *how* they will reach their niche audience, treating distribution as a first-class citizen alongside product features.
+
+**When contributing to NicheAI (writing code, designing UI, or writing copy), ensure every change reinforces this vision of guiding founders out of the tarpit and into a validated, defensible niche.**
