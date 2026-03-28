@@ -9,6 +9,8 @@ const mockProductData = {
   description: "A great app",
   targetAudience: "Everyone",
   valueProposition: "It works",
+  targetRegions: [],
+  strategy: [],
   features: [],
 };
 

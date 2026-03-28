@@ -32,6 +32,8 @@ const mockProductData = {
   description: "A great app",
   targetAudience: "Everyone",
   valueProposition: "It works",
+  targetRegions: [],
+  strategy: [],
   features: [],
 };
 
@@ -41,7 +43,9 @@ const mockInsights = [
     title: "Insight 1",
     description: "Desc 1",
     source: "Market",
-    relevanceScore: 90,
+    category: "trend",
+    impact: "medium",
+    timestamp: "now",
   },
 ];
 
