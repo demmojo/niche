@@ -66,7 +66,9 @@ export const BlueOceanValueCurve: React.FC = () => {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-[400px]">
         <Loader2 className="animate-spin w-8 h-8 text-ink-dark/60 mb-2" />
-        <p className="text-sm text-ink-dark/60 font-serif">Loading Blue Ocean factors...</p>
+        <p className="text-sm text-ink-dark/60 font-serif">
+          Loading Blue Ocean factors...
+        </p>
       </div>
     );
   }
@@ -74,7 +76,9 @@ export const BlueOceanValueCurve: React.FC = () => {
   if (fetchState.status === "error") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
-        <div className="text-rose-600 font-bold">Failed to load Value Factors</div>
+        <div className="text-rose-600 font-bold">
+          Failed to load Value Factors
+        </div>
       </div>
     );
   }

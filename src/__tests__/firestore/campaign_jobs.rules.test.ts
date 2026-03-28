@@ -102,7 +102,7 @@ describeIfEmulator("campaign_jobs IDOR (TC-IDOR-01)", () => {
       jobDoc.set({
         userId: "user-alice",
         status: "queued",
-      })
+      }),
     );
 
     // Update
@@ -116,7 +116,7 @@ describeIfEmulator("campaign_jobs IDOR (TC-IDOR-01)", () => {
     await assertFails(
       jobDoc.update({
         status: "hacked",
-      })
+      }),
     );
 
     // Delete

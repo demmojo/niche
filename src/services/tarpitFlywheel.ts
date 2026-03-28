@@ -2,7 +2,7 @@ import { Piscina } from "piscina";
 import path from "path";
 import { supabase } from "../utils/hashing";
 
-// Note: Piscina filename must end in .js or .mjs after TypeScript compilation, 
+// Note: Piscina filename must end in .js or .mjs after TypeScript compilation,
 // or use ts-node for development. We assume Vite/tsx handles the extension here.
 const piscina = new Piscina({
   filename: path.resolve(__dirname, "../workers/kmeansWorker.ts"),
@@ -24,7 +24,7 @@ export async function runTarpitClustering() {
   }
 
   const numVectors = data.length;
-  
+
   // 2. Prepare SharedArrayBuffer
   // DIM * 4 bytes per float32
   const sharedBuffer = new SharedArrayBuffer(numVectors * DIM * 4);
@@ -34,13 +34,14 @@ export async function runTarpitClustering() {
     // Parse pgvector string "[0.1, 0.2, ...]" to array
     let vecArray: number[];
     try {
-      vecArray = typeof data[i].query_vector === 'string' 
-        ? JSON.parse(data[i].query_vector) 
-        : data[i].query_vector;
+      vecArray =
+        typeof data[i].query_vector === "string"
+          ? JSON.parse(data[i].query_vector)
+          : data[i].query_vector;
     } catch {
       continue;
     }
-    
+
     for (let d = 0; d < DIM; d++) {
       view[i * DIM + d] = vecArray[d] || 0;
     }
@@ -54,12 +55,19 @@ export async function runTarpitClustering() {
     dim: DIM,
   });
 
-  console.log("Clustering completed. Silhouette Score:", result.silhouette_coefficient);
+  console.log(
+    "Clustering completed. Silhouette Score:",
+    result.silhouette_coefficient,
+  );
   // Store centroids in DB (tarpit_centroids table)
   return result;
 }
 
-export async function storeTarpitQuery(userId: string, queryText: string, vector: number[]) {
+export async function storeTarpitQuery(
+  userId: string,
+  queryText: string,
+  vector: number[],
+) {
   const { error } = await supabase.from("tarpit_queries").insert({
     user_id: userId,
     query_text: queryText,

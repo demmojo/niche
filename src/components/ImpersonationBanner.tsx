@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { stopImpersonation } from '../firebase';
-import { AlertTriangle, LogOut } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { stopImpersonation } from "../firebase";
+import { AlertTriangle, LogOut } from "lucide-react";
 
 export const ImpersonationBanner: React.FC = () => {
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -12,11 +12,11 @@ export const ImpersonationBanner: React.FC = () => {
       setIsImpersonating(isImp);
     };
 
-    window.addEventListener('auth-state-changed', handleStateChange);
+    window.addEventListener("auth-state-changed", handleStateChange);
     handleStateChange();
 
     return () => {
-      window.removeEventListener('auth-state-changed', handleStateChange);
+      window.removeEventListener("auth-state-changed", handleStateChange);
     };
   }, []);
 
@@ -27,13 +27,14 @@ export const ImpersonationBanner: React.FC = () => {
       <div className="flex items-center gap-3">
         <AlertTriangle size={18} className="animate-pulse" />
         <p className="text-sm font-bold tracking-wide">
-          <span className="opacity-80">IMPERSONATION MODE:</span> All actions are audited.
+          <span className="opacity-80">IMPERSONATION MODE:</span> All actions
+          are audited.
         </p>
       </div>
-      <button 
+      <button
         onClick={async () => {
           await stopImpersonation();
-          window.location.href = '/';
+          window.location.href = "/";
         }}
         className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider"
       >

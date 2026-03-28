@@ -21,9 +21,9 @@ export const BlueOceanDetected: React.FC<{
       </p>
 
       <div className="bg-[#1A1A1A] border border-[#333333] p-4 rounded text-sm text-[#888888] mb-8">
-        <strong>Graceful Degradation Active:</strong> We will proceed using broad
-        industry defaults as your baseline. This gives you maximum freedom to
-        define the visual language of this new market category.
+        <strong>Graceful Degradation Active:</strong> We will proceed using
+        broad industry defaults as your baseline. This gives you maximum freedom
+        to define the visual language of this new market category.
       </div>
 
       <button

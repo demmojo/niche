@@ -505,14 +505,17 @@ Provide a concise, actionable recommendation in Markdown format.`,
               </Tooltip>
             </>
           )}
-          {type === "Competitors Tracked" && localComparingIds.length > 0 && setComparingCompetitorIds && (
-            <button
-              onClick={() => setComparingCompetitorIds(localComparingIds)}
-              className="flex items-center gap-2 bg-ink-dark text-paper-light px-3 py-1.5 rounded-md text-sm font-medium hover:bg-black transition-colors"
-            >
-              Compare {localComparingIds.length} Product{localComparingIds.length !== 1 ? 's' : ''}
-            </button>
-          )}
+          {type === "Competitors Tracked" &&
+            localComparingIds.length > 0 &&
+            setComparingCompetitorIds && (
+              <button
+                onClick={() => setComparingCompetitorIds(localComparingIds)}
+                className="flex items-center gap-2 bg-ink-dark text-paper-light px-3 py-1.5 rounded-md text-sm font-medium hover:bg-black transition-colors"
+              >
+                Compare {localComparingIds.length} Product
+                {localComparingIds.length !== 1 ? "s" : ""}
+              </button>
+            )}
           <div className="relative flex-1 sm:w-48">
             <Search
               size={14}
@@ -683,7 +686,10 @@ Provide a concise, actionable recommendation in Markdown format.`,
                     className={`hover:bg-paper-base/50 transition-colors ${type === "Features Indexed" ? "cursor-pointer" : ""} ${expandedRowId === row.id ? "bg-paper-base/30" : ""}`}
                   >
                     {type === "Competitors Tracked" && (
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={localComparingIds.includes(row.id)}
@@ -691,12 +697,20 @@ Provide a concise, actionable recommendation in Markdown format.`,
                             if (e.target.checked) {
                               if (localComparingIds.length >= 2) {
                                 // max 2 enforced, replace oldest
-                                setLocalComparingIds([localComparingIds[1], row.id]);
+                                setLocalComparingIds([
+                                  localComparingIds[1],
+                                  row.id,
+                                ]);
                               } else {
-                                setLocalComparingIds([...localComparingIds, row.id]);
+                                setLocalComparingIds([
+                                  ...localComparingIds,
+                                  row.id,
+                                ]);
                               }
                             } else {
-                              setLocalComparingIds(localComparingIds.filter(id => id !== row.id));
+                              setLocalComparingIds(
+                                localComparingIds.filter((id) => id !== row.id),
+                              );
                             }
                           }}
                           className="rounded border-ink-dark/30 text-ink-dark focus:ring-ink-dark/20"

@@ -9,7 +9,8 @@ export const BrandWizardProgress: React.FC<{ job: BrandWizardJob }> = ({
 }) => {
   const { totalUrls, completed, failed } = job.progress;
   const processed = completed + failed;
-  const percentage = totalUrls === 0 ? 0 : Math.round((processed / totalUrls) * 100);
+  const percentage =
+    totalUrls === 0 ? 0 : Math.round((processed / totalUrls) * 100);
 
   return (
     <div className="w-full max-w-2xl bg-[#0C0C0C] border border-[#1A1A1A] p-6 rounded-md font-['JetBrains_Mono']">
@@ -36,10 +37,12 @@ export const BrandWizardProgress: React.FC<{ job: BrandWizardJob }> = ({
           <span className="text-[#00FF66]">{completed} Extracted</span>
         )}
         {failed > 0 && (
-          <span className="text-[#FF2A5F]">{failed} Failed (Graceful Degradation)</span>
+          <span className="text-[#FF2A5F]">
+            {failed} Failed (Graceful Degradation)
+          </span>
         )}
       </div>
-      
+
       {job.status === "failed" && (
         <div className="mt-4 p-4 bg-[#FF2A5F]/10 border border-[#FF2A5F] text-[#FF2A5F] rounded text-sm">
           Extraction failed: {job.error}

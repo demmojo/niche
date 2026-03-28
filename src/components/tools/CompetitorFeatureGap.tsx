@@ -59,7 +59,9 @@ const CustomTooltip = ({ active, payload }: any) => {
  *
  */
 export const CompetitorFeatureGap: React.FC = () => {
-  const fetchState = useMarketIntelligence<SentimentInsight>("market_sentiment_insights");
+  const fetchState = useMarketIntelligence<SentimentInsight>(
+    "market_sentiment_insights",
+  );
 
   const data = useMemo(() => {
     if (fetchState.status !== "success") return [];
@@ -86,7 +88,9 @@ export const CompetitorFeatureGap: React.FC = () => {
   if (fetchState.status === "error") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
-        <div className="text-rose-600 font-bold">Failed to load Sentiment Insights</div>
+        <div className="text-rose-600 font-bold">
+          Failed to load Sentiment Insights
+        </div>
       </div>
     );
   }

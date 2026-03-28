@@ -9,12 +9,12 @@ vi.mock("firebase/firestore", () => {
   return {
     doc: vi.fn(),
     onSnapshot: vi.fn(),
-    getFirestore: vi.fn()
+    getFirestore: vi.fn(),
   };
 });
 
 vi.mock("../../../../src/firebase", () => ({
-  db: {}
+  db: {},
 }));
 
 describe("AiThinkingDag", () => {
@@ -66,7 +66,7 @@ describe("AiThinkingDag", () => {
     act(() => {
       snapshotCallback({
         exists: () => true,
-        data: () => ({ status: "processing", progress: 1, total: 3 })
+        data: () => ({ status: "processing", progress: 1, total: 3 }),
       });
     });
 
@@ -86,7 +86,12 @@ describe("AiThinkingDag", () => {
     act(() => {
       snapshotCallback({
         exists: () => true,
-        data: () => ({ status: "completed", progress: 3, total: 3, results: [{ name: "foo" }] })
+        data: () => ({
+          status: "completed",
+          progress: 3,
+          total: 3,
+          results: [{ name: "foo" }],
+        }),
       });
     });
 
@@ -107,10 +112,12 @@ describe("AiThinkingDag", () => {
     act(() => {
       snapshotCallback({
         exists: () => true,
-        data: () => ({ status: "failed", error: "Failed to extract vision" })
+        data: () => ({ status: "failed", error: "Failed to extract vision" }),
       });
     });
 
-    expect(screen.getAllByText("Failed to extract vision").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Failed to extract vision").length,
+    ).toBeGreaterThan(0);
   });
 });

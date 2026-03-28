@@ -143,4 +143,7 @@ Also provide confidence (0-1). Make sure the output is pure JSON matching this e
 );
 `;
 
-fs.writeFileSync("src/server/campaignRoutes.ts", content + "\n" + evaluateTaxonomyEndpoint);
+fs.writeFileSync(
+  "src/server/campaignRoutes.ts",
+  content + "\n" + evaluateTaxonomyEndpoint,
+);

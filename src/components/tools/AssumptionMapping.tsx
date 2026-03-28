@@ -90,7 +90,9 @@ export const AssumptionMapping: React.FC = () => {
   if (fetchState.status === "error") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
-        <div className="text-rose-600 font-bold">Failed to load Assumptions</div>
+        <div className="text-rose-600 font-bold">
+          Failed to load Assumptions
+        </div>
       </div>
     );
   }

@@ -255,9 +255,10 @@ npm run test
 
 ## 🤝 Contributing
 
-This project is strictly proprietary and closed-source. We do not accept external pull requests. 
+This project is strictly proprietary and closed-source. We do not accept external pull requests.
 
 If you are an internal team member or contractor, please refer to our internal **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for:
+
 - Our mandatory OpenSpec feature planning workflow.
 - Conventional Commits enforced by Lefthook.
 - Testing, Squashing, and Merging PR policies.

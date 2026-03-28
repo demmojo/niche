@@ -1,4 +1,4 @@
-import { Competitor, SyncDiff } from '../types';
+import { Competitor, SyncDiff } from "../types";
 
 /**
  *
@@ -6,16 +6,16 @@ import { Competitor, SyncDiff } from '../types';
 export function createCompetitorDiffs(
   oldComp: Competitor | undefined,
   newComp: Partial<Competitor>,
-  entityId: string
+  entityId: string,
 ): SyncDiff[] {
   const diffs: SyncDiff[] = [];
   const fieldsToCheck = [
-    'fundingHistory',
-    'headcountGrowth',
-    'techStack',
-    'seoKeywords',
-    'coreFeatures',
-    'targetAudience'
+    "fundingHistory",
+    "headcountGrowth",
+    "techStack",
+    "seoKeywords",
+    "coreFeatures",
+    "targetAudience",
   ] as const;
 
   for (const field of fieldsToCheck) {
@@ -26,13 +26,13 @@ export function createCompetitorDiffs(
       // Deep compare stringified to catch array differences (like techStack)
       if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
         diffs.push({
-          id: `diff-${entityId}-${field}-${Date.now()}-${Math.random().toString(36).substr(2,9)}`,
+          id: `diff-${entityId}-${field}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           entityId,
-          entityType: 'Competitor',
+          entityType: "Competitor",
           field,
           oldValue,
           newValue,
-          description: `Update ${field}`
+          description: `Update ${field}`,
         });
       }
     }
@@ -44,7 +44,10 @@ export function createCompetitorDiffs(
 /**
  *
  */
-export function filterVerifiedDiffs(diffs: SyncDiff[], verifiedFields: Record<string, boolean> | undefined): SyncDiff[] {
+export function filterVerifiedDiffs(
+  diffs: SyncDiff[],
+  verifiedFields: Record<string, boolean> | undefined,
+): SyncDiff[] {
   if (!verifiedFields) return diffs;
-  return diffs.filter(diff => !verifiedFields[diff.field]);
+  return diffs.filter((diff) => !verifiedFields[diff.field]);
 }

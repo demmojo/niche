@@ -43,7 +43,7 @@ export const BrandWizardFeature: React.FC<{ projectId: string }> = ({
   // Job is completed
   if (job?.status === "completed") {
     const validResults = job.results || [];
-    
+
     // Check for "Zero-Data" graceful degradation edge case
     if (validResults.length === 0) {
       return (

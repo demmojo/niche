@@ -78,31 +78,37 @@ export const saveByokKey = async (req: Request, res: Response) => {
   try {
     const userReq = req as any;
     const userId = userReq.user?.uid;
-    const isTestAccount = 
-      userReq.user?.email?.endsWith('@nicheai.com') || 
-      userReq.user?.email?.includes('+test@');
-      
+    const isTestAccount =
+      userReq.user?.email?.endsWith("@nicheai.com") ||
+      userReq.user?.email?.includes("+test@");
+
     if (userId) {
       const db = admin.firestore();
       const eventId = uuidv4();
-      
-      await db.collection("telemetry_events").doc(eventId).set({
-        eventId,
-        schemaVersion: "v1",
-        eventName: "compute_upgrade",
-        actorType: "human", // assuming initiated by human via UI
-        projectId: req.body.projectId || "unknown_project",
-        upgradeType: "byok_enabled",
-        provider: provider,
-        context: {
-          userId,
-          environment: process.env.NODE_ENV || "development",
-          isTestAccount: !!isTestAccount,
-          clientIp: req.ip,
-          userAgent: req.get('user-agent') || 'unknown',
-          serverTimestamp: admin.firestore.FieldValue.serverTimestamp()
-        }
-      }, { merge: true });
+
+      await db
+        .collection("telemetry_events")
+        .doc(eventId)
+        .set(
+          {
+            eventId,
+            schemaVersion: "v1",
+            eventName: "compute_upgrade",
+            actorType: "human", // assuming initiated by human via UI
+            projectId: req.body.projectId || "unknown_project",
+            upgradeType: "byok_enabled",
+            provider: provider,
+            context: {
+              userId,
+              environment: process.env.NODE_ENV || "development",
+              isTestAccount: !!isTestAccount,
+              clientIp: req.ip,
+              userAgent: req.get("user-agent") || "unknown",
+              serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true },
+        );
     }
   } catch (e) {
     console.error("Failed to log telemetry for BYOK:", e);

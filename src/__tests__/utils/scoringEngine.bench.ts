@@ -8,7 +8,7 @@ import {
 describe("scoringEngine performance", () => {
   const vec1 = new Float32Array(768).fill(0).map(() => Math.random());
   const vec2 = new Float32Array(768).fill(0).map(() => Math.random());
-  
+
   fastL2NormalizeInPlace(vec1);
   fastL2NormalizeInPlace(vec2);
 
@@ -17,7 +17,7 @@ describe("scoringEngine performance", () => {
     () => {
       calculateCosineSimilarity(vec1, vec2);
     },
-    { time: 100 }
+    { time: 100 },
   );
 
   bench(
@@ -26,7 +26,7 @@ describe("scoringEngine performance", () => {
       const vec = new Float32Array(768).fill(0).map(() => Math.random());
       fastL2NormalizeInPlace(vec);
     },
-    { time: 100 }
+    { time: 100 },
   );
 
   bench(
@@ -35,6 +35,6 @@ describe("scoringEngine performance", () => {
       const scratchpad = new Float32Array(768);
       calculateOrthogonalDistance(vec1, vec2, scratchpad);
     },
-    { time: 100 }
+    { time: 100 },
   );
 });

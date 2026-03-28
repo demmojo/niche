@@ -9,10 +9,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Strict Zod schema for extracted brand visual updates
 const VisualUpdateSchema = z.object({
-  newColors: z.array(z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color")),
+  newColors: z.array(
+    z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
+  ),
   spacingVariables: z.array(z.string().max(50)),
   borderRadii: z.array(z.string().max(20)),
-  feedback: z.string().max(1000)
+  feedback: z.string().max(1000),
 });
 
 const GeminiVisualUpdateSchema: Schema = {
@@ -20,23 +22,27 @@ const GeminiVisualUpdateSchema: Schema = {
   properties: {
     newColors: {
       type: Type.ARRAY,
-      description: "Any new brand colors discovered in the UI code, must be exactly 6-character hex format e.g., #FFFFFF.",
+      description:
+        "Any new brand colors discovered in the UI code, must be exactly 6-character hex format e.g., #FFFFFF.",
       items: { type: Type.STRING },
     },
     spacingVariables: {
       type: Type.ARRAY,
-      description: "Any new spacing or layout variables introduced (e.g., gap-4, p-8, etc.). Limit to 50 chars.",
+      description:
+        "Any new spacing or layout variables introduced (e.g., gap-4, p-8, etc.). Limit to 50 chars.",
       items: { type: Type.STRING },
     },
     borderRadii: {
       type: Type.ARRAY,
-      description: "Any new border radius decisions (e.g., rounded-xl, rounded-full). Limit to 20 chars.",
+      description:
+        "Any new border radius decisions (e.g., rounded-xl, rounded-full). Limit to 20 chars.",
       items: { type: Type.STRING },
     },
     feedback: {
       type: Type.STRING,
-      description: "A short, concise review (max 1000 chars) analyzing the visual style against the existing brand tone.",
-    }
+      description:
+        "A short, concise review (max 1000 chars) analyzing the visual style against the existing brand tone.",
+    },
   },
   required: ["newColors", "spacingVariables", "borderRadii", "feedback"],
 };
@@ -47,10 +53,13 @@ const GeminiVisualUpdateSchema: Schema = {
 function pruneCodeArtifact(code: string): string {
   // Prune massive SVG paths to avoid token bloat
   let pruned = code.replace(/<path[^>]*d="[^"]*"[^>]*>/gi, '<path d="..." />');
-  
+
   // Strip out long base64 strings
-  pruned = pruned.replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/gi, 'data:image/...');
-  
+  pruned = pruned.replace(
+    /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/gi,
+    "data:image/...",
+  );
+
   return pruned;
 }
 
@@ -84,46 +93,50 @@ ${prunedCode}
             responseMimeType: "application/json",
             responseSchema: GeminiVisualUpdateSchema,
             temperature: 0.1,
-          }
+          },
         });
 
         const rawJson = JSON.parse(response.text || "{}");
         const validation = VisualUpdateSchema.safeParse(rawJson);
 
         if (!validation.success) {
-          throw new Error("Validation failed for LLM output: " + JSON.stringify(validation.error.issues));
+          throw new Error(
+            "Validation failed for LLM output: " +
+              JSON.stringify(validation.error.issues),
+          );
         }
 
         const resultData = validation.data;
-        
-        await jobRef.update({ 
+
+        await jobRef.update({
           status: "completed",
           result: {
             baseVersionId,
-            proposedUpdate: resultData
+            proposedUpdate: resultData,
           },
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        
+
         return { success: true };
       } catch (error: any) {
         console.error("Brand Token Extraction failed", error);
-        await jobRef.update({ 
-          status: "failed", 
-          error: error.message 
+        await jobRef.update({
+          status: "failed",
+          error: error.message,
         });
         throw error;
       }
     },
-    { 
+    {
       connection,
       settings: {
         /**
          *
          */
-        backoffStrategy: (attemptsMade) => Math.min(1000 * Math.pow(2, attemptsMade), 30000)
-      }
-    }
+        backoffStrategy: (attemptsMade) =>
+          Math.min(1000 * Math.pow(2, attemptsMade), 30000),
+      },
+    },
   );
 
   return worker;

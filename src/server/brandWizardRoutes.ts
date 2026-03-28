@@ -8,30 +8,44 @@ import { z } from "zod";
 export const brandWizardRouter = Router();
 
 // Strict SSRF Validation Schema for URLs
-const urlSchema = z.string().url().refine((val) => {
-  try {
-    const url = new URL(val);
-    const hostname = url.hostname;
-    
-    // Block non-HTTP/HTTPS
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-    
-    // Block localhost and private IPs (basic SSRF defense)
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
-    if (hostname.startsWith('10.')) return false;
-    if (hostname.startsWith('192.168.')) return false;
-    if (hostname.startsWith('169.254.')) return false;
-    if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false;
+const urlSchema = z
+  .string()
+  .url()
+  .refine(
+    (val) => {
+      try {
+        const url = new URL(val);
+        const hostname = url.hostname;
 
-    return true;
-  } catch {
-    return false;
-  }
-}, { message: "Invalid or blocked URL" });
+        // Block non-HTTP/HTTPS
+        if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+
+        // Block localhost and private IPs (basic SSRF defense)
+        if (
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname === "::1"
+        )
+          return false;
+        if (hostname.startsWith("10.")) return false;
+        if (hostname.startsWith("192.168.")) return false;
+        if (hostname.startsWith("169.254.")) return false;
+        if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false;
+
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid or blocked URL" },
+  );
 
 const createJobSchema = z.object({
   projectId: z.string().min(1, "Project ID is required"),
-  urls: z.array(urlSchema).min(1, "At least 1 URL is required").max(5, "Maximum of 5 URLs allowed"),
+  urls: z
+    .array(urlSchema)
+    .min(1, "At least 1 URL is required")
+    .max(5, "Maximum of 5 URLs allowed"),
 });
 
 brandWizardRouter.post(
@@ -45,9 +59,9 @@ brandWizardRouter.post(
 
       const parseResult = createJobSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ 
-          error: "Invalid payload", 
-          details: parseResult.error.issues 
+        return res.status(400).json({
+          error: "Invalid payload",
+          details: parseResult.error.issues,
         });
       }
 
@@ -75,14 +89,13 @@ brandWizardRouter.post(
       });
 
       // Return 202 Accepted immediately
-      return res.status(202).json({ 
-        jobId, 
-        message: "Brand Identity extraction job started." 
+      return res.status(202).json({
+        jobId,
+        message: "Brand Identity extraction job started.",
       });
-
     } catch (error: any) {
       console.error("Brand Wizard start error:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
-  }
+  },
 );

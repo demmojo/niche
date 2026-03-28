@@ -15,7 +15,7 @@ export function MarketShiftBanner() {
       // in reality we'd filter by userId or projectId
     );
     const unsub = onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
     return () => unsub();
   }, []);
@@ -32,13 +32,15 @@ export function MarketShiftBanner() {
       >
         <AlertCircle className="text-amber-500 mt-0.5" size={20} />
         <div className="flex-1">
-          <h3 className="font-semibold text-amber-900">Market Shift Detected!</h3>
+          <h3 className="font-semibold text-amber-900">
+            Market Shift Detected!
+          </h3>
           <p className="text-sm text-amber-800 mt-1">
             {notifications[0].message}
           </p>
         </div>
-        <button 
-          onClick={() => setNotifications([])} 
+        <button
+          onClick={() => setNotifications([])}
           className="text-amber-700 hover:text-amber-900 transition-colors"
         >
           <X size={18} />

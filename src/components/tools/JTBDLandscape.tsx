@@ -66,7 +66,7 @@ export const JTBDLandscape: React.FC = () => {
 
   const data = useMemo(() => {
     if (fetchState.status !== "success") return [];
-    
+
     return fetchState.data.map((item) => ({
       ...item,
       // For Recharts Scatter

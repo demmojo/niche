@@ -3,7 +3,12 @@ import { db } from "../firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 
 export type HexColor = string;
-export type ToneEnum = "Professional" | "Playful" | "Aggressive" | "Authoritative" | "Conversational";
+export type ToneEnum =
+  | "Professional"
+  | "Playful"
+  | "Aggressive"
+  | "Authoritative"
+  | "Conversational";
 
 export interface CompetitorBrand {
   id: string;
@@ -46,7 +51,7 @@ export function useBrandWizardJob(jobId: string | null) {
     }
 
     const docRef = doc(db, "brand_wizard_jobs", jobId);
-    
+
     const unsubscribe = onSnapshot(
       docRef,
       { includeMetadataChanges: true },
@@ -65,7 +70,7 @@ export function useBrandWizardJob(jobId: string | null) {
       (err) => {
         console.error("Firestore onSnapshot error:", err);
         setError(err.message);
-      }
+      },
     );
 
     return () => unsubscribe();

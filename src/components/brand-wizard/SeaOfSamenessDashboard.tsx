@@ -8,19 +8,21 @@ import { CompetitorBrand } from "../../hooks/useBrandWizardJob";
  *
  */
 function mulberry32(a: number) {
-  return function() {
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 // Generates a simple 2D projection from an embedding or deterministically from a string
 /**
  *
  */
-function simple2DProjection(comp: CompetitorBrand & { vector?: number[] | Float32Array }): { x: number; y: number } {
+function simple2DProjection(
+  comp: CompetitorBrand & { vector?: number[] | Float32Array },
+): { x: number; y: number } {
   if (comp.vector && comp.vector.length >= 2) {
     // Naive dimensionality reduction for MVP: Project 768D onto 2 axes
     let xSum = 0;
@@ -28,16 +30,16 @@ function simple2DProjection(comp: CompetitorBrand & { vector?: number[] | Float3
     const half = Math.floor(comp.vector.length / 2);
     for (let i = 0; i < half; i++) xSum += comp.vector[i];
     for (let i = half; i < comp.vector.length; i++) ySum += comp.vector[i];
-    
+
     // Normalize to 20-80% for visual padding within the matrix
-    const x = 20 + ((Math.abs(xSum * 100) % 100) * 0.6);
-    const y = 20 + ((Math.abs(ySum * 100) % 100) * 0.6);
+    const x = 20 + (Math.abs(xSum * 100) % 100) * 0.6;
+    const y = 20 + (Math.abs(ySum * 100) % 100) * 0.6;
     return { x, y };
   } else {
     // Fallback: deterministic projection based on URL
     let hash = 0;
     for (let i = 0; i < comp.url.length; i++) {
-      hash = Math.imul(31, hash) + comp.url.charCodeAt(i) | 0;
+      hash = (Math.imul(31, hash) + comp.url.charCodeAt(i)) | 0;
     }
     const prng = mulberry32(hash);
     return { x: 20 + prng() * 60, y: 20 + prng() * 60 };
@@ -56,14 +58,17 @@ export const SeaOfSamenessDashboard: React.FC<{
 
   // Memoize positions so they don't recalculate on every render
   const projectedPositions = useMemo(() => {
-    return competitors.map(comp => simple2DProjection(comp));
+    return competitors.map((comp) => simple2DProjection(comp));
   }, [competitors]);
 
   // 1. Apply the 7±2 Rule for Cognitive Load (limit colors shown per competitor)
   /**
    *
    */
-  const extractDominantColors = (colors: { primary: string[]; background: string[] }) => {
+  const extractDominantColors = (colors: {
+    primary: string[];
+    background: string[];
+  }) => {
     const all = [...(colors.primary || []), ...(colors.background || [])];
     return Array.from(new Set(all)).slice(0, 5); // Max 5 colors to avoid overload
   };
@@ -88,7 +93,9 @@ export const SeaOfSamenessDashboard: React.FC<{
           <div
             key={comp.id}
             className="border border-[#333333] p-4 bg-[#1A1A1A] rounded flex flex-col gap-4 relative"
-            onMouseEnter={(e) => handleMouseMove(e, comp.positioning._reasoning)}
+            onMouseEnter={(e) =>
+              handleMouseMove(e, comp.positioning._reasoning)
+            }
             onMouseMove={(e) => handleMouseMove(e, comp.positioning._reasoning)}
             onMouseLeave={() => setHoveredReasoning(null)}
           >
@@ -110,21 +117,25 @@ export const SeaOfSamenessDashboard: React.FC<{
 
             {/* Dominant Palette (7±2 Rule) */}
             <div className="flex gap-2 h-6">
-              {extractDominantColors(comp.visual_identity.colors).map((c, i) => (
-                <div
-                  key={i}
-                  className="w-6 h-full rounded shadow-sm"
-                  style={{ backgroundColor: c }}
-                  title={c}
-                />
-              ))}
+              {extractDominantColors(comp.visual_identity.colors).map(
+                (c, i) => (
+                  <div
+                    key={i}
+                    className="w-6 h-full rounded shadow-sm"
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ),
+              )}
             </div>
 
             {/* Typography */}
             <div className="text-xs text-[#888888]">
-              <strong>H:</strong> {comp.visual_identity.typography.headings[0] || "Unknown"}
+              <strong>H:</strong>{" "}
+              {comp.visual_identity.typography.headings[0] || "Unknown"}
               <br />
-              <strong>P:</strong> {comp.visual_identity.typography.body[0] || "Unknown"}
+              <strong>P:</strong>{" "}
+              {comp.visual_identity.typography.body[0] || "Unknown"}
             </div>
 
             {/* Positioning Tags */}
@@ -168,7 +179,7 @@ export const SeaOfSamenessDashboard: React.FC<{
         {/* Competitor Nodes (CSS Transforms for performance) */}
         {competitors.map((comp, idx) => {
           const { x, y } = projectedPositions[idx];
-          
+
           return (
             <motion.div
               key={`node-${comp.id}`}
@@ -178,8 +189,12 @@ export const SeaOfSamenessDashboard: React.FC<{
               dragMomentum={false}
               className="absolute w-4 h-4 bg-[#CCFF00] rounded-full cursor-grab active:cursor-grabbing border border-[#0C0C0C] z-10"
               style={{ top: `${y}%`, left: `${x}%` }}
-              onMouseEnter={(e) => handleMouseMove(e as any, comp.positioning._reasoning)}
-              onMouseMove={(e) => handleMouseMove(e as any, comp.positioning._reasoning)}
+              onMouseEnter={(e) =>
+                handleMouseMove(e as any, comp.positioning._reasoning)
+              }
+              onMouseMove={(e) =>
+                handleMouseMove(e as any, comp.positioning._reasoning)
+              }
               onMouseLeave={() => setHoveredReasoning(null)}
               title={comp.url}
             />

@@ -1,6 +1,6 @@
 export function mergeVectors(
   vectors: (number[] | Float32Array)[],
-  weights?: number[]
+  weights?: number[],
 ): Float32Array {
   if (!vectors || vectors.length === 0) {
     throw new Error("Must provide at least one vector to merge");
@@ -23,7 +23,9 @@ export function mergeVectors(
   for (let i = 0; i < vectors.length; i++) {
     const vec = vectors[i];
     if (vec.length !== dim) {
-      throw new Error(`All vectors must have the same dimensions. Expected ${dim}, got ${vec.length}`);
+      throw new Error(
+        `All vectors must have the same dimensions. Expected ${dim}, got ${vec.length}`,
+      );
     }
     const weight = w[i];
     for (let j = 0; j < dim; j++) {

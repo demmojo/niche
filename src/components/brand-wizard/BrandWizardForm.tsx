@@ -72,7 +72,9 @@ export const BrandWizardForm: React.FC<{
     }
 
     try {
-      const token = await (window as any).firebaseAuth?.currentUser?.getIdToken();
+      const token = await (
+        window as any
+      ).firebaseAuth?.currentUser?.getIdToken();
       if (!token) throw new Error("User not authenticated.");
 
       const response = await fetch("/api/brand-wizard/start", {

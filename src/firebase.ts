@@ -6,7 +6,7 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithCustomToken
+  signInWithCustomToken,
 } from "firebase/auth";
 import { getFirestore, setLogLevel, disableNetwork } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
@@ -50,40 +50,42 @@ let impersonationApp: any = null;
 // Proxy objects that forward to the impersonation app if it exists, otherwise default app
 export const db = new Proxy(defaultDb, {
   get(target, prop) {
-    const activeDb = impersonationApp ? getFirestore(impersonationApp, firebaseConfig.firestoreDatabaseId) : target;
+    const activeDb = impersonationApp
+      ? getFirestore(impersonationApp, firebaseConfig.firestoreDatabaseId)
+      : target;
     const value = activeDb[prop as keyof typeof defaultDb];
-    if (typeof value === 'function') {
+    if (typeof value === "function") {
       return value.bind(activeDb);
     }
     return value;
-  }
+  },
 });
 
 export const auth = new Proxy(defaultAuth, {
   get(target, prop) {
     const activeAuth = impersonationApp ? getAuth(impersonationApp) : target;
     const value = activeAuth[prop as keyof typeof defaultAuth];
-    if (typeof value === 'function') {
+    if (typeof value === "function") {
       return value.bind(activeAuth);
     }
     return value;
-  }
+  },
 });
 
-const IMPERSONATION_TOKEN_KEY = 'niche_impersonation_token';
+const IMPERSONATION_TOKEN_KEY = "niche_impersonation_token";
 
 export const startImpersonation = async (customToken: string) => {
   if (impersonationApp) {
     await stopImpersonation();
   }
-  impersonationApp = initializeApp(configToUse, 'impersonation-session');
+  impersonationApp = initializeApp(configToUse, "impersonation-session");
   const impAuth = getAuth(impersonationApp);
   await signInWithCustomToken(impAuth, customToken);
-  
+
   sessionStorage.setItem(IMPERSONATION_TOKEN_KEY, customToken);
   (window as any).__niche_impersonating = true;
   // Re-trigger auth state listeners
-  window.dispatchEvent(new Event('auth-state-changed'));
+  window.dispatchEvent(new Event("auth-state-changed"));
 };
 
 export const stopImpersonation = async () => {
@@ -94,12 +96,12 @@ export const stopImpersonation = async () => {
     await deleteApp(appToDelete);
     sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
     (window as any).__niche_impersonating = false;
-    window.dispatchEvent(new Event('auth-state-changed'));
+    window.dispatchEvent(new Event("auth-state-changed"));
   }
 };
 
 // Check for existing impersonation session on boot
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   const existingToken = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY);
   if (existingToken) {
     // We don't await this so it doesn't block boot, but it means the app might render briefly as the admin.
@@ -109,8 +111,6 @@ if (typeof window !== 'undefined') {
     });
   }
 }
-
-
 
 let isNetworkDisabled = false;
 let disableNetworkPromise: Promise<void> | null = null;

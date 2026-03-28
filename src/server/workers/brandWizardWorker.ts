@@ -13,16 +13,32 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // Strict Zod schema enforcing Chain of Thought and bounds
 const CompetitorBrandSchema = z.object({
   positioning: z.object({
-    _reasoning: z.string().describe("Step-by-step reasoning for brand positioning based on the markdown data."),
+    _reasoning: z
+      .string()
+      .describe(
+        "Step-by-step reasoning for brand positioning based on the markdown data.",
+      ),
     personality: z.string(),
-    tone: z.array(z.enum(["Professional", "Playful", "Aggressive", "Authoritative", "Conversational"])),
+    tone: z.array(
+      z.enum([
+        "Professional",
+        "Playful",
+        "Aggressive",
+        "Authoritative",
+        "Conversational",
+      ]),
+    ),
     target_audience: z.string(),
   }),
   visual_identity: z.object({
     logo_url: z.string().url().nullable().optional(),
     colors: z.object({
-      primary: z.array(z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color")),
-      background: z.array(z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color")),
+      primary: z.array(
+        z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
+      ),
+      background: z.array(
+        z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
+      ),
     }),
     typography: z.object({
       headings: z.array(z.string()),
@@ -38,7 +54,11 @@ const GeminiCompetitorSchema: Schema = {
     positioning: {
       type: Type.OBJECT,
       properties: {
-        _reasoning: { type: Type.STRING, description: "Step-by-step reasoning for brand positioning based on the markdown data." },
+        _reasoning: {
+          type: Type.STRING,
+          description:
+            "Step-by-step reasoning for brand positioning based on the markdown data.",
+        },
         personality: { type: Type.STRING },
         tone: { type: Type.ARRAY, items: { type: Type.STRING } },
         target_audience: { type: Type.STRING },
@@ -100,14 +120,17 @@ export const startBrandWizardWorker = () => {
               firecrawlResult = await firecrawl.scrape(url, {
                 formats: ["markdown", "branding"], // Fallback if supported
               });
-              
+
               if (!firecrawlResult.success) {
                 throw new Error(`Firecrawl failed for ${url}`);
               }
-              
+
               markdown = firecrawlResult.markdown || "";
             } catch (err: any) {
-              console.warn(`Scraping failed for ${url}, fallback to Exa API needed:`, err);
+              console.warn(
+                `Scraping failed for ${url}, fallback to Exa API needed:`,
+                err,
+              );
               // Graceful degradation (Skipping Exa Fallback logic for simplicity/YAGNI, per plan)
               await jobRef.update({
                 "progress.failed": admin.firestore.FieldValue.increment(1),
@@ -132,23 +155,23 @@ export const startBrandWizardWorker = () => {
                 const response = await ai.models.generateContent({
                   model: "gemini-3.1-flash",
                   contents: `Extract the brand identity and positioning from the following competitor markdown data. 
-                  ${errorFeedback ? `\nPREVIOUS ERROR: ${errorFeedback}\nFix the JSON format to match constraints.` : ''}
+                  ${errorFeedback ? `\nPREVIOUS ERROR: ${errorFeedback}\nFix the JSON format to match constraints.` : ""}
                   
                   URL: ${url}
                   
                   Markdown:
                   ${markdown}
                   
-                  ${firecrawlResult?.branding ? `Branding JSON: ${JSON.stringify(firecrawlResult.branding)}` : ''}`,
+                  ${firecrawlResult?.branding ? `Branding JSON: ${JSON.stringify(firecrawlResult.branding)}` : ""}`,
                   config: {
                     responseMimeType: "application/json",
                     responseSchema: GeminiCompetitorSchema,
                     temperature: 0.1,
-                  }
+                  },
                 });
 
                 const rawJson = JSON.parse(response.text || "{}");
-                
+
                 // Zod Validation enforcement
                 const validation = CompetitorBrandSchema.safeParse(rawJson);
                 if (!validation.success) {
@@ -158,7 +181,10 @@ export const startBrandWizardWorker = () => {
 
                 parsedData = validation.data;
               } catch (llmError: any) {
-                console.error(`Gemini extraction failed for ${url} (Attempt ${attempts}):`, llmError);
+                console.error(
+                  `Gemini extraction failed for ${url} (Attempt ${attempts}):`,
+                  llmError,
+                );
                 errorFeedback = llmError.message;
               }
             }
@@ -181,8 +207,8 @@ export const startBrandWizardWorker = () => {
                 "progress.failed": admin.firestore.FieldValue.increment(1),
               });
             }
-          })
-        )
+          }),
+        ),
       );
 
       // Save final results
@@ -201,20 +227,27 @@ export const startBrandWizardWorker = () => {
          *
          */
         backoffStrategy: (attemptsMade) => {
-          return Math.min(1000 * Math.pow(2, attemptsMade), 30000) + Math.random() * 1000;
+          return (
+            Math.min(1000 * Math.pow(2, attemptsMade), 30000) +
+            Math.random() * 1000
+          );
         },
       },
-    }
+    },
   );
 
   worker.on("failed", async (job, err) => {
     console.error(`Job ${job?.id} failed:`, err);
     if (job?.data?.jobId) {
       try {
-        await admin.firestore().collection("brand_wizard_jobs").doc(job.data.jobId).update({
-          status: "failed",
-          error: err.message,
-        });
+        await admin
+          .firestore()
+          .collection("brand_wizard_jobs")
+          .doc(job.data.jobId)
+          .update({
+            status: "failed",
+            error: err.message,
+          });
       } catch (dbErr) {
         console.error("Failed to update job status to failed:", dbErr);
       }

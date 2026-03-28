@@ -68,7 +68,9 @@ const CustomTooltip = ({ active, payload }: any) => {
  *
  */
 export const FakeDoorValidation: React.FC = () => {
-  const fetchState = useMarketIntelligence<ValidationCampaign>("market_validation_campaigns");
+  const fetchState = useMarketIntelligence<ValidationCampaign>(
+    "market_validation_campaigns",
+  );
 
   const data = useMemo(() => {
     if (fetchState.status !== "success") return [];
@@ -96,7 +98,9 @@ export const FakeDoorValidation: React.FC = () => {
   if (fetchState.status === "error") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
-        <div className="text-rose-600 font-bold">Failed to load Validation Campaigns</div>
+        <div className="text-rose-600 font-bold">
+          Failed to load Validation Campaigns
+        </div>
       </div>
     );
   }

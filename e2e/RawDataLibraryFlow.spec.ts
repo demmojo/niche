@@ -74,12 +74,14 @@ test.describe("Raw Data Library and Upload Flow", () => {
     ).toBeVisible();
 
     // Verify Grid view is loaded
-    await expect(page.getByRole("main").getByRole("group").first()).toBeVisible({
-      timeout: 15000,
-    }).catch(() => {
-      // Fallback if the grid items don't have implicit group roles
-      return expect(page.getByText(/Import Raw Data/i).first()).toBeVisible();
-    });
+    await expect(page.getByRole("main").getByRole("group").first())
+      .toBeVisible({
+        timeout: 15000,
+      })
+      .catch(() => {
+        // Fallback if the grid items don't have implicit group roles
+        return expect(page.getByText(/Import Raw Data/i).first()).toBeVisible();
+      });
 
     // 2. Open 'Import Raw Data' modal
     const importButton = page
@@ -96,7 +98,7 @@ test.describe("Raw Data Library and Upload Flow", () => {
     // 3. Select and Upload a file into the dropzone (input type=file is an exception to locator rules as it's often hidden)
     // Wait for the modal content to fully render
     await page.getByRole("dialog").waitFor({ state: "visible" });
-    
+
     // Fallback locator for the hidden file input if getByLabel doesn't work (common with drag/drop zones)
     try {
       await page.getByLabel(/choose file/i).setInputFiles(tempFilePath);

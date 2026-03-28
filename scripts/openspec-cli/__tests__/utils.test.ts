@@ -143,14 +143,18 @@ describe("utils", () => {
 
       vi.mocked(fs.statSync).mockImplementation((pathStr: any) => {
         if (pathStr === "openspec/changes/feature-a")
-          return { /**
-                    *
-                    */
-          isDirectory: () => true } as any;
-        return { /**
-                  *
-                  */
-        isDirectory: () => false } as any;
+          return {
+            /**
+             *
+             */
+            isDirectory: () => true,
+          } as any;
+        return {
+          /**
+           *
+           */
+          isDirectory: () => false,
+        } as any;
       });
 
       vi.mocked(fs.readFileSync).mockImplementation(() => {
@@ -176,10 +180,13 @@ status: draft
 
       vi.mocked(fs.readdirSync).mockImplementation(() => ["feature-a"] as any);
       vi.mocked(fs.statSync).mockImplementation(
-        () => ({ /**
-                  *
-                  */
-        isDirectory: () => true }) as any,
+        () =>
+          ({
+            /**
+             *
+             */
+            isDirectory: () => true,
+          }) as any,
       );
       vi.mocked(fs.readFileSync).mockImplementation(() => {
         return `

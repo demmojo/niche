@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { generateSystemPrompt, PromptConfig, formatBrandIdentityContext, hexToHsl } from "../../utils/promptAssembler";
+import {
+  generateSystemPrompt,
+  PromptConfig,
+  formatBrandIdentityContext,
+  hexToHsl,
+} from "../../utils/promptAssembler";
 import { MyProductData } from "../../components/MyProduct";
 
 describe("promptAssembler", () => {
@@ -22,20 +27,22 @@ describe("promptAssembler", () => {
         selected_identity: {
           visual_identity: {
             primary_color: "#ff0000",
-            typography_pair: "Inter, sans-serif"
+            typography_pair: "Inter, sans-serif",
           },
           positioning: {
             personality: "Friendly and approachable",
-            tone: ["Casual", "Helpful"]
-          }
-        }
+            tone: ["Casual", "Helpful"],
+          },
+        },
       };
 
       const result = formatBrandIdentityContext(identity);
       expect(result).toContain("Friendly and approachable");
       expect(result).toContain("Casual, Helpful");
       expect(result).toContain("<primary_hsl>0 100% 50%</primary_hsl>");
-      expect(result).toContain("<heading_font>Inter, sans-serif</heading_font>");
+      expect(result).toContain(
+        "<heading_font>Inter, sans-serif</heading_font>",
+      );
     });
   });
 
@@ -45,16 +52,21 @@ describe("promptAssembler", () => {
       description: "A cool test product",
       targetRegions: ["US"],
       features: [
-        { id: "1", name: "Feature 1", description: "Does something", status: "planned" }
+        {
+          id: "1",
+          name: "Feature 1",
+          description: "Does something",
+          status: "planned",
+        },
       ],
-      strategy: []
+      strategy: [],
     };
 
     const mockConfig: PromptConfig = {
       scope: "app",
       techStack: "react-tailwind",
       contextLevel: "strict",
-      enforceBrand: false
+      enforceBrand: false,
     };
 
     it("generates correct CO-STAR sections", () => {
@@ -69,14 +81,24 @@ describe("promptAssembler", () => {
     });
 
     it("injects brand context when enforceBrand is true", () => {
-      const configWithBrand: PromptConfig = { ...mockConfig, enforceBrand: true };
+      const configWithBrand: PromptConfig = {
+        ...mockConfig,
+        enforceBrand: true,
+      };
       const identity = {
         selected_identity: {
-          visual_identity: { primary_color: "#ff0000", typography_pair: "Inter" },
-          positioning: { personality: "Fun", tone: "Fun" }
-        }
+          visual_identity: {
+            primary_color: "#ff0000",
+            typography_pair: "Inter",
+          },
+          positioning: { personality: "Fun", tone: "Fun" },
+        },
       };
-      const result = generateSystemPrompt(mockProduct, configWithBrand, identity);
+      const result = generateSystemPrompt(
+        mockProduct,
+        configWithBrand,
+        identity,
+      );
       expect(result).toContain("[STYLE] - Voice & Personality");
       expect(result).toContain("<primary_hsl>0 100% 50%</primary_hsl>");
     });
@@ -84,9 +106,12 @@ describe("promptAssembler", () => {
     it("does not inject brand context when enforceBrand is false", () => {
       const result = generateSystemPrompt(mockProduct, mockConfig, {
         selected_identity: {
-          visual_identity: { primary_color: "#ff0000", typography_pair: "Inter" },
-          positioning: { personality: "Fun", tone: "Fun" }
-        }
+          visual_identity: {
+            primary_color: "#ff0000",
+            typography_pair: "Inter",
+          },
+          positioning: { personality: "Fun", tone: "Fun" },
+        },
       });
       expect(result).not.toContain("[STYLE] - Voice & Personality");
     });

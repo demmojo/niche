@@ -315,14 +315,16 @@ export async function generateContentStreamHandler(
 export async function reviewArtifactHandler(req: ByokRequest, res: Response) {
   try {
     const { code, constraints, brandTone } = req.body;
-    
+
     if (!code || !constraints) {
-      return res.status(400).json({ error: "Code and constraints are required." });
+      return res
+        .status(400)
+        .json({ error: "Code and constraints are required." });
     }
 
     const key = req.llmApiKey || process.env.GEMINI_API_KEY;
     if (!key) throw new Error("No Gemini API key available.");
-    
+
     const ai = new GoogleGenAI({ apiKey: key });
 
     // Use Gemini 2.5 Flash for fast semantic validation as per spec
@@ -333,9 +335,21 @@ export async function reviewArtifactHandler(req: ByokRequest, res: Response) {
     const model = "gemini-3.1-pro";
 
     const ArtifactSemanticSchema = z.object({
-      isToneCompliant: z.boolean().describe("True if the microcopy matches the brand tone, false otherwise."),
-      isStackCompliant: z.boolean().describe("True if the code follows the requested tech stack and constraints, false otherwise."),
-      feedback: z.string().describe("Specific feedback or rewrite suggestions if validation fails."),
+      isToneCompliant: z
+        .boolean()
+        .describe(
+          "True if the microcopy matches the brand tone, false otherwise.",
+        ),
+      isStackCompliant: z
+        .boolean()
+        .describe(
+          "True if the code follows the requested tech stack and constraints, false otherwise.",
+        ),
+      feedback: z
+        .string()
+        .describe(
+          "Specific feedback or rewrite suggestions if validation fails.",
+        ),
     });
 
     const prompt = `
@@ -376,7 +390,6 @@ Respond in JSON according to the schema. If the code ignores the brand tone or s
     }
 
     return res.json(parsedResult);
-
   } catch (error: any) {
     console.error("Review Artifact Error:", error);
     return res.status(error.status || 500).json({ error: error.message });

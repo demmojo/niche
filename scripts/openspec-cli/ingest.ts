@@ -45,7 +45,9 @@ const IngestSchema = z.object({
 export async function ingestPlan(planPath: string) {
   // Backwards compatibility for docs/plans/...
   if (planPath.includes("docs/plans/")) {
-    console.warn("⚠️  Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...");
+    console.warn(
+      "⚠️  Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...",
+    );
     planPath = planPath.replace("docs/plans/", "openspec/plans/");
   }
 

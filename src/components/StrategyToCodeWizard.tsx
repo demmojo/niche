@@ -31,7 +31,8 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
   projectId,
 }) => {
   const brandState = useProjectBrandIdentity(projectId);
-  const brandIdentity = brandState.status === "success" ? brandState.data : null;
+  const brandIdentity =
+    brandState.status === "success" ? brandState.data : null;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [config, setConfig] = useState<PromptConfig>({
@@ -60,7 +61,7 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
     try {
       await navigator.clipboard.writeText(generatedPrompt);
       setIsCopied(true);
-      
+
       // Save metadata
       const newExport = {
         id: Math.random().toString(36).substring(2, 9),
@@ -69,7 +70,7 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
         stack: config.techStack,
         status: "exported" as const,
       };
-      
+
       setProductData((prev) => ({
         ...prev,
         generatedPrompts: [...(prev.generatedPrompts || []), newExport],
@@ -109,7 +110,7 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
       });
       const result = await response.json();
       setValidationResult(result);
-      
+
       // Update metadata status if needed
       setProductData((prev) => {
         const prompts = [...(prev.generatedPrompts || [])];
@@ -134,7 +135,8 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               <Code className="text-sky" /> Rapid Strategy-to-Code
             </h2>
             <p className="text-sm text-ink-dark/60 mt-1">
-              Export optimized prompts for external visual AI generators (v0, Bolt, Claude).
+              Export optimized prompts for external visual AI generators (v0,
+              Bolt, Claude).
             </p>
           </div>
           <button
@@ -147,15 +149,21 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
 
         {/* Stepper Header */}
         <div className="flex bg-paper-base/50 border-b border-ink-dark/10 p-4">
-          <div className={`flex-1 text-center font-medium ${step >= 1 ? "text-sky" : "text-ink-dark/40"}`}>
+          <div
+            className={`flex-1 text-center font-medium ${step >= 1 ? "text-sky" : "text-ink-dark/40"}`}
+          >
             1. Configure
           </div>
           <ChevronRight className="text-ink-dark/20" />
-          <div className={`flex-1 text-center font-medium ${step >= 2 ? "text-sky" : "text-ink-dark/40"}`}>
+          <div
+            className={`flex-1 text-center font-medium ${step >= 2 ? "text-sky" : "text-ink-dark/40"}`}
+          >
             2. Handoff
           </div>
           <ChevronRight className="text-ink-dark/20" />
-          <div className={`flex-1 text-center font-medium ${step === 3 ? "text-sky" : "text-ink-dark/40"}`}>
+          <div
+            className={`flex-1 text-center font-medium ${step === 3 ? "text-sky" : "text-ink-dark/40"}`}
+          >
             3. Validate
           </div>
         </div>
@@ -164,7 +172,9 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
           {step === 1 && (
             <div className="space-y-6 max-w-2xl mx-auto py-4">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">Scope</h3>
+                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">
+                  Scope
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   {(["app", "component"] as const).map((s) => (
                     <button
@@ -178,7 +188,9 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
                     >
                       <div className="font-semibold capitalize">{s}</div>
                       <div className="text-sm opacity-80 mt-1">
-                        {s === "app" ? "Generate a full application layout." : "Generate a single isolated component."}
+                        {s === "app"
+                          ? "Generate a full application layout."
+                          : "Generate a single isolated component."}
                       </div>
                     </button>
                   ))}
@@ -186,7 +198,9 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">Tech Stack</h3>
+                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">
+                  Tech Stack
+                </h3>
                 <div className="grid grid-cols-3 gap-4">
                   {(["react-tailwind", "vue", "svelte"] as const).map((t) => (
                     <button
@@ -198,27 +212,37 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
                           : "border-ink-dark/10 hover:border-ink-dark/30 text-ink-dark"
                       }`}
                     >
-                      {t === "react-tailwind" ? "React + Tailwind" : t === "vue" ? "Vue 3" : "Svelte 5"}
+                      {t === "react-tailwind"
+                        ? "React + Tailwind"
+                        : t === "vue"
+                          ? "Vue 3"
+                          : "Svelte 5"}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">Brand Identity</h3>
+                <h3 className="font-semibold text-lg text-ink-dark border-b border-ink-dark/10 pb-2">
+                  Brand Identity
+                </h3>
                 <label className="flex items-start gap-3 p-4 rounded-xl border-2 border-ink-dark/10 hover:border-ink-dark/30 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={config.enforceBrand}
-                    onChange={(e) => setConfig({ ...config, enforceBrand: e.target.checked })}
+                    onChange={(e) =>
+                      setConfig({ ...config, enforceBrand: e.target.checked })
+                    }
                     disabled={!brandIdentity}
                     className="mt-1 w-5 h-5 text-sky rounded focus:ring-sky"
                   />
                   <div>
-                    <div className="font-semibold text-ink-dark">Enforce Brand Identity (Colors, Fonts, Tone)</div>
+                    <div className="font-semibold text-ink-dark">
+                      Enforce Brand Identity (Colors, Fonts, Tone)
+                    </div>
                     <div className="text-sm text-ink-dark/60 mt-1">
-                      {brandIdentity 
-                        ? "Inject the project's selected brand personality and shadcn/ui HSL overrides." 
+                      {brandIdentity
+                        ? "Inject the project's selected brand personality and shadcn/ui HSL overrides."
                         : "No brand identity configured for this project."}
                     </div>
                   </div>
@@ -237,7 +261,11 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
                   onClick={handleCopy}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-ink-dark text-white rounded-xl hover:bg-black transition-colors font-medium"
                 >
-                  {isCopied ? <Check size={20} className="text-emerald-400" /> : <Copy size={20} />}
+                  {isCopied ? (
+                    <Check size={20} className="text-emerald-400" />
+                  ) : (
+                    <Copy size={20} />
+                  )}
                   {isCopied ? "Copied! 🚀" : "Copy to Clipboard"}
                 </button>
                 <button
@@ -256,10 +284,12 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               <div className="bg-amber-50 text-amber-900 p-4 rounded-xl text-sm flex gap-3 border border-amber-200">
                 <AlertCircle className="shrink-0" />
                 <div>
-                  Paste the code generated by your external AI tool below. Our Critic model will review it against your strategic constraints and brand tone to ensure it meets quality standards.
+                  Paste the code generated by your external AI tool below. Our
+                  Critic model will review it against your strategic constraints
+                  and brand tone to ensure it meets quality standards.
                 </div>
               </div>
-              
+
               <textarea
                 value={codeToReview}
                 onChange={(e) => setCodeToReview(e.target.value)}
@@ -268,12 +298,22 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               />
 
               {validationResult && (
-                <div className={`p-4 rounded-xl border-2 ${validationResult.isToneCompliant !== false && validationResult.isStackCompliant !== false ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-rose-500 bg-rose-50 text-rose-900"}`}>
+                <div
+                  className={`p-4 rounded-xl border-2 ${validationResult.isToneCompliant !== false && validationResult.isStackCompliant !== false ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-rose-500 bg-rose-50 text-rose-900"}`}
+                >
                   <h4 className="font-bold mb-2 text-lg">AI Review Feedback</h4>
                   <div className="space-y-2">
-                    <p><strong>Tone Alignment:</strong> {validationResult.isToneCompliant ? "✅ Pass" : "❌ Fail"}</p>
+                    <p>
+                      <strong>Tone Alignment:</strong>{" "}
+                      {validationResult.isToneCompliant ? "✅ Pass" : "❌ Fail"}
+                    </p>
                     {validationResult.isStackCompliant !== undefined && (
-                      <p><strong>Stack Constraints:</strong> {validationResult.isStackCompliant ? "✅ Pass" : "❌ Fail"}</p>
+                      <p>
+                        <strong>Stack Constraints:</strong>{" "}
+                        {validationResult.isStackCompliant
+                          ? "✅ Pass"
+                          : "❌ Fail"}
+                      </p>
                     )}
                     <div className="mt-3 text-sm whitespace-pre-wrap">
                       {validationResult.feedback}
@@ -287,12 +327,20 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
 
         <div className="p-4 border-t border-ink-dark/10 bg-paper-base flex justify-between">
           <button
-            onClick={() => step > 1 ? setStep((s) => s - 1 as any) : onClose()}
+            onClick={() =>
+              step > 1 ? setStep((s) => (s - 1) as any) : onClose()
+            }
             className="px-6 py-2.5 text-ink-dark font-medium hover:bg-black/5 rounded-lg transition-colors flex items-center gap-2"
           >
-            {step === 1 ? "Cancel" : <><ChevronLeft size={20} /> Back</>}
+            {step === 1 ? (
+              "Cancel"
+            ) : (
+              <>
+                <ChevronLeft size={20} /> Back
+              </>
+            )}
           </button>
-          
+
           {step === 1 && (
             <button
               onClick={handleNextToHandoff}
@@ -317,7 +365,15 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
               disabled={!codeToReview.trim() || isValidating}
               className="px-6 py-2.5 bg-sky text-white font-medium rounded-lg hover:bg-sky-dark transition-colors flex items-center gap-2 shadow-md shadow-sky/20 disabled:opacity-50"
             >
-              {isValidating ? <><Loader2 className="animate-spin" size={20} /> Validating...</> : <><Sparkles size={20} /> Validate Code</>}
+              {isValidating ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} /> Validating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={20} /> Validate Code
+                </>
+              )}
             </button>
           )}
         </div>

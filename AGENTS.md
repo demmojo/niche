@@ -1,4 +1,5 @@
 ## Learned User Preferences
+
 - Strictly avoid Gemini 1.5 and 2.5 models; use gemini-3.1-pro for critical tasks and ensure machine learning best practices from Leeropedia are applied.
 - Apply a "binary triage" mindset to backlog grooming: rigorously reject or archive over-engineered meta-tooling and infrastructure bloat (e.g., AST-driven drift healing) to protect the lean MVP timeline.
 - Always lint and type-check code after making edits.
@@ -8,6 +9,7 @@
 - Build internal MVP analytics and dashboards directly into the app (e.g., via a superadmin sidebar) to enable dogfooding, rather than relying entirely on external BI tools.
 
 ## Learned Workspace Facts
+
 - OpenSpec files and plans are strictly managed under `openspec/` (including `openspec/plans/` and `openspec/brainstorms/`) rather than `docs/`. The `ingest.ts` script gracefully routes legacy paths. Avoid regressing the codebase by incorrectly implementing outdated plans.
 - Unimplemented backlog items are formally tracked as 5-file OpenSpec directories in `openspec/changes/` rather than raw markdown plans. The true active backlog is identified by checking for unchecked tasks (`- [ ]`) in `openspec/changes/*/tasks.md`.
 - For user impersonation by superadmins, NicheAI uses a "Secondary Firebase App" approach with Custom JWT tokens containing `{ isImpersonated: true }` claims (via POST /api/superadmin/impersonate).

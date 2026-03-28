@@ -14,17 +14,22 @@ test.describe("Request Access Flow", () => {
   }) => {
     // Note: Due to mock auth, we might have one product.
     // If we have a product dropdown trigger, click it using accessibility roles
-    const dropdownTrigger = page.getByRole("button", { name: /switch product/i, exact: false }).or(
-      page.getByRole("button", { name: /current product/i, exact: false })
-    ).or(page.locator('button[aria-haspopup="menu"]').first());
+    const dropdownTrigger = page
+      .getByRole("button", { name: /switch product/i, exact: false })
+      .or(page.getByRole("button", { name: /current product/i, exact: false }))
+      .or(page.locator('button[aria-haspopup="menu"]').first());
 
-    await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 }).catch(() => null);
+    await dropdownTrigger
+      .waitFor({ state: "visible", timeout: 5000 })
+      .catch(() => null);
 
     if (await dropdownTrigger.isVisible()) {
       await dropdownTrigger.click();
 
       // Look for the Add New Product option in the dropdown portal
-      const addProduct = page.getByRole("menuitem", { name: /add new product/i });
+      const addProduct = page.getByRole("menuitem", {
+        name: /add new product/i,
+      });
       await addProduct.click();
 
       // Wait for the modal to appear

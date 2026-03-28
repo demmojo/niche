@@ -13,45 +13,54 @@ export const BaseMLInsightSchema = z.object({
   isHumanVerified: z.boolean().default(false),
 });
 
-export const CompetitorExtractionSchema = z.discriminatedUnion("schemaVersion", [
-  z.object({
-    schemaVersion: z.literal("1.0.0"),
-    name: z.string().min(1).max(200),
-    website: z.string().url().max(500),
-    has_free_tier: z.boolean(),
-    freeTier: z.string().min(1).max(200),
-    spamProtection: z.string().min(1).max(200),
-    integrations: z.array(z.string().min(1).max(100)).max(50),
-    targetAudience: z.string().min(1).max(200),
-    marketSegments: z.array(z.string().min(1).max(100)).max(10),
-    dataSovereignty: z.string().min(1).max(200),
-    sovereigntyScore: z.enum(["low", "medium", "high"]),
-    financialSnapshot: z.string().min(1).max(200),
-    coreFeatures: z.array(z.string().min(1).max(200)).max(20),
-    howWeCompare: z.string().min(1).max(1000),
-  })
-]);
+export const CompetitorExtractionSchema = z.discriminatedUnion(
+  "schemaVersion",
+  [
+    z.object({
+      schemaVersion: z.literal("1.0.0"),
+      name: z.string().min(1).max(200),
+      website: z.string().url().max(500),
+      has_free_tier: z.boolean(),
+      freeTier: z.string().min(1).max(200),
+      spamProtection: z.string().min(1).max(200),
+      integrations: z.array(z.string().min(1).max(100)).max(50),
+      targetAudience: z.string().min(1).max(200),
+      marketSegments: z.array(z.string().min(1).max(100)).max(10),
+      dataSovereignty: z.string().min(1).max(200),
+      sovereigntyScore: z.enum(["low", "medium", "high"]),
+      financialSnapshot: z.string().min(1).max(200),
+      coreFeatures: z.array(z.string().min(1).max(200)).max(20),
+      howWeCompare: z.string().min(1).max(1000),
+    }),
+  ],
+);
 
-export const DerivedInsightExtractionSchema = z.discriminatedUnion("schemaVersion", [
-  z.object({
-    schemaVersion: z.literal("1.0.0"),
-    title: z.string().min(5).max(200),
-    description: z.string().min(10).max(2000),
-    category: z.enum(["opportunity", "threat", "trend"]),
-    impact: z.enum(["high", "medium", "low", "critical"]),
-    source: z.enum(["AI", "Human", "Brainstorm", "Exa.ai", "Crunchbase"]),
-    tags: z.array(z.string().min(1).max(50)).max(10).optional(),
-  })
-]);
+export const DerivedInsightExtractionSchema = z.discriminatedUnion(
+  "schemaVersion",
+  [
+    z.object({
+      schemaVersion: z.literal("1.0.0"),
+      title: z.string().min(5).max(200),
+      description: z.string().min(10).max(2000),
+      category: z.enum(["opportunity", "threat", "trend"]),
+      impact: z.enum(["high", "medium", "low", "critical"]),
+      source: z.enum(["AI", "Human", "Brainstorm", "Exa.ai", "Crunchbase"]),
+      tags: z.array(z.string().min(1).max(50)).max(10).optional(),
+    }),
+  ],
+);
 
-export const JobToBeDoneExtractionSchema = z.discriminatedUnion("schemaVersion", [
-  BaseMLInsightSchema.extend({
-    schemaVersion: z.literal("1.0.0"),
-    jobStatement: z.string().min(10).max(500),
-    importanceScore: z.number().min(1).max(10),
-    currentSatisfactionScore: z.number().min(1).max(10),
-  })
-]);
+export const JobToBeDoneExtractionSchema = z.discriminatedUnion(
+  "schemaVersion",
+  [
+    BaseMLInsightSchema.extend({
+      schemaVersion: z.literal("1.0.0"),
+      jobStatement: z.string().min(10).max(500),
+      importanceScore: z.number().min(1).max(10),
+      currentSatisfactionScore: z.number().min(1).max(10),
+    }),
+  ],
+);
 
 // ----------------------------------------------------------------------
 // Prompts (incorporating Leeroopedia best practices)
@@ -91,7 +100,7 @@ Extract up to 5 core JTBDs. Return a JSON array of objects matching the schema.
 You are an expert competitive intelligence analyst.
 Analyze the provided context and identify key derived insights. Classify them into "opportunity", "threat", or "trend".
 Focus heavily on precision. Do not hallucinate. If an insight lacks evidence, do not extract it.
-`
+`,
 };
 
 export const sanitizeForXml = (text: string) => {

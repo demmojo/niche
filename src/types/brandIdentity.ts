@@ -12,10 +12,12 @@ export const BrandIdentitySchemaV2 = z.object({
       target_audience_niche: z.string(),
     }),
     visual_identity: z.object({
-      primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
+      primary_color: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
       typography_pair: z.string(),
-    })
-  })
+    }),
+  }),
 });
 
 // For future proofing/rollback support
@@ -30,13 +32,13 @@ export const BrandIdentitySchemaV1 = z.object({
     visual_identity: z.object({
       primary_color: z.string(),
       typography_pair: z.string(),
-    })
-  })
+    }),
+  }),
 });
 
 export const BrandIdentitySchema = z.discriminatedUnion("schemaVersion", [
   BrandIdentitySchemaV2,
-  BrandIdentitySchemaV1.extend({ schemaVersion: z.literal(1) })
+  BrandIdentitySchemaV1.extend({ schemaVersion: z.literal(1) }),
 ]);
 
 export type BrandIdentityV2 = z.infer<typeof BrandIdentitySchemaV2>;

@@ -12,7 +12,9 @@ export interface PromptConfig {
  */
 export const hexToHsl = (hex: string): string => {
   // Convert hex to RGB first
-  let r = 0, g = 0, b = 0;
+  let r = 0,
+    g = 0,
+    b = 0;
   if (hex.length === 4) {
     r = parseInt("0x" + hex[1] + hex[1]);
     g = parseInt("0x" + hex[2] + hex[2]);
@@ -27,9 +29,11 @@ export const hexToHsl = (hex: string): string => {
   g /= 255;
   b /= 255;
   const cmin = Math.min(r, g, b),
-        cmax = Math.max(r, g, b),
-        delta = cmax - cmin;
-  let h = 0, s = 0, l = 0;
+    cmax = Math.max(r, g, b),
+    delta = cmax - cmin;
+  let h = 0,
+    s = 0,
+    l = 0;
 
   if (delta === 0) h = 0;
   else if (cmax === r) h = ((g - b) / delta) % 6;
@@ -50,17 +54,15 @@ export const hexToHsl = (hex: string): string => {
 /**
  *
  */
-export const formatBrandIdentityContext = (
-  identity: any = null
-): string => {
+export const formatBrandIdentityContext = (identity: any = null): string => {
   const visualIdentity = identity?.selected_identity?.visual_identity;
   const positioning = identity?.selected_identity?.positioning;
-  
+
   if (!visualIdentity || !positioning) return "";
 
   // Convert Hex to HSL for reliable shadcn/ui injection
   const primaryHsl = hexToHsl(visualIdentity.primary_color);
-  
+
   return `
 # [STYLE] - Voice & Personality
 **Brand Personality**: ${positioning.personality}
@@ -90,14 +92,14 @@ export const formatBrandIdentityContext = (
 export const generateSystemPrompt = (
   productData: MyProductData,
   config: PromptConfig,
-  brandIdentity: any = null
+  brandIdentity: any = null,
 ): string => {
   const stackDirectives =
     config.techStack === "react-tailwind"
       ? "Use React functional components and Tailwind CSS utility classes."
       : config.techStack === "vue"
-      ? "Use Vue 3 Composition API with `<script setup>` syntax."
-      : "Use Svelte 5 runes syntax.";
+        ? "Use Vue 3 Composition API with `<script setup>` syntax."
+        : "Use Svelte 5 runes syntax.";
 
   const scopeDirective =
     config.scope === "app"
@@ -109,9 +111,13 @@ export const generateSystemPrompt = (
       ? "Adhere strictly to the constraints provided below. Do not add superfluous features."
       : "Use the constraints below as a baseline, but feel free to suggest creative UI flourishes and animations.";
 
-  const featuresList = productData.features.map((f) => `- ${f.name}: ${f.description}`).join("\n");
+  const featuresList = productData.features
+    .map((f) => `- ${f.name}: ${f.description}`)
+    .join("\n");
 
-  const brandContext = config.enforceBrand ? formatBrandIdentityContext(brandIdentity) : "";
+  const brandContext = config.enforceBrand
+    ? formatBrandIdentityContext(brandIdentity)
+    : "";
 
   return `
 # [CONTEXT]

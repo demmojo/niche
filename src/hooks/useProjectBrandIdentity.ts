@@ -1,6 +1,14 @@
 import { useMemo, useEffect } from "react";
 import useSWR from "swr";
-import { doc, getDocs, collection, query, where, limit, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDocs,
+  collection,
+  query,
+  where,
+  limit,
+  getDoc,
+} from "firebase/firestore";
 import { db } from "../firebase";
 import { z } from "zod";
 
@@ -24,11 +32,16 @@ function getContrastForeground(hexcolor: string): string {
 const fetchBrandIdentity = async (projectId: string) => {
   // Query for the active version
   const q = query(
-    collection(db, "project_brand_identities", projectId, "BrandIdentityVersions"),
+    collection(
+      db,
+      "project_brand_identities",
+      projectId,
+      "BrandIdentityVersions",
+    ),
     where("isActive", "==", true),
-    limit(1)
+    limit(1),
   );
-  
+
   const snapshot = await getDocs(q);
   if (snapshot.empty) {
     // Fallback: Check if the main document has legacy schema
@@ -60,7 +73,7 @@ export function useProjectBrandIdentity(projectId: string | null) {
     {
       revalidateOnFocus: false, // Infrequently changes unless HITL approved
       revalidateIfStale: false,
-    }
+    },
   );
 
   const safeBrandState = useMemo(() => {
@@ -69,10 +82,11 @@ export function useProjectBrandIdentity(projectId: string | null) {
     if (!data) return { status: "idle" } as FetchState<any>;
 
     // 1. Validate the hex securely
-    const rawColor = data.selected_identity?.visual_identity?.primary_color || "#3B82F6";
+    const rawColor =
+      data.selected_identity?.visual_identity?.primary_color || "#3B82F6";
     const parsedHex = hexSchema.safeParse(rawColor);
     const safeHex = parsedHex.success ? parsedHex.data : "#3B82F6"; // Default blue
-    
+
     // 2. Compute the foreground contrast color
     const safeFg = getContrastForeground(safeHex);
 
@@ -82,9 +96,11 @@ export function useProjectBrandIdentity(projectId: string | null) {
         ...data,
         primary_color: safeHex,
         primary_fg: safeFg,
-        tone: data.selected_identity?.positioning?.personality || "Professional",
-        typography: data.selected_identity?.visual_identity?.typography_pair || "Inter"
-      }
+        tone:
+          data.selected_identity?.positioning?.personality || "Professional",
+        typography:
+          data.selected_identity?.visual_identity?.typography_pair || "Inter",
+      },
     } as FetchState<any>;
   }, [data, error, isLoading]);
 

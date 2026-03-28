@@ -18,14 +18,17 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
   onClose,
   competitors,
 }) => {
-  const { displayTaxonomy, evaluationStatus, mergeFeatures } = useTaxonomySync();
-  const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(new Set());
+  const { displayTaxonomy, evaluationStatus, mergeFeatures } =
+    useTaxonomySync();
+  const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(
+    new Set(),
+  );
   const [customName, setCustomName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const allUniqueFeatures = useMemo(() => {
     const features = new Set<string>();
-    competitors.forEach(c => {
+    competitors.forEach((c) => {
       (c.coreFeatures || []).forEach((f: string) => features.add(f));
     });
     return Array.from(features).sort();
@@ -34,14 +37,14 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
   const filteredFeatures = useMemo(() => {
     if (!searchTerm) return allUniqueFeatures;
     const lower = searchTerm.toLowerCase();
-    return allUniqueFeatures.filter(f => f.toLowerCase().includes(lower));
+    return allUniqueFeatures.filter((f) => f.toLowerCase().includes(lower));
   }, [allUniqueFeatures, searchTerm]);
 
   /**
    *
    */
   const handleToggleFeature = (feature: string) => {
-    setSelectedFeatures(prev => {
+    setSelectedFeatures((prev) => {
       const next = new Set(prev);
       if (next.has(feature)) next.delete(feature);
       else next.add(feature);
@@ -54,13 +57,13 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
    */
   const handleMerge = () => {
     if (selectedFeatures.size < 2 || !customName.trim()) return;
-    
+
     // Convert to array
     const featuresToMerge = Array.from(selectedFeatures);
-    
+
     // Call the optimistic hook (this throws it into the transaction)
     mergeFeatures(featuresToMerge, customName.trim());
-    
+
     // Reset and close
     setSelectedFeatures(new Set());
     setCustomName("");
@@ -92,7 +95,8 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
                     Merge Taxonomy Features
                   </h2>
                   <p className="text-ink-dark/60 mt-1 text-sm">
-                    Manually select functionally identical features across competitors to merge them into a single, clean capability.
+                    Manually select functionally identical features across
+                    competitors to merge them into a single, clean capability.
                   </p>
                 </div>
                 <button
@@ -105,30 +109,35 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
             </div>
 
             <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-white space-y-6">
-              
               <div className="space-y-4">
-                <h3 className="font-semibold text-ink-dark">1. Select Features to Merge ({selectedFeatures.size} selected)</h3>
-                <input 
-                  type="text" 
-                  placeholder="Search features..." 
+                <h3 className="font-semibold text-ink-dark">
+                  1. Select Features to Merge ({selectedFeatures.size} selected)
+                </h3>
+                <input
+                  type="text"
+                  placeholder="Search features..."
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full p-2 border border-ink-dark/20 rounded-lg text-sm bg-paper-base"
                 />
-                
+
                 <div className="border border-ink-dark/10 rounded-xl max-h-64 overflow-y-auto bg-paper-base/50 p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {filteredFeatures.map(f => {
+                  {filteredFeatures.map((f) => {
                     const isSelected = selectedFeatures.has(f);
                     return (
-                      <div 
+                      <div
                         key={f}
                         onClick={() => handleToggleFeature(f)}
                         className={`p-3 rounded-lg border text-sm cursor-pointer transition-colors flex items-start gap-3
-                          ${isSelected ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm' : 'bg-white border-ink-dark/10 text-ink-dark hover:border-ink-dark/30'}`}
+                          ${isSelected ? "bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm" : "bg-white border-ink-dark/10 text-ink-dark hover:border-ink-dark/30"}`}
                       >
-                        <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center
-                          ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-ink-dark/30'}`}>
-                          {isSelected && <Check size={12} className="text-white" />}
+                        <div
+                          className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center
+                          ${isSelected ? "bg-indigo-600 border-indigo-600" : "bg-white border-ink-dark/30"}`}
+                        >
+                          {isSelected && (
+                            <Check size={12} className="text-white" />
+                          )}
                         </div>
                         <span className="leading-tight">{f}</span>
                       </div>
@@ -143,21 +152,28 @@ export const TaxonomyMergeModal: React.FC<TaxonomyMergeModalProps> = ({
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-semibold text-ink-dark">2. Name the New Merged Capability</h3>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Automated Email Sequences" 
+                <h3 className="font-semibold text-ink-dark">
+                  2. Name the New Merged Capability
+                </h3>
+                <input
+                  type="text"
+                  placeholder="e.g. Automated Email Sequences"
                   value={customName}
-                  onChange={e => setCustomName(e.target.value)}
+                  onChange={(e) => setCustomName(e.target.value)}
                   className="w-full p-3 border border-ink-dark/20 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
                 />
               </div>
 
-              {evaluationStatus === 'evaluating' && (
+              {evaluationStatus === "evaluating" && (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-                  <Loader2 size={18} className="text-amber-600 animate-spin shrink-0 mt-0.5" />
+                  <Loader2
+                    size={18}
+                    className="text-amber-600 animate-spin shrink-0 mt-0.5"
+                  />
                   <p className="text-sm text-amber-800">
-                    A previous merge is currently being evaluated by the AI Validation Pipeline. You can queue more, but UI updates might be delayed if the network is busy.
+                    A previous merge is currently being evaluated by the AI
+                    Validation Pipeline. You can queue more, but UI updates
+                    might be delayed if the network is busy.
                   </p>
                 </div>
               )}

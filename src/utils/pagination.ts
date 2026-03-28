@@ -1,7 +1,10 @@
 /**
  *
  */
-export function getTotalPages(totalItems: number, itemsPerPage: number): number {
+export function getTotalPages(
+  totalItems: number,
+  itemsPerPage: number,
+): number {
   return Math.max(1, Math.ceil(totalItems / itemsPerPage));
 }
 

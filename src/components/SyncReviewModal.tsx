@@ -222,26 +222,27 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
             onClick={() => {
               const selectedArray = Array.from(selectedIds);
               onCommit(selectedArray);
-              
+
               // Telemetry Event 2: Core Action - Market-Driven Sync Commit
-              import('../utils/telemetry').then(({ telemetry }) => {
+              import("../utils/telemetry").then(({ telemetry }) => {
                 const acceptedDiffsCount = selectedArray.length;
-                const rejectedDiffsCount = syncQueue.length - acceptedDiffsCount;
-                
+                const rejectedDiffsCount =
+                  syncQueue.length - acceptedDiffsCount;
+
                 // Identify unique entity types mutated
                 const mutatedEntities = new Set(
                   syncQueue
-                    .filter(d => selectedIds.has(d.id))
-                    .map(d => d.entityType)
+                    .filter((d) => selectedIds.has(d.id))
+                    .map((d) => d.entityType),
                 );
 
-                telemetry.track('market_driven_sync_commit', {
+                telemetry.track("market_driven_sync_commit", {
                   acceptedDiffsCount,
                   rejectedDiffsCount,
-                  entityTypesMutated: Array.from(mutatedEntities)
+                  entityTypesMutated: Array.from(mutatedEntities),
                 });
               });
-              
+
               onClose();
             }}
             disabled={selectedIds.size === 0}

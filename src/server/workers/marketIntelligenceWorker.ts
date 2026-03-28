@@ -3,12 +3,12 @@ import { connection } from "../queues";
 import Exa from "exa-js";
 import { GoogleGenAI } from "@google/genai";
 import * as admin from "firebase-admin";
-import { 
-  CompetitorExtractionSchema, 
-  DerivedInsightExtractionSchema, 
-  JobToBeDoneExtractionSchema, 
+import {
+  CompetitorExtractionSchema,
+  DerivedInsightExtractionSchema,
+  JobToBeDoneExtractionSchema,
   PROMPTS,
-  sanitizeForXml
+  sanitizeForXml,
 } from "../../utils/aiSchemas";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { calculateHeuristicScores } from "../scoringHeuristics";
@@ -25,7 +25,7 @@ export const startMarketIntelligenceWorker = () => {
     async (job) => {
       const { jobId, targetUrl, extractionType, userId } = job.data;
       const jobRef = db.collection("TaxonomyJobs").doc(jobId);
-      
+
       const controller = new AbortController();
       const signal = controller.signal;
 
@@ -38,11 +38,11 @@ export const startMarketIntelligenceWorker = () => {
         const exa = new Exa(exaKey);
 
         await jobRef.update({ status: "scraping", progress: 20 });
-        
+
         const searchResults = await exa.search(targetUrl, {
           type: "neural",
           numResults: 1,
-          contents: { text: { maxCharacters: 15000 } }
+          contents: { text: { maxCharacters: 15000 } },
         });
 
         if (signal.aborted) throw new Error("Job aborted");
@@ -64,16 +64,25 @@ export const startMarketIntelligenceWorker = () => {
         switch (extractionType) {
           case "competitor":
             prompt = PROMPTS.EXTRACT_COMPETITOR_METADATA;
-            schema = zodToJsonSchema(CompetitorExtractionSchema.options[0] as any, "Competitor");
+            schema = zodToJsonSchema(
+              CompetitorExtractionSchema.options[0] as any,
+              "Competitor",
+            );
             break;
           case "insight":
             prompt = PROMPTS.EXTRACT_DERIVED_INSIGHTS;
-            schema = zodToJsonSchema(DerivedInsightExtractionSchema.options[0] as any, "Insight");
+            schema = zodToJsonSchema(
+              DerivedInsightExtractionSchema.options[0] as any,
+              "Insight",
+            );
             model = "gemini-3.1-pro"; // Use Pro for complex insights
             break;
           case "jtbd":
             prompt = PROMPTS.EXTRACT_JTBD;
-            schema = zodToJsonSchema(JobToBeDoneExtractionSchema.options[0] as any, "JTBD");
+            schema = zodToJsonSchema(
+              JobToBeDoneExtractionSchema.options[0] as any,
+              "JTBD",
+            );
             model = "gemini-3.1-pro"; // Use Pro for JTBD
             break;
           default:
@@ -97,7 +106,10 @@ export const startMarketIntelligenceWorker = () => {
         if (signal.aborted) throw new Error("Job aborted");
 
         const responseText = geminiRes.text || "{}";
-        const extractedData = typeof responseText === "string" ? JSON.parse(responseText) : responseText;
+        const extractedData =
+          typeof responseText === "string"
+            ? JSON.parse(responseText)
+            : responseText;
 
         let confidenceScore = extractedData.confidenceScore || 0.85;
 
@@ -118,26 +130,27 @@ export const startMarketIntelligenceWorker = () => {
           status: "pending_review",
           confidenceScore,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          source: "Exa + Gemini"
+          source: "Exa + Gemini",
         };
 
-        const inboxRef = await db.collection("TaxonomyInbox").add(taxonomyEntry);
+        const inboxRef = await db
+          .collection("TaxonomyInbox")
+          .add(taxonomyEntry);
 
-        await jobRef.update({ 
-          status: "completed", 
+        await jobRef.update({
+          status: "completed",
           progress: 100,
           resultId: inboxRef.id,
-          completedAt: admin.firestore.FieldValue.serverTimestamp()
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         return { success: true, resultId: inboxRef.id };
-
       } catch (error: any) {
         console.error(`Job ${job.id} failed:`, error);
-        await jobRef.update({ 
-          status: "failed", 
+        await jobRef.update({
+          status: "failed",
           error: error.message,
-          failedAt: admin.firestore.FieldValue.serverTimestamp()
+          failedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         throw error;
       }
@@ -145,11 +158,13 @@ export const startMarketIntelligenceWorker = () => {
     {
       connection,
       concurrency: 5, // Bounded concurrency
-    }
+    },
   );
 
   worker.on("failed", (job, err) => {
-    console.error(`Market Intelligence Worker Job ${job?.id} failed with ${err.message}`);
+    console.error(
+      `Market Intelligence Worker Job ${job?.id} failed with ${err.message}`,
+    );
   });
 
   return worker;

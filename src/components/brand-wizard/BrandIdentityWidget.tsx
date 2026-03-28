@@ -29,8 +29,10 @@ export const BrandIdentityWidget = ({ projectId }: { projectId: string }) => {
     <div className="fixed bottom-4 right-4 z-[100]">
       {isWidgetOpen && (
         <div className="mb-2 p-4 bg-paper-card rounded-storybook-sm shadow-storybook-hover border border-ink-dark/20 w-64 text-ink-dark font-sans transition-all duration-300 transform origin-bottom-right">
-          <h3 className="text-sm font-semibold mb-3 border-b border-ink-dark/10 pb-2">Brand Identity</h3>
-          
+          <h3 className="text-sm font-semibold mb-3 border-b border-ink-dark/10 pb-2">
+            Brand Identity
+          </h3>
+
           {isLoading ? (
             <div className="space-y-3 animate-pulse">
               <div className="h-4 bg-ink-dark/10 rounded w-3/4"></div>
@@ -41,22 +43,28 @@ export const BrandIdentityWidget = ({ projectId }: { projectId: string }) => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-ink-muted">Tone</span>
-                <span className="font-medium text-right truncate w-32">{brand.tone}</span>
+                <span className="font-medium text-right truncate w-32">
+                  {brand.tone}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-ink-muted">Type</span>
-                <span className="font-medium text-right truncate w-32">{brand.typography}</span>
+                <span className="font-medium text-right truncate w-32">
+                  {brand.typography}
+                </span>
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-ink-dark/10">
                 <div className="flex items-center gap-2">
-                  <div 
+                  <div
                     className="w-5 h-5 rounded-full border border-ink-dark/20 shadow-sm"
                     style={{ backgroundColor: brand.primary_color }}
                   />
-                  <span className="font-mono text-xs text-ink-muted">{brand.primary_color}</span>
+                  <span className="font-mono text-xs text-ink-muted">
+                    {brand.primary_color}
+                  </span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={copyCssVariables}
                 className="mt-4 w-full py-2 text-xs font-semibold border border-ink-dark/20 rounded hover:bg-paper-base transition-colors"
               >
@@ -66,7 +74,7 @@ export const BrandIdentityWidget = ({ projectId }: { projectId: string }) => {
           )}
         </div>
       )}
-      <button 
+      <button
         onClick={() => setIsWidgetOpen(!isWidgetOpen)}
         className="p-3 bg-paper-card border border-ink-dark/20 shadow-storybook rounded-full hover:shadow-storybook-hover transition-all duration-300 flex items-center justify-center float-right"
         title="Brand Identity"

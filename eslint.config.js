@@ -60,9 +60,12 @@ export default tseslint.config(
       "playwright/prefer-web-first-assertions": "error",
       "playwright/no-restricted-matchers": [
         "error",
-        { "page.locator": "Use getByRole, getByLabel, or other accessibility locators instead for intent-based testing." }
+        {
+          "page.locator":
+            "Use getByRole, getByLabel, or other accessibility locators instead for intent-based testing.",
+        },
       ],
       "jsdoc/require-jsdoc": "off", // Don't require JSDoc for test files
-    }
-  }
+    },
+  },
 );
