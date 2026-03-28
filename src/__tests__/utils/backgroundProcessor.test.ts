@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { processInboxAction } from "../../utils/backgroundProcessor";
+import {
+  processInboxAction,
+  executeActionLogic,
+} from "../../utils/backgroundProcessor";
 import { supabase } from "../../utils/hashing";
 
 vi.mock("../../utils/hashing", () => {
   const mockSupabase = {
     from: vi.fn(),
     update: vi.fn(),
-    in: vi.fn(),
     insert: vi.fn(),
     select: vi.fn(),
     single: vi.fn(),
@@ -16,55 +18,46 @@ vi.mock("../../utils/hashing", () => {
 });
 
 describe("backgroundProcessor", () => {
+  let mockSupabase: any;
+
   beforeEach(() => {
     vi.resetAllMocks();
 
-    const chainable = [
-      "from",
-      "update",
-      "in",
-      "insert",
-      "select",
-      "single",
-      "eq",
-    ];
+    mockSupabase = supabase as any;
+    const chainable = ["from", "update", "insert", "select", "single", "eq"];
     chainable.forEach((method) => {
-      (supabase as any)[method].mockReturnValue(supabase);
+      mockSupabase[method].mockReturnValue(mockSupabase);
     });
   });
 
   it("does nothing if items array is empty", async () => {
     await processInboxAction([], "discard");
-    expect((supabase as any).from).not.toHaveBeenCalled();
+    expect(mockSupabase.from).not.toHaveBeenCalled();
   });
 
   it("handles discard action", async () => {
-    vi.mocked((supabase as any).in).mockResolvedValueOnce({
-      error: null,
-    } as any);
+    mockSupabase.eq.mockResolvedValueOnce({ error: null });
 
     const items: any = [{ id: "1", pending_data_type: "json" }];
     await processInboxAction(items, "discard");
 
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
-    expect((supabase as any).update).toHaveBeenCalledWith(
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_inbox");
+    expect(mockSupabase.update).toHaveBeenCalledWith(
       expect.objectContaining({ status: "resolved_discard" }),
     );
   });
 
   it("handles keep_both action", async () => {
-    vi.mocked((supabase as any).in).mockResolvedValueOnce({
-      error: null,
-    } as any);
-    vi.mocked((supabase as any).single)
+    mockSupabase.single
       .mockResolvedValueOnce({
         data: { id: "asset1", logical_asset_id: "la1" },
         error: null,
-      } as any) // insert asset
-      .mockResolvedValueOnce({ data: { id: "version1" }, error: null } as any); // insert version
-    vi.mocked((supabase as any).eq).mockResolvedValueOnce({
-      error: null,
-    } as any); // update asset
+      }) // insert asset
+      .mockResolvedValueOnce({ data: { id: "version1" }, error: null }); // insert version
+
+    mockSupabase.eq
+      .mockResolvedValueOnce({ error: null }) // update asset
+      .mockResolvedValueOnce({ error: null }); // update inbox
 
     const items: any = [
       {
@@ -76,23 +69,20 @@ describe("backgroundProcessor", () => {
     ];
     await processInboxAction(items, "keep_both");
 
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_assets");
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_versions");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_assets");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_versions");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_inbox");
   });
 
   it("handles update action", async () => {
-    vi.mocked((supabase as any).in).mockResolvedValueOnce({
-      error: null,
-    } as any);
+    mockSupabase.single
+      .mockResolvedValueOnce({ data: { id: "asset1" }, error: null }) // select asset
+      .mockResolvedValueOnce({ data: { id: "version1" }, error: null }); // insert version
 
-    vi.mocked((supabase as any).eq)
-      .mockReturnValueOnce(supabase as any) // First eq() continues the chain to .single()
-      .mockResolvedValueOnce({ error: null } as any); // Second eq() is awaited directly
-
-    vi.mocked((supabase as any).single)
-      .mockResolvedValueOnce({ data: { id: "asset1" }, error: null } as any) // select asset
-      .mockResolvedValueOnce({ data: { id: "version1" }, error: null } as any); // insert version
+    mockSupabase.eq
+      .mockReturnValueOnce(mockSupabase) // eq() for select asset
+      .mockResolvedValueOnce({ error: null }) // eq() for update asset
+      .mockResolvedValueOnce({ error: null }); // eq() for update inbox
 
     const items: any = [
       {
@@ -104,36 +94,25 @@ describe("backgroundProcessor", () => {
     ];
     await processInboxAction(items, "update");
 
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_assets");
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_versions");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_assets");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_versions");
+    expect(mockSupabase.from).toHaveBeenCalledWith("raw_data_inbox");
   });
 
-  it("returns early if inbox update fails", async () => {
-    vi.mocked((supabase as any).in).mockResolvedValueOnce({
-      error: new Error("DB Error"),
-    } as any);
-
-    const items: any = [{ id: "1", pending_data_type: "json" }];
-    await processInboxAction(items, "discard");
-
-    expect((supabase as any).from).toHaveBeenCalledTimes(1);
-    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
-  });
-
-  it("catches and logs errors during processing", async () => {
+  it("inserts into dead_letter_queue on failure", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    vi.mocked((supabase as any).in).mockResolvedValueOnce({
-      error: null,
-    } as any);
 
     // Make keep_both fail at the first insert
-    vi.mocked((supabase as any).single).mockResolvedValueOnce({
+    mockSupabase.single.mockResolvedValueOnce({
       data: null,
       error: new Error("Insert Error"),
-    } as any);
+    });
+
+    // Mock dlq insert success
+    mockSupabase.insert.mockReturnValueOnce(mockSupabase);
+    mockSupabase.insert.mockResolvedValueOnce({ error: null }); // DLQ insert
 
     const items: any = [{ id: "1", pending_data_type: "json" }];
     await processInboxAction(items, "keep_both");
@@ -144,6 +123,41 @@ describe("backgroundProcessor", () => {
       ),
       expect.any(Error),
     );
+
+    expect(mockSupabase.from).toHaveBeenCalledWith("dead_letter_queue");
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job_type: "inbox_action",
+        original_record_id: "1",
+        status: "pending",
+        attempt_count: 1,
+      }),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("logs critical error if DLQ insert fails", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Action fails
+    mockSupabase.eq.mockResolvedValueOnce({ error: new Error("DB Error") });
+
+    // DLQ insert fails
+    mockSupabase.insert.mockResolvedValueOnce({
+      error: new Error("DLQ Write Error"),
+    });
+
+    const items: any = [{ id: "1", pending_data_type: "json" }];
+    await processInboxAction(items, "discard"); // use discard to just hit the inbox update failure
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "CRITICAL: Failed to write to DLQ!",
+      expect.any(Error),
+    );
+
     consoleErrorSpy.mockRestore();
   });
 });
