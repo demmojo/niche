@@ -80,8 +80,11 @@ export const validateArtifactTone = async (
   const positioning = brand.selected_identity?.positioning;
   if (!positioning) throw new Error("Incomplete brand identity.");
 
+  // Strip < > to prevent structural prompt injection
+  const safeTone = positioning.tone.join(", ").replace(/[<>]/g, "");
+
   // Mitigate prompt injection by wrapping code in XML bounds
-  const prompt = `Evaluate if the microcopy matches the tone: ${positioning.tone.join(", ")}.
+  const prompt = `Evaluate if the microcopy matches the tone: ${safeTone}.
 <code_to_review>
 ${code}
 </code_to_review>`;

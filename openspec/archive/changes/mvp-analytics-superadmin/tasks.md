@@ -2,9 +2,9 @@
 
 ## Phase 1: Foundation (Telemetry Client & API)
 
-- [ ] Create `src/utils/telemetry.ts` (TelemetryBatcher with synchronous queue push, robust `useEffect` cleanup via `dispose()`, and `requestIdleCallback`).
+- [x] Create `src/utils/telemetry.ts` (TelemetryBatcher with synchronous queue push, robust `useEffect` cleanup via `dispose()`, and `requestIdleCallback`).
 - [ ] Create `src/server/routes/telemetryRoutes.ts` to expose `POST /api/v1/ui-sync`.
-- [ ] Implement strict `TelemetryEventSchema` via Zod with `discriminatedUnion('schemaVersion', [...])`.
+- [x] Implement strict `TelemetryEventSchema` via Zod with `discriminatedUnion('schemaVersion', [...])`.
 - [ ] Configure rate-limiting (30/min) and payload size limit (5kb) for `ui-sync` endpoint.
 - [ ] Apply Firestore 30-day TTL policy on `telemetry_events` collection.
 - [ ] Disable automatic ascending/descending indexing on `timestamp` for `telemetry_events`.
