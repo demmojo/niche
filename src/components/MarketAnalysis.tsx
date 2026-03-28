@@ -128,7 +128,7 @@ export default function MarketAnalysis({
       setChatHistory([
         { id: Date.now().toString(), sender: "burt", text: data.message },
       ]);
-      setCurrentOptions(data.options);
+      setCurrentOptions(data.options || []);
       setLastOptionTime(Date.now());
     } catch (error) {
       console.error("Failed to start conversation:", getErrorMessage(error));
@@ -239,7 +239,7 @@ export default function MarketAnalysis({
         ...prev,
         { id: Date.now().toString(), sender: "burt", text: data.message },
       ]);
-      setCurrentOptions(data.options);
+      setCurrentOptions(data.options || []);
       setLastOptionTime(Date.now());
     } catch (error) {
       console.error("Failed to get response:", getErrorMessage(error));

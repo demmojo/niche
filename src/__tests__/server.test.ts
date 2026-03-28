@@ -4,8 +4,15 @@ import request from "supertest";
 import { appPromise } from "../../server";
 import express from "express";
 
+import { server } from "../../src/test-utils/server";
+
 // Ensure NODE_ENV is test
 process.env.NODE_ENV = "test";
+
+// Disable MSW for backend tests because it intercepts supertest requests to the Express app!
+import { beforeAll, afterAll } from "vitest";
+beforeAll(() => server.close());
+afterAll(() => server.listen({ onUnhandledRequest: "warn" })); // re-enable
 
 // Mock global fetch
 const mockFetch = vi.fn();

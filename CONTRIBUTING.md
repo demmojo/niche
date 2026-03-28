@@ -11,7 +11,18 @@ Before writing _any_ code for new features, we use a structured documentation pr
 3. **Approval:** Wait for approval on the Spec before implementing.
 4. **Implement:** Do not submit Pull Requests for undocumented or unplanned features.
 
-## 2. Commit Standards (Conventional Commits & Atomic Commits)
+## 2. Testing Standards (The Testing Trophy)
+
+We follow the [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications) methodology, prioritizing Integration tests over highly mocked Unit tests.
+
+1. **Unit/Integration Tests (Vitest):** Use React Testing Library to render components. **Do not use `vi.mock` for internal hooks or network requests.** Instead, use Mock Service Worker (MSW) to intercept and mock network boundaries (APIs, Firebase, Gemini).
+   - MSW handlers are located in `src/test-utils/handlers.ts`.
+   - Global MSW setup is in `src/setupTests.ts`.
+2. **E2E Tests (Playwright):** For end-to-end testing, we use API Seeding to provision the required state before the test executes, bypassing slow UI setup steps.
+   - Reusable network/API seeding functions are located in `e2e/utils/db-seed.ts`. Use these inside `test.beforeEach` to prepare your test environment.
+3. **Flaky Test Quarantine Policy:** If a Playwright test becomes flaky (fails intermittently in CI), it must be immediately moved to a `tests/quarantine/` directory or skipped with `test.skip()`. Flaky tests erode trust in the CI suite and are not permitted in the active run. They must be fixed or rewritten before being reintroduced.
+
+## 3. Commit Standards (Conventional Commits & Atomic Commits)
 
 We strictly adhere to [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). This ensures our automated versioning tools (`semantic-release`) can parse commit history to bump versions and generate changelogs accurately.
 

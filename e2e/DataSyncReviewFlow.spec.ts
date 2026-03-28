@@ -1,105 +1,32 @@
 import { test, expect } from "@playwright/test";
+import { seedAuth, seedCompetitors, seedInsights } from "./utils/db-seed";
 
 test.describe("Data Sync Review Flow", () => {
   const wid = "test-workspace-" + Date.now();
 
   test.beforeEach(async ({ page }) => {
-    // Attempt to bypass firebase auth calls entirely
-    await page.route(
-      "https://identitytoolkit.googleapis.com/**",
-      async (route) => {
-        // Mock successful auth response
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            localId: "mock-user-123",
-            email: "test@example.com",
-            displayName: "Test User",
-            idToken: "mock-id-token",
-            registered: true,
-            refreshToken: "mock-refresh-token",
-            expiresIn: "3600",
-          }),
-        });
+    // Phase 3: E2E API Seeding via centralized db-seed utils
+    await seedAuth(page);
+
+    await seedCompetitors(page, [
+      {
+        name: "Mock Competitor Inc",
+        website_url: "mockcompetitor.com",
+        annual_revenue_printed: "10M",
+        latest_funding_stage: "Series A",
+        keywords: ["ai", "automation"],
+        current_technologies: [{ name: "React" }, { name: "Node.js" }],
       },
-    );
+    ]);
 
-    // Mock Apollo Search API to return a dummy competitor domain
-    await page.route("**/api/apollo/search", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          organizations: [
-            { name: "Mock Competitor Inc", website_url: "mockcompetitor.com" },
-          ],
-        }),
-      });
-    });
-
-    // Mock Apollo Enrich API
-    await page.route("**/api/apollo/enrich", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          organization: {
-            name: "Mock Competitor Inc",
-            annual_revenue_printed: "10M",
-            latest_funding_stage: "Series A",
-            keywords: ["ai", "automation"],
-            current_technologies: [{ name: "React" }, { name: "Node.js" }],
-          },
-        }),
-      });
-    });
-
-    // Mock Exa News API
-    await page.route("**/api/apollo/news", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          results: [
-            {
-              title: "Mock News Title",
-              url: "https://news.com/article",
-              text: "Mock news snippet about market trends",
-            },
-          ],
-        }),
-      });
-    });
-
-    // Mock Gemini API
-    // This is trickier since we send different prompts, but we can return a generic response
-    // that won't crash the JSON parser if it expects JSON, or generic text otherwise.
-    await page.route(
-      "https://generativelanguage.googleapis.com/**",
-      async (route) => {
-        const postData = route.request().postData() || "";
-        // If it looks like a JSON request, we return JSON. The synthesis step requires specific structure.
-        // But we can just return a generic valid JSON that covers all bases.
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            candidates: [
-              {
-                content: {
-                  parts: [
-                    {
-                      text: '{"summary": "Mock market summary", "insights": [{"title": "Mock Insight", "description": "Market trend identified", "category": "opportunity", "impact": "high"}], "metrics": {"topIntegrations": "Mock", "estimatedMarketValue": "10B"}}',
-                    },
-                  ],
-                },
-              },
-            ],
-          }),
-        });
+    await seedInsights(page, [
+      {
+        title: "Mock Insight",
+        description: "Market trend identified",
+        category: "opportunity",
+        impact: "high",
       },
-    );
+    ]);
 
     await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
@@ -136,7 +63,6 @@ test.describe("Data Sync Review Flow", () => {
     await pipelineButton.click();
 
     // 2. Wait for the "Running Pipeline..." to finish
-    // Instead of waiting for text, we can wait for the "Review Changes" button to appear
     const reviewChangesButton = page.getByRole("button", {
       name: "Review Changes",
     });

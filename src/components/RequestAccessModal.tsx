@@ -48,7 +48,8 @@ export function RequestAccessModal({
       onOpenChange={(isOpen) => {
         onOpenChange(isOpen);
         if (!isOpen) {
-          setTimeout(() => setSubmitted(false), 300); // Reset after animation
+          const timer = setTimeout(() => setSubmitted(false), 300); // Reset after animation
+          return () => clearTimeout(timer);
         }
       }}
     >

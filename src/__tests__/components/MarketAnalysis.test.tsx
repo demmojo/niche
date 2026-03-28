@@ -1,31 +1,22 @@
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import MarketAnalysis from "../../components/MarketAnalysis";
-import * as geminiClient from "../../utils/geminiClient";
+import { server } from "../../test-utils/server";
+import { http, HttpResponse } from "msw";
 
-// --- MOCKS PER USER REQUIREMENTS ---
-
-// 1. Mock Firebase dependencies & useFirebaseSync (as requested, even if unused in the current component version)
 vi.mock("firebase/app", () => ({ initializeApp: vi.fn() }));
 vi.mock("firebase/firestore", () => ({ getFirestore: vi.fn() }));
 vi.mock("firebase/auth", () => ({ getAuth: vi.fn() }));
 vi.mock("../../hooks/useFirebaseSync", () => ({
   default: () => ({ syncData: vi.fn(), isSyncing: false }),
-  useFirebaseSync: (key: string, initialValue: any) => {
+  useFirebaseSync: (key, initialValue) => {
     const React = require("react");
     const [val, setVal] = React.useState(initialValue);
     return [val, setVal];
   },
 }));
 
-// 2. Mock lucide-react
 vi.mock("lucide-react", () => ({
   Mailbox: () => <div data-testid="icon-mailbox" />,
   Coffee: () => <div data-testid="icon-coffee" />,
@@ -44,69 +35,58 @@ vi.mock("lucide-react", () => ({
   Edit2: () => <div data-testid="icon-edit2" />,
 }));
 
-// 3. Mock motion/react for AnimatePresence & motion
 vi.mock("motion/react", () => ({
   motion: {
-    div: ({ children, className, ...props }: any) => (
+    div: ({ children, className, ...props }) => (
       <div className={className} data-testid="motion-div" {...props}>
         {children}
       </div>
     ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }) => <>{children}</>,
 }));
 
-// 4. Mock react-markdown
 vi.mock("react-markdown", () => ({
-  default: ({ children }: any) => <div data-testid="markdown">{children}</div>,
+  default: ({ children }) => <div data-testid="markdown">{children}</div>,
 }));
 
-// 5. Mock Tooltip
 vi.mock("../../components/Tooltip", () => ({
-  Tooltip: ({ children, content }: any) => (
+  Tooltip: ({ children, content }) => (
     <div data-testid="tooltip" data-content={content}>
       {children}
     </div>
   ),
 }));
 
-vi.mock("../../utils/geminiClient", () => ({
-  withKeyRotation: vi.fn().mockImplementation(async (callback) => {
-    const dummyAi = {
-      models: {
-        generateContent: vi.fn().mockResolvedValue({
-          text: JSON.stringify({
-            strengths: ["Strong AI pipeline"],
-            weaknesses: ["New to market"],
-            opportunities: ["Rapid growth"],
-            threats: ["Established competitors"],
-          }),
-        }),
-      },
-    };
-    return callback(dummyAi, "test-model");
-  }),
-}));
-
-// Mock scrollIntoView
 HTMLElement.prototype.scrollIntoView = vi.fn();
 
-const mockKeyRotation = (resolvesToText: any) => async (callback: any) => {
-  const dummyAi = {
-    models: {
-      generateContent: vi
-        .fn()
-        .mockResolvedValue({ text: JSON.stringify(resolvesToText) }),
-    },
-  };
-  return callback(dummyAi, "test-model");
+const mockKeyRotation = (resolvesToText) => {
+  server.use(
+    http.post(
+      "https://generativelanguage.googleapis.com/*",
+      () => {
+        return HttpResponse.json({
+          candidates: [
+            { content: { parts: [{ text: JSON.stringify(resolvesToText) }] } },
+          ],
+        });
+      },
+      { once: true },
+    ),
+  );
 };
-const mockKeyRotationReject = (error: Error) => async (callback: any) => {
-  const dummyAi = {
-    models: { generateContent: vi.fn().mockRejectedValue(error) },
-  };
-  return callback(dummyAi, "test-model");
+const mockKeyRotationReject = () => {
+  server.use(
+    http.post(
+      "https://generativelanguage.googleapis.com/*",
+      () => {
+        return HttpResponse.error();
+      },
+      { once: true },
+    ),
+  );
 };
+
 describe("MarketAnalysis Component", () => {
   const defaultProps = {
     stats: {
@@ -128,24 +108,18 @@ describe("MarketAnalysis Component", () => {
   });
 
   it("renders correctly and initiates conversation with Burt", async () => {
-    (geminiClient.withKeyRotation as any).mockImplementationOnce(
-      mockKeyRotation({
-        message: "Hello. The melon is exquisite today.",
-        options: ["Yes", "No"],
-      }),
-    );
-
+    mockKeyRotation({
+      message: "Hello. The melon is exquisite today.",
+      options: ["Yes", "No"],
+    });
     render(<MarketAnalysis {...defaultProps} />);
 
     expect(screen.getByText("Market Analysis")).toBeInTheDocument();
     expect(
       screen.getByText("Archivist Burt // Status: Reading..."),
     ).toBeInTheDocument();
-
-    // Verify loading/typing state is temporarily shown
     expect(screen.getByText("_")).toBeInTheDocument();
 
-    // Wait for the conversation to start
     await waitFor(
       () => {
         expect(
@@ -155,74 +129,133 @@ describe("MarketAnalysis Component", () => {
       { timeout: 3000 },
     );
 
-    // Options should be rendered
     expect(screen.getByText("Yes")).toBeInTheDocument();
     expect(screen.getByText("No")).toBeInTheDocument();
   });
 
   it("handles option click and continues the conversation", async () => {
-    (geminiClient.withKeyRotation as any)
-      .mockImplementationOnce(
-        mockKeyRotation({
-          message: "Initial message",
-          options: ["Option 1"],
-        }),
-      )
-      .mockImplementationOnce(
-        mockKeyRotation({
-          message: "I see. Very astute.",
-          options: ["Continue"],
-        }),
-      );
+    server.use(
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        message: "Initial message",
+                        options: ["Option 1"],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        message: "I see. Very astute.",
+                        options: ["Continue"],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+    );
 
     render(<MarketAnalysis {...defaultProps} />);
 
-    // Wait for initial load
     await waitFor(
       () => {
         expect(screen.getByText("Option 1")).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
-
-    // Click option
     fireEvent.click(screen.getByText("Option 1"));
-
-    // User message should appear
     expect(screen.getByText("Option 1")).toBeInTheDocument();
-
-    // Wait for response
     await waitFor(
       () => {
         expect(screen.getByText("I see. Very astute.")).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
-
     expect(screen.getByText("Continue")).toBeInTheDocument();
   });
 
   it('grants "Refined Reflexes" achievement for quick response', async () => {
-    (geminiClient.withKeyRotation as any)
-      .mockImplementationOnce(
-        mockKeyRotation({ message: "Init", options: ["Quick Option"] }),
-      )
-      .mockImplementationOnce(
-        mockKeyRotation({ message: "Response", options: [] }),
-      );
+    server.use(
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        message: "Init",
+                        options: ["Quick Option"],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        message: "Response",
+                        options: [],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+    );
 
     render(<MarketAnalysis {...defaultProps} />);
-
     await waitFor(
       () => {
         expect(screen.getByText("Quick Option")).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
-
-    // Click immediately (< 3000ms)
     fireEvent.click(screen.getByText("Quick Option"));
-
     await waitFor(
       () => {
         expect(screen.getByText("Refined Reflexes")).toBeInTheDocument();
@@ -233,10 +266,7 @@ describe("MarketAnalysis Component", () => {
 
   it("handles connection error gracefully during initial load", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (geminiClient.withKeyRotation as any).mockImplementationOnce(
-      mockKeyRotationReject(new Error("Network anomaly")),
-    );
-
+    mockKeyRotationReject();
     render(<MarketAnalysis {...defaultProps} />);
 
     await waitFor(
@@ -246,29 +276,47 @@ describe("MarketAnalysis Component", () => {
       { timeout: 3000 },
     );
     expect(screen.getByText("Retry connection")).toBeInTheDocument();
-
     consoleSpy.mockRestore();
   });
 
   it("handles connection error gracefully during conversation", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (geminiClient.withKeyRotation as any)
-      .mockImplementationOnce(
-        mockKeyRotation({ message: "Init", options: ["Reply"] }),
-      )
-      .mockRejectedValueOnce(new Error("Silence requested"));
+    server.use(
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        message: "Init",
+                        options: ["Reply"],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+      http.post("https://generativelanguage.googleapis.com/*", () => {
+        return HttpResponse.error();
+      }),
+    );
 
     render(<MarketAnalysis {...defaultProps} />);
-
     await waitFor(
       () => {
         expect(screen.getByText("Reply")).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
-
     fireEvent.click(screen.getByText("Reply"));
-
     await waitFor(
       () => {
         expect(
@@ -278,80 +326,86 @@ describe("MarketAnalysis Component", () => {
       { timeout: 3000 },
     );
     expect(screen.getByText("Acknowledge")).toBeInTheDocument();
-
     consoleSpy.mockRestore();
   });
 
   it("opens mailbox and fetches mail", async () => {
-    (geminiClient.withKeyRotation as any)
-      .mockImplementationOnce(mockKeyRotation({ message: "Init", options: [] }))
-      .mockImplementationOnce(
-        mockKeyRotation({
-          title: "The Kier Chronicle",
-          date: "Today",
-          content: "No news is good news.",
-        }),
-      );
+    server.use(
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    { text: JSON.stringify({ message: "Init", options: [] }) },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+      http.post(
+        "https://generativelanguage.googleapis.com/*",
+        () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        title: "The Kier Chronicle",
+                        date: "Today",
+                        content: "No news is good news.",
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          });
+        },
+        { once: true },
+      ),
+    );
 
     render(<MarketAnalysis {...defaultProps} />);
-
-    // Click mail button
-    const mailBtn = screen.getByTestId("icon-mail").parentElement!;
+    const mailBtn = screen.getByTestId("icon-mail").parentElement;
     fireEvent.click(mailBtn);
-
-    // Initial loading state inside mailbox
     expect(
       screen.getByText("Retrieving missives from the Board..."),
     ).toBeInTheDocument();
-
-    // Mail content loads
     await waitFor(
       () => {
         expect(screen.getByText("The Kier Chronicle")).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
-
-    // Close mailbox
     fireEvent.click(screen.getByText("[ CLOSE ]"));
     expect(screen.queryByText("The Kier Chronicle")).not.toBeInTheDocument();
   });
 
   describe("Market Data Grid and SWOT Features", () => {
     beforeEach(() => {
-      (geminiClient.withKeyRotation as any).mockImplementation(
-        mockKeyRotation({
-          message: "Hello",
-          options: [],
-        }),
-      );
+      mockKeyRotation({ message: "Hello", options: [] });
     });
 
     it("tests the rendering of competitor data in a sortable table", async () => {
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
-      // Click 'Data & SWOT' tab
       fireEvent.click(screen.getByText("Data & SWOT"));
-
-      // Table should be rendered
       expect(screen.getByText("Competitor Data")).toBeInTheDocument();
-
-      // Competitor names should be present
       expect(screen.getByText("CompA")).toBeInTheDocument();
       expect(screen.getByText("CompB")).toBeInTheDocument();
 
-      // Sort by score
       const scoreHeader = screen.getByText("Score");
-      fireEvent.click(scoreHeader); // Sort score asc
-
+      fireEvent.click(scoreHeader);
       const diffHeader = screen.getByText("Differentiation");
-      fireEvent.click(diffHeader); // asc
-      fireEvent.click(diffHeader); // desc
-
+      fireEvent.click(diffHeader);
+      fireEvent.click(diffHeader);
       fireEvent.click(screen.getByText("Name"));
       fireEvent.click(screen.getByText("Website"));
       fireEvent.click(screen.getByText("Features"));
@@ -359,23 +413,12 @@ describe("MarketAnalysis Component", () => {
 
     it("tests toggling columns", async () => {
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
       fireEvent.click(screen.getByText("Data & SWOT"));
-
-      // Name column should exist
       expect(
         screen.getByRole("columnheader", { name: "Name" }),
       ).toBeInTheDocument();
-
-      // Toggle Name column off
       const nameCheckbox = screen.getByLabelText("name");
       fireEvent.click(nameCheckbox);
-
-      // Name column should not be visible
       expect(
         screen.queryByRole("columnheader", { name: "Name" }),
       ).not.toBeInTheDocument();
@@ -383,79 +426,67 @@ describe("MarketAnalysis Component", () => {
 
     it("tests editing cells in the competitor table", async () => {
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
       fireEvent.click(screen.getByText("Data & SWOT"));
-
-      // Find CompA's name cell and click it to edit
       const compACell = screen.getByText("CompA");
       fireEvent.click(compACell);
-
-      // Input should appear
       let input = screen.getByDisplayValue("CompA");
       fireEvent.change(input, { target: { value: "CompA-Edited" } });
       fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
-
-      // Cell should update
       expect(screen.getByText("CompA-Edited")).toBeInTheDocument();
 
-      // Find features cell
-      const featureCell = screen.getByText("Feat1, Feat2"); // CompA has ['Feat1', 'Feat2'] for features/coreFeatures in defaultProps
+      const featureCell = screen.getByText("Feat1, Feat2");
       fireEvent.click(featureCell);
-
-      // Change features
       let fInput = screen.getByDisplayValue("Feat1, Feat2");
       fireEvent.change(fInput, { target: { value: "Feat3" } });
       fireEvent.keyDown(fInput, { key: "Enter", code: "Enter" });
-
       expect(screen.getByText("Feat3")).toBeInTheDocument();
     });
 
     it("tests the SWOT analysis generation", async () => {
-      // First call is for the initial chat on mount
-      (geminiClient.withKeyRotation as any)
-        .mockImplementationOnce(async (cb: any) => {
-          return cb(
-            {
-              models: {
-                generateContent: vi.fn().mockResolvedValue({
-                  text: JSON.stringify({ message: "Hello", options: [] }),
-                }),
+      server.use(
+        http.post(
+          "https://generativelanguage.googleapis.com/*",
+          () => {
+            return HttpResponse.json({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({ message: "Hello", options: [] }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            });
+          },
+          { once: true },
+        ),
+        http.post("https://generativelanguage.googleapis.com/*", () => {
+          return HttpResponse.json({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        strengths: ["Strong AI pipeline"],
+                        weaknesses: ["New to market"],
+                        opportunities: ["Rapid growth"],
+                        threats: ["Established competitors"],
+                      }),
+                    },
+                  ],
+                },
               },
-            },
-            "test-model",
-          );
-        })
-        // Second call is for the SWOT generation
-        .mockImplementationOnce(async (cb: any) => {
-          return cb(
-            {
-              models: {
-                generateContent: vi.fn().mockResolvedValue({
-                  text: JSON.stringify({
-                    strengths: ["Strong AI pipeline"],
-                    weaknesses: ["New to market"],
-                    opportunities: ["Rapid growth"],
-                    threats: ["Established competitors"],
-                  }),
-                }),
-              },
-            },
-            "test-model",
-          );
-        });
+            ],
+          });
+        }),
+      );
 
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
       fireEvent.click(screen.getByText("Data & SWOT"));
-
       const generateBtn = screen.getByText("Generate Auto-SWOT");
       fireEvent.click(generateBtn);
 
@@ -468,51 +499,46 @@ describe("MarketAnalysis Component", () => {
     });
 
     it("tests saving data (mocking useFirebaseSync)", async () => {
-      // Testing blur to save, and verifying our useFirebaseSync mock retains state
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
       fireEvent.click(screen.getByText("Data & SWOT"));
-
       const compBCell = screen.getByText("CompB");
       fireEvent.click(compBCell);
-
       const input = screen.getByDisplayValue("CompB");
       fireEvent.change(input, { target: { value: "CompB-Saved" } });
-      fireEvent.blur(input); // blur also saves
-
+      fireEvent.blur(input);
       expect(screen.getByText("CompB-Saved")).toBeInTheDocument();
     });
+
     it("handles failure when generating SWOT", async () => {
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      (geminiClient.withKeyRotation as any)
-        .mockImplementationOnce(async (cb: any) => {
-          return cb(
-            {
-              models: {
-                generateContent: vi.fn().mockResolvedValue({
-                  text: JSON.stringify({ message: "Hello", options: [] }),
-                }),
-              },
-            },
-            "test-model",
-          );
-        })
-        .mockImplementationOnce(async (cb: any) => {
-          throw new Error("SWOT failure");
-        });
+      server.use(
+        http.post(
+          "https://generativelanguage.googleapis.com/*",
+          () => {
+            return HttpResponse.json({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({ message: "Hello", options: [] }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            });
+          },
+          { once: true },
+        ),
+        http.post("https://generativelanguage.googleapis.com/*", () => {
+          return HttpResponse.error();
+        }),
+      );
 
       render(<MarketAnalysis {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(geminiClient.withKeyRotation).toHaveBeenCalled();
-      });
-
       fireEvent.click(screen.getByText("Data & SWOT"));
       fireEvent.click(
         screen.getByRole("button", { name: /Generate Auto-SWOT/i }),
@@ -524,7 +550,6 @@ describe("MarketAnalysis Component", () => {
           expect.any(Error),
         );
       });
-
       consoleSpy.mockRestore();
     });
   });
