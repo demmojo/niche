@@ -1,0 +1,1 @@
+Our user engagement model is failing with NaN loss after 10 epochs. We have a training script in `src/ml/train.ts`. Please write a debugging checklist in `docs/ml-debug-checklist.md` to investigate the divergence.

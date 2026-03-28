@@ -1,0 +1,1 @@
+We need to add a complex D3.js chart in `src/components/NetworkGraph.tsx`. Before writing any code, use the `plugin-compound-engineering-context7` MCP server to fetch the latest documentation for `d3-force` and `d3-selection`. Use the exact patterns from the retrieved documentation to implement a basic force-directed graph component that accepts a `nodes` and `links` prop.

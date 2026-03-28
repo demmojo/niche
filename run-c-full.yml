@@ -1,0 +1,5 @@
+model: gemini/gemini-3.1-pro
+message-file: aider-system-prompt.txt
+mcp-server: "node /path/to/context7/build/index.js"
+# Run C: Full Stack (Model + Prompts + Skills + MCP)
+# Includes prompts + injected MCP capabilities

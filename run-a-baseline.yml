@@ -1,0 +1,4 @@
+model: gemini/gemini-3.1-pro
+map-tokens: 1024
+# Run A: Vanilla Baseline Model
+# No system prompts, no custom skills injected

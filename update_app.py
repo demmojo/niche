@@ -37,7 +37,7 @@ function AuthScreen() {
           <div className="w-10 h-10 bg-ink-dark rounded-xl flex items-center justify-center shadow-inner">
             <Target className="w-5 h-5 text-paper-light" />
           </div>
-          <span className="text-2xl font-bold tracking-tight text-ink-dark">CAB AI</span>
+          <span className="text-2xl font-bold tracking-tight text-ink-dark">NicheAI</span>
         </div>
         <h2 className="text-xl font-semibold mb-6 text-center">Sign in to your account</h2>
         

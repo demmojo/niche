@@ -47,7 +47,7 @@ function WorkspaceApp({ user, logout }: any) {
       <div className="h-14 bg-white border-b border-ink-dark/10 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold text-ink-dark">
-            <Target className="w-5 h-5" /> CAB AI
+            <Target className="w-5 h-5" /> NicheAI
           </div>
           <div className="w-px h-6 bg-ink-dark/10"></div>
           <select 

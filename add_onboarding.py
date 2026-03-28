@@ -69,7 +69,7 @@ function OnboardingWizard({ setProductData }: { setProductData: React.Dispatch<R
   return (
     <div className="min-h-screen bg-[#F5F3ED] flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/20 max-w-2xl w-full">
-        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">Welcome to CAB AI</h2>
+        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">Welcome to NicheAI</h2>
         <p className="text-ink-dark/70 mb-8">Let's set up your product intelligence workspace.</p>
         
         {step === 1 && (

@@ -1,0 +1,1 @@
+I have added a deliberately broken component in `src/components/BadComponent.tsx` that has several TypeScript 'any' types and unused imports. Refactor it to be strongly typed. Before you finish, you MUST invoke the linting script (`npm run lint`) to verify your work and fix any remaining errors.

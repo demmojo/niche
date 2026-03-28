@@ -1,0 +1,4 @@
+model: gemini/gemini-3.1-pro
+message-file: aider-system-prompt.txt
+# Run B: Model + Custom System Prompts
+# Appends CO-STAR and exhaustive switch rules to the system prompt
