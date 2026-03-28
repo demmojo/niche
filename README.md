@@ -13,12 +13,14 @@
 The platform includes:
 
 - **Dashboard & Executive Summary**: A high-level overview of your market positioning.
+- **Lens Strategy Console**: A proactive AI Product Strategist that analyzes market data and drafts actionable product features and insights.
+- **Product Evolution Engine**: A comprehensive suite including the Tarpit Analyzer, Visual Intelligence Sync, Capability Gap Dashboard, and Seamless Deployment Wizard.
+- **Smart LLM Routing**: Dynamic routing between AI models (Gemini, Claude, OpenAI) based on task complexity and user API keys to optimize cost and performance.
 - **My Product Blueprint**: Define your product's target regions, track features, and let AI generate strategic next steps. Export your plan to One-Pagers, PRDs, or standard OpenSpec `.zip` archives.
 - **Competitor Matrix**: Detailed side-by-side feature and capability comparisons.
 - **Raw Data Library**: Organize incoming data streams, news mentions, and Apollo.io organization data. Easily export filtered data to CSV.
 - **Insight Library**: Save and manage AI-generated strategic insights for product development. Export strategic insights to CSV.
 - **Real-time Synchronization & Sync Review**: Background task engine that pulls data from web searches and API endpoints. All incoming data changes are queued for your manual review and approval before they hit the database. Global progress is clearly communicated via an elegant top-level sticky banner.
-- **Multi-Provider AI & API Limits**: Bring Your Own Key (BYOK) for Gemini, OpenAI, and Anthropic. Configure intelligent fallbacks to ensure pipelines don't stall, while tracking your requests in the built-in API Usage Dashboard.
 - **Support & Superadmin Hub**: Built-in feedback portals for Alpha testers, with superadmin oversight to manage limits and prioritize feature requests.
 
 ## 🚀 Tech Stack
@@ -114,6 +116,8 @@ The application will be available at **[http://localhost:3000](http://localhost:
 | `npm run start`            | Runs the production Express server, serving the static assets from `/dist`.                                    |
 | `npm run lint`             | Runs the TypeScript compiler to check for type errors without emitting files.                                  |
 | `npm run test`             | Runs the Vitest test suite.                                                                                    |
+| `npm run test:e2e`         | Runs the Playwright end-to-end tests.                                                                          |
+| `npm run generate-videos`  | Auto-generates UI walkthrough videos via Playwright for landing pages and docs.                                |
 | `npm run clean`            | Removes the `/dist` build directory.                                                                           |
 | `npm run swe-bench-runner` | Runs the custom SWE-bench evaluation loop to empirically test the local AI Agent setup used in development (). |
 
@@ -177,6 +181,9 @@ npm run test
 ## 📂 Project Structure
 
 ```text
+├── openspec/
+│   └── changes/          # OpenSpec files (proposal, design, tasks) for new features
+├── e2e/                  # Playwright end-to-end tests and db seeds
 ├── src/
 │   ├── components/       # Reusable React components & Modals
 │   ├── hooks/            # Custom React Hooks (e.g., useFirebaseSync)

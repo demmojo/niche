@@ -33,3 +33,19 @@ To perform a major release, you must trigger the manual GitHub Actions workflow:
 ### What happens next?
 
 The CI pipeline will start up. It will recognize the manual input, bypass the standard `minor` downgrade rule for this specific run, automatically bump `package.json` to the next major version, generate the associated changelog, and securely push the `v2.0.0` (or appropriate) tag back to `main`.
+
+## 3. Post-Version Automation
+
+After the `package.json` version is updated during the release process, the `postversion` script defined in `package.json` is automatically executed.
+
+### Auto-Generating Release Videos
+
+As part of the `postversion` hook, we automatically generate UI walkthrough videos using Playwright. This ensures that the documentation and landing pages always have up-to-date visual assets corresponding to the new release.
+
+The script runs:
+
+```bash
+npm run generate-videos
+```
+
+This ensures that any UI changes introduced in the new version are immediately captured and ready for marketing or documentation updates.

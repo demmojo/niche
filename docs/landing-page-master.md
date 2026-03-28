@@ -24,10 +24,10 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/automated-market-intelligence.webm" autoplay loop muted playsinline></video>`
 
-### 2. Visual Intelligence (Visual Whiteboard & Market Value Notebook)
+### 2. Visual Intelligence (Visual Whiteboard & Next-Gen Analytics)
 
 - **Value Prop:** "See your market, don't just read about it."
-- **Description:** Transform static competitor lists into dynamic, interactive React Flow whiteboards with bi-directional linking, embedded AI chat, and calculate real-time estimated market values using interactive notebooks.
+- **Description:** Transform static competitor lists into dynamic, interactive React Flow whiteboards with bi-directional linking. Utilize our Next-Generation Analytics Platform for powerful charts, tables, and generative narrative insights powered by a self-learning data pipeline.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/visual-intelligence.webm" autoplay loop muted playsinline></video>`
 
@@ -38,10 +38,10 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/documentation-wizard.webm" autoplay loop muted playsinline></video>`
 
-### 4. Proactive Market Analysis (Data & Deep Insights)
+### 4. Proactive Market Analysis (Lens Strategy Console)
 
 - **Value Prop:** "From raw data to executive strategy, automatically."
-- **Description:** The AI research partner works in the background during syncs to proactively surface new market shifts. Toggle between conversational AI analysis and a robust data grid. Turn chat insights and suggested features directly into actionable items with a single click.
+- **Description:** The Lens AI Product Strategist works proactively to analyze market data and draft high-value product features and insights. Utilizing a high-trust "Suggest & Draft" paradigm, explainable rationale, and a frictionless rejection feedback loop that functions as Agent Memory, Lens ensures your strategy is always data-driven and actionable.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/strategic-market-analysis.webm" autoplay loop muted playsinline></video>`
 

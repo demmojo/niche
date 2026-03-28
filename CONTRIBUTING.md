@@ -20,7 +20,7 @@ We follow the [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-an
    - Global MSW setup is in `src/setupTests.ts`.
 2. **E2E Tests (Playwright):** For end-to-end testing, we use API Seeding to provision the required state before the test executes, bypassing slow UI setup steps.
    - Reusable network/API seeding functions are located in `e2e/utils/db-seed.ts`. Use these inside `test.beforeEach` to prepare your test environment.
-3. **Flaky Test Quarantine Policy:** If a Playwright test becomes flaky (fails intermittently in CI), it must be immediately moved to a `tests/quarantine/` directory or skipped with `test.skip()`. Flaky tests erode trust in the CI suite and are not permitted in the active run. They must be fixed or rewritten before being reintroduced.
+3. **Flaky Test Quarantine Policy:** If a Playwright test becomes flaky (fails intermittently in CI), it must be immediately moved to a `e2e/quarantine/` directory or skipped with `test.skip()`. Flaky tests erode trust in the CI suite and are not permitted in the active run. They must be fixed or rewritten before being reintroduced.
 
 ## 3. Commit Standards (Conventional Commits & Atomic Commits)
 
@@ -39,7 +39,7 @@ Our local Git hooks (managed by `lefthook`) run `commitlint` on the `commit-msg`
 
 _(Note: Adding `!` after the type, e.g., `feat!: change API response format`, denotes a Breaking Change)._
 
-## 3. Pull Requests & Merging
+## 4. Pull Requests & Merging
 
 When you're ready to merge your code into `main`:
 
@@ -47,7 +47,7 @@ When you're ready to merge your code into `main`:
 2. **Squash and Merge:** We use the **Squash and Merge** strategy to merge into `main`.
 3. **Final Commit Message:** You _must_ ensure that the final squashed commit message adheres to the Conventional Commits format, as this is the message that will trigger the automated release.
 
-## 4. Versioning & Releases
+## 5. Versioning & Releases
 
 We use automated CI/CD pipelines to manage versions, but you can read all about our process in our dedicated guide:
 
