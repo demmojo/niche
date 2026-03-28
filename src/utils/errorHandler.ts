@@ -1,10 +1,10 @@
 export const getErrorMessage = (error: any): string => {
-  if (!error) return 'Unknown error occurred';
-  
-  let msg = '';
-  
+  if (!error) return "Unknown error occurred";
+
+  let msg = "";
+
   // If error is a string, try to parse it
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     try {
       const parsed = JSON.parse(error);
       if (parsed.error?.message) msg = parsed.error.message;
@@ -15,7 +15,7 @@ export const getErrorMessage = (error: any): string => {
     }
   } else if (error.message) {
     // If error has a message property
-    if (typeof error.message === 'string') {
+    if (typeof error.message === "string") {
       // Sometimes the message contains a JSON string after a prefix, e.g. "[429] {...}"
       const jsonMatch = error.message.match(/\{.*\}/s);
       if (jsonMatch) {
@@ -30,7 +30,7 @@ export const getErrorMessage = (error: any): string => {
       } else {
         msg = error.message;
       }
-    } else if (typeof error.message === 'object') {
+    } else if (typeof error.message === "object") {
       // If error.message is an object
       if (error.message.message) msg = error.message.message;
       else {
@@ -41,8 +41,9 @@ export const getErrorMessage = (error: any): string => {
     }
   } else if (error.error) {
     // If error is an object with an error property
-    if (typeof error.error === 'string') msg = error.error;
-    else if (typeof error.error === 'object' && error.error.message) msg = error.error.message;
+    if (typeof error.error === "string") msg = error.error;
+    else if (typeof error.error === "object" && error.error.message)
+      msg = error.error.message;
   }
 
   if (!msg) {
@@ -52,13 +53,28 @@ export const getErrorMessage = (error: any): string => {
       msg = String(error);
     }
   }
-  
+
   // Add friendly notes for common API errors
-  if (msg.includes('quota') || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
-    return 'API Quota Exceeded. Please check your Gemini API plan or try again later. ' + msg;
-  } else if (msg.includes('503') || msg.includes('500') || msg.includes('Service Unavailable') || msg.includes('overloaded')) {
-    return 'Gemini API is currently experiencing issues or is overloaded. Please try again later. ' + msg;
+  if (
+    msg.includes("quota") ||
+    msg.includes("429") ||
+    msg.includes("RESOURCE_EXHAUSTED")
+  ) {
+    return (
+      "API Quota Exceeded. Please check your AI API plan or try again later. " +
+      msg
+    );
+  } else if (
+    msg.includes("503") ||
+    msg.includes("500") ||
+    msg.includes("Service Unavailable") ||
+    msg.includes("overloaded")
+  ) {
+    return (
+      "AI API is currently experiencing issues or is overloaded. Please try again later. " +
+      msg
+    );
   }
-  
+
   return msg;
 };

@@ -232,7 +232,7 @@ export const dictionary = {
     guide: {
       title: "Market Analysis",
       description:
-        "The big picture. Toggle between conversational AI analysis and an interactive competitor data grid.",
+        "The big picture. Toggle between conversational AI analysis and an interactive competitor data grid. Let AI proactively analyze your synchronized market data.",
       capabilities: {
         autoSwot: {
           title: "Auto-SWOT",
@@ -243,17 +243,18 @@ export const dictionary = {
           desc: "Sort, filter, and inline-edit competitor data.",
         },
         aiChat: {
-          title: "AI Chat",
-          desc: "Discuss market shifts with Archivist Burt.",
+          title: "Proactive AI Research Partner",
+          desc: "Discuss market shifts with Archivist Burt, who automatically analyzes your newly synced data and suggests features and insights.",
         },
       },
       steps: {
-        step1: "Toggle to the Data & SWOT tab.",
-        step2: "Inline edit competitor data to keep it updated.",
-        step3: "Generate a fresh Auto-SWOT analysis.",
+        step1: "Run a Global Sync to pull the latest market data.",
+        step2: "Review Burt's proactive deep analysis of the fresh data.",
+        step3:
+          "Use the inline buttons to instantly save suggested features and insights.",
       },
       proTip:
-        "Use the Data Grid to fine-tune competitor capabilities before generating your Auto-SWOT. The AI will use your inline edits to improve its strategic accuracy.",
+        "You can instantly synthesize a long conversation into a strategic takeaway by clicking the 'Generate Insight' button below the chat options.",
     },
   },
   mindmap: {

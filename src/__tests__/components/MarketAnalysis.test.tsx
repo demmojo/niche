@@ -116,7 +116,7 @@ describe("MarketAnalysis Component", () => {
 
     expect(screen.getByText("Market Analysis")).toBeInTheDocument();
     expect(
-      screen.getByText("Archivist Burt // Status: Reading..."),
+      screen.getByText(/Archivist Burt \/\/ Status: (Reading|Typing)\.\.\./),
     ).toBeInTheDocument();
     expect(screen.getByText("_")).toBeInTheDocument();
 

@@ -1,5 +1,5 @@
 import { dictionary, tMessage } from "../content/dictionary";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   X,
@@ -10,10 +10,12 @@ import {
   FileJson,
   FileCode2,
   FileSpreadsheet,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Tooltip } from "./Tooltip";
 import { Type } from "@google/genai";
 import { withKeyRotation } from "../utils/geminiClient";
+import { compressImage } from "../utils/imageUtils";
 
 interface UploadDataModalProps {
   isOpen: boolean;
@@ -28,16 +30,103 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
   onDataAnalyzed,
   competitors,
 }) => {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  // Clean up object URLs when modal closes or files change
+  useEffect(() => {
+    if (!isOpen) {
+      setFiles([]);
+      setPreviews((prev) => {
+        Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+        return {};
+      });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const newPreviews: Record<string, string> = {};
+    files.forEach((f) => {
+      if (f.type.startsWith("image/")) {
+        // Reuse existing preview if available, otherwise create new
+        newPreviews[f.name] = previews[f.name] || URL.createObjectURL(f);
+      }
+    });
+
+    // Revoke any previews for files that were removed
+    Object.keys(previews).forEach((name) => {
+      if (!newPreviews[name]) {
+        URL.revokeObjectURL(previews[name]);
+      }
+    });
+
+    setPreviews(newPreviews);
+  }, [files]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isOpen) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const pastedFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) {
+            // Give pasted files a unique name
+            const ext = file.type.split("/")[1] || "png";
+            const renamedFile = new File(
+              [file],
+              `pasted-image-${Date.now()}.${ext}`,
+              { type: file.type },
+            );
+            pastedFiles.push(renamedFile);
+          }
+        }
+      }
+
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        processNewFiles(pastedFiles);
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [isOpen]);
+
+  const processNewFiles = (newFiles: File[]) => {
+    const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
+    const textFiles = newFiles.filter((f) => !f.type.startsWith("image/"));
+
+    if (textFiles.length > 0) {
+      // If there's a text file, it overrides everything and we only take the first one
+      setFiles([textFiles[0]]);
+    } else if (imageFiles.length > 0) {
+      // If only images, append to existing images (if any text file was there, clear it)
+      setFiles((prev) => {
+        const prevImages = prev.filter((f) => f.type.startsWith("image/"));
+        // Filter out duplicates by name
+        const uniqueImages = imageFiles.filter(
+          (img) => !prevImages.some((p) => p.name === img.name),
+        );
+        const combined = [...prevImages, ...uniqueImages];
+        // Limit to 5 images
+        if (combined.length > 5) {
+          alert("Maximum of 5 images allowed per analysis.");
+        }
+        return combined.slice(0, 5);
+      });
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      processNewFiles(Array.from(e.target.files));
     }
   };
 
@@ -55,36 +144,28 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processNewFiles(Array.from(e.dataTransfer.files));
     }
   };
 
+  const removeFile = (e: React.MouseEvent, fileName: string) => {
+    e.stopPropagation();
+    setFiles((prev) => prev.filter((f) => f.name !== fileName));
+  };
+
   const handleAnalyze = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     setIsAnalyzing(true);
     try {
-      let text = "";
-      if (typeof file.text === "function") {
-        text = await file.text();
-      } else {
-        text = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = (e) => reject(e);
-          reader.readAsText(file);
-        });
-      }
+      const parts: any[] = [];
 
-      const prompt = `You are a market intelligence analyst. Analyze the following raw data uploaded by the user.
+      const promptText = `You are a market intelligence analyst. Analyze the following raw data uploaded by the user.
       
-Data Content:
-${text.substring(0, 15000)}
-
 Existing Competitors:
 ${competitors.map((c) => c.name).join(", ")}
 
-Extract raw data points and derive strategic insights from this text.
+Extract raw data points and derive strategic insights from this input.
 Return the result as a JSON object with two arrays: "newSources" and "newInsights".
 
 "newSources" should be an array of objects matching this structure:
@@ -107,10 +188,50 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
 }
 `;
 
+      parts.push({ text: promptText });
+
+      // Add text file contents
+      const textFile = files.find((f) => !f.type.startsWith("image/"));
+      if (textFile) {
+        let text = "";
+        if (typeof textFile.text === "function") {
+          text = await textFile.text();
+        } else {
+          text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(textFile);
+          });
+        }
+        parts.push({
+          text: `\nData Content (${textFile.name}):\n${text.substring(0, 15000)}`,
+        });
+      }
+
+      // Add image contents
+      const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length > 0) {
+        for (const img of imageFiles) {
+          try {
+            const { base64Data, mimeType } = await compressImage(img);
+            parts.push({
+              inlineData: {
+                data: base64Data,
+                mimeType,
+              },
+            });
+            parts.push({ text: `\nFilename: ${img.name}` });
+          } catch (err) {
+            console.error("Failed to compress image:", img.name, err);
+          }
+        }
+      }
+
       const response = await withKeyRotation(async (ai, model) => {
         return ai.models.generateContent({
           model: model,
-          contents: prompt,
+          contents: parts,
           config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -185,13 +306,18 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
 
   const getFileIcon = (filename: string) => {
     if (filename.endsWith(".json"))
-      return <FileJson size={48} className="text-sky" />;
+      return <FileJson size={32} className="text-sky" />;
     if (filename.endsWith(".csv"))
-      return <FileSpreadsheet size={48} className="text-emerald-500" />;
+      return <FileSpreadsheet size={32} className="text-emerald-500" />;
     if (filename.endsWith(".md"))
-      return <FileCode2 size={48} className="text-purple-500" />;
-    return <FileText size={48} className="text-ink-dark/40" />;
+      return <FileCode2 size={32} className="text-purple-500" />;
+    if (filename.match(/\.(jpg|jpeg|png|webp)$/i))
+      return <ImageIcon size={32} className="text-rose-500" />;
+    return <FileText size={32} className="text-ink-dark/40" />;
   };
+
+  const hasFiles = files.length > 0;
+  const isMultiple = files.length > 1;
 
   return (
     <AnimatePresence>
@@ -216,9 +342,9 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                     Import Raw Data
                   </h2>
                   <p className="text-ink-dark/60 mt-1 text-sm">
-                    Upload competitor research, pricing tables, or market
-                    reports. Our AI will automatically extract insights and data
-                    points.
+                    Upload competitor research, pricing tables, or paste
+                    screenshots. Our AI will automatically extract insights and
+                    data points.
                   </p>
                 </div>
                 <Tooltip
@@ -238,16 +364,16 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
             {/* Body */}
             <div className="p-6 sm:p-8 bg-white">
               <div
-                className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-200 cursor-pointer overflow-hidden
+                className={`relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center transition-all duration-200 overflow-hidden
                   ${
                     dragActive
                       ? "border-sky bg-sky/5 scale-[1.02]"
-                      : file
+                      : hasFiles
                         ? "border-emerald-500/50 bg-emerald-50/50"
-                        : "border-ink-dark/20 hover:border-ink-dark/40 hover:bg-paper-base"
+                        : "border-ink-dark/20 hover:border-ink-dark/40 hover:bg-paper-base cursor-pointer"
                   }
                 `}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !hasFiles && fileInputRef.current?.click()}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -258,34 +384,89 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".txt,.csv,.json,.md"
+                  multiple
+                  accept=".txt,.csv,.json,.md,image/png,image/jpeg,image/webp"
                 />
 
-                <div className="relative z-10 flex flex-col items-center">
-                  {file ? (
+                <div className="relative z-10 flex flex-col items-center w-full">
+                  {hasFiles ? (
                     <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
+                      initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="flex flex-col items-center"
+                      className="flex flex-col items-center w-full"
                     >
-                      <div className="w-20 h-20 bg-white rounded-2xl shadow-sm border border-ink-dark/10 flex items-center justify-center mb-4">
-                        {getFileIcon(file.name)}
+                      <div className="w-full flex justify-between items-center mb-4">
+                        <span className="text-sm font-semibold text-ink-dark/60 uppercase tracking-wider">
+                          {files.length} {files.length === 1 ? "File" : "Files"}{" "}
+                          selected
+                        </span>
+                        {files[0].type.startsWith("image/") &&
+                          files.length < 5 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                              className="text-xs font-semibold text-sky hover:text-sky-dark uppercase tracking-wider px-3 py-1 bg-white rounded-lg border border-sky/20"
+                            >
+                              Add More Images
+                            </button>
+                          )}
                       </div>
-                      <p className="text-ink-dark font-semibold text-lg">
-                        {file.name}
-                      </p>
-                      <p className="text-sm text-ink-dark/50 font-medium mt-1">
-                        {(file.size / 1024).toFixed(1)} KB • Ready to analyze
-                      </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFile(null);
-                        }}
-                        className="mt-4 text-xs font-semibold text-rose-500 hover:text-rose-600 uppercase tracking-wider"
+
+                      <div
+                        className={`grid gap-3 w-full ${isMultiple ? "grid-cols-2" : "grid-cols-1"}`}
                       >
-                        Remove File
-                      </button>
+                        {files.map((f, idx) => (
+                          <div
+                            key={`${f.name}-${idx}`}
+                            className="relative group bg-white p-3 rounded-xl border border-ink-dark/10 flex items-center gap-3 text-left"
+                          >
+                            {f.type.startsWith("image/") ? (
+                              <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-ink-dark/5 bg-paper-base flex items-center justify-center">
+                                <img
+                                  src={previews[f.name]}
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg shrink-0 border border-ink-dark/5 bg-paper-base flex items-center justify-center">
+                                {getFileIcon(f.name)}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="text-sm font-semibold text-ink-dark truncate"
+                                title={f.name}
+                              >
+                                {f.name}
+                              </p>
+                              <p className="text-xs text-ink-dark/50 font-medium">
+                                {(f.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                            <button
+                              onClick={(e) => removeFile(e, f.name)}
+                              className="p-1.5 text-ink-dark/40 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {files.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFiles([]);
+                          }}
+                          className="mt-6 text-xs font-semibold text-rose-500 hover:text-rose-600 uppercase tracking-wider"
+                        >
+                          Clear All
+                        </button>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.div
@@ -297,10 +478,11 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                         <Upload size={32} />
                       </div>
                       <p className="text-ink-dark font-semibold text-lg">
-                        Click to upload or drag and drop
+                        Click, drag and drop, or paste (Cmd+V)
                       </p>
                       <p className="text-sm text-ink-dark/50 mt-2 max-w-xs mx-auto">
-                        Supported formats: TXT, CSV, JSON, Markdown (max 5MB)
+                        Supported: TXT, CSV, JSON, Markdown, Screenshots (max
+                        5MB)
                       </p>
                     </motion.div>
                   )}
@@ -311,7 +493,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
             {/* Footer */}
             <div className="p-6 sm:px-8 sm:py-6 border-t border-ink-dark/10 bg-paper-base flex items-center justify-between">
               <p className="text-xs text-ink-dark/40 hidden sm:block">
-                Data is processed securely via Gemini AI.
+                Data is processed securely.
               </p>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <button
@@ -323,7 +505,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                 </button>
                 <button
                   onClick={handleAnalyze}
-                  disabled={!file || isAnalyzing}
+                  disabled={!hasFiles || isAnalyzing}
                   className="relative flex items-center justify-center gap-2 px-6 py-2.5 bg-ink-dark text-white rounded-xl font-semibold hover:bg-black transition-all disabled:opacity-50 disabled:hover:bg-ink-dark shadow-md hover:shadow-lg overflow-hidden group min-w-[160px]"
                 >
                   {isAnalyzing ? (
@@ -341,7 +523,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                     </>
                   )}
                   {/* Shine effect */}
-                  {!isAnalyzing && file && (
+                  {!isAnalyzing && hasFiles && (
                     <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                   )}
                 </button>

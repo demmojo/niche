@@ -108,7 +108,7 @@ describe("Settings Component", () => {
         provider: "gemini",
       },
       {
-        id: "gemini-3.1-flash-preview",
+        id: "gemini-3.1-pro-preview",
         name: "Gemini 3.1 Flash Preview",
         provider: "gemini",
       },
@@ -330,11 +330,11 @@ describe("Settings Component", () => {
     });
 
     it("filters out empty values from the middle of the array", async () => {
-      // Start with ['gemini-3.1-pro-preview', 'claude-3-opus', 'gemini-3.1-flash-preview']
+      // Start with ['gemini-3.1-pro-preview', 'claude-3-opus', 'gemini-3.1-pro-preview']
       (aiClient.getSelectedModels as ReturnType<typeof vi.fn>).mockReturnValue([
         "gemini-3.1-pro-preview",
         "claude-3-opus",
-        "gemini-3.1-flash-preview",
+        "gemini-3.1-pro-preview",
       ]);
 
       await act(async () => {
@@ -349,14 +349,14 @@ describe("Settings Component", () => {
         fireEvent.change(dropdowns[1], { target: { value: "" } });
       });
 
-      // Should compact the array to ['gemini-3.1-pro-preview', 'gemini-3.1-flash-preview']
+      // Should compact the array to ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview']
       expect(aiClient.setSelectedModels).toHaveBeenCalledWith([
         "gemini-3.1-pro-preview",
-        "gemini-3.1-flash-preview",
+        "gemini-3.1-pro-preview",
       ]);
     });
 
-    it("ensures primary model defaults to gemini-3.1-flash-preview if cleared", async () => {
+    it("ensures primary model defaults to gemini-3.1-pro-preview if cleared", async () => {
       await act(async () => {
         view = render(<Settings />);
       });
@@ -369,9 +369,9 @@ describe("Settings Component", () => {
         fireEvent.change(dropdowns[0], { target: { value: "" } });
       });
 
-      // Should set primary model to gemini-3.1-flash-preview
+      // Should set primary model to gemini-3.1-pro-preview
       expect(aiClient.setSelectedModels).toHaveBeenCalledWith([
-        "gemini-3.1-flash-preview",
+        "gemini-3.1-pro-preview",
       ]);
     });
   });
@@ -636,14 +636,14 @@ describe("Settings Component", () => {
 
     it("handles non-pro model daily limits", async () => {
       (aiClient.getSelectedModels as ReturnType<typeof vi.fn>).mockReturnValue([
-        "gemini-3.1-flash-preview",
+        "gemini-3-flash-preview",
       ]);
       (usageTracker.getUsageStats as ReturnType<typeof vi.fn>).mockReturnValue({
         date: "2023-01-01",
         services: {
           gemini: {
             requests: 100,
-            requestsPerModel: { "gemini-3.1-flash-preview": 100 },
+            requestsPerModel: { "gemini-3-flash-preview": 100 },
           },
           apollo: { requests: 5 },
           exa: { requests: 2 },

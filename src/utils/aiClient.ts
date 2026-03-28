@@ -17,12 +17,21 @@ export const getSelectedModels = (): string[] => {
   const data = localStorage.getItem("ai_selected_models");
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        // Automatically migrate deprecated or non-existent 3.1 preview models
+        const migrated = parsed.map((m) => {
+          if (m === "gemini-3.1-flash-preview") return "gemini-3-flash-preview";
+          if (m === "gemini-3-pro-preview") return "gemini-3.1-pro-preview"; // Deprecated
+          return m;
+        });
+        return migrated;
+      }
     } catch {
-      return ["gemini-3.1-flash-preview"];
+      return ["gemini-3-flash-preview"];
     }
   }
-  return ["gemini-3.1-flash-preview"];
+  return ["gemini-3-flash-preview"];
 };
 
 /**
@@ -44,18 +53,8 @@ export const fetchAvailableModels = async (): Promise<AIModel[]> => {
       provider: "gemini",
     },
     {
-      id: "gemini-3.1-flash-preview",
-      name: "Gemini 3.1 Flash Preview",
-      provider: "gemini",
-    },
-    {
       id: "gemini-3.1-flash-lite-preview",
       name: "Gemini 3.1 Flash Lite Preview",
-      provider: "gemini",
-    },
-    {
-      id: "gemini-3-pro-preview",
-      name: "Gemini 3.0 Pro Preview",
       provider: "gemini",
     },
     {

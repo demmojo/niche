@@ -1,24 +1,33 @@
 export interface Toast {
   id: string;
   message: string;
-  type: 'success' | 'info' | 'error' | 'loading';
+  type: "success" | "info" | "error" | "loading";
 }
 
 export interface DerivedInsight {
   id: string;
   title: string;
   description: string;
-  category: 'opportunity' | 'threat' | 'trend';
-  impact: 'high' | 'medium' | 'low' | 'critical';
+  category: "opportunity" | "threat" | "trend";
+  impact: "high" | "medium" | "low" | "critical";
   timestamp: string;
-  source: 'AI' | 'Human' | 'Brainstorm' | 'Exa.ai' | 'Crunchbase';
+  source: "AI" | "Human" | "Brainstorm" | "Exa.ai" | "Crunchbase";
   sourceIds?: string[];
   linkedInsightIds?: string[];
   tags?: string[];
 }
 
-export type SourceType = 'website' | 'api' | 'screenshot' | 'database' | 'github' | 'linkedin' | 'crunchbase' | 'news' | 'gemini-grounding';
-export type ConfidenceLevel = 'High' | 'Medium' | 'Low' | 'Critical';
+export type SourceType =
+  | "website"
+  | "api"
+  | "screenshot"
+  | "database"
+  | "github"
+  | "linkedin"
+  | "crunchbase"
+  | "news"
+  | "gemini-grounding";
+export type ConfidenceLevel = "High" | "Medium" | "Low" | "Critical";
 
 export interface DataSource {
   id: string;
@@ -30,7 +39,14 @@ export interface DataSource {
   tags: string[];
   confidenceLevel: ConfidenceLevel;
   isDeduced: boolean;
-  source: 'AI' | 'Human' | 'Brainstorm' | 'Apollo.io' | 'Google Search' | 'Exa.ai' | 'Crunchbase';
+  source:
+    | "AI"
+    | "Human"
+    | "Brainstorm"
+    | "Apollo.io"
+    | "Google Search"
+    | "Exa.ai"
+    | "Crunchbase";
   linkedInsightIds?: string[];
 }
 
@@ -39,7 +55,7 @@ export interface LogEntry {
   timestamp: string;
   action: string;
   details: string;
-  status: 'success' | 'error' | 'pending' | 'info';
+  status: "success" | "error" | "pending" | "info" | "warning";
   retryAction?: () => void;
   contextData?: any;
   apiCallDetails?: any;
@@ -47,19 +63,27 @@ export interface LogEntry {
 
 export interface ChatMessage {
   id?: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   suggestedInsight?: {
     title: string;
     description: string;
-    category: 'opportunity' | 'threat' | 'trend';
-    impact: 'low' | 'medium' | 'high' | 'critical';
+    category: "opportunity" | "threat" | "trend";
+    impact: "low" | "medium" | "high" | "critical";
   };
   insightAdded?: boolean;
 }
 
-export type SortField = 'name' | 'freeTier' | 'spamProtection' | 'targetAudience' | 'dataSovereignty' | 'marketCommonalityIndex' | 'resourceSimilarityScore' | 'marketSegments';
-export type SortOrder = 'asc' | 'desc';
+export type SortField =
+  | "name"
+  | "freeTier"
+  | "spamProtection"
+  | "targetAudience"
+  | "dataSovereignty"
+  | "marketCommonalityIndex"
+  | "resourceSimilarityScore"
+  | "marketSegments";
+export type SortOrder = "asc" | "desc";
 
 export interface Competitor {
   id: string;
@@ -71,7 +95,7 @@ export interface Competitor {
   targetAudience: string;
   marketSegments: string[];
   dataSovereignty: string;
-  sovereigntyScore: 'low' | 'medium' | 'high'; // For badge coloring
+  sovereigntyScore: "low" | "medium" | "high"; // For badge coloring
   logoUrl: string;
   financialSnapshot: string;
   fundingStage?: string;
@@ -84,7 +108,7 @@ export interface Competitor {
   marketCommonalityIndex?: number; // Academic metric for competitive overlap
   resourceSimilarityScore?: number; // Academic metric for capability overlap
   lastUpdated?: string;
-  
+
   // Premium Apollo Metrics
   fundingHistory?: string;
   headcountGrowth?: number;
@@ -93,12 +117,12 @@ export interface Competitor {
   verifiedFields?: Record<string, boolean>;
 }
 
-export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
+export type SubscriptionTier = "free" | "pro" | "enterprise";
 
 export interface SyncDiff {
   id: string;
   entityId: string;
-  entityType: 'Competitor' | 'MyProduct' | 'Insight' | 'SystemContext';
+  entityType: "Competitor" | "MyProduct" | "Insight" | "SystemContext";
   field: string;
   oldValue: any;
   newValue: any;
@@ -112,7 +136,7 @@ export interface UserUsage {
 
 export interface FeedbackMessage {
   id: string;
-  type: 'Bug' | 'Feature' | 'General' | 'Limit Increase Request';
+  type: "Bug" | "Feature" | "General" | "Limit Increase Request";
   message: string;
   timestamp: string;
   userId: string;

@@ -123,7 +123,7 @@ describe("Backend API Integration Tests", () => {
         .post("/api/apollo/enrich")
         .send({ domain: "apollo.io" });
 
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(401);
       expect(res.body.error).toMatch(/Apollo API error: 401 Unauthorized/);
 
       consoleSpy.mockRestore();

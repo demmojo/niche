@@ -53,7 +53,7 @@ describe("errorHandler utils", () => {
   it("falls back to JSON stringify or String representation", () => {
     const error = { code: 500, detail: "Failed" };
     expect(getErrorMessage(error)).toContain(
-      "Gemini API is currently experiencing issues",
+      "AI API is currently experiencing issues",
     );
     expect(getErrorMessage(error)).toContain('{"code":500,"detail":"Failed"}');
 
@@ -65,23 +65,23 @@ describe("errorHandler utils", () => {
 
   it("appends friendly notes for known API errors", () => {
     expect(getErrorMessage("quota exceeded")).toContain(
-      "API Quota Exceeded. Please check your Gemini API plan",
+      "API Quota Exceeded. Please check your AI API plan",
     );
     expect(getErrorMessage("429")).toContain(
-      "API Quota Exceeded. Please check your Gemini API plan",
+      "API Quota Exceeded. Please check your AI API plan",
     );
     expect(getErrorMessage("RESOURCE_EXHAUSTED")).toContain(
-      "API Quota Exceeded. Please check your Gemini API plan",
+      "API Quota Exceeded. Please check your AI API plan",
     );
 
     expect(getErrorMessage("503 Service Unavailable")).toContain(
-      "Gemini API is currently experiencing issues",
+      "AI API is currently experiencing issues",
     );
     expect(getErrorMessage("500 Internal Server Error")).toContain(
-      "Gemini API is currently experiencing issues",
+      "AI API is currently experiencing issues",
     );
     expect(getErrorMessage("The server is overloaded")).toContain(
-      "Gemini API is currently experiencing issues",
+      "AI API is currently experiencing issues",
     );
   });
 });

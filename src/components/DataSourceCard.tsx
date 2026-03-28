@@ -50,7 +50,10 @@ export const DataSourceCard = React.memo(function DataSourceCard({
           {source.type === "news" && (
             <MessageSquare size={14} className="text-amber-400" />
           )}
-          <span className="text-xs font-mono text-ink-dark truncate max-w-[200px]">
+          <span
+            className="text-xs font-mono text-ink-dark truncate max-w-[200px] block"
+            title={source.sourceUrl}
+          >
             {source.sourceUrl}
           </span>
         </div>

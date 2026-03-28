@@ -13,8 +13,14 @@ import {
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { withKeyRotation } from "../utils/geminiClient";
 import { getErrorMessage } from "../utils/errorHandler";
+import { supabase } from "../utils/hashing";
 import Markdown from "react-markdown";
 import { Tooltip } from "./Tooltip";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Mention from "@tiptap/extension-mention";
+import Placeholder from "@tiptap/extension-placeholder";
+import { createMentionSuggestion } from "./Mentions/mentionSuggestion";
 
 /**
  * Props for the InsightBrainstormChat component.
@@ -64,7 +70,7 @@ export function InsightBrainstormChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -80,17 +86,74 @@ export function InsightBrainstormChat({
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
+    }
   }, [messages, isTyping]);
 
   /**
    *
    */
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        // history: false, // Type definition issue with StarterKit options
+      }),
+      Placeholder.configure({
+        placeholder:
+          "Discuss market trends, ask about competitors... (Type @ or # to mention)",
+      }),
+      Mention.configure({
+        HTMLAttributes: {
+          class:
+            "mention bg-ochre/20 text-ochre font-medium px-1.5 py-0.5 rounded-md",
+        },
+        suggestion: createMentionSuggestion("@"),
+      }),
+      Mention.extend({
+        name: "hashtagMention",
+      }).configure({
+        HTMLAttributes: {
+          class:
+            "mention bg-blue-500/20 text-blue-600 font-medium px-1.5 py-0.5 rounded-md",
+        },
+        suggestion: createMentionSuggestion("#"),
+      }),
+    ],
+    content: "",
+    onUpdate: ({ editor }) => {
+      setInputValue(editor.getText());
+    },
+    editorProps: {
+      attributes: {
+        class:
+          "w-full bg-transparent border-none resize-none max-h-32 min-h-[44px] py-2.5 px-3 text-sm text-ink-dark focus:outline-none focus:ring-0 overflow-y-auto",
+      },
+      handleKeyDown: (view, event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          handleSendMessage();
+          return true;
+        }
+        return false;
+      },
+    },
+  });
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
-    const userMsg = inputValue.trim();
+    // Send the raw text (or HTML with mentions) to the AI
+    // For now, we'll extract the text with the rendered mention labels.
+    // If you need the structured data, use editor.getJSON()
+    const userMsg = editor?.getText().trim() || inputValue.trim();
+
+    // Pass the structured json if needed for context
+    const jsonContent = editor?.getJSON();
+
     setInputValue("");
+    editor?.commands.clearContent();
 
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -152,6 +215,23 @@ export function InsightBrainstormChat({
         },
       };
 
+      const getFullEntityDetailsFunctionDeclaration: FunctionDeclaration = {
+        name: "get_full_entity_details",
+        description:
+          "Fetch the complete detailed data payload for a specific entity (competitor, raw_data, insight, etc.) by its ID. Use this ONLY if you need deep analysis beyond the summary provided in the base context.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING, description: "The ID of the entity" },
+            type: {
+              type: Type.STRING,
+              description: "The category/type of the entity",
+            },
+          },
+          required: ["id", "type"],
+        },
+      };
+
       const prompt = `
         You are an expert Market Intelligence AI brainstorming partner.
         You have access to the following system context:
@@ -163,9 +243,11 @@ export function InsightBrainstormChat({
         Conversation history:
         ${historyText}
         User: ${userMsg}
+        ${jsonContent ? `\n(User structured mentions: ${JSON.stringify(jsonContent)})` : ""}
         
         Your goal is to brainstorm with the user, analyze the data, and help them uncover deep, non-obvious insights.
         If you formulate a strong insight together, you MUST use the 'save_insight' tool to save it directly to the library. Make sure to link it to relevant raw data IDs and existing insight IDs to build a knowledge graph.
+        If the user mentions specific raw data IDs, you may use the 'get_full_entity_details' tool to fetch more context if needed.
         
         Respond naturally and concisely.
       `;
@@ -175,7 +257,14 @@ export function InsightBrainstormChat({
           model: model,
           contents: prompt,
           config: {
-            tools: [{ functionDeclarations: [saveInsightFunctionDeclaration] }],
+            tools: [
+              {
+                functionDeclarations: [
+                  saveInsightFunctionDeclaration,
+                  getFullEntityDetailsFunctionDeclaration,
+                ],
+              },
+            ],
           },
         });
       });
@@ -183,6 +272,7 @@ export function InsightBrainstormChat({
       let fullText = "";
       let hasFunctionCall = false;
       let finalInsightArgs: any = null;
+      let getEntityArgs: any = null;
       const messageId = Date.now().toString() + "-text";
 
       setMessages((prev) => [
@@ -200,6 +290,9 @@ export function InsightBrainstormChat({
             if (call.name === "save_insight") {
               hasFunctionCall = true;
               finalInsightArgs = call.args;
+            } else if (call.name === "get_full_entity_details") {
+              hasFunctionCall = true;
+              getEntityArgs = call.args;
             }
           }
         }
@@ -214,7 +307,41 @@ export function InsightBrainstormChat({
         }
       }
 
-      if (hasFunctionCall && finalInsightArgs) {
+      if (hasFunctionCall && getEntityArgs) {
+        // Fetch the details from Supabase using the ID
+        try {
+          // This is a generic fetch. Realistically it would fetch from specific tables based on type
+          const { data, error } = await supabase
+            .from("raw_data_versions")
+            .select("extracted_metadata")
+            .eq("asset_id", getEntityArgs.id)
+            .limit(1)
+            .single();
+
+          const detailsContent =
+            error || !data
+              ? `I tried to fetch details for ${getEntityArgs.id} but it was not found.`
+              : `I've fetched the details for entity ID: **${getEntityArgs.id}** (${getEntityArgs.type}). Details: ${JSON.stringify(data.extracted_metadata).substring(0, 1000)}...`;
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString() + "-func",
+              role: "assistant",
+              content: detailsContent,
+            },
+          ]);
+        } catch (e) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString() + "-func",
+              role: "assistant",
+              content: `I tried to fetch details for ${getEntityArgs.id} but an error occurred.`,
+            },
+          ]);
+        }
+      } else if (hasFunctionCall && finalInsightArgs) {
         onSaveInsight({
           title: finalInsightArgs.title,
           description: finalInsightArgs.description,
@@ -284,7 +411,10 @@ export function InsightBrainstormChat({
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-white">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-white"
+      >
         {messages.map((msg) => (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -343,32 +473,12 @@ export function InsightBrainstormChat({
             </div>
           </motion.div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
       <div className="p-4 sm:p-5 border-t border-ink-dark/10 bg-paper-base shrink-0">
         <div className="relative flex items-end gap-2 bg-white border border-ink-dark/20 rounded-2xl p-2 shadow-sm focus-within:border-ink-dark/40 focus-within:ring-1 focus-within:ring-ink-dark/10 transition-all">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder="Discuss market trends, ask about competitors, or brainstorm new angles..."
-            className="w-full bg-transparent border-none resize-none max-h-32 min-h-[44px] py-2.5 px-3 text-sm text-ink-dark focus:outline-none focus:ring-0"
-            disabled={isTyping}
-            rows={1}
-            style={{ height: "auto" }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = "auto";
-              target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
-            }}
-          />
+          <EditorContent editor={editor} className="flex-1 w-full" />
           <Tooltip
             content={tMessage(dictionary.tooltips.brainstorm.sendMessage)}
             position="top"

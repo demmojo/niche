@@ -41,7 +41,7 @@ vi.mock("../utils/aiClient", () => ({
           candidates: [{ groundingMetadata: { groundingChunks: [] } }],
         }),
       },
-      "gemini-3.1-flash-preview",
+      "gemini-3.1-pro-preview",
     );
   }),
 }));

@@ -105,3 +105,26 @@ export const redeemInvite = functions.https.onCall(async (request) => {
     );
   }
 });
+
+/**
+ * Supabase Auth Bridge
+ * Injects the required 'role' claim and a 'team_id' claim into the Firebase JWT
+ * so it can be consumed by Supabase PostgreSQL for Row Level Security.
+ */
+import * as functionsV1 from "firebase-functions/v1";
+
+export const onUserCreated = functionsV1.auth.user().onCreate(async (user) => {
+  try {
+    // We default the user's initial team_id to their own UID (a personal workspace).
+    // In a full multi-tenant setup, this would be updated when they join a real workspace/team.
+    const customClaims = {
+      role: "authenticated",
+      team_id: user.uid,
+    };
+
+    await admin.auth().setCustomUserClaims(user.uid, customClaims);
+    console.log(`Successfully injected Supabase claims for user ${user.uid}`);
+  } catch (error) {
+    console.error("Failed to inject custom claims:", error);
+  }
+});

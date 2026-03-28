@@ -21,6 +21,10 @@ describe("useSyncQueue hook", () => {
     newValue: "Y",
   };
 
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("should initialize with an empty queue", () => {
     const { result } = renderHook(() => useSyncQueue());
     expect(result.current.syncQueue).toEqual([]);

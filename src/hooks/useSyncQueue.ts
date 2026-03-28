@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SyncDiff } from "../types";
 
 /**
@@ -22,7 +22,25 @@ import { SyncDiff } from "../types";
  * ```
  */
 export function useSyncQueue() {
-  const [syncQueue, setSyncQueue] = useState<SyncDiff[]>([]);
+  const [syncQueue, setSyncQueue] = useState<SyncDiff[]>(() => {
+    try {
+      const stored = window.localStorage.getItem("nicheai_sync_queue");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "nicheai_sync_queue",
+        JSON.stringify(syncQueue),
+      );
+    } catch (e) {
+      console.error("Failed to save sync queue to local storage", e);
+    }
+  }, [syncQueue]);
 
   const queueSyncChanges = useCallback((diffs: SyncDiff[]) => {
     setSyncQueue((prev) => [...prev, ...diffs]);

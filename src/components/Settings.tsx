@@ -62,7 +62,7 @@ export const Settings: React.FC = () => {
   );
 
   // Determine daily limit based on model (fallback if no rate limit headers)
-  const primaryModel = selectedModels[0] || "gemini-3.1-flash-preview";
+  const primaryModel = selectedModels[0] || "gemini-3.1-pro-preview";
   const isProModel = primaryModel.includes("pro");
   const dailyRequestLimit = isProModel ? 50 : 1500;
 
@@ -128,7 +128,7 @@ export const Settings: React.FC = () => {
     // Remove empty strings from the middle, ensuring priority order is compact
     const filtered = newModels.filter((m, i) => m || i === 0);
     // Ensure primary model is never empty
-    if (!filtered[0]) filtered[0] = "gemini-3.1-flash-preview";
+    if (!filtered[0]) filtered[0] = "gemini-3.1-pro-preview";
 
     setLocalSelectedModels(filtered);
     setSelectedModels(filtered);

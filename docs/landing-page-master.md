@@ -20,7 +20,7 @@ These features are to be prominently displayed on the landing page and detailed 
 ### 1. Automated Market Intelligence (News Article Search)
 
 - **Value Prop:** "Never miss a competitor update."
-- **Description:** NicheAI continuously monitors the web using Exa search and Gemini's reasoning engine to extract critical events—funding rounds, new product launches, and emerging threats.
+- **Description:** NicheAI continuously monitors the web using web search and our AI's reasoning engine to extract critical events—funding rounds, new product launches, and emerging threats.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/automated-market-intelligence.webm" autoplay loop muted playsinline></video>`
 
@@ -38,10 +38,10 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/documentation-wizard.webm" autoplay loop muted playsinline></video>`
 
-### 4. Strategic Market Analysis (Data & Auto-SWOT)
+### 4. Proactive Market Analysis (Data & Deep Insights)
 
-- **Value Prop:** "From raw data to executive strategy."
-- **Description:** Toggle between conversational AI analysis and a robust data grid. Sort, filter, and edit competitor data inline, then instantly generate a comprehensive SWOT analysis to guide your market positioning.
+- **Value Prop:** "From raw data to executive strategy, automatically."
+- **Description:** The AI research partner works in the background during syncs to proactively surface new market shifts. Toggle between conversational AI analysis and a robust data grid. Turn chat insights and suggested features directly into actionable items with a single click.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/strategic-market-analysis.webm" autoplay loop muted playsinline></video>`
 

@@ -56,7 +56,7 @@ stage1_new = """
       } catch (e: any) {
         console.warn("Discovery failed", e);
         const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Market discovery failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(1, { newCompetitorDomains, apolloData, searchData }) });
+        updateLog(logId, { details: 'Market discovery failed: ' + errorMsg + '. Try again.', status: 'error', retryAction: () => handleGlobalSync(1, { newCompetitorDomains, apolloData, searchData }) });
         setIsSyncing(false);
         addToast(errorMsg, 'error');
         removeToast(toastId);
@@ -156,7 +156,7 @@ stage3_new = """
       } catch (e: any) {
         console.warn("Search stage failed", e);
         const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Market search failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(3, { newCompetitorDomains, apolloData, searchData }) });
+        updateLog(logId, { details: 'Market search failed: ' + errorMsg + '. Try again.', status: 'error', retryAction: () => handleGlobalSync(3, { newCompetitorDomains, apolloData, searchData }) });
         setIsSyncing(false);
         addToast(errorMsg, 'error');
         removeToast(toastId);

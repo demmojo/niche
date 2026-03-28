@@ -1,13 +1,25 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, setLogLevel, disableNetwork } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import { getFirestore, setLogLevel, disableNetwork } from "firebase/firestore";
+import firebaseConfig from "../firebase-applet-config.json";
 
-const app = initializeApp(firebaseConfig);
+const configToUse = {
+  ...firebaseConfig,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+};
+
+const app = initializeApp(configToUse);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Suppress internal Firestore logs, especially for quota exceeded errors
-setLogLevel('silent');
+setLogLevel("silent");
 
 export const auth = getAuth(app);
 
@@ -17,12 +29,14 @@ let disableNetworkPromise: Promise<void> | null = null;
 export const safeDisableNetwork = async () => {
   if (isNetworkDisabled) return;
   if (disableNetworkPromise) return disableNetworkPromise;
-  
+
   try {
     disableNetworkPromise = disableNetwork(db);
     await disableNetworkPromise;
     isNetworkDisabled = true;
-    console.warn("Firestore network disabled due to quota limits. Falling back to local storage.");
+    console.warn(
+      "Firestore network disabled due to quota limits. Falling back to local storage.",
+    );
   } catch (error) {
     console.error("Failed to disable Firestore network:", error);
   } finally {
@@ -45,9 +59,9 @@ export const loginWithEmail = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error: any) {
     if (
-      error.code === 'auth/user-not-found' || 
-      error.code === 'auth/invalid-credential' || 
-      error.code === 'auth/invalid-login-credentials' ||
+      error.code === "auth/user-not-found" ||
+      error.code === "auth/invalid-credential" ||
+      error.code === "auth/invalid-login-credentials" ||
       !error.code
     ) {
       try {

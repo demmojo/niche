@@ -73,12 +73,12 @@ describe("aiClient utils", () => {
 
   describe("getSelectedModels / setSelectedModels", () => {
     it("returns default gemini model when local storage is empty", () => {
-      expect(getSelectedModels()).toEqual(["gemini-3.1-flash-preview"]);
+      expect(getSelectedModels()).toEqual(["gemini-3-flash-preview"]);
     });
 
     it("returns default gemini model when local storage is invalid JSON", () => {
       localStorage.setItem("ai_selected_models", "{ invalid json ]");
-      expect(getSelectedModels()).toEqual(["gemini-3.1-flash-preview"]);
+      expect(getSelectedModels()).toEqual(["gemini-3-flash-preview"]);
     });
 
     it("setSelectedModels and getSelectedModels work together", () => {
@@ -150,7 +150,7 @@ describe("aiClient utils", () => {
     });
 
     it("throws if no API keys are available for any configured model", async () => {
-      setSelectedModels(["gemini-3.1-flash-preview", "gpt-4o"]);
+      setSelectedModels(["gemini-3.1-pro-preview", "gpt-4o"]);
       mockKeys["gemini"] = null;
       mockKeys["openai"] = null;
 
@@ -230,7 +230,7 @@ describe("aiClient utils", () => {
     it("throws custom RateLimit:GlobalKey error when all models fail and no custom key is used", async () => {
       process.env.GEMINI_API_KEY = "env-key";
       mockKeys["gemini"] = null;
-      setSelectedModels(["gemini-3.1-flash-preview"]);
+      setSelectedModels(["gemini-3.1-pro-preview"]);
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -265,7 +265,7 @@ describe("aiClient utils", () => {
     it("respects timeout logic and falls back", async () => {
       mockKeys["openai"] = "test-key";
       mockKeys["gemini"] = "test-key2";
-      setSelectedModels(["gpt-4o", "gemini-3.1-flash-preview"]);
+      setSelectedModels(["gpt-4o", "gemini-3.1-pro-preview"]);
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -293,7 +293,7 @@ describe("aiClient utils", () => {
 
     beforeEach(async () => {
       mockKeys["gemini"] = "test-key";
-      setSelectedModels(["gemini-3.1-flash-preview"]);
+      setSelectedModels(["gemini-3.1-pro-preview"]);
       await withModelFallback(async (ai) => {
         aiClient = ai;
         return true;
@@ -305,12 +305,12 @@ describe("aiClient utils", () => {
         mockKeys["gemini"] = null;
         delete process.env.GEMINI_API_KEY;
         await expect(
-          aiClient.generateContent("gemini-3.1-flash-preview", {
+          aiClient.generateContent("gemini-3.1-pro-preview", {
             contents: "hi",
           }),
         ).rejects.toThrow("No Gemini API key available.");
         await expect(
-          aiClient.generateContentStream("gemini-3.1-flash-preview", {
+          aiClient.generateContentStream("gemini-3.1-pro-preview", {
             contents: "hi",
           }),
         ).rejects.toThrow("No Gemini API key available.");
@@ -327,13 +327,13 @@ describe("aiClient utils", () => {
           config: { responseMimeType: "application/json" },
         };
         const res = await aiClient.generateContent(
-          "gemini-3.1-flash-preview",
+          "gemini-3.1-pro-preview",
           params,
         );
 
         expect(res).toEqual({ text: "gemini response" });
         expect(mockGeminiGenerateContent).toHaveBeenCalledWith({
-          model: "gemini-3.1-flash-preview",
+          model: "gemini-3.1-pro-preview",
           contents: "hello",
           config: params.config,
         });
@@ -346,13 +346,13 @@ describe("aiClient utils", () => {
         });
 
         const res = await aiClient.generateContentStream(
-          "gemini-3.1-flash-preview",
+          "gemini-3.1-pro-preview",
           { contents: "hello" },
         );
 
         expect(res).toEqual({ text: "stream chunk" });
         expect(mockGeminiGenerateContentStream).toHaveBeenCalledWith({
-          model: "gemini-3.1-flash-preview",
+          model: "gemini-3.1-pro-preview",
           contents: "hello",
           config: undefined,
         });

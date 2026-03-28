@@ -54,7 +54,7 @@ export function InsightGeneratorModal({
 }: InsightGeneratorModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
@@ -70,11 +70,9 @@ export function InsightGeneratorModal({
   }, [isOpen, messages.length]);
 
   useEffect(() => {
-    if (
-      messagesEndRef.current &&
-      typeof messagesEndRef.current.scrollIntoView === "function"
-    ) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
 
@@ -278,7 +276,7 @@ export function InsightGeneratorModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
       <div
         className="absolute inset-0 bg-ink-dark/40 backdrop-blur-sm"
         onClick={onClose}
@@ -312,7 +310,10 @@ export function InsightGeneratorModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-paper-base/30">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-paper-base/30"
+        >
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div
@@ -417,7 +418,6 @@ export function InsightGeneratorModal({
               </div>
             </motion.div>
           )}
-          <div ref={messagesEndRef} />
         </div>
       </motion.div>
     </div>

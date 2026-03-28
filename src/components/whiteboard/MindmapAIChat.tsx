@@ -30,15 +30,13 @@ export function MindmapAIChat({
   const [mentionFilter, setMentionFilter] = useState("");
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll
   useEffect(() => {
-    if (
-      messagesEndRef.current &&
-      typeof messagesEndRef.current.scrollIntoView === "function"
-    ) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -210,7 +208,10 @@ export function MindmapAIChat({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F5F3ED]/30">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F5F3ED]/30"
+      >
         {messages.length === 0 && (
           <div className="text-center text-[#8A9A8E] text-sm mt-10">
             <Bot size={48} className="mx-auto mb-4 opacity-20" />
@@ -298,7 +299,6 @@ export function MindmapAIChat({
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}

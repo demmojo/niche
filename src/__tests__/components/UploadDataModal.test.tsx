@@ -149,7 +149,7 @@ describe("UploadDataModal", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(screen.getByText("test.csv")).toBeInTheDocument();
-    const removeBtn = screen.getByText("Remove File");
+    const removeBtn = screen.getByText("Clear All");
     fireEvent.click(removeBtn);
     expect(screen.queryByText("test.csv")).not.toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe("UploadDataModal", () => {
     );
 
     const dropzone = screen
-      .getByText("Click to upload or drag and drop")
+      .getByText("Click, drag and drop, or paste (Cmd+V)")
       .closest(".cursor-pointer")!;
     const input = document.querySelector(
       'input[type="file"]',
@@ -187,7 +187,7 @@ describe("UploadDataModal", () => {
     );
 
     const dropzone = screen
-      .getByText("Click to upload or drag and drop")
+      .getByText("Click, drag and drop, or paste (Cmd+V)")
       .closest(".border-dashed")!;
 
     fireEvent.dragEnter(dropzone);

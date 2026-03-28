@@ -1,0 +1,7 @@
+---
+description: Implement raw data image storage via Firebase
+globs: src/components/UploadDataModal.tsx, src/components/DataSourceCard.tsx, src/firebase.ts, package.json
+---
+# Raw Data Image Storage Implementation
+
+Follow the tasks in `openspec/changes/raw-data-image-storage/tasks.md` to implement persistent image storage and downloads.
