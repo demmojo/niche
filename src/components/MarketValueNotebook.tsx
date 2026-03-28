@@ -11,14 +11,34 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Tooltip } from "./Tooltip";
 
+/**
+ * Represents a single executable cell within the notebook UI.
+ */
 interface Cell {
+  /** Unique identifier for the cell */
   id: string;
+  /** Visual rendering type (e.g. 'markdown' vs 'code') */
   type: "code" | "markdown" | "data";
+  /** The text or code to display */
   content: string;
+  /** Output to render below the cell content */
   output?: React.ReactNode;
+  /** Current execution state */
   status: "idle" | "running" | "success" | "error";
 }
 
+/**
+ * A Jupyter-like UI component displaying the estimated market value calculation.
+ * @description
+ * Visualizes a series of "executable" cells that validate the provided `stats`
+ * object through simulated steps (loading data, running equations). This is purely
+ * a visual metaphor for the AI's internal market sizing logic.
+ * @param props.stats - The current market statistics object (requires `estimatedMarketValue`)
+ * @example
+ * ```tsx
+ * <MarketValueNotebook stats={{ estimatedMarketValue: "$1.2B" }} />
+ * ```
+ */
 export const MarketValueNotebook: React.FC<{ stats: any }> = ({ stats }) => {
   const [cells, setCells] = useState<Cell[]>([
     {
@@ -61,6 +81,9 @@ return \`$\${(estimatedValue / 1000000000).toFixed(2)}B\`;`,
 
   const [activeCell, setActiveCell] = useState<number>(-1);
 
+  /**
+   *
+   */
   const runCell = async (index: number) => {
     const newCells = [...cells];
     newCells[index].status = "running";

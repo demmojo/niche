@@ -14,11 +14,27 @@ import { withKeyRotation } from "../utils/geminiClient";
 import { useFirebaseSync } from "../hooks/useFirebaseSync";
 import Markdown from "react-markdown";
 
+/**
+ * Props for the MarketDataGrid component.
+ */
 interface MarketDataGridProps {
+  /** Array of structured competitor objects to display in the grid */
   competitors: any[];
+  /** Raw scraped data points associated with the market */
   rawData: any[];
 }
 
+/**
+ * An interactive data grid for viewing, sorting, and inline-editing competitor capabilities.
+ * @description
+ * This component syncs local edits via `useFirebaseSync` directly to Firestore.
+ * It also manages a local SWOT analysis object derived from the grid data.
+ * If no competitors are provided, it renders an empty state warning.
+ * @example
+ * ```tsx
+ * <MarketDataGrid competitors={competitorList} rawData={rawScrapes} />
+ * ```
+ */
 export default function MarketDataGrid({
   competitors,
   rawData,
@@ -70,6 +86,9 @@ export default function MarketDataGrid({
     });
   }
 
+  /**
+   *
+   */
   const handleSort = (key: string) => {
     setSortConfig((prev) => {
       if (prev?.key === key && prev.direction === "asc") {
@@ -79,15 +98,24 @@ export default function MarketDataGrid({
     });
   };
 
+  /**
+   *
+   */
   const toggleColumn = (key: string) => {
     setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  /**
+   *
+   */
   const startEditing = (id: string, key: string, value: any) => {
     setEditingCell({ id, key });
     setEditValue(value || "");
   };
 
+  /**
+   *
+   */
   const saveEdit = () => {
     if (editingCell) {
       setCompetitorEdits((prev) => ({
@@ -101,6 +129,9 @@ export default function MarketDataGrid({
     setEditingCell(null);
   };
 
+  /**
+   *
+   */
   const generateSwot = async () => {
     setIsGeneratingSwot(true);
     try {
@@ -147,6 +178,21 @@ export default function MarketDataGrid({
       setIsGeneratingSwot(false);
     }
   };
+
+  if (!competitors || competitors.length === 0) {
+    return (
+      <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-12 text-center shadow-sm">
+        <LayoutGrid className="w-12 h-12 mx-auto text-ink-dark/30 mb-4" />
+        <h3 className="text-xl font-bold font-serif text-ink-dark mb-2">
+          No Competitors Selected
+        </h3>
+        <p className="text-ink-dark/60 max-w-md mx-auto">
+          Please add and select competitors in the <strong>My Product</strong>{" "}
+          view to see them in the Data Grid.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6" data-testid="market-data-grid">

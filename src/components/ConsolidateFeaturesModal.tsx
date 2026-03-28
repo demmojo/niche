@@ -6,15 +6,38 @@ import { Tooltip } from "./Tooltip";
 import { Type } from "@google/genai";
 import { withKeyRotation } from "../utils/geminiClient";
 
+/**
+ * Props for the ConsolidateFeaturesModal component.
+ */
 interface ConsolidateFeaturesModalProps {
+  /** Controls modal visibility */
   isOpen: boolean;
+  /** Callback fired to close the modal */
   onClose: () => void;
   competitors: any[];
+  /** Callback fired to apply the consolidated feature list back to the active state */
   onConsolidate: (
     updates: { competitorId: string; newFeatures: string[] }[],
   ) => void;
 }
 
+/**
+ * A generative AI modal interface for aggregating similar competitor features.
+ * @description
+ * This modal passes all active competitor features to the AI Client, prompting it
+ * to normalize terminology (e.g., merging "Chat UI" and "Conversational Interface"
+ * into a single "Conversational AI" feature). The user can preview the changes
+ * before applying them globally.
+ * @example
+ * ```tsx
+ * <ConsolidateFeaturesModal
+ *   isOpen={showConsolidate}
+ *   competitors={competitorData}
+ *   onClose={() => setShowConsolidate(false)}
+ *   onConsolidate={(updates) => applyFeatureUpdates(updates)}
+ * />
+ * ```
+ */
 export const ConsolidateFeaturesModal: React.FC<
   ConsolidateFeaturesModalProps
 > = ({ isOpen, onClose, competitors, onConsolidate }) => {
@@ -24,7 +47,11 @@ export const ConsolidateFeaturesModal: React.FC<
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleAnalyze = async () => {
+    if (!competitors || competitors.length < 2) return;
     setIsAnalyzing(true);
     try {
       const allFeatures = competitors.map((c) => ({
@@ -91,12 +118,15 @@ ${JSON.stringify(allFeatures, null, 2)}
     }
   };
 
+  /**
+   *
+   */
   const handleApply = () => {
     if (!suggestions) return;
     setIsApplying(true);
 
     const updates = competitors.map((c) => {
-      let newFeatures = [...(c.coreFeatures || [])];
+      const newFeatures = [...(c.coreFeatures || [])];
 
       suggestions.forEach((suggestion) => {
         let hasAnyOriginal = false;
@@ -175,13 +205,22 @@ ${JSON.stringify(allFeatures, null, 2)}
                     Ready to Aggregate
                   </h3>
                   <p className="text-ink-dark/60 max-w-md mx-auto mb-8">
-                    We'll analyze the feature lists of all your competitors and
-                    group similar items (e.g., "Chatbot" and "Conversational
+                    {!competitors || competitors.length < 2 ? (
+                      <span className="text-accent-coral block mt-2 font-medium">
+                        You need at least 2 competitors selected to consolidate
+                        features.
+                      </span>
+                    ) : (
+                      "We'll analyze the feature lists of all your competitors"
+                    )}{" "}
+                    and group similar items (e.g., "Chatbot" and "Conversational
                     AI") into single, unified capabilities.
                   </p>
                   <button
                     onClick={handleAnalyze}
-                    disabled={isAnalyzing}
+                    disabled={
+                      isAnalyzing || !competitors || competitors.length < 2
+                    }
                     className="relative inline-flex items-center justify-center gap-2 px-8 py-3 bg-ink-dark text-white rounded-xl font-semibold hover:bg-black transition-all disabled:opacity-50 disabled:hover:bg-ink-dark shadow-md hover:shadow-lg overflow-hidden group min-w-[200px]"
                   >
                     {isAnalyzing ? (

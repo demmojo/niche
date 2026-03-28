@@ -16,10 +16,17 @@ import { getErrorMessage } from "../utils/errorHandler";
 import Markdown from "react-markdown";
 import { Tooltip } from "./Tooltip";
 
+/**
+ * Props for the InsightBrainstormChat component.
+ */
 interface InsightBrainstormChatProps {
+  /** Array of active competitors in the current product view */
   competitors: any[];
+  /** Array of existing strategic insights already in the library */
   insights: any[];
+  /** Array of raw scraped data points (Apollo/News) used as context */
   rawData: any[];
+  /** Callback fired when the AI generates a concrete insight that the user wants to save */
   onSaveInsight: (insight: any) => void;
 }
 
@@ -30,6 +37,24 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
+/**
+ * A specialized chat interface dedicated to refining and validating strategic insights.
+ * @description
+ * Instead of generating random data, this UI forces the AI into a strict "Strategist"
+ * persona, prompting it to validate user ideas against the provided `competitors`
+ * and `rawData`. It also utilizes function calling (Tools) to allow the AI to
+ * programmatically call `onSaveInsight` when it feels the brainstorm has reached
+ * a concrete conclusion.
+ * @example
+ * ```tsx
+ * <InsightBrainstormChat
+ *   competitors={competitors}
+ *   insights={insights}
+ *   rawData={rawData}
+ *   onSaveInsight={saveNewInsight}
+ * />
+ * ```
+ */
 export function InsightBrainstormChat({
   competitors,
   insights,
@@ -58,6 +83,9 @@ export function InsightBrainstormChat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  /**
+   *
+   */
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 

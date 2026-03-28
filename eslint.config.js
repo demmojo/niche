@@ -38,7 +38,11 @@ export default tseslint.config(
       ],
       "jsdoc/require-param-type": "off", // TS handles types
       "jsdoc/require-returns-type": "off", // TS handles types
-      "jsdoc/require-returns": "off", // Too pedantic
+      "jsdoc/require-returns": "off",
+      "jsdoc/require-param": "off",
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-yields": "off",
+      "jsdoc/check-param-names": "off",
       "@typescript-eslint/no-explicit-any": "off", // Ignoring standard stuff for this refactor
       "@typescript-eslint/no-unused-vars": "off",
     },

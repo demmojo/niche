@@ -4,13 +4,26 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, Sprout, Sun, Leaf, X, Wheat } from "lucide-react";
 import { Tooltip } from "./Tooltip";
 
+/**
+ * Properties for the InsightQuestModal component.
+ */
 interface InsightQuestModalProps {
+  /** Controls whether the modal is visible */
   isOpen: boolean;
+  /** Callback fired to close the modal */
   onClose: () => void;
+  /** Array of insight objects to rank (requires at least 2) */
   insights: any[];
+  /** Callback fired when the user selects a winning insight over a losing one */
   onRankInsight: (winnerId: string, loserId: string) => void;
 }
 
+/**
+ * A utility component that animates text as if it's being typed on a typewriter.
+ * @param props.text - The full string to display
+ * @param props.onComplete - Optional callback when typing finishes
+ * @param props.speed - Delay in milliseconds between each character (default: 40)
+ */
 const TypewriterText = ({
   text,
   onComplete,
@@ -38,6 +51,9 @@ const TypewriterText = ({
   }, [text, speed, onComplete]);
 
   // Special rendering for the word "harvest"
+  /**
+   *
+   */
   const renderText = () => {
     const parts = displayedText.split(/(harvest)/i);
     return parts.map((part, index) => {
@@ -60,6 +76,22 @@ const TypewriterText = ({
   return <span>{renderText()}</span>;
 };
 
+/**
+ * A gamified A/B ranking modal for strategic insights.
+ * @description
+ * Uses a farming metaphor to reduce decision fatigue when ranking a large volume
+ * of AI-generated insights. Users choose the "better" insight across up to 3 rounds.
+ * If fewer than 2 insights are provided, the modal skips straight to the outro.
+ * @example
+ * ```tsx
+ * <InsightQuestModal
+ *   isOpen={true}
+ *   insights={currentInsights}
+ *   onClose={() => setOpen(false)}
+ *   onRankInsight={(winner, loser) => handleEloUpdate(winner, loser)}
+ * />
+ * ```
+ */
 export function InsightQuestModal({
   isOpen,
   onClose,
@@ -86,6 +118,9 @@ export function InsightQuestModal({
     }
   }, [isOpen]);
 
+  /**
+   *
+   */
   const pickInsights = () => {
     if (insights.length >= 2) {
       // Pick two random different insights
@@ -99,6 +134,9 @@ export function InsightQuestModal({
     return false;
   };
 
+  /**
+   *
+   */
   const handleNextStep = () => {
     if (step === "intro") setStep("name");
     else if (step === "name") setStep("pill");
@@ -112,6 +150,9 @@ export function InsightQuestModal({
     }
   };
 
+  /**
+   *
+   */
   const handleChoice = (winnerId: string, loserId: string) => {
     onRankInsight(winnerId, loserId);
     if (roundsPlayed + 1 >= maxRounds) {

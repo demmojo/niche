@@ -348,6 +348,11 @@ describe("ConsolidateFeaturesModal", () => {
       {
         id: "comp-1",
         name: "Competitor A",
+        coreFeatures: ["Feature 1", "Feature 2", "Other"],
+      },
+      {
+        id: "comp-2",
+        name: "Competitor A",
         coreFeatures: ["Feature 1", "Feature 2", "Other"], // Has both features!
       },
     ];

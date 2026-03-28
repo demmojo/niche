@@ -1,28 +1,57 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, ArrowRight, X, Loader2, MessageSquare } from 'lucide-react';
-import { GoogleGenAI, Type } from '@google/genai';
-import { withKeyRotation } from '../utils/geminiClient';
-import { getErrorMessage } from '../utils/errorHandler';
-import Markdown from 'react-markdown';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Sparkles, ArrowRight, X, Loader2, MessageSquare } from "lucide-react";
+import { GoogleGenAI, Type } from "@google/genai";
+import { withKeyRotation } from "../utils/geminiClient";
+import { getErrorMessage } from "../utils/errorHandler";
+import Markdown from "react-markdown";
 
+/**
+ * Props for the InsightGeneratorModal component.
+ */
 interface InsightGeneratorModalProps {
+  /** Controls modal visibility */
   isOpen: boolean;
+  /** Callback fired to close the modal */
   onClose: () => void;
+  /** Callback fired when a structured insight object is successfully generated */
   onInsightGenerated: (insight: any) => void;
+  /** Raw context data (feature array, competitor string, etc.) to seed the AI prompt */
   rawContextData: any;
 }
 
 interface ChatMessage {
   id: string;
-  role: 'assistant' | 'user';
+  role: "assistant" | "user";
   content: string;
   options?: string[];
   isFinalInsight?: boolean;
   insightData?: any;
 }
 
-export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, rawContextData }: InsightGeneratorModalProps) {
+/**
+ * A modal that uses conversational AI to extract a specific structured insight.
+ * @description
+ * Operates like a multi-step wizard, but driven dynamically by an LLM rather than
+ * static UI steps. The AI evaluates the `rawContextData` and asks the user clarifying
+ * questions via `ChatMessage.options`. Once sufficient context is gathered, the AI
+ * yields a structured JSON object that matches the system's Insight schema.
+ * @example
+ * ```tsx
+ * <InsightGeneratorModal
+ *   isOpen={true}
+ *   onClose={() => setOpen(false)}
+ *   onInsightGenerated={saveInsight}
+ *   rawContextData={selectedCompetitor}
+ * />
+ * ```
+ */
+export function InsightGeneratorModal({
+  isOpen,
+  onClose,
+  onInsightGenerated,
+  rawContextData,
+}: InsightGeneratorModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,11 +70,17 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
   }, [isOpen, messages.length]);
 
   useEffect(() => {
-    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (
+      messagesEndRef.current &&
+      typeof messagesEndRef.current.scrollIntoView === "function"
+    ) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isTyping]);
 
+  /**
+   *
+   */
   const startConversation = async () => {
     if (isTyping) return;
     setIsTyping(true);
@@ -68,51 +103,65 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
           model: model,
           contents: prompt,
           config: {
-            responseMimeType: 'application/json',
+            responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
               properties: {
                 message: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } }
+                options: { type: Type.ARRAY, items: { type: Type.STRING } },
               },
-              required: ["message", "options"]
-            }
-          }
+              required: ["message", "options"],
+            },
+          },
         });
       });
 
-      const data = JSON.parse(response.text || '{"message": "What area would you like to explore?", "options": ["Pricing", "Features"]}');
-      
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: data.message,
-        options: data.options
-      }]);
+      const data = JSON.parse(
+        response.text ||
+          '{"message": "What area would you like to explore?", "options": ["Pricing", "Features"]}',
+      );
+
+      setMessages([
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: data.message,
+          options: data.options,
+        },
+      ]);
     } catch (error) {
-      console.error('Failed to start conversation:', error);
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "I'm having trouble connecting to the data source. Please try again later.",
-        options: ["Retry"]
-      }]);
+      console.error("Failed to start conversation:", error);
+      setMessages([
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content:
+            "I'm having trouble connecting to the data source. Please try again later.",
+          options: ["Retry"],
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
   };
 
+  /**
+   *
+   */
   const handleOptionClick = async (option: string) => {
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),
-      role: 'user',
-      content: option
+      role: "user",
+      content: option,
     };
-    
-    setMessages(prev => {
+
+    setMessages((prev) => {
       // Remove options from the last assistant message
       const updated = [...prev];
-      if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+      if (
+        updated.length > 0 &&
+        updated[updated.length - 1].role === "assistant"
+      ) {
         updated[updated.length - 1].options = undefined;
       }
       return [...updated, newUserMsg];
@@ -121,8 +170,11 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
     setIsTyping(true);
 
     try {
-      const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n') + `\nUser: ${option}`;
-      
+      const historyText =
+        messages
+          .map((m) => `${m.role === "user" ? "User" : "AI"}: ${m.content}`)
+          .join("\n") + `\nUser: ${option}`;
+
       const prompt = `
         You are an expert Market Intelligence AI. We are having a conversation to generate a specific market insight.
         
@@ -148,7 +200,7 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
           model: model,
           contents: prompt,
           config: {
-            responseMimeType: 'application/json',
+            responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -161,40 +213,52 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
                     title: { type: Type.STRING },
                     description: { type: Type.STRING },
                     category: { type: Type.STRING },
-                    impact: { type: Type.STRING }
-                  }
-                }
+                    impact: { type: Type.STRING },
+                  },
+                },
               },
-              required: ["isFinal", "message"]
-            }
-          }
+              required: ["isFinal", "message"],
+            },
+          },
         });
       });
 
-      const data = JSON.parse(response.text || '{"isFinal": false, "message": "Error processing response."}');
-      
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: data.message,
-        options: data.isFinal ? undefined : data.options,
-        isFinalInsight: data.isFinal,
-        insightData: data.insight
-      }]);
+      const data = JSON.parse(
+        response.text ||
+          '{"isFinal": false, "message": "Error processing response."}',
+      );
 
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: data.message,
+          options: data.isFinal ? undefined : data.options,
+          isFinalInsight: data.isFinal,
+          insightData: data.insight,
+        },
+      ]);
     } catch (error) {
-      console.error('Failed to process choice:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "I encountered an error analyzing the data. Please try another option.",
-        options: ["Start Over"]
-      }]);
+      console.error("Failed to process choice:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content:
+            "I encountered an error analyzing the data. Please try another option.",
+          options: ["Start Over"],
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
   };
 
+  /**
+   *
+   */
   const handleAcceptInsight = (insightData: any) => {
     const newInsight = {
       id: `insight-${Date.now()}`,
@@ -204,8 +268,8 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
       impact: insightData.impact,
       sourceIds: [],
       isDeduced: true,
-      source: 'AI',
-      timestamp: new Date().toISOString()
+      source: "AI",
+      timestamp: new Date().toISOString(),
     };
     onInsightGenerated(newInsight);
     onClose();
@@ -215,9 +279,12 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-ink-dark/40 backdrop-blur-sm" onClick={onClose} />
-      
-      <motion.div 
+      <div
+        className="absolute inset-0 bg-ink-dark/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -229,11 +296,15 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
               <Sparkles size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-ink-dark font-serif">Insight Generator</h2>
-              <p className="text-sm text-ink-muted">Explore the raw data to uncover hidden patterns.</p>
+              <h2 className="text-xl font-bold text-ink-dark font-serif">
+                Insight Generator
+              </h2>
+              <p className="text-sm text-ink-muted">
+                Explore the raw data to uncover hidden patterns.
+              </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 text-ink-muted hover:text-ink-dark hover:bg-ink-dark/5 rounded-full transition-colors"
           >
@@ -248,17 +319,21 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
                 key={msg.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-moss text-white rounded-2xl rounded-tr-sm' : 'bg-white border border-ink-dark/10 shadow-sm rounded-2xl rounded-tl-sm'} p-4`}>
-                  {msg.role === 'assistant' && (
+                <div
+                  className={`max-w-[85%] ${msg.role === "user" ? "bg-moss text-white rounded-2xl rounded-tr-sm" : "bg-white border border-ink-dark/10 shadow-sm rounded-2xl rounded-tl-sm"} p-4`}
+                >
+                  {msg.role === "assistant" && (
                     <div className="flex items-center gap-2 mb-2 text-moss font-bold text-sm">
                       <Sparkles size={14} />
                       <span>Insight Engine</span>
                     </div>
                   )}
-                  
-                  <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert text-white' : 'text-ink-dark'}`}>
+
+                  <div
+                    className={`prose prose-sm max-w-none ${msg.role === "user" ? "prose-invert text-white" : "text-ink-dark"}`}
+                  >
                     <Markdown>{msg.content}</Markdown>
                   </div>
 
@@ -267,7 +342,11 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
                       {msg.options.map((opt, i) => (
                         <button
                           key={i}
-                          onClick={() => opt === 'Start Over' || opt === 'Retry' ? startConversation() : handleOptionClick(opt)}
+                          onClick={() =>
+                            opt === "Start Over" || opt === "Retry"
+                              ? startConversation()
+                              : handleOptionClick(opt)
+                          }
                           disabled={isTyping}
                           className="px-4 py-2 bg-paper-base hover:bg-moss/10 text-moss border border-moss/20 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
@@ -281,24 +360,36 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
                   {msg.isFinalInsight && msg.insightData && (
                     <div className="mt-4 p-4 bg-moss/5 border border-moss/20 rounded-xl">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
-                          msg.insightData.category === 'opportunity' ? 'bg-emerald-100 text-emerald-700' :
-                          msg.insightData.category === 'threat' ? 'bg-rose-100 text-rose-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                            msg.insightData.category === "opportunity"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : msg.insightData.category === "threat"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
                           {msg.insightData.category}
                         </span>
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
-                          msg.insightData.impact === 'high' ? 'bg-rose-100 text-rose-700' :
-                          msg.insightData.impact === 'medium' ? 'bg-amber-100 text-amber-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                            msg.insightData.impact === "high"
+                              ? "bg-rose-100 text-rose-700"
+                              : msg.insightData.impact === "medium"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
                           {msg.insightData.impact} Impact
                         </span>
                       </div>
-                      <h4 className="font-bold text-ink-dark text-lg mb-1">{msg.insightData.title}</h4>
-                      <p className="text-ink-muted text-sm mb-4">{msg.insightData.description}</p>
-                      
+                      <h4 className="font-bold text-ink-dark text-lg mb-1">
+                        {msg.insightData.title}
+                      </h4>
+                      <p className="text-ink-muted text-sm mb-4">
+                        {msg.insightData.description}
+                      </p>
+
                       <button
                         onClick={() => handleAcceptInsight(msg.insightData)}
                         className="w-full py-2 bg-moss hover:bg-moss/90 text-white rounded-xl text-sm font-bold transition-colors"
@@ -320,7 +411,9 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
             >
               <div className="bg-white border border-ink-dark/10 shadow-sm rounded-2xl rounded-tl-sm p-4 flex items-center gap-3">
                 <Loader2 size={16} className="animate-spin text-moss" />
-                <span className="text-sm text-ink-muted font-medium">Analyzing data...</span>
+                <span className="text-sm text-ink-muted font-medium">
+                  Analyzing data...
+                </span>
               </div>
             </motion.div>
           )}
