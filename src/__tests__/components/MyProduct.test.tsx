@@ -20,6 +20,7 @@ vi.mock("lucide-react", () => ({
   ChevronDown: () => <div data-testid="icon-chevrondown" />,
   ChevronUp: () => <div data-testid="icon-chevronup" />,
   Download: () => <div data-testid="icon-download" />,
+  Loader2: () => <div data-testid="icon-loader2" />,
 }));
 
 // Mock ExportButton
@@ -155,11 +156,13 @@ describe("MyProduct Component", () => {
     const saveButton = screen.getByText("Save");
     fireEvent.click(saveButton);
 
-    // Verify updates
-    expect(screen.getByText("Updated Product")).toBeInTheDocument();
-    expect(screen.getByText("Updated Description")).toBeInTheDocument();
-    expect(screen.getByText("Asia")).toBeInTheDocument();
-    expect(screen.getByText("Africa")).toBeInTheDocument();
+    // Verify updates (now async due to tarpit analysis)
+    await waitFor(() => {
+      expect(screen.getByText("Updated Product")).toBeInTheDocument();
+      expect(screen.getByText("Updated Description")).toBeInTheDocument();
+      expect(screen.getByText("Asia")).toBeInTheDocument();
+      expect(screen.getByText("Africa")).toBeInTheDocument();
+    });
   });
 
   it("can add a new feature", async () => {

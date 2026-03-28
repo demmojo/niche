@@ -80,4 +80,24 @@ export const handlers = [
       ],
     });
   }),
+
+  // Mock Tarpit Analyzer
+  http.post("*/api/tarpit-analyze", async () => {
+    return HttpResponse.json({
+      isTarpit: false,
+      score: 10,
+      reasoning: "Not a tarpit.",
+      suggestedNiches: [],
+    });
+  }),
+
+  // Mock Cloudflare GraphQL API
+  http.post("*/api/cloudflare/graphql", async () => {
+    return HttpResponse.json({
+      pageViews: 1000,
+      uniqueVisitors: 800,
+      conversionRate: "4.5%",
+      referrers: ["google.com"],
+    });
+  }),
 ];

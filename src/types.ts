@@ -61,6 +61,31 @@ export interface LogEntry {
   apiCallDetails?: any;
 }
 
+export type LensConfidence = "High" | "Medium" | "Low";
+
+export interface LensSuggestion {
+  id: string;
+  type: "feature" | "insight";
+  title: string;
+  description: string;
+  rationale: string;
+  confidence: LensConfidence;
+}
+
+export interface RejectedSuggestion {
+  itemTitle: string;
+  reason: string;
+  timestamp: number;
+}
+
+export interface LensChatMessage {
+  id: string;
+  role: "lens" | "user";
+  text: string;
+  suggestions?: LensSuggestion[];
+  options?: string[];
+}
+
 export interface ChatMessage {
   id?: string;
   role: "user" | "assistant";
@@ -115,6 +140,7 @@ export interface Competitor {
   techStack?: string[];
   seoKeywords?: string[];
   verifiedFields?: Record<string, boolean>;
+  features?: string[]; // Adding generic features array for capability gap comparison
 }
 
 export type SubscriptionTier = "free" | "pro" | "enterprise";

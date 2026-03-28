@@ -244,12 +244,12 @@ export const dictionary = {
         },
         aiChat: {
           title: "Proactive AI Research Partner",
-          desc: "Discuss market shifts with Archivist Burt, who automatically analyzes your newly synced data and suggests features and insights.",
+          desc: "Discuss market shifts with Lens, our AI Product Strategist, who automatically analyzes your newly synced data and drafts features and insights.",
         },
       },
       steps: {
         step1: "Run a Global Sync to pull the latest market data.",
-        step2: "Review Burt's proactive deep analysis of the fresh data.",
+        step2: "Review Lens's proactive deep analysis of the fresh data.",
         step3:
           "Use the inline buttons to instantly save suggested features and insights.",
       },

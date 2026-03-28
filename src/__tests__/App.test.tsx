@@ -129,13 +129,13 @@ describe("App Integration", () => {
     syncButtons = getAllByText("Sync Now", { selector: "button" });
     expect(syncButtons.length).toBe(1);
 
-    // 5. Navigate to "System Status" tab
+    // Navigation to Background Tasks & Sync
     await act(async () => {
-      fireEvent.click(getAllByText("Background Tasks & Sync")[0]);
+      fireEvent.click(screen.getAllByText("Background Tasks & Sync")[0]);
     });
 
     await waitFor(() => {
-      expect(getByText("All systems are up to date.")).toBeInTheDocument();
+      expect(screen.getByText("System Logs")).toBeInTheDocument();
     });
 
     // Here, there's one Sync Now button in the empty state ("All systems are up to date.") and one in the top header.

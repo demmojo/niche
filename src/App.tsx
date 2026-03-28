@@ -96,7 +96,7 @@ import {
 import Markdown from "react-markdown";
 import { InsightQuestModal } from "./components/InsightQuestModal";
 import { InsightGeneratorModal } from "./components/InsightGeneratorModal";
-import MarketAnalysis from "./components/MarketAnalysis";
+import LensStrategyConsole from "./components/lens/LensStrategyConsole";
 import { VisualWhiteboard } from "./components/whiteboard/VisualWhiteboard";
 import { useVisualKnowledgeStore } from "./store/visualKnowledgeStore";
 import { Settings as SettingsComponent } from "./components/Settings";
@@ -1361,6 +1361,8 @@ function WorkspaceApp({ user, logout }: any) {
 
 import { SyncReviewModal } from "./components/SyncReviewModal";
 
+import { DashboardExtensions } from "./components/DashboardExtensions";
+
 function ActiveApp({ user, productId, isSuperadmin }: any) {
   const defaultCompetitors =
     isSuperadmin && productId === "prod-kageform" ? initialCompetitors : [];
@@ -1377,6 +1379,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           targetRegions: ["US", "EU", "Asia", "Middle East"],
           features: [],
           strategy: [],
+          allowAiWriteAccess: true,
         }
       : {
           name: "",
@@ -1384,6 +1387,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           targetRegions: [],
           features: [],
           strategy: [],
+          allowAiWriteAccess: false,
         };
 
   const [activeTab, setActiveTab] = useLocalStorage(
@@ -5086,6 +5090,13 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                       bgClass="bg-emerald-50"
                     />
                   </div>
+
+                  <DashboardExtensions
+                    productData={myProductData}
+                    setProductData={setMyProductData}
+                    insights={derivedInsights}
+                    competitors={competitors}
+                  />
                 </div>
               )}
 
@@ -6364,11 +6375,40 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
             {/* MARKET ANALYSIS TAB */}
             {activeTab === "market-analysis" && (
-              <MarketAnalysis
+              <LensStrategyConsole
                 stats={stats}
                 competitors={competitors}
                 insights={derivedInsights}
                 rawData={rawDataSources}
+                onAddFeature={(name, desc) => {
+                  setMyProductData((prev) => ({
+                    ...prev,
+                    features: [
+                      ...prev.features,
+                      {
+                        id: Date.now().toString(),
+                        name,
+                        description: desc,
+                        isCore: false,
+                        status: "planned",
+                      },
+                    ],
+                  }));
+                  addToast(`Added drafted feature: ${name}`);
+                }}
+                onAddInsight={(title, desc) => {
+                  const newInsight = {
+                    id: Date.now().toString(),
+                    title,
+                    description: desc,
+                    category: "opportunity",
+                    impact: "high",
+                    confidence: 85,
+                    createdAt: new Date().toISOString(),
+                  };
+                  setDerivedInsights((prev) => [newInsight as any, ...prev]);
+                  addToast(`Added strategic insight: ${title}`);
+                }}
               />
             )}
 
