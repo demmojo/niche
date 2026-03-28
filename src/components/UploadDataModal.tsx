@@ -49,7 +49,17 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({ isOpen, onClos
     if (!file) return;
     setIsAnalyzing(true);
     try {
-      const text = await file.text();
+      let text = '';
+      if (typeof file.text === 'function') {
+        text = await file.text();
+      } else {
+        text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+      }
       
       const prompt = `You are a market intelligence analyst. Analyze the following raw data uploaded by the user.
       

@@ -1,4 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useSyncQueue } from "./hooks/useSyncQueue";
+import { createCompetitorDiffs, filterVerifiedDiffs } from "./utils/syncDiffUtils";
 import { Radar as RechartsRadar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceLine, Label } from 'recharts';
 
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -35,6 +37,8 @@ import {
  CheckCircle2,
  XCircle,
  X,
+ Lock,
+ Unlock,
  Info,
  Maximize2,
  PieChart,
@@ -56,8 +60,10 @@ import {
   Upload,
   Package
 } from 'lucide-react';
+import { getCustomApiKey } from './utils/apiKeys';
+import { trackRequest, updateRateLimits } from './utils/usageTracker';
 import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
-import { withKeyRotation } from './utils/geminiClient';
+import { withModelFallback } from './utils/aiClient';
 import { getErrorMessage } from './utils/errorHandler';
 import { filterCompetitors, filterRawData, filterInsights } from './utils/searchFilters';
 import Markdown from 'react-markdown';
@@ -67,6 +73,14 @@ import { InspiringRadioWidget } from './components/InspiringRadioWidget';
 import MarketAnalysis from './components/MarketAnalysis';
 import { MindmapExplorer, MindmapNode } from './components/MindmapExplorer';
 import { Settings as SettingsComponent } from './components/Settings';
+import { AlphaBadge } from './components/AlphaBadge';
+import { SupportHelpPage } from './components/SupportHelpPage';
+import { SuperadminDashboard } from './components/SuperadminDashboard';
+import { LimitReachedModal } from './components/LimitReachedModal';
+import { RateLimitModal } from './components/RateLimitModal';
+import { checkAlphaLimit, recordAlphaUsage } from './utils/alphaUsageLimiter';
+import { Heart } from 'lucide-react';
+
 import { MarketValueNotebook } from './components/MarketValueNotebook';
 import { DataPointsTable } from './components/DataPointsTable';
 import { MyProduct, MyProductData } from './components/MyProduct';
@@ -75,7 +89,9 @@ import { InsightBrainstormModal } from './components/InsightBrainstormModal';
 import { PageGuideModal } from './components/PageGuideModal';
 import { UploadDataModal } from './components/UploadDataModal';
 import { ConsolidateFeaturesModal } from './components/ConsolidateFeaturesModal';
+import { GlobalProgressBanner } from './components/GlobalProgressBanner';
 import { Tooltip } from './components/Tooltip';
+import ExportButton from './components/ExportButton';
 import { 
   Toast, DerivedInsight, SourceType, ConfidenceLevel, DataSource, 
   LogEntry, ChatMessage, SortField, SortOrder, Competitor 
@@ -491,7 +507,7 @@ function OnboardingWizard({ onComplete }: { onComplete: (product: MyProductData)
     <div className="min-h-screen bg-[#F5F3ED] flex items-center justify-center p-4">
 
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/20 max-w-2xl w-full">
-        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">Welcome to CAB AI</h2>
+        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">Welcome to NicheAI</h2>
         <p className="text-ink-dark/70 mb-8">Let's set up your product intelligence workspace.</p>
         
         {step === 1 && (
@@ -559,7 +575,7 @@ function AuthScreen() {
           <div className="w-10 h-10 bg-ink-dark rounded-xl flex items-center justify-center shadow-inner">
             <Target className="w-5 h-5 text-paper-light" />
           </div>
-          <span className="text-2xl font-bold tracking-tight text-ink-dark">CAB AI</span>
+          <span className="text-2xl font-bold tracking-tight text-ink-dark">NicheAI</span>
         </div>
         <h2 className="text-xl font-semibold mb-6 text-center">Sign in to your account</h2>
         
@@ -642,7 +658,7 @@ function SyncNowButton({ isSyncing, syncTimeRemaining, handleGlobalSync, setShow
  <p className="text-sm text-ink-dark mb-2">
  {isSyncing 
  ? `Sync in progress. Please wait approximately ${syncTimeRemaining} seconds for background tasks to complete.`
- : 'Fetch the latest data across all competitors and update insights.'}
+ : 'Fetch the latest data across all competitors and queue proposed updates for manual review.'}
  </p>
  <button 
  onClick={(e) => { e.stopPropagation(); setShowSyncInfo(true); }}
@@ -842,7 +858,12 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, React.Disp
  
 export default function App() {
   const { user, loading, logout } = useAuth();
-  
+
+  // For Playwright E2E tests
+  if (window.name === 'playwright-test' || window.location.search.includes('mock_auth=true')) {
+    return <WorkspaceApp user={{ email: 'test@nicheai.com', uid: 'test-user-123' }} logout={() => {}} />;
+  }
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!user) return <AuthScreen />;
 
@@ -882,7 +903,7 @@ function WorkspaceApp({ user, logout }: any) {
       <div className="h-14 bg-white border-b border-ink-dark/10 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold text-ink-dark">
-            <Target className="w-5 h-5" /> CAB AI
+            <Target className="w-5 h-5" /> NicheAI
           </div>
           <div className="w-px h-6 bg-ink-dark/10"></div>
           <select 
@@ -914,6 +935,8 @@ function WorkspaceApp({ user, logout }: any) {
   );
 }
 
+import { SyncReviewModal } from './components/SyncReviewModal';
+
 function ActiveApp({ user, productId, isSuperadmin }: any) {
 
   const defaultCompetitors = isSuperadmin && productId === 'prod-kageform' ? initialCompetitors : [];
@@ -934,12 +957,17 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   };
 
  const [activeTab, setActiveTab] = useLocalStorage(`active_tab_${user.uid}_${productId}`, 'dashboard');
+ const [supportInitialType, setSupportInitialType] = useState<'Bug' | 'Feature' | 'General' | 'Limit Increase Request'>('General');
+ const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
+ const [rateLimitError, setRateLimitError] = useState<string | null>(null);
+ const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
  const [myProductData, setMyProductData] = useLocalStorage<MyProductData>(`my_product_data_${user.uid}_${productId}`, defaultProductData);
  
 
 
  const [competitors, setCompetitors] = useLocalStorage<Competitor[]>(`competitors_${user.uid}_${productId}`, defaultCompetitors);
  const [rawDataSources, setRawDataSources] = useLocalStorage<DataSource[]>(`raw_data_sources_${user.uid}_${productId}`, defaultSources);
+ const { syncQueue, setSyncQueue, queueSyncChanges, clearSyncQueue, removeSyncChange } = useSyncQueue();
  
 // Matrix State
   const [competitorSearch, setCompetitorSearch] = useState('');
@@ -1103,7 +1131,33 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
  };
 
  // Sync Function
+ const handleApiError = (e: any, logId?: string, actionName?: string, retryAction?: () => void) => {
+    const errorMsg = getErrorMessage(e);
+    if (e.isRateLimit || errorMsg.includes('RateLimit:')) {
+      setRateLimitError(errorMsg);
+      setIsRateLimitModalOpen(true);
+      if (logId && actionName) {
+        updateLog(logId, { details: `${actionName} rate limited.`, status: 'error' });
+      }
+      return true; // Indicates it was handled as rate limit
+    }
+    
+    if (logId && actionName) {
+      updateLog(logId, { details: `${actionName} failed: ${errorMsg}. Click to retry.`, status: 'error', retryAction, apiCallDetails: { error: errorMsg } });
+    }
+    addToast(errorMsg, 'error');
+    return false;
+  };
+
  const handleGlobalSync = async (startStage = 1, initialState: any = {}) => {
+  if (startStage === 1 && !isSuperadmin && !checkAlphaLimit()) {
+    setIsLimitModalOpen(true);
+    return;
+  }
+  if (syncQueue.length > 0) {
+    addToast("Please review and commit pending sync changes first.", "error");
+    return;
+  }
   if (isSyncing && startStage === 1) {
     addToast('Sync already in progress. Estimated time: ' + syncTimeRemaining + 's', 'info');
     return;
@@ -1140,25 +1194,50 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         try {
           const keywords = myProductData.features.map(f => f.name).concat([myProductData.name]).filter(Boolean);
           if (keywords.length > 0) {
+            const customApiKey = getCustomApiKey('apollo');
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (customApiKey) headers['x-api-key'] = customApiKey;
+
             const apolloSearchRes = await fetch('/api/apollo/search', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({ keywords })
             });
+
+            if (apolloSearchRes.status === 429) {
+              const error: any = new Error("Rate limit exceeded for Apollo API");
+              error.isRateLimit = true;
+              error.message = (customApiKey ? 'RateLimit:CustomKey:' : 'RateLimit:GlobalKey:') + error.message;
+              throw error;
+            }
+
             if (apolloSearchRes.ok) {
               const apolloSearchData = await apolloSearchRes.json();
               if (apolloSearchData.organizations) {
                 apolloDomains = apolloSearchData.organizations.map((org: any) => org.website_url?.replace(/^https?:\/\//, '').split('/')[0]).filter(Boolean);
               }
+              // Update Rate Limits if headers exist
+              const limitStr = apolloSearchRes.headers?.get?.('x-rate-limit-limit');
+              const remainingStr = apolloSearchRes.headers?.get?.('x-rate-limit-remaining');
+              const resetStr = apolloSearchRes.headers?.get?.('x-rate-limit-reset');
+              if (limitStr) {
+                const limit = parseInt(limitStr, 10);
+                const remaining = remainingStr ? parseInt(remainingStr, 10) : null;
+                const reset = resetStr ? parseInt(resetStr, 10) : null;
+                if (!isNaN(limit)) updateRateLimits('apollo', limit, remaining, reset);
+              }
+              trackRequest('apollo', customApiKey || 'env_key', false);
+            } else {
+              trackRequest('apollo', customApiKey || 'env_key', true);
             }
           }
         } catch(err) {
           console.warn("Apollo search failed, falling back to LLM", err);
         }
 
-        const response = await withKeyRotation(async (ai, model) => {
-          return await ai.models.generateContent({
-            model: model,
+        const response = await withModelFallback(async (ai, model) => {
+          return await ai.generateContent(model, {
+            
             contents: `Based on these known competitors in the space of ${myProductData.name || 'this industry'}: ` + knownNames + `. Identify up to 5 emerging or lesser-known competitors that are NOT in this list. Return ONLY a JSON array of their website domains (e.g. ["example.com", "test.io"]).`,
             config: {
               responseMimeType: "application/json",
@@ -1180,10 +1259,8 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         });
       } catch (e: any) {
         console.warn("Discovery failed", e);
-        const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Market discovery failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(1, { newCompetitorDomains, apolloData, searchData }) });
+        handleApiError(e, logId, 'Market discovery', () => handleGlobalSync(1, { newCompetitorDomains, apolloData, searchData }));
         setIsSyncing(false);
-        addToast(errorMsg, 'error');
         removeToast(toastId);
         return;
       }
@@ -1208,15 +1285,38 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           const apolloLogId = addLog('Apollo.io', 'Enriching ' + domain + '...', 'pending');
           let orgId = '';
           try {
+            const customApiKey = getCustomApiKey('apollo');
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (customApiKey) headers['x-api-key'] = customApiKey;
+
             const apolloRes = await fetch('/api/apollo/enrich', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({ domain })
             });
             
+            if (apolloRes.status === 429) {
+              const error: any = new Error("Rate limit exceeded for Apollo API");
+              error.isRateLimit = true;
+              error.message = (customApiKey ? 'RateLimit:CustomKey:' : 'RateLimit:GlobalKey:') + error.message;
+              throw error;
+            }
+
             if (apolloRes.ok) {
               const data = await apolloRes.json();
               apolloData.push(data);
+              
+              // Update Rate Limits if headers exist
+              const limitStr = apolloRes.headers?.get?.('x-rate-limit-limit');
+              const remainingStr = apolloRes.headers?.get?.('x-rate-limit-remaining');
+              const resetStr = apolloRes.headers?.get?.('x-rate-limit-reset');
+              if (limitStr) {
+                const limit = parseInt(limitStr, 10);
+                const remaining = remainingStr ? parseInt(remainingStr, 10) : null;
+                const reset = resetStr ? parseInt(resetStr, 10) : null;
+                if (!isNaN(limit)) updateRateLimits('apollo', limit, remaining, reset);
+              }
+              trackRequest('apollo', customApiKey || 'env_key', false);
               
               const org = data.organization || {};
               orgId = org.id || '';
@@ -1240,19 +1340,21 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
               };
               setRawDataSources(prev => [newSource, ...prev]);
               
-              // Update competitor if exists with new metrics
-              setCompetitors(prev => prev.map(c => {
-                if (c.website?.includes(domain)) {
-                  return {
-                    ...c,
-                    fundingHistory: funding,
-                    headcountGrowth: org.estimated_num_employees,
-                    techStack: techStack,
-                    seoKeywords: positioning
-                  };
+              // Queue diffs instead of direct overwrite
+              const compTarget = competitors.find(c => c.website?.includes(domain));
+              if (compTarget) {
+                const diffs = createCompetitorDiffs(compTarget, {
+                  fundingHistory: funding,
+                  headcountGrowth: org.estimated_num_employees,
+                  techStack: techStack,
+                  seoKeywords: positioning
+                }, compTarget.id);
+                
+                const allowedDiffs = filterVerifiedDiffs(diffs, compTarget.verifiedFields);
+                if (allowedDiffs.length > 0) {
+                  queueSyncChanges(allowedDiffs);
                 }
-                return c;
-              }));
+              }
 
               updateLog(apolloLogId, { 
                 details: 'Successfully enriched ' + domain + '.', 
@@ -1276,13 +1378,37 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           // Fetch Apollo News if orgId exists
           if (orgId) {
             try {
+              const customApiKey = getCustomApiKey('apollo');
+              const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+              if (customApiKey) headers['x-api-key'] = customApiKey;
+
               const newsRes = await fetch('/api/apollo/news', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ organization_ids: [orgId] })
               });
+
+              if (newsRes.status === 429) {
+                const error: any = new Error("Rate limit exceeded for Apollo API");
+                error.isRateLimit = true;
+                error.message = (customApiKey ? 'RateLimit:CustomKey:' : 'RateLimit:GlobalKey:') + error.message;
+                throw error;
+              }
+
               if (newsRes.ok) {
                 const newsData = await newsRes.json();
+                
+                // Update Rate Limits if headers exist
+                const limitStr = newsRes.headers?.get?.('x-rate-limit-limit');
+                const remainingStr = newsRes.headers?.get?.('x-rate-limit-remaining');
+                const resetStr = newsRes.headers?.get?.('x-rate-limit-reset');
+                if (limitStr) {
+                  const limit = parseInt(limitStr, 10);
+                  const remaining = remainingStr ? parseInt(remainingStr, 10) : null;
+                  const reset = resetStr ? parseInt(resetStr, 10) : null;
+                  if (!isNaN(limit)) updateRateLimits('apollo', limit, remaining, reset);
+                }
+                trackRequest('apollo', customApiKey || 'env_key', false);
                 if (newsData.news_articles && newsData.news_articles.length > 0) {
                   const excerpts = newsData.news_articles.map((article: any) => `[${article.title}](${article.url}): ${article.snippet}`).join('\n');
                   const newSource: DataSource = {
@@ -1309,10 +1435,8 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         }));
       } catch (e: any) {
         console.warn("Apollo API error", e);
-        const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Apollo API network error: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(2, { newCompetitorDomains, apolloData, searchData }) });
+        handleApiError(e, logId, 'Apollo API network', () => handleGlobalSync(2, { newCompetitorDomains, apolloData, searchData }));
         setIsSyncing(false);
-        addToast(errorMsg, 'error');
         removeToast(toastId);
         return;
       }
@@ -1330,9 +1454,8 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         await Promise.all(searchQueries.map(async (query, i) => {
           const googleLogId = addLog('Gemini Grounding', 'Searching: "' + query + '"...', 'pending');
           try {
-            const response = await withKeyRotation(async (ai, model) => {
-              return await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+            const response = await withModelFallback(async (ai, model) => {
+              return await ai.generateContent(model, {
                 contents: `Search the web for: ${query}. Provide a brief summary of the top results.`,
                 config: {
                   tools: [{ googleSearch: {} }], // Enables native Gemini Grounding
@@ -1394,10 +1517,8 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         }));
       } catch (e: any) {
         console.warn("Search stage failed", e);
-        const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Market search failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(3, { newCompetitorDomains, apolloData, searchData }) });
+        handleApiError(e, logId, 'Market search', () => handleGlobalSync(3, { newCompetitorDomains, apolloData, searchData }));
         setIsSyncing(false);
-        addToast(errorMsg, 'error');
         removeToast(toastId);
         return;
       }
@@ -1409,9 +1530,9 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
       try {
         if (newCompetitorDomains.length > 0) {
           const synthesizeLogId = addLog('Gemini AI', 'Synthesizing new competitor profiles...', 'pending');
-          const response = await withKeyRotation(async (ai, model) => {
-            return await ai.models.generateContent({
-              model: model,
+          const response = await withModelFallback(async (ai, model) => {
+            return await ai.generateContent(model, {
+              
               contents: `Based on the following Apollo.io enrichment data and Google Search news, generate complete competitor profiles for the newly discovered domains: ${newCompetitorDomains.join('\n, ')}. 
 
 CRITICAL: You must evaluate each domain using a True Competitor Score methodology (0-100). Calculate this by summing:
@@ -1522,14 +1643,24 @@ Return a JSON array of objects matching this exact structure:
           }
 
           if (validCompetitors.length > 0) {
-            setCompetitors(prev => {
-              const existingIds = new Set(prev.map(c => c.id));
-              const existingNames = new Set(prev.map(c => c.name.toLowerCase()));
-              const uniqueNew = validCompetitors.filter((c: any) => !existingIds.has(c.id) && !existingNames.has(c.name.toLowerCase()));
-              return [...prev, ...uniqueNew];
-            });
+            const existingIds = new Set(competitors.map(c => c.id));
+            const existingNames = new Set(competitors.map(c => c.name.toLowerCase()));
+            const uniqueNew = validCompetitors.filter((c: any) => !existingIds.has(c.id) && !existingNames.has(c.name.toLowerCase()));
+            
+            if (uniqueNew.length > 0) {
+              const diffs = uniqueNew.map((comp: any) => ({
+                id: `diff-new-comp-${comp.id}-${Date.now()}`,
+                entityId: comp.id,
+                entityType: 'Competitor' as 'Competitor',
+                field: 'new_competitor',
+                oldValue: null,
+                newValue: comp,
+                description: `Add new synthesized competitor: ${comp.name}`
+              }));
+              queueSyncChanges(diffs);
+            }
             updateLog(synthesizeLogId, { 
-              details: `Synthesized and qualified ${validCompetitors.length} new competitor profiles.`, 
+              details: `Synthesized and qualified ${validCompetitors.length} new competitor profiles (Pending Review).`, 
               status: 'success',
               apiCallDetails: { prompt: 'Synthesize competitors', response: results }
             });
@@ -1543,10 +1674,8 @@ Return a JSON array of objects matching this exact structure:
         }
       } catch (e: any) {
         console.warn("Synthesis failed", e);
-        const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Competitor synthesis failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(4, { newCompetitorDomains, apolloData, searchData }), apiCallDetails: { error: errorMsg } });
+        handleApiError(e, logId, 'Competitor synthesis', () => handleGlobalSync(4, { newCompetitorDomains, apolloData, searchData }));
         setIsSyncing(false);
-        addToast(errorMsg, 'error');
         removeToast(toastId);
         return;
       }
@@ -1573,9 +1702,9 @@ Return a JSON array of objects matching this exact structure:
         
         setRawContextData(contextData);
 
-        const response = await withKeyRotation(async (ai, model) => {
-             return await ai.models.generateContent({
-            model: model,
+        const response = await withModelFallback(async (ai, model) => {
+             return await ai.generateContent(model, {
+            
             contents: 'Analyze the following competitor data, Apollo.io enrichment data, and recent Google Search news. Provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Keep it under 150 words. Also generate 3-5 specific, actionable insights (opportunities, threats, or trends) based on this data, and estimate some high-level market metrics. \n\nData: ' + JSON.stringify(contextData),
             config: {
               responseMimeType: "application/json",
@@ -1627,8 +1756,17 @@ Return a JSON array of objects matching this exact structure:
 
         const resultData = JSON.parse(response.text || '{}');
         
+        const diffs = [];
         if (resultData.systemContext) {
-          setSystemContextSummary(resultData.systemContext);
+          diffs.push({
+            id: `diff-sysctx-summary-${Date.now()}`,
+            entityId: 'system-context',
+            entityType: 'SystemContext' as 'SystemContext',
+            field: 'summary',
+            oldValue: systemContextSummary,
+            newValue: resultData.systemContext,
+            description: 'Update System Context Summary'
+          });
         }
         if (resultData.insights && resultData.insights.length > 0) {
           const newInsights = resultData.insights.map((i: any) => ({
@@ -1640,14 +1778,33 @@ Return a JSON array of objects matching this exact structure:
             timestamp: new Date().toISOString(),
             source: 'AI Pipeline'
           }));
-          setDerivedInsights(prev => [...newInsights, ...prev]);
+          diffs.push({
+            id: `diff-sysctx-insights-${Date.now()}`,
+            entityId: 'system-context',
+            entityType: 'SystemContext' as 'SystemContext',
+            field: 'insights',
+            oldValue: [],
+            newValue: newInsights,
+            description: `Add ${newInsights.length} new insights`
+          });
         }
         if (resultData.metrics) {
-          setMarketMetrics(prev => ({ ...prev, ...resultData.metrics }));
+          diffs.push({
+            id: `diff-sysctx-metrics-${Date.now()}`,
+            entityId: 'system-context',
+            entityType: 'SystemContext' as 'SystemContext',
+            field: 'marketMetrics',
+            oldValue: marketMetrics,
+            newValue: { ...marketMetrics, ...resultData.metrics },
+            description: 'Update Market Metrics'
+          });
+        }
+        if (diffs.length > 0) {
+          queueSyncChanges(diffs);
         }
 
         updateLog(geminiLogId, { 
-          details: `Updated system context summary and generated ${resultData.insights?.length || 0} insights.`, 
+          details: `Generated ${resultData.insights?.length || 0} insights and system context (Pending Review).`, 
           status: 'success',
           apiCallDetails: { prompt: 'Analyze context data', response: resultData }
         });
@@ -1655,16 +1812,15 @@ Return a JSON array of objects matching this exact structure:
         setLastSynced(new Date().toISOString());
         removeToast(toastId);
         addToast('System successfully synced. Ready to generate insights.', 'success');
-        updateLog(logId, { details: 'Successfully synced all data sources.', status: 'success', retryAction: undefined });
+        updateLog(logId, { details: 'Data successfully fetched. Changes are pending review.', status: 'success', retryAction: undefined });
+        if (startStage === 1) recordAlphaUsage();
         
         // Open the interactive insight generator
         setIsInsightGeneratorOpen(true);
       } catch (e: any) {
         console.warn("Insight generation failed", e);
-        const errorMsg = getErrorMessage(e);
-        updateLog(logId, { details: 'Insight generation failed: ' + errorMsg + '. Click to retry.', status: 'error', retryAction: () => handleGlobalSync(5, { newCompetitorDomains, apolloData, searchData }), apiCallDetails: { error: errorMsg } });
+        handleApiError(e, logId, 'Insight generation', () => handleGlobalSync(5, { newCompetitorDomains, apolloData, searchData }));
         setIsSyncing(false);
-        addToast(errorMsg, 'error');
         removeToast(toastId);
         return;
       }
@@ -1700,9 +1856,9 @@ Return a JSON array of objects matching this exact structure:
             for (let i = 0; i < validFeatures.length; i += batchSize) {
               const batch = validFeatures.slice(i, i + batchSize);
               
-              const response = await withKeyRotation(async (ai, model) => {
-                return await ai.models.generateContent({
-                  model: model,
+              const response = await withModelFallback(async (ai, model) => {
+                return await ai.generateContent(model, {
+                  
                   contents: `You are an expert market analyst. For each of the following features, provide a detailed breakdown in the context of form builders and data collection tools.
                   
 Features to analyze:
@@ -1767,8 +1923,8 @@ The markdown MUST follow this exact structure:
 
   
   
-  const runDataValidation = () => {
-    addLog('System Validation', 'Starting comprehensive data validation...', 'pending');
+  const runSystemCheck = async () => {
+    addLog('System Check', 'Starting comprehensive system check...', 'pending');
     let issuesFound = 0;
     
     let updatedCompetitors = [...competitors];
@@ -1777,7 +1933,7 @@ The markdown MUST follow this exact structure:
     let needsUpdate = false;
 
     // 1. Validate Competitors
-    addLog('System Validation', `Validating ${competitors.length} competitors...`, 'info');
+    addLog('System Check', `Validating ${competitors.length} competitors...`, 'info');
     updatedCompetitors = updatedCompetitors.map(comp => {
       let fixedComp = { ...comp };
       let fixed = false;
@@ -1848,17 +2004,74 @@ The markdown MUST follow this exact structure:
       setCompetitors(updatedCompetitors);
       setRawDataSources(updatedRawDataSources);
       setDerivedInsights(updatedDerivedInsights);
-      addLog('System Validation', `Fixed ${issuesFound} issues. Re-running validation...`, 'info');
-      setTimeout(runDataValidation, 100);
+      addLog('System Check', `Fixed ${issuesFound} issues. Re-running check...`, 'info');
+      setTimeout(runSystemCheck, 100);
       return;
     }
 
+    // 4. Validate External APIs (Search Endpoints)
+    addLog('System Check', 'Validating external search APIs (Exa API)...', 'info');
+    
+    const exaKeys = [
+      getCustomApiKey('exa'),
+      process.env.EXA_API_KEY,
+      'c2d3b027-3c0e-4deb-9b6e-590113b45c3c', // Original fallback
+      'e1ce2af7-0012-4ed9-aa18-fbe2080aa935'  // New fallback
+    ].filter(Boolean) as string[];
+
+    let exaSuccess = false;
+    let lastExaError: any = null;
+
+    for (const exaKey of exaKeys) {
+      try {
+        const response = await fetch('https://api.exa.ai/search', {
+          method: 'POST',
+          headers: {
+            'x-api-key': exaKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: "test search",
+            type: "fast",
+            num_results: 1
+          })
+        });
+
+        // Update Rate Limits if headers exist
+        const limitStr = response.headers?.get?.('x-rate-limit-limit');
+        const remainingStr = response.headers?.get?.('x-rate-limit-remaining');
+        const resetStr = response.headers?.get?.('x-rate-limit-reset');
+        if (limitStr) {
+          const limit = parseInt(limitStr, 10);
+          const remaining = remainingStr ? parseInt(remainingStr, 10) : null;
+          const reset = resetStr ? parseInt(resetStr, 10) : null;
+          if (!isNaN(limit)) updateRateLimits('exa', limit, remaining, reset);
+        }
+        trackRequest('exa', exaKey || 'env_key', !response.ok);
+
+        if (!response.ok) {
+          throw new Error(`Exa API test failed with status ${response.status}`);
+        }
+        
+        addLog('System Check', `Exa API connected successfully.`, 'success');
+        exaSuccess = true;
+        break;
+      } catch (e: any) {
+        lastExaError = e;
+      }
+    }
+
+    if (!exaSuccess) {
+      addLog('Validation Error', `Search API validation failed for all keys. Last error: ${lastExaError?.message}`, 'error');
+      issuesFound++;
+    }
+
     if (issuesFound === 0) {
-      addLog('System Validation', 'Data validation complete. No critical issues found.', 'success');
-      addToast('Data validation passed.', 'success');
+      addLog('System Check', 'System check complete. All systems nominal.', 'success');
+      addToast('System check passed.', 'success');
     } else {
-      addLog('System Validation', `Data validation complete. Found ${issuesFound} critical issues that could not be automatically fixed.`, 'error');
-      addToast(`Data validation found ${issuesFound} issues. Check Background Tasks & Sync.`, 'error');
+      addLog('System Check', `System check complete. Found ${issuesFound} issues.`, 'error');
+      addToast(`System check found ${issuesFound} issues. Review logs.`, 'error');
     }
   };
 
@@ -1974,16 +2187,140 @@ The markdown MUST follow this exact structure:
     }))
   };
 
+
+  const runNewsDiscovery = async () => {
+    if (!isSuperadmin && !checkAlphaLimit()) {
+      setIsLimitModalOpen(true);
+      return;
+    }
+    
+    setIsDiscovering(true);
+    const logId = addLog('News Discovery', 'Searching for latest competitor news...', 'pending');
+    
+    try {
+      const exaKey = getCustomApiKey('exa') || process.env.EXA_API_KEY;
+      if (!exaKey) throw new Error("Exa API Key missing");
+
+      // We only do this for the first competitor to avoid blowing up the API for now, 
+      // or we can just search generically for the market.
+      const query = myProductData.name ? `Latest news, product launches, or funding for ${myProductData.name} competitors` : 'Latest tech startup news';
+      
+      const exaResponse = await fetch('https://api.exa.ai/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': exaKey
+        },
+        body: JSON.stringify({
+          query,
+          useAutoprompt: true,
+          type: 'auto',
+          category: 'news',
+          numResults: 3,
+          highlights: { maxCharacters: 1000 }
+        })
+      });
+
+      if (!exaResponse.ok) {
+        const error: any = new Error("Exa API returned an error: " + exaResponse.status);
+        if (exaResponse.status === 429) {
+          error.isRateLimit = true;
+          error.message = (getCustomApiKey('exa') ? 'RateLimit:CustomKey:' : 'RateLimit:GlobalKey:') + error.message;
+        }
+        throw error;
+      }
+      const exaData = await exaResponse.json();
+
+      // Pass to Gemini to extract insights
+      const geminiResponse = await withModelFallback(async (ai, model) => {
+        return await ai.generateContent(model, {
+          
+          contents: `Extract insights from these news highlights: ${JSON.stringify(exaData.results)}. Identify opportunities, threats, or trends. Return as a JSON array of insights.`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  category: { type: Type.STRING, enum: ['opportunity', 'threat', 'trend'] },
+                  impact: { type: Type.STRING, enum: ['low', 'medium', 'high', 'critical'] },
+                  tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ["title", "description", "category", "impact"]
+              }
+            }
+          }
+        });
+      });
+
+      const parsed = JSON.parse(geminiResponse.text);
+      
+      const newInsights = parsed.map((item: any) => ({
+        id: crypto.randomUUID(),
+        title: item.title,
+        description: item.description,
+        category: item.category || 'trend',
+        impact: item.impact || 'medium',
+        timestamp: new Date().toISOString(),
+        source: 'Exa.ai',
+        tags: item.tags || []
+      }));
+      
+      queueSyncChanges([{
+        id: `diff-sysctx-insights-news-${Date.now()}`,
+        entityId: 'system-context',
+        entityType: 'SystemContext',
+        field: 'insights',
+        oldValue: [],
+        newValue: newInsights,
+        description: `Add ${newInsights.length} new insights from news`
+      }]);
+
+      // Add to Raw Data
+      const rawData = exaData.results.map((res: any) => ({
+        id: crypto.randomUUID(),
+        competitorId: 'market',
+        type: 'news',
+        sourceUrl: res.url,
+        excerpt: res.highlights?.join(' ') || res.text || '',
+        timestamp: new Date().toISOString(),
+        tags: ['news', 'exa'],
+        confidenceLevel: 'High',
+        isDeduced: false,
+        source: 'Exa.ai'
+      }));
+
+      setRawDataSources(prev => [...rawData, ...prev]);
+
+      recordAlphaUsage();
+      updateLog(logId, { details: `Successfully found ${newInsights.length} news insights (Pending Review).`, status: 'success' });
+      addToast(`Discovered ${newInsights.length} new insights from news.`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      handleApiError(err, logId, 'News discovery');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   // Live Discovery Logic
+
   const runDiscovery = async () => {
+ if (!isSuperadmin && !checkAlphaLimit()) {
+   setIsLimitModalOpen(true);
+   return;
+ }
  setIsDiscovering(true);
  const logId = addLog('Live Discovery', 'Starting live discovery scan...', 'pending', runDiscovery);
  try {
  
  
- const response = await withKeyRotation(async (ai, model) => {
-      return await ai.models.generateContent({
- model: model,
+ const response = await withModelFallback(async (ai, model) => {
+      return await ai.generateContent(model, {
+ 
  contents: `Identify 1 or 2 emerging or lesser-known competitors relevant to: ${myProductData.name || 'our product'}. Do not return the main dominant players. Provide detailed data and simulate 2-4 data sources (website, linkedin, crunchbase, news) for each to establish a trust score.`,
  config: {
  responseMimeType: "application/json",
@@ -2041,7 +2378,7 @@ const newComps = JSON.parse(response.text || "[]");
  const volumeBonus = (comp.sources?.length || 0) * 5;
  const trustScore = Math.min(100, baseScore + diversityBonus + volumeBonus);
 
- newCompetitors.push({
+ const newCompetitorObj = {
  id: newId,
  name: comp.name || 'Unknown',
  website: comp.website || '',
@@ -2059,8 +2396,10 @@ const newComps = JSON.parse(response.text || "[]");
  competitorScore: comp.competitorScore || 50,
  trustScore: trustScore,
  marketCommonalityIndex: 50, // Default value
- resourceSimilarityScore: 50 // Default value
- });
+ resourceSimilarityScore: 50, // Default value
+ verifiedFields: {}
+ };
+ newCompetitors.push(newCompetitorObj);
 
  comp.sources?.forEach((s: any) => {
  newSources.push({
@@ -2076,27 +2415,36 @@ const newComps = JSON.parse(response.text || "[]");
  source: 'AI'
  });
  });
+
+  queueSyncChanges([{
+    id: `diff-new-comp-${newId}-${Date.now()}`,
+    entityId: newId,
+    entityType: 'Competitor',
+    field: 'new_competitor',
+    oldValue: null,
+    newValue: newCompetitorObj,
+    description: `Discovered new competitor: ${comp.name}`
+  }]);
  });
 
- setCompetitors(prev => [...prev, ...newCompetitors]);
  setRawDataSources(prev => [...prev, ...newSources]);
  updateLog(logId, { 
-   details: `Live discovery scan complete. Found ${newCompetitors.length} new competitors.`, 
+   details: `Live discovery scan complete. Found ${newCompetitors.length} new competitors (Pending Review).`, 
    status: 'success', 
    retryAction: undefined,
    apiCallDetails: { prompt: 'Live discovery scan', response: newComps }
  });
 
+ recordAlphaUsage();
  // Automatically run data pipeline to update insights and metrics
  setTimeout(() => {
    updateSystemContext();
  }, 100);
 
- } catch (error: any) {
- console.error("Discovery failed:", getErrorMessage(error));
- addToast("Discovery failed. Check console or API key.", 'error');
- updateLog(logId, { details: `Discovery scan failed: ${getErrorMessage(error)}`, status: 'error', apiCallDetails: { error: getErrorMessage(error) } });
- } finally {
+    } catch (error: any) {
+      console.error("Discovery failed:", getErrorMessage(error));
+      handleApiError(error, logId, 'Discovery scan');
+    } finally {
  setIsDiscovering(false);
  }
  };
@@ -2113,9 +2461,9 @@ const newComps = JSON.parse(response.text || "[]");
  stats
  });
 
- const response = await withKeyRotation(async (ai, model) => {
-      return await ai.models.generateContent({
- model: model,
+ const response = await withModelFallback(async (ai, model) => {
+      return await ai.generateContent(model, {
+ 
  contents: `Analyze this entire system data and provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Also generate 3-5 new strategic insights based on this data, and estimate some high-level market metrics.\n\nData: ${systemData}`,
  config: {
    responseMimeType: "application/json",
@@ -2160,9 +2508,18 @@ const newComps = JSON.parse(response.text || "[]");
 });
 
 const result = JSON.parse(response.text || '{}');
+const diffs: any[] = [];
 
 if (result.summary) {
-  setSystemContextSummary(result.summary);
+  diffs.push({
+    id: `diff-sysctx-summary-${Date.now()}`,
+    entityId: 'system-context',
+    entityType: 'SystemContext',
+    field: 'summary',
+    oldValue: systemContextSummary,
+    newValue: result.summary,
+    description: 'Update System Context Summary'
+  });
 }
 if (result.insights && result.insights.length > 0) {
   const newInsights = result.insights.map((i: any) => ({
@@ -2174,23 +2531,42 @@ if (result.insights && result.insights.length > 0) {
     timestamp: new Date().toISOString(),
     source: 'AI Pipeline'
   }));
-  setDerivedInsights(prev => [...newInsights, ...prev]);
+  diffs.push({
+    id: `diff-sysctx-insights-${Date.now()}`,
+    entityId: 'system-context',
+    entityType: 'SystemContext',
+    field: 'insights',
+    oldValue: [],
+    newValue: newInsights,
+    description: `Add ${newInsights.length} new insights`
+  });
 }
 if (result.metrics) {
-  setMarketMetrics(prev => ({ ...prev, ...result.metrics }));
+  diffs.push({
+    id: `diff-sysctx-metrics-${Date.now()}`,
+    entityId: 'system-context',
+    entityType: 'SystemContext',
+    field: 'marketMetrics',
+    oldValue: marketMetrics,
+    newValue: { ...marketMetrics, ...result.metrics },
+    description: 'Update Market Metrics'
+  });
 }
 
- addToast('System context and insights updated successfully', 'success');
+if (diffs.length > 0) {
+  queueSyncChanges(diffs);
+}
+
+ addToast('System context updates pending review', 'info');
  updateLog(logId, { 
-   details: `System context updated. Generated ${result.insights?.length || 0} new insights.`, 
+   details: `System context generated ${result.insights?.length || 0} new insights (Pending Review).`, 
    status: 'success', 
    retryAction: undefined,
    apiCallDetails: { prompt: 'Update system context', response: result }
  });
- } catch (error: any) {
- addToast(`Failed to update context: ${getErrorMessage(error)}`, 'error');
- updateLog(logId, { details: `Failed to update context: ${getErrorMessage(error)}`, status: 'error', apiCallDetails: { error: getErrorMessage(error) } });
- } finally {
+    } catch (error: any) {
+      handleApiError(error, logId, 'System context update');
+    } finally {
  setIsUpdatingContext(false);
  }
  };
@@ -2249,9 +2625,9 @@ Keep the summary concise and grounded in reality. Ask a follow-up question to va
  }
  };
 
- const responseStream = await withKeyRotation(async (ai, model) => {
-      return await ai.models.generateContentStream({
- model: model,
+ const responseStream = await withModelFallback(async (ai, model) => {
+      return await ai.generateContentStream(model, {
+ 
  contents: systemPrompt,
  config: {
  tools: [{ functionDeclarations: [suggestInsightFunctionDeclaration] }]
@@ -2297,10 +2673,9 @@ setChatHistory(prev => prev.map((msg, idx) =>
    apiCallDetails: { prompt: systemPrompt, response: fullText, functionCalls: suggestedInsight ? [suggestedInsight] : undefined }
  });
 
- } catch (error: any) {
- addToast(`Analysis failed: ${getErrorMessage(error)}`, 'error');
- updateLog(logId, { details: `Analysis failed: ${getErrorMessage(error)}`, status: 'error', apiCallDetails: { error: getErrorMessage(error) } });
- } finally {
+    } catch (error: any) {
+      handleApiError(error, logId, 'Page analysis');
+    } finally {
  setIsAnalyzingPage(false);
  }
  };
@@ -2391,9 +2766,9 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
  const messageId = Date.now().toString();
  setChatHistory(prev => [...prev, { id: messageId, role: 'assistant', content: '' }]);
 
- const responseStream = await withKeyRotation(async (ai, model) => {
-      return await ai.models.generateContentStream({
- model: model,
+ const responseStream = await withModelFallback(async (ai, model) => {
+      return await ai.generateContentStream(model, {
+ 
  contents: `${systemPrompt}${mentionContext}\n\nChat History:\n${formattedHistory}\n\nUser: ${messageText}`,
  config: {
  tools: [{ functionDeclarations: [saveInsightFunctionDeclaration] }]
@@ -2446,12 +2821,14 @@ if (hasFunctionCall && finalInsightArgs) {
  }
 
  addLog('Chat AI', 'Processed user message.', 'success', undefined, undefined, { prompt: messageText, response: fullText });
- } catch (error: any) {
- setChatHistory(prev => prev.map((msg, idx) => 
-   idx === prev.length - 1 ? { ...msg, content: `**Error:** ${getErrorMessage(error)}` } : msg
- ));
- addLog('Chat AI Error', `Failed to process message: ${getErrorMessage(error)}`, 'error', undefined, undefined, { error: getErrorMessage(error) });
- } finally {
+    } catch (error: any) {
+      if (!handleApiError(error)) {
+        setChatHistory(prev => prev.map((msg, idx) => 
+          idx === prev.length - 1 ? { ...msg, content: `**Error:** ${getErrorMessage(error)}` } : msg
+        ));
+        addLog('Chat AI Error', `Failed to process message: ${getErrorMessage(error)}`, 'error', undefined, undefined, { error: getErrorMessage(error) });
+      }
+    } finally {
  setIsTyping(false);
  }
  };
@@ -2478,8 +2855,75 @@ if (hasFunctionCall && finalInsightArgs) {
 
  
 
+ const [isSyncReviewOpen, setIsSyncReviewOpen] = useState(false);
+
+ const handleCommitSyncChanges = (selectedIds: string[]) => {
+   const diffsToApply = syncQueue.filter(d => selectedIds.includes(d.id));
+   
+   // Group by entityType and entityId
+   const competitorUpdates: Record<string, any> = {};
+   let contextSummaryUpdated = false;
+   let newInsights: any[] = [];
+   let newMetrics: any = null;
+   let newlyAddedCompetitors: any[] = [];
+
+   diffsToApply.forEach(diff => {
+     if (diff.entityType === 'Competitor') {
+       if (diff.field === 'new_competitor') {
+         newlyAddedCompetitors.push(diff.newValue);
+       } else {
+         if (!competitorUpdates[diff.entityId]) competitorUpdates[diff.entityId] = {};
+         competitorUpdates[diff.entityId][diff.field] = diff.newValue;
+       }
+     } else if (diff.entityType === 'SystemContext') {
+       if (diff.field === 'summary') contextSummaryUpdated = true;
+       if (diff.field === 'insights') newInsights = [...newInsights, ...diff.newValue];
+       if (diff.field === 'marketMetrics') newMetrics = diff.newValue;
+     }
+   });
+
+   // Apply updates to Competitors
+   if (Object.keys(competitorUpdates).length > 0 || newlyAddedCompetitors.length > 0) {
+     setCompetitors(prev => {
+       const mapped = prev.map(c => {
+         if (competitorUpdates[c.id]) {
+           return { ...c, ...competitorUpdates[c.id] };
+         }
+         return c;
+       });
+       return [...mapped, ...newlyAddedCompetitors];
+     });
+   }
+
+   // Apply updates to System Context
+   if (contextSummaryUpdated) {
+     const summaryDiff = diffsToApply.find(d => d.entityType === 'SystemContext' && d.field === 'summary');
+     if (summaryDiff) setSystemContextSummary(summaryDiff.newValue);
+   }
+   if (newInsights.length > 0) {
+     setDerivedInsights(prev => [...newInsights, ...prev]);
+   }
+   if (newMetrics) {
+     setMarketMetrics(prev => ({ ...prev, ...newMetrics }));
+   }
+
+   // Remove applied and rejected changes from queue (clear all if all reviewed)
+   // We clear the queue since the review process assumes everything unselected is rejected
+   clearSyncQueue();
+   addToast(`Committed ${selectedIds.length} changes.`, 'success');
+   addLog('Sync Review', `Committed ${selectedIds.length} changes. Discarded ${syncQueue.length - selectedIds.length} changes.`, 'success');
+ };
+
   return (
     <div className="flex h-screen bg-[#F5F3ED] text-[#2C2C2C] font-sans overflow-hidden selection:bg-[#2C2C2C]/10 relative">
+      <GlobalProgressBanner isSyncing={isSyncing} activeTasks={activeTasks} />
+      <SyncReviewModal 
+        isOpen={isSyncReviewOpen} 
+        onClose={() => setIsSyncReviewOpen(false)} 
+        syncQueue={syncQueue} 
+        onCommit={handleCommitSyncChanges} 
+      />
+
  
  
  
@@ -2523,6 +2967,10 @@ if (hasFunctionCall && finalInsightArgs) {
           <NavItem icon={<Network size={18} />} label="Mindmap Explorer" active={activeTab === 'mindmap'} onClick={() => {setActiveTab('mindmap'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
  <NavItem icon={<Activity size={18} />} label="Background Tasks & Sync" active={activeTab === 'actions'} onClick={() => {setActiveTab('actions'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
  <NavItem icon={<Settings size={18} />} label="Settings" active={activeTab === 'settings'} onClick={() => {setActiveTab('settings'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+ <NavItem icon={<Heart size={18} />} label="Support & Feedback" active={activeTab === 'support'} onClick={() => {setActiveTab('support'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+ {isSuperadmin && (
+   <NavItem icon={<ShieldCheck size={18} />} label="Superadmin" active={activeTab === 'superadmin'} onClick={() => {setActiveTab('superadmin'); setSelectedCompetitorId(null); setSelectedSourceId(null); setSelectedSummaryId(null);}} />
+ )}
  </nav>
  
  <div className="mt-auto">
@@ -2558,6 +3006,24 @@ if (hasFunctionCall && finalInsightArgs) {
  {/* --- MAIN CONTENT --- */}
  <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
  
+ {syncQueue.length > 0 && (
+   <div className="bg-sky text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0 z-40">
+     <div className="flex items-center gap-3">
+       <RefreshCw size={20} className="animate-spin-slow" />
+       <div>
+         <span className="font-bold">Sync Pending Review:</span>
+         <span className="ml-2 text-white/90">{syncQueue.length} automated updates are waiting for your approval.</span>
+       </div>
+     </div>
+     <button 
+       onClick={() => setIsSyncReviewOpen(true)}
+       className="px-4 py-1.5 bg-white text-sky font-bold text-sm rounded-lg hover:bg-white/90 transition-colors shadow-sm"
+     >
+       Review Changes
+     </button>
+   </div>
+ )}
+
  {/* TOASTS */}
  <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
  {toasts.map(toast => (
@@ -2626,7 +3092,7 @@ if (hasFunctionCall && finalInsightArgs) {
  <ul className="list-disc pl-5 text-sm space-y-2 text-[#8A8A8A] ">
  <li><strong className="text-ink-dark ">Scraping Competitor Pricing:</strong> We fetch the latest pricing tiers and feature matrices from your tracked competitors.</li>
  <li><strong className="text-ink-dark ">Analyzing Market Trends:</strong> We scan recent news, press releases, and industry reports for relevant shifts.</li>
- <li><strong className="text-ink-dark ">Updating Insight Library:</strong> Our AI processes the newly gathered data to generate fresh, actionable insights (Opportunities, Threats, Trends).</li>
+ <li><strong className="text-ink-dark ">Queueing Sync Diffs:</strong> New data is not immediately committed. Instead, it is sent to the <strong>Sync Review Queue</strong> where you can accept or reject individual field changes.</li>
  </ul>
  </section>
 
@@ -2635,11 +3101,11 @@ if (hasFunctionCall && finalInsightArgs) {
  <Activity size={18} className="text-moss" /> Background Task Management
  </h3>
  <p className="text-sm leading-relaxed">
- Sync operations are resource-intensive. To ensure system stability and prevent data corruption, <strong className="text-[#2C2C2C]">only one global sync can run at a time</strong>. 
+ Sync operations are resource-intensive. To ensure system stability and prevent data corruption, <strong className="text-[#2C2C2C]">only one global sync can run at a time</strong>. Additionally, new syncs cannot start if there are pending items in the Sync Review Queue.
  </p>
  <div className="bg-paper-base p-4 rounded-xl border border-ink-dark/30">
  <p className="text-sm">
- If you attempt to start a new sync while one is already in progress, the system will notify you and prevent the new operation. You can monitor the progress of active tasks in the <strong>Background Tasks & Sync</strong> tab.
+ If you are on the Alpha tier, your daily usage is strictly limited to 1 global sync per day to control API costs.
  </p>
  </div>
  </section>
@@ -2829,7 +3295,13 @@ if (hasFunctionCall && finalInsightArgs) {
  <SyncNowButton 
  isSyncing={isSyncing} 
  syncTimeRemaining={syncTimeRemaining} 
- handleGlobalSync={handleGlobalSync} 
+ handleGlobalSync={() => {
+   if (syncQueue.length > 0) {
+     addToast("Please review and commit pending sync changes first.", "error");
+     return;
+   }
+   handleGlobalSync();
+ }} 
  setShowSyncInfo={setShowSyncInfo} 
  />
 
@@ -2892,12 +3364,26 @@ if (hasFunctionCall && finalInsightArgs) {
 
  {/* SCOUT PAGE (Detailed Competitor View) */}
  {(activeTab === 'dashboard' || activeTab === 'matrix') && selectedCompetitorId && !selectedSourceId && !selectedSummaryId && (
- <ScoutPage 
+<ScoutPage 
  competitor={competitors.find(c => c.id === selectedCompetitorId)!}
  onBack={() => setSelectedCompetitorId(null)}
  sources={rawDataSources.filter(s => s.competitorId === selectedCompetitorId)}
  onSourceClick={(id) => setSelectedSourceId(id)}
- />
+ onToggleLock={(field: string) => {
+   setCompetitors(prev => prev.map(c => {
+     if (c.id === selectedCompetitorId) {
+       return {
+         ...c,
+         verifiedFields: {
+           ...c.verifiedFields,
+           [field]: !c.verifiedFields?.[field]
+         }
+       };
+     }
+     return c;
+   }));
+ }}
+/>
  )}
 
  {activeTab === 'my-product' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
@@ -2905,6 +3391,7 @@ if (hasFunctionCall && finalInsightArgs) {
      productData={myProductData} 
      setProductData={setMyProductData} 
      competitors={competitors} 
+     insights={derivedInsights}
    />
  )}
 
@@ -3017,7 +3504,7 @@ if (hasFunctionCall && finalInsightArgs) {
        </Tooltip>
      </div>
      <div className="h-[300px] w-full">
-       <ResponsiveContainer width="100%" height="100%">
+       <ResponsiveContainer width="100%" height="100%" minHeight={1}>
          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
            <XAxis type="number" dataKey="marketCommonality" name="Market Commonality" domain={[0, 100]} tick={{fontSize: 12}}>
@@ -3191,20 +3678,37 @@ disabled={matrixCurrentPage === Math.max(1, Math.ceil(sortedCompetitors.length /
  {/* RAW DATA LIBRARY TAB */}
  {activeTab === 'rawdata' && !selectedSourceId && (
  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
- <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8 mt-4">
- <div>
- <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
- 生データライブラリ
- </p>
- <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
- Raw Data Library
- </h1>
- <p className="text-[#8A8A8A] text-sm font-sans mt-2">
- Explore the source data scraped from competitors.
- </p>
- </div>
- <div className="hidden sm:flex gap-2">
- <Tooltip content="Upload raw data for AI analysis" position="top">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8 mt-4">
+              <div>
+                <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
+                  生データライブラリ
+                </p>
+                <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
+                  Raw Data Library
+                </h1>
+                <p className="text-[#8A8A8A] text-sm font-sans mt-2">
+                  Explore the source data scraped from competitors.
+                </p>
+              </div>
+              <div className="hidden sm:flex gap-2">
+                <ExportButton 
+                  onExport={() => {
+                    const csvContent = "data:text/csv;charset=utf-8," 
+                      + "ID,Competitor ID,Type,Source URL,Timestamp,Confidence\n"
+                      + filteredRawData.map(d => `${d.id},${d.competitorId},${d.type},${d.sourceUrl},${d.timestamp},${d.confidenceLevel}`).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "raw_data_library.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }} 
+                  label="Export Data" 
+                  tooltipText="Export filtered raw data as CSV" 
+                  actionName="export_raw_data" 
+                />
+                <Tooltip content="Upload raw data for AI analysis" position="top">
    <button 
      onClick={() => setIsUploadDataModalOpen(true)}
      className="flex items-center justify-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
@@ -3318,18 +3822,36 @@ disabled={rawDataCurrentPage === Math.max(1, Math.ceil(filteredRawData.length / 
  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
  <div className="flex justify-between items-end mb-8 mt-4">
  <div>
- <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
- インサイトライブラリ
- </p>
- <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
- Insight Library
- </h1>
- <p className="text-[#8A8A8A] text-sm font-sans mt-2">
- Derived insights, market threats, and brainstorming sessions.
- </p>
- </div>
- <div className="flex gap-2">
- <Tooltip content="Chat with AI to discover new insights" position="top">
+              <p className="text-[#8A8A8A] text-[10px] tracking-[0.2em] font-sans mb-1">
+                インサイトライブラリ
+              </p>
+              <h1 className="font-serif text-3xl md:text-4xl text-[#2C2C2C] uppercase tracking-wide">
+                Insight Library
+              </h1>
+              <p className="text-[#8A8A8A] text-sm font-sans mt-2">
+                Derived insights, market threats, and brainstorming sessions.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <ExportButton 
+                onExport={() => {
+                  const csvContent = "data:text/csv;charset=utf-8," 
+                    + "ID,Title,Category,Impact,Timestamp,Source\n"
+                    + filteredInsights.map(i => `${i.id},"${i.title.replace(/"/g, '""')}",${i.category},${i.impact},${i.timestamp},${i.source}`).join("\n");
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", "insight_library.csv");
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }} 
+                label="Export Insights" 
+                tooltipText="Export filtered insights as CSV" 
+                actionName="export_insights" 
+                className="hidden sm:flex"
+              />
+              <Tooltip content="Chat with AI to discover new insights" position="top">
    <button onClick={() => setIsBrainstormModalOpen(true)} className="flex items-center gap-2 px-5 py-2 border border-ochre text-ochre rounded-full text-sm font-sans font-medium hover:bg-ochre hover:text-white transition-all duration-300">
    <MessageSquare size={16} />
    Brainstorm
@@ -3634,12 +4156,51 @@ disabled={insightCurrentPage === Math.max(1, Math.ceil(filteredInsights.length /
  </div>
  )}
 
+ {/* SUPPORT TAB */}
+ {activeTab === 'support' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
+ <div className="h-[calc(100vh-120px)] w-full overflow-y-auto">
+ <SupportHelpPage user={user} initialType={supportInitialType} />
+ </div>
+ )}
+
+ {/* SUPERADMIN TAB */}
+ {activeTab === 'superadmin' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
+ <div className="h-[calc(100vh-120px)] w-full overflow-y-auto">
+ <SuperadminDashboard isSuperadmin={isSuperadmin} />
+ </div>
+ )}
+
  {/* SETTINGS TAB */}
  {activeTab === 'settings' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
  <div className="h-[calc(100vh-120px)] w-full rounded-xl overflow-hidden border border-ink-dark/20 shadow-sm">
  <SettingsComponent />
  </div>
  )}
+
+ <LimitReachedModal 
+   isOpen={isLimitModalOpen} 
+   onClose={() => setIsLimitModalOpen(false)} 
+   onRequestIncrease={() => {
+     setSupportInitialType('Limit Increase Request');
+     setActiveTab('support');
+     setSelectedCompetitorId(null);
+     setSelectedSourceId(null);
+     setSelectedSummaryId(null);
+   }}
+ />
+
+ <RateLimitModal
+   isOpen={isRateLimitModalOpen}
+   onClose={() => setIsRateLimitModalOpen(false)}
+   message={rateLimitError || undefined}
+   onRequestIncrease={() => {
+     setSupportInitialType('Limit Increase Request');
+     setActiveTab('support');
+     setSelectedCompetitorId(null);
+     setSelectedSourceId(null);
+     setSelectedSummaryId(null);
+   }}
+ />
 
  {/* MINDMAP EXPLORER TAB */}
         {activeTab === 'mindmap' && !selectedSourceId && !selectedSummaryId && !selectedCompetitorId && (
@@ -3731,18 +4292,35 @@ disabled={insightCurrentPage === Math.max(1, Math.ceil(filteredInsights.length /
  <SyncNowButton 
  isSyncing={isSyncing} 
  syncTimeRemaining={syncTimeRemaining} 
- handleGlobalSync={handleGlobalSync} 
+ handleGlobalSync={() => {
+   if (syncQueue.length > 0) {
+     addToast("Please review and commit pending sync changes first.", "error");
+     return;
+   }
+   handleGlobalSync();
+ }} 
  setShowSyncInfo={setShowSyncInfo} 
  />
- <Tooltip content="Check data integrity and consistency" position="top">
-   <button
-     onClick={runDataValidation}
-     className="px-4 py-2 bg-paper-base hover:bg-ink-dark/5 text-ink-dark border border-ink-dark/20 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
-   >
-     <Activity size={16} />
-     Validate Data
-   </button>
- </Tooltip>
+
+<Tooltip content="Scan for latest news and product launches" position="top">
+  <button
+    onClick={runNewsDiscovery}
+    disabled={isDiscovering}
+    className="px-4 py-2 bg-paper-base hover:bg-ink-dark/5 text-ink-dark border border-ink-dark/20 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+  >
+    <Newspaper size={16} />
+    News Discovery
+  </button>
+</Tooltip>
+<Tooltip content="Check data integrity and validate external systems" position="top">
+  <button
+    onClick={runSystemCheck}
+    className="px-4 py-2 bg-paper-base hover:bg-ink-dark/5 text-ink-dark border border-ink-dark/20 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+  >
+    <Activity size={16} />
+    Check System
+  </button>
+</Tooltip>
  <Tooltip content="Process raw data into structured insights" position="top">
    <button
      onClick={updateSystemContext}
@@ -4143,7 +4721,7 @@ function DataSourceCard({ source, competitorName, onClick }: { source: DataSourc
  );
 }
 
-function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor: Competitor, onBack: () => void, sources: DataSource[], onSourceClick: (id: string) => void }) {
+function ScoutPage({ competitor, onBack, sources, onSourceClick, onToggleLock }: { competitor: Competitor, onBack: () => void, sources: DataSource[], onSourceClick: (id: string) => void, onToggleLock: (field: string) => void }) {
  const [isAnalyzing, setIsAnalyzing] = useState(false);
  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
  const [isFeaturesModalOpen, setIsFeaturesModalOpen] = useState(false);
@@ -4151,9 +4729,9 @@ function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor:
  const handleAnalyze = async () => {
    setIsAnalyzing(true);
    try {
-     const response = await withKeyRotation(async (ai, model) => {
-       return await ai.models.generateContent({
-         model: model,
+     const response = await withModelFallback(async (ai, model) => {
+       return await ai.generateContent(model, {
+         
          contents: `Analyze the following competitor data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
        });
      });
@@ -4231,7 +4809,7 @@ function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor:
  </div>
  </div>
  </div>
- <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-ink-dark/20 /50">
+ <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-ink-dark/20 /50">
  <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
  <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><DollarSign size={16}/> Financial & Market Data</h3>
  <div className="grid grid-cols-2 gap-4 mb-3">
@@ -4260,10 +4838,22 @@ function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor:
  </div>
  </div>
  </div>
- <p className="text-sm text-[#8A8A8A] leading-relaxed">{competitor.financialSnapshot}</p>
- </div>
- <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
- <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><Users size={16}/> Target Audience</h3>
+  <p className="text-sm text-[#8A8A8A] leading-relaxed">{competitor.financialSnapshot}</p>
+  <div className="mt-4 border-t border-ink-dark/10 pt-4 relative">
+    <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1">Funding History</div>
+    <button className="absolute top-4 right-0" onClick={() => onToggleLock('fundingHistory')} title={competitor.verifiedFields?.['fundingHistory'] ? "Unlock" : "Lock"}>
+      {competitor.verifiedFields?.['fundingHistory'] ? <Lock size={12} className="text-amber-600" /> : <Unlock size={12} className="text-[#8A8A8A]" />}
+    </button>
+    <div className="font-medium text-ink-dark">
+      <span>{competitor.fundingHistory || 'N/A'}</span>
+    </div>
+  </div>
+</div>
+<div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 relative">
+  <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><Users size={16}/> Target Audience</h3>
+  <button className="absolute top-4 right-4" onClick={() => onToggleLock('targetAudience')} title={competitor.verifiedFields?.['targetAudience'] ? "Unlock to allow AI updates" : "Lock to prevent AI updates"}>
+    {competitor.verifiedFields?.['targetAudience'] ? <Lock size={14} className="text-amber-600" /> : <Unlock size={14} className="text-[#8A8A8A] hover:text-ink-dark transition-colors" />}
+  </button>
  <p className="text-ink-dark font-medium mb-2">{competitor.targetAudience}</p>
  <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-2">Key Segments</div>
  <div className="flex flex-wrap gap-1.5">
@@ -4274,14 +4864,38 @@ function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor:
  ))}
  </div>
  </div>
- <div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 ">
- <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><GlobeLock size={16}/> Data Sovereignty</h3>
- <div className="mb-4">
- <SovereigntyBadge status={competitor.dataSovereignty} score={competitor.sovereigntyScore} />
- </div>
- <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1">Spam Protection</div>
- <div className="font-medium text-ink-dark ">{competitor.spamProtection}</div>
- </div>
+<div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 relative">
+  <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><GlobeLock size={16}/> Data Sovereignty</h3>
+  <button className="absolute top-4 right-4" onClick={() => onToggleLock('dataSovereignty')} title={competitor.verifiedFields?.['dataSovereignty'] ? "Unlock" : "Lock"}>
+    {competitor.verifiedFields?.['dataSovereignty'] ? <Lock size={14} className="text-amber-600" /> : <Unlock size={14} className="text-[#8A8A8A] hover:text-ink-dark transition-colors" />}
+  </button>
+  <div className="mb-4">
+    <SovereigntyBadge status={competitor.dataSovereignty} score={competitor.sovereigntyScore} />
+  </div>
+  <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1 flex items-center justify-between">
+    <span>Spam Protection</span>
+    <button onClick={() => onToggleLock('spamProtection')} title={competitor.verifiedFields?.['spamProtection'] ? "Unlock" : "Lock"}>
+      {competitor.verifiedFields?.['spamProtection'] ? <Lock size={12} className="text-amber-600" /> : <Unlock size={12} className="text-[#8A8A8A]" />}
+    </button>
+  </div>
+  <div className="font-medium text-ink-dark">{competitor.spamProtection}</div>
+</div>
+<div className="bg-paper-base /50 rounded-lg p-4 border border-ink-dark/20 relative">
+  <h3 className="text-sm font-medium text-[#8A8A8A] mb-3 flex items-center gap-2"><Database size={16}/> Tech Stack</h3>
+  <button className="absolute top-4 right-4" onClick={() => onToggleLock('techStack')} title={competitor.verifiedFields?.['techStack'] ? "Unlock to allow AI updates" : "Lock to prevent AI updates"}>
+    {competitor.verifiedFields?.['techStack'] ? <Lock size={14} className="text-amber-600" /> : <Unlock size={14} className="text-[#8A8A8A] hover:text-ink-dark transition-colors" />}
+  </button>
+  <div className="flex flex-wrap gap-1.5 mt-2">
+    {(competitor.techStack || []).map((tech, i) => (
+      <span key={i} className="px-2 py-0.5 bg-paper-card text-ink-dark rounded text-xs border border-ink-dark/20 ">
+        {tech}
+      </span>
+    ))}
+    {(!competitor.techStack || competitor.techStack.length === 0) && (
+      <span className="text-[#8A8A8A] text-sm">Unknown</span>
+    )}
+  </div>
+</div>
  </div>
  </div>
  </div>
@@ -4291,7 +4905,7 @@ function ScoutPage({ competitor, onBack, sources, onSourceClick }: { competitor:
  <h3 className="text-lg font-semibold text-ink-dark mb-6 flex items-center gap-2"><Radar size={18} className="text-[#8A8A8A] "/> Competitive Proximity</h3>
  
  <div className="h-64 w-full mb-6 relative -ml-4">
- <ResponsiveContainer width="100%" height="100%">
+ <ResponsiveContainer width="100%" height="100%" minHeight={1}>
  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
  <PolarGrid stroke="#5c8c74" strokeOpacity={0.2} />
  <PolarAngleAxis dataKey="subject" tick={{ fill: '#5c8c74', fontSize: 10 }} />
@@ -4565,9 +5179,9 @@ function SourcePage({ source, competitorName, linkedInsights, onBack, onExpandIm
  const handleAnalyze = async () => {
    setIsAnalyzing(true);
    try {
-     const response = await withKeyRotation(async (ai, model) => {
-       return await ai.models.generateContent({
-         model: model,
+     const response = await withModelFallback(async (ai, model) => {
+       return await ai.generateContent(model, {
+         
          contents: `Analyze the following source data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
        });
      });
@@ -4693,9 +5307,9 @@ function SummaryPage({ title, value, icon, trend, stats, onBack, competitors, fe
  const handleAnalyze = async () => {
    setIsAnalyzing(true);
    try {
-     const response = await withKeyRotation(async (ai, model) => {
-       return await ai.models.generateContent({
-         model: model,
+     const response = await withModelFallback(async (ai, model) => {
+       return await ai.generateContent(model, {
+         
          contents: `Analyze the following summary data. Return the source data as tables or excerpts and a summary explaining why this matters. Title: ${title}\nValue: ${value}\nTrend: ${trend}\nStats: ${JSON.stringify(stats)}`,
        });
      });

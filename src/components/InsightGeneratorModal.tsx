@@ -41,7 +41,9 @@ export function InsightGeneratorModal({ isOpen, onClose, onInsightGenerated, raw
   }, [isOpen, messages.length]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isTyping]);
 
   const startConversation = async () => {

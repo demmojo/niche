@@ -32,8 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  const loginWithGoogle = async () => { /* no-op in tests */ };
+  const loginWithEmail = async (email: string, pass: string) => { /* no-op in tests */ };
+  const logoutUser = async () => { /* no-op in tests */ };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login: loginWithGoogle, loginEmail: loginWithEmail, logout }}>
+    <AuthContext.Provider value={{ user, loading, login: loginWithGoogle, loginEmail: loginWithEmail, logout: logoutUser }}>
       {children}
     </AuthContext.Provider>
   );

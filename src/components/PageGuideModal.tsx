@@ -46,6 +46,24 @@ const pageGuides: Record<string, GuideData> = {
     ],
     proTip: 'Use the Global Sync button to ensure all your data is up-to-date before a major strategy session.'
   },
+  'my-product': {
+    title: 'My Product',
+    description: 'Your blueprint. Manage your product details, track features, and orchestrate strategy.',
+    icon: <Target size={28} />,
+    color: 'text-indigo-500',
+    bgGlow: 'bg-indigo-500/20',
+    capabilities: [
+      { icon: <CheckCircle2 size={20} />, title: 'Feature Tracking', desc: 'Define your features and track implementation status.' },
+      { icon: <Sparkles size={20} />, title: 'AI Strategy', desc: 'Let AI suggest strategic next steps based on competitors.' },
+      { icon: <Download size={20} />, title: 'OpenSpec Export', desc: 'Generate a PRD, One-Pager, or OpenSpec archive.' }
+    ],
+    steps: [
+      'Fill in your product details and target regions.',
+      'Add features manually or track them from the matrix.',
+      'Click Generate Docs to export an OpenSpec PRD or archive.'
+    ],
+    proTip: 'Use the Generate Docs wizard to instantly produce structured markdown documentation that you can hand straight to your engineering team.'
+  },
   'matrix': {
     title: 'Competitor Matrix',
     description: 'The battlefield. Compare features side-by-side to find where you can outmaneuver the competition.',
@@ -72,13 +90,13 @@ const pageGuides: Record<string, GuideData> = {
     bgGlow: 'bg-amber-500/20',
     capabilities: [
       { icon: <Upload size={20} />, title: 'Data Ingestion', desc: 'Upload CSV, JSON, or TXT files.' },
-      { icon: <Tag size={20} />, title: 'Auto-Tagging', desc: 'Data is automatically categorized.' },
+      { icon: <Download size={20} />, title: 'Data Export', desc: 'Export datasets to CSV or JSON formats.' },
       { icon: <Link size={20} />, title: 'Source Tracking', desc: 'Verify the original context of any data point.' }
     ],
     steps: [
       'Upload your own research or scraped data.',
       'Filter by source type or company.',
-      'Click source links to verify original context.'
+      'Export datasets for external analysis.'
     ],
     proTip: 'The AI engine uses this raw data to generate all insights. The better your data, the sharper your strategy.'
   },
@@ -91,12 +109,12 @@ const pageGuides: Record<string, GuideData> = {
     capabilities: [
       { icon: <MessageSquare size={20} />, title: 'AI Brainstorming', desc: 'Chat with AI to flesh out raw ideas.' },
       { icon: <TrendingUp size={20} />, title: 'Impact Scoring', desc: 'Instantly see which insights matter most.' },
-      { icon: <Plus size={20} />, title: 'Manual Entry', desc: 'Add your own observations.' }
+      { icon: <Download size={20} />, title: 'Data Export', desc: 'Export filtered insights to CSV.' }
     ],
     steps: [
       'Review auto-generated insights.',
       'Filter by Opportunity or Threat.',
-      'Click Brainstorm to develop an execution plan.'
+      'Export insights for your product roadmap.'
     ],
     proTip: 'Click the "Brainstorm" button on any insight to open a dedicated chat session focused entirely on that specific strategic angle.'
   },
@@ -138,39 +156,75 @@ const pageGuides: Record<string, GuideData> = {
   },
   'actions': {
     title: 'Background Tasks & Sync',
-    description: 'The engine room. Monitor system health, data syncs, and AI operations.',
+    description: 'The engine room. Monitor system health, data syncs, and review pending changes.',
     icon: <Activity size={28} />,
     color: 'text-orange-500',
     bgGlow: 'bg-orange-500/20',
     capabilities: [
       { icon: <Activity size={20} />, title: 'System Health', desc: 'See what is running, pending, or failed.' },
-      { icon: <RefreshCw size={20} />, title: 'Sync Monitoring', desc: 'Ensure your data is fresh.' },
+      { icon: <CheckCircle2 size={20} />, title: 'Global Progress', desc: 'Monitor task progress globally via the top-level sticky banner.' },
       { icon: <FileJson size={20} />, title: 'Detailed Logs', desc: 'View the raw JSON of any system event.' }
     ],
     steps: [
       'Check the current System State.',
-      'Run Data Validation to ensure integrity.',
-      'Review System Logs for troubleshooting.'
+      'Review any pending sync changes in the queue.',
+      'Run a System Check to validate external APIs.'
     ],
-    proTip: 'Run the Data Pipeline after uploading new raw data to process it into structured insights.'
+    proTip: 'You can safely navigate away from this tab while a Global Sync is running! The Global Progress Banner at the top of the screen will keep you informed of the background task progress.'
   },
   'settings': {
     title: 'Settings',
-    description: 'Configure your workspace. Manage your API keys, and data preferences.',
+    description: 'Configure your workspace. Manage your API keys, usage limits, and data preferences.',
     icon: <SettingsIcon size={28} />,
     color: 'text-slate-500',
     bgGlow: 'bg-slate-500/20',
     capabilities: [
-      { icon: <Key size={20} />, title: 'API Configuration', desc: 'Manage your Gemini API key.' },
-      { icon: <RefreshCw size={20} />, title: 'Real-time Collaboration', desc: 'Share your workspace link to collaborate.' },
+      { icon: <Key size={20} />, title: 'API Configuration', desc: 'Bring your own keys (BYOK) and configure AI fallbacks.' },
+      { icon: <Activity size={20} />, title: 'API Usage Limits', desc: 'Track your daily usage across providers.' },
       { icon: <Settings2 size={20} />, title: 'Data Management', desc: 'Clear local data or reset the application.' }
     ],
     steps: [
       'Copy the Workspace Link to share with cofounders.',
-      'Ensure your Gemini API key is configured.',
-      'Manage your local data as needed.'
+      'Configure your AI models and backup fallbacks.',
+      'Monitor API usage across different services.'
     ],
-    proTip: 'Anyone with your Workspace Link can access and edit the data in real-time, no login required.'
+    proTip: 'Configure secondary AI fallback models to ensure your data pipelines never get stuck due to a provider going down or hitting rate limits.'
+  },
+  'support': {
+    title: 'Support & Feedback',
+    description: 'Get help or share your ideas. We are building this for you.',
+    icon: <MessageSquare size={28} />,
+    color: 'text-rose-500',
+    bgGlow: 'bg-rose-500/20',
+    capabilities: [
+      { icon: <MessageSquare size={20} />, title: 'Direct Feedback', desc: 'Submit bugs or feature requests directly to our team.' },
+      { icon: <Zap size={20} />, title: 'Alpha Limits', desc: 'Request increases to your daily API usage limits.' },
+      { icon: <CheckCircle2 size={20} />, title: 'Status Tracking', desc: 'Know when your feedback has been received.' }
+    ],
+    steps: [
+      'Select the type of feedback (Bug, Feature, Limit Request).',
+      'Provide detailed information so we can help you faster.',
+      'Submit and let our team handle the rest.'
+    ],
+    proTip: 'If you are hitting Alpha Usage Limits, use the "Limit Increase Request" to tell us about your use case, and we might bump your quota!'
+  },
+  'superadmin': {
+    title: 'Superadmin Dashboard',
+    description: 'Internal tool for reviewing Alpha feedback and managing the system.',
+    icon: <Settings2 size={28} />,
+    color: 'text-zinc-500',
+    bgGlow: 'bg-zinc-500/20',
+    capabilities: [
+      { icon: <MessageSquare size={20} />, title: 'Feedback Review', desc: 'Read feedback from all alpha testers.' },
+      { icon: <CheckCircle2 size={20} />, title: 'Triage', desc: 'Prioritize bug reports and feature requests.' },
+      { icon: <Key size={20} />, title: 'Exemptions', desc: 'Superadmins bypass all Alpha Usage Limits.' }
+    ],
+    steps: [
+      'Review the latest feedback from the community.',
+      'Identify critical bugs that need immediate fixing.',
+      'Review Limit Increase Requests.'
+    ],
+    proTip: 'Feedback is ordered by newest first, so you can always see what testers are struggling with right now.'
   }
 };
 

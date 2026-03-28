@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { Package, Target, MapPin, List, Plus, Sparkles, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Target, MapPin, List, Plus, Sparkles, Trash2, Edit2, Check, X, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { withKeyRotation } from '../utils/geminiClient';
 import Markdown from 'react-markdown';
+import { Tooltip } from './Tooltip';
+import ExportButton from './ExportButton';
+import { DocumentationWizardModal } from './DocumentationWizardModal';
+import { DerivedInsight } from '../types';
 
 export interface ProductFeature {
   id: string;
@@ -23,15 +27,18 @@ export interface MyProductData {
   targetRegions: string[];
   features: ProductFeature[];
   strategy: ProductStrategy[];
+  verifiedFields?: Record<string, boolean>;
 }
 
 interface MyProductProps {
   productData: MyProductData;
   setProductData: React.Dispatch<React.SetStateAction<MyProductData>>;
   competitors: any[];
+  insights: DerivedInsight[];
 }
 
-export const MyProduct: React.FC<MyProductProps> = ({ productData, setProductData, competitors }) => {
+export const MyProduct: React.FC<MyProductProps> = ({ productData, setProductData, competitors, insights }) => {
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [editName, setEditName] = useState(productData.name);
   const [editDescription, setEditDescription] = useState(productData.description);
@@ -192,6 +199,12 @@ export const MyProduct: React.FC<MyProductProps> = ({ productData, setProductDat
               Manage your product details, features, and strategy.
             </p>
           </div>
+          <ExportButton 
+            onExport={() => setIsWizardOpen(true)} 
+            label="Generate Docs" 
+            tooltipText="Export product documentation or OpenSpec files" 
+            actionName="generate_docs" 
+          />
         </div>
 
         {/* Header / Details Section */}
@@ -481,6 +494,12 @@ export const MyProduct: React.FC<MyProductProps> = ({ productData, setProductDat
         </div>
 
       </div>
+      <DocumentationWizardModal
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        myProductData={productData}
+        insights={insights}
+      />
     </div>
   );
 };
