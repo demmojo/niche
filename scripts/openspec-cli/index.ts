@@ -15,6 +15,7 @@ import { runEval } from "./eval.js";
 import { checkReadiness } from "./readiness.js";
 import { ingestPlan } from "./ingest.js";
 import { generateDocs } from "./generate-docs.js";
+import { checkCoverage } from "./coverage.js";
 
 const program = new Command();
 
@@ -105,6 +106,27 @@ program
   )
   .action(async () => {
     await generateDocs();
+  });
+
+program
+  .command("check-coverage")
+  .argument("<feature-name>", "The exact folder name of the feature")
+  .option(
+    "-t, --threshold <number>",
+    "Minimum coverage percentage required",
+    "90",
+  )
+  .description(
+    "Run coverage report parser for a given feature to mechanically verify intent-based testing compliance",
+  )
+  .action(async (featureName, options) => {
+    const passed = await checkCoverage(
+      featureName,
+      parseFloat(options.threshold),
+    );
+    if (!passed) {
+      process.exit(1);
+    }
   });
 
 program.parse();

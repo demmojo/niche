@@ -30,6 +30,7 @@ export default defineConfig({
         "src/components/InsightQuestModal.tsx",
         "src/components/FhibliUI.tsx",
       ],
+      reporter: ["text", "json-summary"],
       thresholds: {
         lines: 64,
         functions: 73,

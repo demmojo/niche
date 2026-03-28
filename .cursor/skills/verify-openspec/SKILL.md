@@ -12,22 +12,32 @@ The `verify` command ensures that a change's code implementation correctly align
 When asked to verify a change located at `openspec/changes/<feature-name>`, perform the following validation:
 
 ### 1. Artifact Retrieval
+
 Read the change's artifacts in their entirety using the `Read` tool:
+
 - `openspec/changes/<feature-name>/proposal.md`
 - `openspec/changes/<feature-name>/design.md`
 - `openspec/changes/<feature-name>/specs/<feature-name>/spec.md`
 - `openspec/changes/<feature-name>/tasks.md`
 
-### 2. Task Completion Status
+### 2. Mechanical Test Coverage Validation
+
+- Use the `Shell` tool to run the deterministic coverage script: `npx tsx scripts/openspec-cli/index.ts check-coverage <feature-name> --threshold=90`.
+- If the command exits with `code 1` (coverage below 90%), you MUST mark the verification as **Failed** and halt immediately.
+
+### 3. Task Completion Status
+
 - Check `tasks.md` to ensure every item (`- [ ]`) has been completed and marked as `- [x]`.
 - Report any pending tasks to the user immediately. If all are complete, proceed to the next step.
 
-### 3. Spec Coverage & Requirement Implementation
+### 4. Spec Coverage & Intent-Based Validation
+
 - Iterate through the detailed requirements in `spec.md`.
 - Use the `Glob`, `Grep`, or `SemanticSearch` tools to identify where these requirements were implemented in the codebase.
-- Verify that every specified scenario (the `WHEN/THEN` statements) accurately reflects the behavior of the implemented code.
+- Verify that every specified scenario (the `WHEN/THEN` statements) accurately reflects the behavior of the implemented code AND has a corresponding, meaningful intent-based test using MSW/RTL.
 
-### 4. Design Adherence
+### 5. Design Adherence
+
 - Verify that the architecture and approaches match the decisions detailed in `design.md`.
 - Did the implementation handle the risks/trade-offs mentioned? Check error handling, edge cases, and specific design patterns.
 
@@ -38,11 +48,13 @@ Provide the verification report back to the user formatted as a summary checklis
 ```markdown
 ### Verification Report: [Feature Name]
 
+- [ ] **Test Coverage (90-100%)**: (Pass/Fail) - [Actual % from CLI script]
 - [ ] **Tasks Complete**: (Pass/Fail) - [Details]
-- [ ] **Spec Scenarios Covered**: (Pass/Fail) - [Details about missing or correct scenarios]
+- [ ] **Spec Scenarios Covered (Intent-Based Test Validation)**: (Pass/Fail) - [Details about missing or correct scenarios & tests]
 - [ ] **Design Constraints Met**: (Pass/Fail) - [Notes on architectural adherence]
 
 **Recommendations / Fixes Needed:**
+
 - List any gaps or issues found, or state "Ready to archive."
 ```
 

@@ -121,6 +121,8 @@ This file is placed at `openspec/changes/<feature-name>/specs/<feature-name>/spe
 
 ## Scenarios
 
+_Note: Every scenario MUST map 1:1 to an intent-based test using RTL/MSW/Firebase Emulator._
+
 - **WHEN** [condition or user action]
 - **THEN** [expected system outcome]
 ```
@@ -129,17 +131,22 @@ This file is placed at `openspec/changes/<feature-name>/specs/<feature-name>/spe
 
 This file is placed at `openspec/changes/<feature-name>/tasks.md`
 
-Break down the implementation into logical phases and actionable steps.
+Break down the implementation into logical phases and actionable steps. Crucially, tasks to write failing intent-based tests MUST precede implementation tasks (Two-Step Red/Green Prompting Sequence).
 
 ```markdown
 ## 1. [Phase 1: E.g., Backend / Data Model]
 
-- [ ] 1.1 [Task description]
-- [ ] 1.2 [Task description]
+- [ ] 1.1 **Test:** Write failing MSW/Firebase Emulator intent-based tests for [Scenario].
+- [ ] 1.2 **Implement:** [Task description to make tests pass].
 
 ## 2. [Phase 2: E.g., Frontend / UI Integration]
 
-- [ ] 2.1 [Task description]
+- [ ] 2.1 **Test:** Write failing RTL intent-based tests for [Scenario].
+- [ ] 2.2 **Implement:** [Task description to make tests pass].
+
+## 3. [Final Phase: Testing & Validation]
+
+- [ ] 3.1 Verify targeted local coverage (`npm run test -- <changed-files> --coverage`) meets the 90-100% threshold.
 ```
 
 ## Post-Creation
