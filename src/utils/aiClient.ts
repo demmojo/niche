@@ -10,6 +10,9 @@ export interface AIModel {
   provider: ApiService;
 }
 
+/**
+ *
+ */
 export const getSelectedModels = (): string[] => {
   const data = localStorage.getItem("ai_selected_models");
   if (data) {
@@ -22,10 +25,17 @@ export const getSelectedModels = (): string[] => {
   return ["gemini-3.1-flash-preview"];
 };
 
+/**
+ *
+ * @param models
+ */
 export const setSelectedModels = (models: string[]) => {
   localStorage.setItem("ai_selected_models", JSON.stringify(models));
 };
 
+/**
+ *
+ */
 export const fetchAvailableModels = async (): Promise<AIModel[]> => {
   const models: AIModel[] = [
     {
@@ -111,6 +121,10 @@ export const fetchAvailableModels = async (): Promise<AIModel[]> => {
   return models;
 };
 
+/**
+ *
+ * @param modelId
+ */
 const getProviderForModel = (modelId: string): ApiService => {
   if (
     modelId.startsWith("gpt-") ||
@@ -131,6 +145,9 @@ export interface GenerateParams {
   };
 }
 
+/**
+ *
+ */
 class AIClient {
   async generateContent(model: string, params: GenerateParams): Promise<any> {
     const provider = getProviderForModel(model);
@@ -278,6 +295,9 @@ class AIClient {
     }
 
     const result = await this.generateContent(model, params);
+    /**
+     *
+     */
     async function* dummyStream() {
       yield result;
     }
@@ -286,6 +306,22 @@ class AIClient {
 }
 
 // Ensure withModelFallback replaces withKeyRotation
+/**
+ * The central AI abstraction layer orchestrating requests across multiple providers.
+ * @param operation
+ * @param timeoutMs
+ * @description
+ * Exposes a unified API for generating structured content and chats, hiding the
+ * underlying SDK complexities (OpenAI, Gemini, Anthropic) from the UI. Features
+ * built-in fallback loops that cycle through user-selected models if the primary
+ * provider fails or rate-limits.
+ * @example
+ * ```ts
+ * const result = await withModelFallback("Respond to the user", "How do I do X?");
+ * ```
+ * @throws {Error} Throws if all configured models exhaust their retries or if the
+ * underlying network request (e.g. Gemini `504 Timeout`) fails universally.
+ */
 export const withModelFallback = async <T>(
   operation: (ai: AIClient, model: string) => Promise<T>,
   timeoutMs: number = 120000,
@@ -317,6 +353,9 @@ export const withModelFallback = async <T>(
     }
 
     try {
+      /**
+       *
+       */
       const executeWithTimeout = async (): Promise<T> => {
         return new Promise<T>((resolve, reject) => {
           const timer = setTimeout(() => {
