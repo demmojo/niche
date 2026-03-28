@@ -1,4 +1,4 @@
 schema: spec-driven
-status: draft
-learnings_extracted: false
+status: implemented
+learnings_extracted: true
 created: '2026-03-28'
