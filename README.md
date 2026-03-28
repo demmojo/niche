@@ -12,10 +12,13 @@
 
 The platform includes:
 - **Dashboard & Executive Summary**: A high-level overview of your market positioning.
+- **My Product Blueprint**: Define your product's target regions, track features, and let AI generate strategic next steps. Export your plan to One-Pagers, PRDs, or standard OpenSpec `.zip` archives.
 - **Competitor Matrix**: Detailed side-by-side feature and capability comparisons.
-- **Raw Data Library**: Organize incoming data streams, news mentions, and Apollo.io organization data.
-- **Insight Library**: Save and manage AI-generated strategic insights for product development.
-- **Real-time Synchronization**: Background task engine that pulls data from web searches and API endpoints.
+- **Raw Data Library**: Organize incoming data streams, news mentions, and Apollo.io organization data. Easily export filtered data to CSV.
+- **Insight Library**: Save and manage AI-generated strategic insights for product development. Export strategic insights to CSV.
+- **Real-time Synchronization & Sync Review**: Background task engine that pulls data from web searches and API endpoints. All incoming data changes are queued for your manual review and approval before they hit the database. Global progress is clearly communicated via an elegant top-level sticky banner.
+- **Multi-Provider AI & API Limits**: Bring Your Own Key (BYOK) for Gemini, OpenAI, and Anthropic. Configure intelligent fallbacks to ensure pipelines don't stall, while tracking your requests in the built-in API Usage Dashboard.
+- **Support & Superadmin Hub**: Built-in feedback portals for Alpha testers, with superadmin oversight to manage limits and prioritize feature requests.
 
 ## 🚀 Tech Stack
 
@@ -91,6 +94,40 @@ The application will be available at **[http://localhost:3000](http://localhost:
 | `npm run lint` | Runs the TypeScript compiler to check for type errors without emitting files. |
 | `npm run test` | Runs the Vitest test suite. |
 | `npm run clean` | Removes the `/dist` build directory. |
+| `npm run swe-bench-runner` | Runs the custom SWE-bench evaluation loop to empirically test the local AI Agent setup used in development (). |
+
+---
+
+## 🤖 AI Agent Benchmarking (SWE-Bench)
+
+This repository includes a custom automated benchmark to evaluate the performance of our customized **Cursor AI Agent** (powered by Gemini 3.1 Pro) using the `aider-chat` CLI.
+
+> **⚠️ Important note for other developers:** This benchmark is highly specific to the **Cursor IDE ecosystem**. The tests (`task-*.md`) specifically evaluate the agent's ability to trigger custom Cursor-native skills (e.g., `using-superml`, `ml-plan`) and query local MCP servers configured in `.cursor/projects/`. If you are using a different AI coding assistant (like Claude Code, GitHub Copilot, or vanilla Aider), this benchmark will likely fail or require significant modification, as those environments do not natively support Cursor's custom rules or MCP tool injection mechanisms.
+
+The benchmark evaluates whether the Cursor agent properly follows our architecture rules, executes required skills (like linting or ML planning), and leverages our specific MCP (Model Context Protocol) servers.
+
+### Running the Benchmark
+
+You can run the full evaluation loop using the provided npm script:
+
+```bash
+npm run swe-bench-runner
+```
+
+This script will:
+1. Iterate over 3 configurations (Baseline, Prompts only, Full Stack).
+2. Execute 5 specific tasks (`task-*.md`) across the codebase.
+3. Automatically grade the agent's patches using Vitest and Bash scripts in the `eval_tests/` directory.
+4. Output the pass/fail results to a `swe-bench-results.log` file.
+
+**Tasks Evaluated:**
+- **Task 1 (Rules):** Verifies adherence to the `.cursorrules` (e.g., CO-STAR format, top-level imports, exhaustive TypeScript switches).
+- **Task 2 (Skills):** Checks if the agent successfully triggers linting (`npm run lint`) and fixes type errors.
+- **Task 3 (MCP Forcing):** Forces the agent to use the Context7 MCP server to fetch up-to-date documentation before implementing a D3.js chart.
+- **Task 4 (ML Planning):** Validates that the agent correctly triggers `ml-plan` and `using-superml` skills to design a recommendation engine pipeline.
+- **Task 5 (ML Debugging):** Validates that the agent uses the `ml-debug` skill to generate a debugging checklist for NaN loss issues.
+
+For more details on the benchmark design, refer to the [task files](task-1-rules.md) and [test scripts](eval_tests/).
 
 ---
 
@@ -129,7 +166,10 @@ npm run test
 ├── server.ts             # Express server entry point (Dev & Prod)
 ├── package.json          # Project metadata and dependencies
 ├── vite.config.ts        # Vite build and test configuration
-└── firestore.rules       # Firebase security rules
+├── firestore.rules       # Firebase security rules
+├── swe-bench-runner.sh   # Evaluation loop script for the SWE-Bench test suite
+├── eval_tests/           # Grading tests to evaluate the AI Agent's output
+└── task-*.md             # Aider benchmark issues (Task 1 to 5)
 ```
 
 ## 🤝 Contributing
