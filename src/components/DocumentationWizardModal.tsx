@@ -22,7 +22,7 @@ interface DocumentationWizardModalProps {
   insights: DerivedInsight[];
 }
 
-type FormatOption = "onepager" | "prd" | "openspec";
+type FormatOption = "onepager" | "prd" | "openspec" | "validation";
 
 export const DocumentationWizardModal: React.FC<
   DocumentationWizardModalProps
@@ -86,6 +86,49 @@ export const DocumentationWizardModal: React.FC<
           .map((i) => `- ${i.title}`)
           .join("\n")}\n\n`;
         doc += `## 5. Next Steps\n${selectedNextSteps.map((s) => `- ${s}`).join("\n")}\n\n`;
+      } else if (format === "validation") {
+        doc = `## Validation Spec (Smoke Test)
+
+### 1. Copy & SEO
+- **Headline**: ${myProductData.name} - The better way to ${myProductData.description}
+- **Subheadline**: Designed for ${myProductData.targetRegions.join(", ")}. Stop settling for generic tools.
+- **CTA**: Join the Waitlist
+
+### 2. React/Next.js Code Generation
+\`\`\`tsx
+// pages/index.tsx (Optimized for Cloudflare Pages)
+import Head from 'next/head';
+import { Button } from '@/components/ui/button';
+
+export default function Landing() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white">
+      <Head>
+        <title>${myProductData.name} - Waitlist</title>
+        {/* Inject Cloudflare Analytics Token here */}
+      </Head>
+      <h1 className="text-5xl font-bold mb-4 tracking-tighter">${myProductData.name}</h1>
+      <p className="text-xl text-zinc-400 mb-8 max-w-2xl text-center">${myProductData.description}</p>
+      <div className="flex gap-4">
+         <Button size="lg" className="bg-white text-black hover:bg-zinc-200 rounded-full">Get Early Access</Button>
+      </div>
+      
+      <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8">
+        ${selectedFeatures
+          .slice(0, 3)
+          .map(
+            (f) => `<div className="p-6 border border-zinc-800 rounded-2xl">
+          <h3 className="font-bold mb-2">${f}</h3>
+          <p className="text-sm text-zinc-500">Coming soon.</p>
+        </div>`,
+          )
+          .join("\n        ")}
+      </div>
+    </div>
+  );
+}
+\`\`\`
+`;
       } else {
         doc = `OpenSpec File Generation Preview...\n(This will be exported as a .zip file with separate Markdown files.)`;
       }
@@ -385,7 +428,7 @@ export const DocumentationWizardModal: React.FC<
                 Select the type of deliverable you want to generate.
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 <button
                   onClick={() => setFormat("onepager")}
                   className={`p-5 rounded-xl border-2 text-left transition-all ${format === "onepager" ? "border-accent-teal bg-accent-teal/5 shadow-md scale-[1.02]" : "border-ink-dark/10 hover:border-ink-dark/30 hover:bg-paper-base"}`}
@@ -427,6 +470,23 @@ export const DocumentationWizardModal: React.FC<
                   <p className="text-xs text-ink-dark/70 leading-relaxed">
                     A standard architectural package (.zip) with separated
                     markdown files and schemas ready for AI agents or repos.
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setFormat("validation")}
+                  className={`p-5 rounded-xl border-2 text-left transition-all ${format === "validation" ? "border-sky bg-sky/5 shadow-md scale-[1.02]" : "border-ink-dark/10 hover:border-ink-dark/30 hover:bg-paper-base"}`}
+                >
+                  <Download
+                    className={`w-8 h-8 mb-3 ${format === "validation" ? "text-sky" : "text-ink-dark/50"}`}
+                  />
+                  <h4 className="font-bold text-ink-dark mb-1">
+                    Validation Spec (Smoke Test)
+                  </h4>
+                  <p className="text-xs text-ink-dark/70 leading-relaxed">
+                    Outputs exact copy and React/Next.js landing page code
+                    optimized for Cloudflare Pages to test distribution
+                    viability instantly.
                   </p>
                 </button>
               </div>

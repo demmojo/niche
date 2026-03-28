@@ -105,6 +105,168 @@ async function startServer() {
     }
   });
 
+  // CLI Telemetry Webhook API
+  app.post("/api/webhooks/telemetry", async (req, res) => {
+    try {
+      const { productId, taskId, status, featureId } = req.body;
+
+      if (!productId || !taskId || !status) {
+        return res
+          .status(400)
+          .json({ error: "Missing required telemetry fields" });
+      }
+
+      console.log(
+        `[Telemetry Webhook] Product: ${productId} | Task: ${taskId} | Status: ${status} | Feature: ${featureId || "N/A"}`,
+      );
+
+      // In a production environment with Firestore Admin, we would update the document here:
+      // db.collection('users').doc(userId).collection('my_products').doc(productId)...
+      // For now, we return a success response to acknowledge receipt.
+
+      res
+        .status(200)
+        .json({ success: true, message: "Telemetry received successfully" });
+    } catch (error: any) {
+      console.error("Telemetry Webhook Error:", error);
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to process telemetry" });
+    }
+  });
+
+  // Tarpit Analyzer Endpoint
+  app.post("/api/tarpit-analyze", async (req, res) => {
+    try {
+      const { productName, productDescription } = req.body;
+      if (!productName || !productDescription) {
+        return res
+          .status(400)
+          .json({ error: "Missing product name or description" });
+      }
+
+      // Mock AI response for now (to be replaced with actual geminiClient call if needed)
+      const mockResponse = {
+        isTarpit:
+          productDescription.toLowerCase().includes("email") ||
+          productDescription.toLowerCase().includes("crm"),
+        score: 85,
+        reasoning:
+          "The concept is too broad and faces immense competition from established players.",
+        suggestedNiches: [
+          "A CRM specifically for independent dog walkers",
+          "An email client for lawyers with built-in e-discovery",
+        ],
+      };
+
+      res.status(200).json(mockResponse);
+    } catch (error: any) {
+      console.error("Tarpit Analyzer Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Visual Intelligence & BYOK Proxy
+  app.post("/api/visual/analyze", async (req, res) => {
+    try {
+      const { imageBase64, userApiKey, provider } = req.body;
+
+      if (!imageBase64 || !userApiKey) {
+        return res.status(400).json({ error: "Missing image or API key" });
+      }
+
+      // Step 1: OmniParser (Mock bounding boxes)
+      const omniParserMock = {
+        elements: [
+          {
+            id: "btn-1",
+            type: "button",
+            text: "Sign Up",
+            bbox: [10, 20, 100, 40],
+          },
+          { id: "img-1", type: "image", bbox: [50, 50, 200, 200] },
+        ],
+      };
+
+      // Step 2: BYOK Gateway (Downscale image)
+      const isDownscaled = true;
+
+      // Step 3: Multimodal LLM (Mock API call)
+      const extractedFeatures = [
+        {
+          name: "One-Click Onboarding",
+          confidence: 0.95,
+          boundingBoxId: "btn-1",
+        },
+        { name: "Visual Dashboard", confidence: 0.88, boundingBoxId: "img-1" },
+      ];
+
+      res.status(200).json({
+        omniParser: omniParserMock,
+        features: extractedFeatures,
+        proxyInfo: { downscaled: isDownscaled, provider: provider || "gemini" },
+      });
+    } catch (error: any) {
+      console.error("Visual Intelligence Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reality Check Diff Endpoint
+  app.post("/api/visual/reality-check", async (req, res) => {
+    try {
+      const { imageBase64, currentFeatures } = req.body;
+
+      // Mock logic comparing visual features to MyProductData state
+      const proposedUpdates = [
+        {
+          featureName: "Dark Mode",
+          proposedStatus: "completed",
+          reason: "Found dark mode toggle in screenshot",
+        },
+      ];
+
+      res.status(200).json({ proposedUpdates });
+    } catch (error: any) {
+      console.error("Reality Check Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cloudflare API Integration & OAuth
+  app.post("/api/cloudflare/provision-analytics", async (req, res) => {
+    try {
+      const { accountId, token } = req.body;
+      const siteToken =
+        "cf_site_token_mock_" + Math.random().toString(36).substring(7);
+      res
+        .status(200)
+        .json({
+          site_token: siteToken,
+          message: "Analytics provisioned via OpenNext Edge",
+        });
+    } catch (error: any) {
+      console.error("Cloudflare Provision Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cloudflare/graphql", async (req, res) => {
+    try {
+      const { siteToken } = req.body;
+      const metrics = {
+        pageViews: 1250,
+        uniqueVisitors: 840,
+        conversionRate: "5.2%",
+        referrers: ["twitter.com", "news.ycombinator.com"],
+      };
+      res.status(200).json(metrics);
+    } catch (error: any) {
+      console.error("Cloudflare GraphQL Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Raw Data Ingestion API
   app.post("/api/raw-data/ingest", async (req, res) => {
     try {

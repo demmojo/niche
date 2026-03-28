@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Loader2,
 } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
 import { withKeyRotation } from "../utils/geminiClient";
@@ -22,11 +23,24 @@ import ExportButton from "./ExportButton";
 import { DocumentationWizardModal } from "./DocumentationWizardModal";
 import { DerivedInsight } from "../types";
 
+export interface FeatureProvenance {
+  sourceType:
+    | "competitor_matrix"
+    | "raw_data"
+    | "ai_suggestion"
+    | "visual_lens";
+  sourceId?: string;
+  sourceText?: string;
+  confidenceScore?: number;
+}
+
 export interface ProductFeature {
   id: string;
   name: string;
   description: string;
   status: "planned" | "in-progress" | "completed" | "pending-review";
+  webhookSyncStatus?: "planned" | "in-development" | "shipped";
+  provenance?: FeatureProvenance;
 }
 
 export interface ProductStrategy {
@@ -42,6 +56,7 @@ export interface MyProductData {
   features: ProductFeature[];
   strategy: ProductStrategy[];
   verifiedFields?: Record<string, boolean>;
+  allowAiWriteAccess?: boolean;
 }
 
 interface MyProductProps {
@@ -75,8 +90,38 @@ export const MyProduct: React.FC<MyProductProps> = ({
   const [editingFeatureDesc, setEditingFeatureDesc] = useState("");
 
   const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
+  const [isAnalyzingTarpit, setIsAnalyzingTarpit] = useState(false);
+  const [tarpitWarning, setTarpitWarning] = useState<any>(null);
 
-  const handleSaveDetails = () => {
+  const analyzeTarpit = async (name: string, description: string) => {
+    setIsAnalyzingTarpit(true);
+    try {
+      const response = await fetch("/api/tarpit-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: name,
+          productDescription: description,
+        }),
+      });
+      const result = await response.json();
+      if (result.isTarpit) {
+        setTarpitWarning(result);
+      } else {
+        setTarpitWarning(null);
+      }
+    } catch (err) {
+      console.error("Tarpit analysis failed", err);
+    } finally {
+      setIsAnalyzingTarpit(false);
+    }
+  };
+
+  const handleSaveDetails = async () => {
+    // Before saving, run tarpit analysis
+    await analyzeTarpit(editName, editDescription);
+    if (tarpitWarning) return; // Wait for user to resolve warning
+
     setProductData((prev) => ({
       ...prev,
       name: editName,
@@ -87,6 +132,25 @@ export const MyProduct: React.FC<MyProductProps> = ({
         .filter(Boolean),
     }));
     setIsEditingDetails(false);
+  };
+
+  const overrideTarpitWarning = () => {
+    setProductData((prev) => ({
+      ...prev,
+      name: editName,
+      description: editDescription,
+      targetRegions: editRegions
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean),
+    }));
+    setIsEditingDetails(false);
+    setTarpitWarning(null);
+  };
+
+  const handleAcceptTarpitConstraint = (niche: string) => {
+    setEditDescription((prev) => prev + "\nConstraint: " + niche);
+    setTarpitWarning(null);
   };
 
   const handleAddFeature = () => {
@@ -286,9 +350,14 @@ export const MyProduct: React.FC<MyProductProps> = ({
                 </button>
                 <button
                   onClick={handleSaveDetails}
-                  className="flex items-center gap-2 px-4 py-2 bg-ink-dark text-white rounded-lg hover:bg-black transition-colors text-sm font-medium"
+                  disabled={isAnalyzingTarpit}
+                  className="flex items-center gap-2 px-4 py-2 bg-ink-dark text-white rounded-lg hover:bg-black transition-colors text-sm font-medium disabled:opacity-50"
                 >
-                  <Check size={16} />
+                  {isAnalyzingTarpit ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Check size={16} />
+                  )}
                   Save
                 </button>
               </div>
@@ -371,6 +440,42 @@ export const MyProduct: React.FC<MyProductProps> = ({
               </div>
             )}
           </div>
+          {tarpitWarning && (
+            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl relative z-10">
+              <h4 className="text-amber-900 font-bold mb-2 flex items-center gap-2">
+                ⚠️ Tarpit Warning (Score: {tarpitWarning.score}/100)
+              </h4>
+              <p className="text-amber-800 text-sm mb-4">
+                {tarpitWarning.reasoning}
+              </p>
+
+              {tarpitWarning.suggestedNiches &&
+                tarpitWarning.suggestedNiches.length > 0 && (
+                  <div className="space-y-3 mt-4 pt-4 border-t border-amber-200/50">
+                    <p className="text-sm font-medium text-amber-900">
+                      Suggested Pivots:
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {tarpitWarning.suggestedNiches.map(
+                        (niche: string, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleAcceptTarpitConstraint(niche)}
+                            className="text-left p-3 text-sm bg-white hover:bg-amber-100 border border-amber-200 rounded-lg text-amber-900 transition-colors"
+                          >
+                            {niche}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                    <p className="text-xs text-amber-700/70 mt-2">
+                      Select a suggestion above, or manually update your
+                      description to be more specific.
+                    </p>
+                  </div>
+                )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
