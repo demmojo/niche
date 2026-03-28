@@ -206,11 +206,31 @@ service cloud.firestore {
     // ===============================================================
 
     match /workspaces/{workspaceId} {
-      allow read, write: if true;
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated() && (
+        request.auth.token.email == 'mo@nicheai.com' || 
+        request.auth.uid in resource.data.members
+      );
       
       match /appData/{dataId} {
-        allow read, write: if true;
+        allow create: if isAuthenticated() && (
+          request.auth.token.email == 'mo@nicheai.com' || 
+          request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
+        );
+        allow read, update, delete: if isAuthenticated() && (
+          request.auth.token.email == 'mo@nicheai.com' || 
+          request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
+        );
       }
+    }
+
+    match /invites/{inviteId} {
+      allow create: if isAuthenticated() && request.auth.token.email == 'mo@nicheai.com';
+      allow read: if isAuthenticated() && (
+        request.auth.token.email == 'mo@nicheai.com' || 
+        request.auth.token.email == resource.data.email
+      );
+      allow update, delete: if false;
     }
 
     match /users/{userId} {

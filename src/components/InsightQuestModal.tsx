@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Sprout, Sun, Leaf, X, Wheat } from 'lucide-react';
-import { Tooltip } from './Tooltip';
+import { dictionary, tMessage } from "../content/dictionary";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Sparkles, Sprout, Sun, Leaf, X, Wheat } from "lucide-react";
+import { Tooltip } from "./Tooltip";
 
 interface InsightQuestModalProps {
   isOpen: boolean;
@@ -10,11 +11,19 @@ interface InsightQuestModalProps {
   onRankInsight: (winnerId: string, loserId: string) => void;
 }
 
-const TypewriterText = ({ text, onComplete, speed = 40 }: { text: string, onComplete?: () => void, speed?: number }) => {
-  const [displayedText, setDisplayedText] = useState('');
-  
+const TypewriterText = ({
+  text,
+  onComplete,
+  speed = 40,
+}: {
+  text: string;
+  onComplete?: () => void;
+  speed?: number;
+}) => {
+  const [displayedText, setDisplayedText] = useState("");
+
   useEffect(() => {
-    setDisplayedText('');
+    setDisplayedText("");
     let i = 0;
     const intervalId = setInterval(() => {
       setDisplayedText(text.slice(0, i + 1));
@@ -24,7 +33,7 @@ const TypewriterText = ({ text, onComplete, speed = 40 }: { text: string, onComp
         if (onComplete) onComplete();
       }
     }, speed);
-    
+
     return () => clearInterval(intervalId);
   }, [text, speed, onComplete]);
 
@@ -32,7 +41,7 @@ const TypewriterText = ({ text, onComplete, speed = 40 }: { text: string, onComp
   const renderText = () => {
     const parts = displayedText.split(/(harvest)/i);
     return parts.map((part, index) => {
-      if (part.toLowerCase() === 'harvest') {
+      if (part.toLowerCase() === "harvest") {
         return (
           <span key={index} className="relative group cursor-help inline-block">
             <span className="text-[#8B5A2B] font-bold border-b-2 border-[#8B5A2B] border-dashed pb-0.5">
@@ -51,9 +60,16 @@ const TypewriterText = ({ text, onComplete, speed = 40 }: { text: string, onComp
   return <span>{renderText()}</span>;
 };
 
-export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: InsightQuestModalProps) {
-  const [step, setStep] = useState<'intro' | 'name' | 'pill' | 'game' | 'outro'>('intro');
-  const [adventurerName, setAdventurerName] = useState('');
+export function InsightQuestModal({
+  isOpen,
+  onClose,
+  insights,
+  onRankInsight,
+}: InsightQuestModalProps) {
+  const [step, setStep] = useState<
+    "intro" | "name" | "pill" | "game" | "outro"
+  >("intro");
+  const [adventurerName, setAdventurerName] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   const [gameMode, setGameMode] = useState<1 | 2 | 3>(1);
   const [insightA, setInsightA] = useState<any>(null);
@@ -63,8 +79,8 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
 
   useEffect(() => {
     if (isOpen) {
-      setStep('intro');
-      setAdventurerName('');
+      setStep("intro");
+      setAdventurerName("");
       setIsTyping(true);
       setRoundsPlayed(0);
     }
@@ -77,21 +93,21 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
       setInsightA(shuffled[0]);
       setInsightB(shuffled[1]);
       // Pick random game mode
-      setGameMode(Math.floor(Math.random() * 3) + 1 as 1 | 2 | 3);
+      setGameMode((Math.floor(Math.random() * 3) + 1) as 1 | 2 | 3);
       return true;
     }
     return false;
   };
 
   const handleNextStep = () => {
-    if (step === 'intro') setStep('name');
-    else if (step === 'name') setStep('pill');
-    else if (step === 'pill') {
+    if (step === "intro") setStep("name");
+    else if (step === "name") setStep("pill");
+    else if (step === "pill") {
       const hasEnough = pickInsights();
       if (hasEnough) {
-        setStep('game');
+        setStep("game");
       } else {
-        setStep('outro');
+        setStep("outro");
       }
     }
   };
@@ -99,11 +115,11 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
   const handleChoice = (winnerId: string, loserId: string) => {
     onRankInsight(winnerId, loserId);
     if (roundsPlayed + 1 >= maxRounds) {
-      setStep('outro');
+      setStep("outro");
     } else {
-      setRoundsPlayed(prev => prev + 1);
+      setRoundsPlayed((prev) => prev + 1);
       const hasEnough = pickInsights();
-      if (!hasEnough) setStep('outro');
+      if (!hasEnough) setStep("outro");
     }
   };
 
@@ -111,19 +127,22 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#2C2C2C]/60 backdrop-blur-sm font-pixel overflow-hidden p-4">
-      
       <div className="relative w-full max-w-3xl p-8 border-4 border-[#8B5A2B] bg-[#FFF9E6] text-[#2C2C2C] shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)] rounded-3xl overflow-hidden">
-        
-        <Tooltip content="Close quest" position="left">
-          <button onClick={onClose} className="absolute top-4 right-4 text-[#8B5A2B] hover:text-[#5C4033] z-50 bg-[#FFF9E6] rounded-full p-1 border-2 border-transparent hover:border-[#8B5A2B] transition-all">
+        <Tooltip
+          content={tMessage(dictionary.tooltips.quest.close)}
+          position="left"
+        >
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-[#8B5A2B] hover:text-[#5C4033] z-50 bg-[#FFF9E6] rounded-full p-1 border-2 border-transparent hover:border-[#8B5A2B] transition-all"
+          >
             <X size={24} />
           </button>
         </Tooltip>
 
         <AnimatePresence mode="wait">
-          
-          {step === 'intro' && (
-            <motion.div 
+          {step === "intro" && (
+            <motion.div
               key="intro"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -134,13 +153,13 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
                 <Sprout size={40} className="text-[#FFF9E6]" />
               </div>
               <p className="text-3xl leading-relaxed max-w-xl text-[#5C4033] font-medium">
-                <TypewriterText 
-                  text="Welcome to the Valley of Insights! The harvest is plentiful today, but we need your help to sort the best crops." 
-                  onComplete={() => setIsTyping(false)} 
+                <TypewriterText
+                  text="Welcome to the Valley of Insights! The harvest is plentiful today, but we need your help to sort the best crops."
+                  onComplete={() => setIsTyping(false)}
                 />
               </p>
               {!isTyping && (
-                <motion.button 
+                <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   onClick={handleNextStep}
@@ -152,8 +171,8 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
             </motion.div>
           )}
 
-          {step === 'name' && (
-            <motion.div 
+          {step === "name" && (
+            <motion.div
               key="name"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -161,28 +180,30 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
               className="flex flex-col items-center text-center space-y-8 py-12"
             >
               <p className="text-3xl text-[#5C4033] font-medium">
-                <TypewriterText 
-                  text="Hello there! What's your name, new farmer?" 
-                  onComplete={() => setIsTyping(false)} 
+                <TypewriterText
+                  text="Hello there! What's your name, new farmer?"
+                  onComplete={() => setIsTyping(false)}
                 />
               </p>
               {!isTyping && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="w-full max-w-xs space-y-6"
                 >
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={adventurerName}
-                    onChange={e => setAdventurerName(e.target.value)}
+                    onChange={(e) => setAdventurerName(e.target.value)}
                     placeholder="Enter Name"
                     className="w-full bg-[#FFF9E6] border-4 border-[#8B5A2B] rounded-xl text-center text-3xl py-3 text-[#5C4033] focus:outline-none focus:border-[#D2691E] font-bold placeholder:text-[#8B5A2B]/50 shadow-[inset_0_4px_4px_rgba(0,0,0,0.05)]"
                     autoFocus
-                    onKeyDown={e => e.key === 'Enter' && adventurerName && handleNextStep()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && adventurerName && handleNextStep()
+                    }
                   />
                   {adventurerName && (
-                    <button 
+                    <button
                       onClick={handleNextStep}
                       className="w-full px-8 py-3 border-4 border-[#8B5A2B] bg-[#FFD700] text-[#8B5A2B] font-bold hover:bg-[#FFA500] hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.5)] hover:shadow-[6px_6px_0px_0px_rgba(139,90,43,0.5)] transition-all rounded-xl text-2xl uppercase tracking-widest"
                     >
@@ -194,8 +215,8 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
             </motion.div>
           )}
 
-          {step === 'pill' && (
-            <motion.div 
+          {step === "pill" && (
+            <motion.div
               key="pill"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -203,26 +224,26 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
               className="flex flex-col items-center text-center space-y-8 py-8"
             >
               <p className="text-3xl leading-relaxed max-w-2xl text-[#5C4033] min-h-[100px] font-medium">
-                <TypewriterText 
-                  text={`Listen closely, ${adventurerName || 'Farmer'}. We have two beautiful crops here, but we only have room in our basket for one. Which one should we keep?`} 
-                  onComplete={() => setIsTyping(false)} 
+                <TypewriterText
+                  text={`Listen closely, ${adventurerName || "Farmer"}. We have two beautiful crops here, but we only have room in our basket for one. Which one should we keep?`}
+                  onComplete={() => setIsTyping(false)}
                   speed={30}
                 />
               </p>
-              
+
               {!isTyping && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex gap-12 mt-8"
                 >
-                  <button 
+                  <button
                     onClick={handleNextStep}
                     className="group relative w-28 h-28 rounded-2xl border-4 border-[#8B5A2B] bg-[#FF6B6B] hover:bg-[#FF8787] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.5)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)] transition-all flex items-center justify-center"
                   >
                     <div className="w-12 h-12 rounded-full bg-[#C92A2A] shadow-[inset_0_-4px_8px_rgba(0,0,0,0.3)] group-hover:scale-110 transition-transform"></div>
                   </button>
-                  <button 
+                  <button
                     onClick={handleNextStep}
                     className="group relative w-28 h-28 rounded-2xl border-4 border-[#8B5A2B] bg-[#4DABF7] hover:bg-[#74C0FC] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.5)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)] transition-all flex items-center justify-center"
                   >
@@ -233,8 +254,8 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
             </motion.div>
           )}
 
-          {step === 'game' && insightA && insightB && (
-            <motion.div 
+          {step === "game" && insightA && insightB && (
+            <motion.div
               key="game"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -248,9 +269,12 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
                   {gameMode === 3 && "The Autumn Fair"}
                 </h3>
                 <p className="text-2xl text-[#5C4033]">
-                  {gameMode === 1 && "Two crops have sprouted. Only one can go to the market. Choose carefully."}
-                  {gameMode === 2 && "The festival needs a centerpiece. Which of these two will win the blue ribbon?"}
-                  {gameMode === 3 && "The harvest is ending. Which of these two will we save for next year's seeds?"}
+                  {gameMode === 1 &&
+                    "Two crops have sprouted. Only one can go to the market. Choose carefully."}
+                  {gameMode === 2 &&
+                    "The festival needs a centerpiece. Which of these two will win the blue ribbon?"}
+                  {gameMode === 3 &&
+                    "The harvest is ending. Which of these two will we save for next year's seeds?"}
                 </p>
                 <div className="mt-4 text-xl font-bold text-[#8B5A2B] bg-[#FFD700] inline-block px-4 py-1 rounded-full border-2 border-[#8B5A2B]">
                   Day {roundsPlayed + 1} of {maxRounds}
@@ -259,52 +283,72 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 font-sans">
                 {/* Insight A */}
-                <button 
+                <button
                   onClick={() => handleChoice(insightA.id, insightB.id)}
                   className={`group relative p-6 border-4 rounded-2xl text-left transition-all duration-300 overflow-hidden
-                    ${gameMode === 1 ? 'border-[#8B5A2B] bg-[#E8F5E9] hover:bg-[#C8E6C9] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
-                    ${gameMode === 2 ? 'border-[#8B5A2B] bg-[#FFF3E0] hover:bg-[#FFE0B2] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
-                    ${gameMode === 3 ? 'border-[#8B5A2B] bg-[#FFF8E1] hover:bg-[#FFECB3] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
+                    ${gameMode === 1 ? "border-[#8B5A2B] bg-[#E8F5E9] hover:bg-[#C8E6C9] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
+                    ${gameMode === 2 ? "border-[#8B5A2B] bg-[#FFF3E0] hover:bg-[#FFE0B2] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
+                    ${gameMode === 3 ? "border-[#8B5A2B] bg-[#FFF8E1] hover:bg-[#FFECB3] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
                   `}
                 >
                   <div className="relative z-10">
                     <div className="text-sm font-bold text-[#8B5A2B] mb-3 flex items-center gap-2 bg-white/50 inline-flex px-3 py-1 rounded-full border-2 border-[#8B5A2B]/20">
-                      {gameMode === 1 && <Sprout size={16} className="text-green-600" />}
-                      {gameMode === 2 && <Sun size={16} className="text-orange-500" />}
-                      {gameMode === 3 && <Leaf size={16} className="text-amber-600" />}
+                      {gameMode === 1 && (
+                        <Sprout size={16} className="text-green-600" />
+                      )}
+                      {gameMode === 2 && (
+                        <Sun size={16} className="text-orange-500" />
+                      )}
+                      {gameMode === 3 && (
+                        <Leaf size={16} className="text-amber-600" />
+                      )}
                       Crop A
                     </div>
-                    <h4 className="text-xl font-bold text-[#2C2C2C] mb-3 leading-tight">{insightA.title}</h4>
-                    <p className="text-base text-[#5C4033] leading-relaxed">{insightA.description}</p>
+                    <h4 className="text-xl font-bold text-[#2C2C2C] mb-3 leading-tight">
+                      {insightA.title}
+                    </h4>
+                    <p className="text-base text-[#5C4033] leading-relaxed">
+                      {insightA.description}
+                    </p>
                   </div>
                 </button>
 
                 {/* Insight B */}
-                <button 
+                <button
                   onClick={() => handleChoice(insightB.id, insightA.id)}
                   className={`group relative p-6 border-4 rounded-2xl text-left transition-all duration-300 overflow-hidden
-                    ${gameMode === 1 ? 'border-[#8B5A2B] bg-[#E8F5E9] hover:bg-[#C8E6C9] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
-                    ${gameMode === 2 ? 'border-[#8B5A2B] bg-[#FFF3E0] hover:bg-[#FFE0B2] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
-                    ${gameMode === 3 ? 'border-[#8B5A2B] bg-[#FFF8E1] hover:bg-[#FFECB3] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]' : ''}
+                    ${gameMode === 1 ? "border-[#8B5A2B] bg-[#E8F5E9] hover:bg-[#C8E6C9] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
+                    ${gameMode === 2 ? "border-[#8B5A2B] bg-[#FFF3E0] hover:bg-[#FFE0B2] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
+                    ${gameMode === 3 ? "border-[#8B5A2B] bg-[#FFF8E1] hover:bg-[#FFECB3] hover:-translate-y-2 shadow-[4px_4px_0px_0px_rgba(139,90,43,0.3)] hover:shadow-[8px_8px_0px_0px_rgba(139,90,43,0.5)]" : ""}
                   `}
                 >
                   <div className="relative z-10">
                     <div className="text-sm font-bold text-[#8B5A2B] mb-3 flex items-center gap-2 bg-white/50 inline-flex px-3 py-1 rounded-full border-2 border-[#8B5A2B]/20">
-                      {gameMode === 1 && <Sprout size={16} className="text-green-600" />}
-                      {gameMode === 2 && <Sun size={16} className="text-orange-500" />}
-                      {gameMode === 3 && <Leaf size={16} className="text-amber-600" />}
+                      {gameMode === 1 && (
+                        <Sprout size={16} className="text-green-600" />
+                      )}
+                      {gameMode === 2 && (
+                        <Sun size={16} className="text-orange-500" />
+                      )}
+                      {gameMode === 3 && (
+                        <Leaf size={16} className="text-amber-600" />
+                      )}
                       Crop B
                     </div>
-                    <h4 className="text-xl font-bold text-[#2C2C2C] mb-3 leading-tight">{insightB.title}</h4>
-                    <p className="text-base text-[#5C4033] leading-relaxed">{insightB.description}</p>
+                    <h4 className="text-xl font-bold text-[#2C2C2C] mb-3 leading-tight">
+                      {insightB.title}
+                    </h4>
+                    <p className="text-base text-[#5C4033] leading-relaxed">
+                      {insightB.description}
+                    </p>
                   </div>
                 </button>
               </div>
             </motion.div>
           )}
 
-          {step === 'outro' && (
-            <motion.div 
+          {step === "outro" && (
+            <motion.div
               key="outro"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -315,13 +359,13 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
                 <Wheat size={48} className="text-[#8B5A2B]" />
               </div>
               <p className="text-3xl leading-relaxed max-w-xl text-[#5C4033] font-medium">
-                <TypewriterText 
-                  text={`The basket is full, ${adventurerName || 'Farmer'}! The crops you chose will feed the village and grow our farm. The others will be composted to enrich the soil. Your choices shape the valley.`} 
-                  onComplete={() => setIsTyping(false)} 
+                <TypewriterText
+                  text={`The basket is full, ${adventurerName || "Farmer"}! The crops you chose will feed the village and grow our farm. The others will be composted to enrich the soil. Your choices shape the valley.`}
+                  onComplete={() => setIsTyping(false)}
                 />
               </p>
               {!isTyping && (
-                <motion.button 
+                <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   onClick={onClose}
@@ -332,7 +376,6 @@ export function InsightQuestModal({ isOpen, onClose, insights, onRankInsight }: 
               )}
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
     </div>

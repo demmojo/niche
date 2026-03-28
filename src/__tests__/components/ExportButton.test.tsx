@@ -1,36 +1,38 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import ExportButton from '../../components/ExportButton';
-import { checkSubscriptionTier } from '../../utils/subscription';
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import ExportButton from "../../components/ExportButton";
+import { checkSubscriptionTier } from "../../utils/subscription";
 
-vi.mock('../../utils/subscription', () => ({
-  checkSubscriptionTier: vi.fn()
+vi.mock("../../utils/subscription", () => ({
+  checkSubscriptionTier: vi.fn(),
 }));
 
-describe('ExportButton', () => {
-  it('renders correctly', () => {
+describe("ExportButton", () => {
+  it("renders correctly", () => {
     render(<ExportButton onExport={vi.fn()} />);
-    expect(screen.getByText('Export')).toBeInTheDocument();
+    expect(screen.getByText("Export")).toBeInTheDocument();
   });
 
-  it('calls onExport when clicked and subscription allows', () => {
+  it("calls onExport when clicked and subscription allows", () => {
     (checkSubscriptionTier as any).mockReturnValue(true);
     const onExport = vi.fn();
     render(<ExportButton onExport={onExport} />);
-    
-    fireEvent.click(screen.getByText('Export'));
-    
+
+    fireEvent.click(screen.getByText("Export"));
+
     expect(onExport).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onExport when subscription denies', () => {
+  it("does not call onExport when subscription denies", () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     (checkSubscriptionTier as any).mockReturnValue(false);
     const onExport = vi.fn();
     render(<ExportButton onExport={onExport} />);
-    
-    fireEvent.click(screen.getByText('Export'));
-    
+
+    fireEvent.click(screen.getByText("Export"));
+
     expect(onExport).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });

@@ -1,18 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  X, Target, TableProperties, Archive, PieChart, Network, 
-  LayoutDashboard, Newspaper, Activity, Settings as SettingsIcon, Zap, 
-  RefreshCw, Sparkles, MousePointerClick, Combine, Wand2, 
-  Upload, Link, Tag, MessageSquare, Plus, TrendingUp, 
-  Sword, LineChart, Download, Move, Edit, FileJson, Key, Settings2,
-  Lightbulb, CheckCircle2, ChevronRight
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from "react";
+import {
+  X,
+  Target,
+  TableProperties,
+  Archive,
+  PieChart,
+  Network,
+  LayoutDashboard,
+  Newspaper,
+  Activity,
+  Settings as SettingsIcon,
+  Zap,
+  RefreshCw,
+  Sparkles,
+  MousePointerClick,
+  Combine,
+  Wand2,
+  Upload,
+  Link,
+  Tag,
+  MessageSquare,
+  Plus,
+  TrendingUp,
+  Sword,
+  LineChart,
+  Download,
+  Move,
+  Edit,
+  FileJson,
+  Key,
+  Settings2,
+  Lightbulb,
+  CheckCircle2,
+  ChevronRight,
+  Users,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+
+import { dictionary, tMessage } from "../content/dictionary";
 
 interface PageGuideModalProps {
+  /** Controls visibility of the guide modal. */
   isOpen: boolean;
+
+  /** Callback triggered when the modal is closed. */
   onClose: () => void;
+
+  /** The id for the guide configuration to render (e.g. `'dashboard'`, `'matrix'`). */
   activeTab: string;
+
+  /** Optional callback fired if the user checks the "Don't show again" checkbox before closing. */
   onDoNotShowAgain?: () => void;
 }
 
@@ -27,208 +64,464 @@ interface GuideData {
   proTip: string;
 }
 
-const pageGuides: Record<string, GuideData> = {
-  'dashboard': {
-    title: 'Dashboard',
-    description: 'Your command center. Get an instant read on the market landscape and spot immediate opportunities.',
+const getPageGuides = (): Record<string, GuideData> => ({
+  dashboard: {
+    title: tMessage(dictionary.dashboard.guide.title),
+    description: tMessage(dictionary.dashboard.guide.description),
     icon: <LayoutDashboard size={28} />,
-    color: 'text-sky-500',
-    bgGlow: 'bg-sky-500/20',
+    color: "text-sky-500",
+    bgGlow: "bg-sky-500/20",
     capabilities: [
-      { icon: <Target size={20} />, title: 'Market Context', desc: 'High-level summary of the current landscape.' },
-      { icon: <Sparkles size={20} />, title: 'Strategic Insights', desc: 'Auto-generated gaps and emerging threats.' },
-      { icon: <PieChart size={20} />, title: 'Competitor Landscape', desc: 'See who is dominating and who is vulnerable.' }
+      {
+        icon: <Target size={20} />,
+        title: tMessage(
+          dictionary.dashboard.guide.capabilities.marketContext.title,
+        ),
+        desc: tMessage(
+          dictionary.dashboard.guide.capabilities.marketContext.desc,
+        ),
+      },
+      {
+        icon: <Sparkles size={20} />,
+        title: tMessage(
+          dictionary.dashboard.guide.capabilities.strategicInsights.title,
+        ),
+        desc: tMessage(
+          dictionary.dashboard.guide.capabilities.strategicInsights.desc,
+        ),
+      },
+      {
+        icon: <PieChart size={20} />,
+        title: tMessage(
+          dictionary.dashboard.guide.capabilities.competitorLandscape.title,
+        ),
+        desc: tMessage(
+          dictionary.dashboard.guide.capabilities.competitorLandscape.desc,
+        ),
+      },
     ],
     steps: [
-      'Review the high-level market summary.',
-      'Check the latest strategic insights for actionable gaps.',
-      'Use the Global Sync button to refresh all data.'
+      tMessage(dictionary.dashboard.guide.steps.step1),
+      tMessage(dictionary.dashboard.guide.steps.step2),
+      tMessage(dictionary.dashboard.guide.steps.step3),
     ],
-    proTip: 'Use the Global Sync button to ensure all your data is up-to-date before a major strategy session.'
+    proTip: tMessage(dictionary.dashboard.guide.proTip),
   },
-  'my-product': {
-    title: 'My Product',
-    description: 'Your blueprint. Manage your product details, track features, and orchestrate strategy.',
+  "my-product": {
+    title: tMessage(dictionary.myProduct.guide.title),
+    description: tMessage(dictionary.myProduct.guide.description),
     icon: <Target size={28} />,
-    color: 'text-indigo-500',
-    bgGlow: 'bg-indigo-500/20',
+    color: "text-indigo-500",
+    bgGlow: "bg-indigo-500/20",
     capabilities: [
-      { icon: <CheckCircle2 size={20} />, title: 'Feature Tracking', desc: 'Define your features and track implementation status.' },
-      { icon: <Sparkles size={20} />, title: 'AI Strategy', desc: 'Let AI suggest strategic next steps based on competitors.' },
-      { icon: <Download size={20} />, title: 'OpenSpec Export', desc: 'Generate a PRD, One-Pager, or OpenSpec archive.' }
+      {
+        icon: <CheckCircle2 size={20} />,
+        title: tMessage(
+          dictionary.myProduct.guide.capabilities.featureTracking.title,
+        ),
+        desc: tMessage(
+          dictionary.myProduct.guide.capabilities.featureTracking.desc,
+        ),
+      },
+      {
+        icon: <Sparkles size={20} />,
+        title: tMessage(
+          dictionary.myProduct.guide.capabilities.aiStrategy.title,
+        ),
+        desc: tMessage(dictionary.myProduct.guide.capabilities.aiStrategy.desc),
+      },
+      {
+        icon: <Download size={20} />,
+        title: tMessage(
+          dictionary.myProduct.guide.capabilities.openSpecExport.title,
+        ),
+        desc: tMessage(
+          dictionary.myProduct.guide.capabilities.openSpecExport.desc,
+        ),
+      },
     ],
     steps: [
-      'Fill in your product details and target regions.',
-      'Add features manually or track them from the matrix.',
-      'Click Generate Docs to export an OpenSpec PRD or archive.'
+      tMessage(dictionary.myProduct.guide.steps.step1),
+      tMessage(dictionary.myProduct.guide.steps.step2),
+      tMessage(dictionary.myProduct.guide.steps.step3),
     ],
-    proTip: 'Use the Generate Docs wizard to instantly produce structured markdown documentation that you can hand straight to your engineering team.'
+    proTip: tMessage(dictionary.myProduct.guide.proTip),
   },
-  'matrix': {
-    title: 'Competitor Matrix',
-    description: 'The battlefield. Compare features side-by-side to find where you can outmaneuver the competition.',
+  matrix: {
+    title: tMessage(dictionary.matrix.guide.title),
+    description: tMessage(dictionary.matrix.guide.description),
     icon: <TableProperties size={28} />,
-    color: 'text-emerald-500',
-    bgGlow: 'bg-emerald-500/20',
+    color: "text-emerald-500",
+    bgGlow: "bg-emerald-500/20",
     capabilities: [
-      { icon: <Combine size={20} />, title: 'AI Aggregation', desc: 'Merge similar features into unified capabilities.' },
-      { icon: <Wand2 size={20} />, title: 'Feature Suggestions', desc: 'Get AI recommendations based on market gaps.' },
-      { icon: <Sparkles size={20} />, title: 'User Story Generation', desc: 'Turn features into actionable Agile user stories.' }
+      {
+        icon: <Combine size={20} />,
+        title: tMessage(
+          dictionary.matrix.guide.capabilities.aiAggregation.title,
+        ),
+        desc: tMessage(dictionary.matrix.guide.capabilities.aiAggregation.desc),
+      },
+      {
+        icon: <Wand2 size={20} />,
+        title: tMessage(
+          dictionary.matrix.guide.capabilities.featureSuggestions.title,
+        ),
+        desc: tMessage(
+          dictionary.matrix.guide.capabilities.featureSuggestions.desc,
+        ),
+      },
+      {
+        icon: <Sparkles size={20} />,
+        title: tMessage(
+          dictionary.matrix.guide.capabilities.userStoryGeneration.title,
+        ),
+        desc: tMessage(
+          dictionary.matrix.guide.capabilities.userStoryGeneration.desc,
+        ),
+      },
     ],
     steps: [
-      'Select competitors to compare side-by-side.',
-      'Click "Aggregate Capabilities" to clean up the matrix.',
-      'Expand a feature row to generate User Stories & Tasks.'
+      tMessage(dictionary.matrix.guide.steps.step1),
+      tMessage(dictionary.matrix.guide.steps.step2),
+      tMessage(dictionary.matrix.guide.steps.step3),
     ],
-    proTip: 'Click "Suggest Feature" to let AI automatically recommend the next feature you should build based on market gaps.'
+    proTip: tMessage(dictionary.matrix.guide.proTip),
   },
-  'rawdata': {
-    title: 'Raw Data Library',
-    description: 'The evidence room. Every insight is backed by raw data collected from the web.',
+  rawdata: {
+    title: tMessage(dictionary.rawData.guide.title),
+    description: tMessage(dictionary.rawData.guide.description),
     icon: <Archive size={28} />,
-    color: 'text-amber-500',
-    bgGlow: 'bg-amber-500/20',
+    color: "text-amber-500",
+    bgGlow: "bg-amber-500/20",
     capabilities: [
-      { icon: <Upload size={20} />, title: 'Data Ingestion', desc: 'Upload CSV, JSON, or TXT files.' },
-      { icon: <Download size={20} />, title: 'Data Export', desc: 'Export datasets to CSV or JSON formats.' },
-      { icon: <Link size={20} />, title: 'Source Tracking', desc: 'Verify the original context of any data point.' }
+      {
+        icon: <Upload size={20} />,
+        title: tMessage(
+          dictionary.rawData.guide.capabilities.dataIngestion.title,
+        ),
+        desc: tMessage(
+          dictionary.rawData.guide.capabilities.dataIngestion.desc,
+        ),
+      },
+      {
+        icon: <Download size={20} />,
+        title: tMessage(dictionary.rawData.guide.capabilities.dataExport.title),
+        desc: tMessage(dictionary.rawData.guide.capabilities.dataExport.desc),
+      },
+      {
+        icon: <Link size={20} />,
+        title: tMessage(
+          dictionary.rawData.guide.capabilities.sourceTracking.title,
+        ),
+        desc: tMessage(
+          dictionary.rawData.guide.capabilities.sourceTracking.desc,
+        ),
+      },
     ],
     steps: [
-      'Upload your own research or scraped data.',
-      'Filter by source type or company.',
-      'Export datasets for external analysis.'
+      tMessage(dictionary.rawData.guide.steps.step1),
+      tMessage(dictionary.rawData.guide.steps.step2),
+      tMessage(dictionary.rawData.guide.steps.step3),
     ],
-    proTip: 'The AI engine uses this raw data to generate all insights. The better your data, the sharper your strategy.'
+    proTip: tMessage(dictionary.rawData.guide.proTip),
   },
-  'reports': {
-    title: 'Insight Library',
-    description: 'Your strategy vault. Track, refine, and act on the most important market discoveries.',
+  reports: {
+    title: tMessage(dictionary.reports.guide.title),
+    description: tMessage(dictionary.reports.guide.description),
     icon: <PieChart size={28} />,
-    color: 'text-purple-500',
-    bgGlow: 'bg-purple-500/20',
+    color: "text-purple-500",
+    bgGlow: "bg-purple-500/20",
     capabilities: [
-      { icon: <MessageSquare size={20} />, title: 'AI Brainstorming', desc: 'Chat with AI to flesh out raw ideas.' },
-      { icon: <TrendingUp size={20} />, title: 'Impact Scoring', desc: 'Instantly see which insights matter most.' },
-      { icon: <Download size={20} />, title: 'Data Export', desc: 'Export filtered insights to CSV.' }
+      {
+        icon: <MessageSquare size={20} />,
+        title: tMessage(
+          dictionary.reports.guide.capabilities.aiBrainstorming.title,
+        ),
+        desc: tMessage(
+          dictionary.reports.guide.capabilities.aiBrainstorming.desc,
+        ),
+      },
+      {
+        icon: <TrendingUp size={20} />,
+        title: tMessage(
+          dictionary.reports.guide.capabilities.impactScoring.title,
+        ),
+        desc: tMessage(
+          dictionary.reports.guide.capabilities.impactScoring.desc,
+        ),
+      },
+      {
+        icon: <Download size={20} />,
+        title: tMessage(dictionary.reports.guide.capabilities.dataExport.title),
+        desc: tMessage(dictionary.reports.guide.capabilities.dataExport.desc),
+      },
     ],
     steps: [
-      'Review auto-generated insights.',
-      'Filter by Opportunity or Threat.',
-      'Export insights for your product roadmap.'
+      tMessage(dictionary.reports.guide.steps.step1),
+      tMessage(dictionary.reports.guide.steps.step2),
+      tMessage(dictionary.reports.guide.steps.step3),
     ],
-    proTip: 'Click the "Brainstorm" button on any insight to open a dedicated chat session focused entirely on that specific strategic angle.'
+    proTip: tMessage(dictionary.reports.guide.proTip),
   },
-  'market-analysis': {
-    title: 'Market Analysis',
-    description: 'The big picture. AI-generated deep dives into market trends and SWOT positioning.',
+  "market-analysis": {
+    title: tMessage(dictionary.marketAnalysis.guide.title),
+    description: tMessage(dictionary.marketAnalysis.guide.description),
     icon: <Newspaper size={28} />,
-    color: 'text-rose-500',
-    bgGlow: 'bg-rose-500/20',
+    color: "text-rose-500",
+    bgGlow: "bg-rose-500/20",
     capabilities: [
-      { icon: <Sword size={20} />, title: 'Auto-SWOT', desc: 'Generates Strengths, Weaknesses, Opportunities, Threats.' },
-      { icon: <LineChart size={20} />, title: 'Trend Prediction', desc: 'Forecasts market shifts based on recent data.' },
-      { icon: <Download size={20} />, title: 'Executive Summaries', desc: 'Export reports for stakeholders.' }
+      {
+        icon: <Sword size={20} />,
+        title: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.autoSwot.title,
+        ),
+        desc: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.autoSwot.desc,
+        ),
+      },
+      {
+        icon: <TableProperties size={20} />,
+        title: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.dataGrid.title,
+        ),
+        desc: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.dataGrid.desc,
+        ),
+      },
+      {
+        icon: <MessageSquare size={20} />,
+        title: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.aiChat.title,
+        ),
+        desc: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.aiChat.desc,
+        ),
+      },
     ],
     steps: [
-      'Generate a fresh SWOT analysis.',
-      'Review predicted market shifts.',
-      'Export reports to share with your team.'
+      tMessage(dictionary.marketAnalysis.guide.steps.step1),
+      tMessage(dictionary.marketAnalysis.guide.steps.step2),
+      tMessage(dictionary.marketAnalysis.guide.steps.step3),
     ],
-    proTip: 'Market trends are synthesized from your Raw Data Library. Upload recent news articles to keep predictions accurate.'
+    proTip: tMessage(dictionary.marketAnalysis.guide.proTip),
   },
-  'mindmap': {
-    title: 'Mindmap Explorer',
-    description: 'The ecosystem view. Visually map out how competitors, features, and segments connect.',
+  mindmap: {
+    title: tMessage(dictionary.mindmap.guide.title),
+    description: tMessage(dictionary.mindmap.guide.description),
     icon: <Network size={28} />,
-    color: 'text-indigo-500',
-    bgGlow: 'bg-indigo-500/20',
+    color: "text-indigo-500",
+    bgGlow: "bg-indigo-500/20",
     capabilities: [
-      { icon: <Move size={20} />, title: 'Interactive Nodes', desc: 'Drag and drop to organize your mental model.' },
-      { icon: <Sparkles size={20} />, title: 'AI Insights', desc: 'Generate insights directly from specific nodes.' },
-      { icon: <Edit size={20} />, title: 'Relationship Mapping', desc: 'Trace connections to understand complex ecosystems.' }
+      {
+        icon: <Move size={20} />,
+        title: tMessage(
+          dictionary.mindmap.guide.capabilities.interactiveNodes.title,
+        ),
+        desc: tMessage(
+          dictionary.mindmap.guide.capabilities.interactiveNodes.desc,
+        ),
+      },
+      {
+        icon: <Sparkles size={20} />,
+        title: tMessage(dictionary.mindmap.guide.capabilities.aiInsights.title),
+        desc: tMessage(dictionary.mindmap.guide.capabilities.aiInsights.desc),
+      },
+      {
+        icon: <Edit size={20} />,
+        title: tMessage(
+          dictionary.mindmap.guide.capabilities.relationshipMapping.title,
+        ),
+        desc: tMessage(
+          dictionary.mindmap.guide.capabilities.relationshipMapping.desc,
+        ),
+      },
     ],
     steps: [
-      'Pan and zoom to explore the market.',
-      'Drag nodes to reorganize your mental model.',
-      'Click nodes for detailed context.'
+      tMessage(dictionary.mindmap.guide.steps.step1),
+      tMessage(dictionary.mindmap.guide.steps.step2),
+      tMessage(dictionary.mindmap.guide.steps.step3),
     ],
-    proTip: 'Look for isolated nodes—these often represent untapped market opportunities or highly differentiated features.'
+    proTip: tMessage(dictionary.mindmap.guide.proTip),
   },
-  'actions': {
-    title: 'Background Tasks & Sync',
-    description: 'The engine room. Monitor system health, data syncs, and review pending changes.',
+  actions: {
+    title: tMessage(dictionary.actions.guide.title),
+    description: tMessage(dictionary.actions.guide.description),
     icon: <Activity size={28} />,
-    color: 'text-orange-500',
-    bgGlow: 'bg-orange-500/20',
+    color: "text-orange-500",
+    bgGlow: "bg-orange-500/20",
     capabilities: [
-      { icon: <Activity size={20} />, title: 'System Health', desc: 'See what is running, pending, or failed.' },
-      { icon: <CheckCircle2 size={20} />, title: 'Global Progress', desc: 'Monitor task progress globally via the top-level sticky banner.' },
-      { icon: <FileJson size={20} />, title: 'Detailed Logs', desc: 'View the raw JSON of any system event.' }
+      {
+        icon: <Activity size={20} />,
+        title: tMessage(
+          dictionary.actions.guide.capabilities.systemHealth.title,
+        ),
+        desc: tMessage(dictionary.actions.guide.capabilities.systemHealth.desc),
+      },
+      {
+        icon: <CheckCircle2 size={20} />,
+        title: tMessage(
+          dictionary.actions.guide.capabilities.globalProgress.title,
+        ),
+        desc: tMessage(
+          dictionary.actions.guide.capabilities.globalProgress.desc,
+        ),
+      },
+      {
+        icon: <FileJson size={20} />,
+        title: tMessage(
+          dictionary.actions.guide.capabilities.detailedLogs.title,
+        ),
+        desc: tMessage(dictionary.actions.guide.capabilities.detailedLogs.desc),
+      },
     ],
     steps: [
-      'Check the current System State.',
-      'Review any pending sync changes in the queue.',
-      'Run a System Check to validate external APIs.'
+      tMessage(dictionary.actions.guide.steps.step1),
+      tMessage(dictionary.actions.guide.steps.step2),
+      tMessage(dictionary.actions.guide.steps.step3),
     ],
-    proTip: 'You can safely navigate away from this tab while a Global Sync is running! The Global Progress Banner at the top of the screen will keep you informed of the background task progress.'
+    proTip: tMessage(dictionary.actions.guide.proTip),
   },
-  'settings': {
-    title: 'Settings',
-    description: 'Configure your workspace. Manage your API keys, usage limits, and data preferences.',
+  settings: {
+    title: tMessage(dictionary.settings.guide.title),
+    description: tMessage(dictionary.settings.guide.description),
     icon: <SettingsIcon size={28} />,
-    color: 'text-slate-500',
-    bgGlow: 'bg-slate-500/20',
+    color: "text-slate-500",
+    bgGlow: "bg-slate-500/20",
     capabilities: [
-      { icon: <Key size={20} />, title: 'API Configuration', desc: 'Bring your own keys (BYOK) and configure AI fallbacks.' },
-      { icon: <Activity size={20} />, title: 'API Usage Limits', desc: 'Track your daily usage across providers.' },
-      { icon: <Settings2 size={20} />, title: 'Data Management', desc: 'Clear local data or reset the application.' }
+      {
+        icon: <Users size={20} />,
+        title: tMessage(
+          dictionary.settings.guide.capabilities.teamCollaboration.title,
+        ),
+        desc: tMessage(
+          dictionary.settings.guide.capabilities.teamCollaboration.desc,
+        ),
+      },
+      {
+        icon: <Key size={20} />,
+        title: tMessage(
+          dictionary.settings.guide.capabilities.apiConfiguration.title,
+        ),
+        desc: tMessage(
+          dictionary.settings.guide.capabilities.apiConfiguration.desc,
+        ),
+      },
+      {
+        icon: <Activity size={20} />,
+        title: tMessage(
+          dictionary.settings.guide.capabilities.apiUsageLimits.title,
+        ),
+        desc: tMessage(
+          dictionary.settings.guide.capabilities.apiUsageLimits.desc,
+        ),
+      },
     ],
     steps: [
-      'Copy the Workspace Link to share with cofounders.',
-      'Configure your AI models and backup fallbacks.',
-      'Monitor API usage across different services.'
+      tMessage(dictionary.settings.guide.steps.step1),
+      tMessage(dictionary.settings.guide.steps.step2),
+      tMessage(dictionary.settings.guide.steps.step3),
     ],
-    proTip: 'Configure secondary AI fallback models to ensure your data pipelines never get stuck due to a provider going down or hitting rate limits.'
+    proTip: tMessage(dictionary.settings.guide.proTip),
   },
-  'support': {
-    title: 'Support & Feedback',
-    description: 'Get help or share your ideas. We are building this for you.',
+  support: {
+    title: tMessage(dictionary.support.guide.title),
+    description: tMessage(dictionary.support.guide.description),
     icon: <MessageSquare size={28} />,
-    color: 'text-rose-500',
-    bgGlow: 'bg-rose-500/20',
+    color: "text-rose-500",
+    bgGlow: "bg-rose-500/20",
     capabilities: [
-      { icon: <MessageSquare size={20} />, title: 'Direct Feedback', desc: 'Submit bugs or feature requests directly to our team.' },
-      { icon: <Zap size={20} />, title: 'Alpha Limits', desc: 'Request increases to your daily API usage limits.' },
-      { icon: <CheckCircle2 size={20} />, title: 'Status Tracking', desc: 'Know when your feedback has been received.' }
+      {
+        icon: <MessageSquare size={20} />,
+        title: tMessage(
+          dictionary.support.guide.capabilities.directFeedback.title,
+        ),
+        desc: tMessage(
+          dictionary.support.guide.capabilities.directFeedback.desc,
+        ),
+      },
+      {
+        icon: <Zap size={20} />,
+        title: tMessage(
+          dictionary.support.guide.capabilities.alphaLimits.title,
+        ),
+        desc: tMessage(dictionary.support.guide.capabilities.alphaLimits.desc),
+      },
+      {
+        icon: <CheckCircle2 size={20} />,
+        title: tMessage(
+          dictionary.support.guide.capabilities.statusTracking.title,
+        ),
+        desc: tMessage(
+          dictionary.support.guide.capabilities.statusTracking.desc,
+        ),
+      },
     ],
     steps: [
-      'Select the type of feedback (Bug, Feature, Limit Request).',
-      'Provide detailed information so we can help you faster.',
-      'Submit and let our team handle the rest.'
+      tMessage(dictionary.support.guide.steps.step1),
+      tMessage(dictionary.support.guide.steps.step2),
+      tMessage(dictionary.support.guide.steps.step3),
     ],
-    proTip: 'If you are hitting Alpha Usage Limits, use the "Limit Increase Request" to tell us about your use case, and we might bump your quota!'
+    proTip: tMessage(dictionary.support.guide.proTip),
   },
-  'superadmin': {
-    title: 'Superadmin Dashboard',
-    description: 'Internal tool for reviewing Alpha feedback and managing the system.',
+  superadmin: {
+    title: tMessage(dictionary.superadmin.guide.title),
+    description: tMessage(dictionary.superadmin.guide.description),
     icon: <Settings2 size={28} />,
-    color: 'text-zinc-500',
-    bgGlow: 'bg-zinc-500/20',
+    color: "text-zinc-500",
+    bgGlow: "bg-zinc-500/20",
     capabilities: [
-      { icon: <MessageSquare size={20} />, title: 'Feedback Review', desc: 'Read feedback from all alpha testers.' },
-      { icon: <CheckCircle2 size={20} />, title: 'Triage', desc: 'Prioritize bug reports and feature requests.' },
-      { icon: <Key size={20} />, title: 'Exemptions', desc: 'Superadmins bypass all Alpha Usage Limits.' }
+      {
+        icon: <MessageSquare size={20} />,
+        title: tMessage(
+          dictionary.superadmin.guide.capabilities.feedbackReview.title,
+        ),
+        desc: tMessage(
+          dictionary.superadmin.guide.capabilities.feedbackReview.desc,
+        ),
+      },
+      {
+        icon: <CheckCircle2 size={20} />,
+        title: tMessage(dictionary.superadmin.guide.capabilities.triage.title),
+        desc: tMessage(dictionary.superadmin.guide.capabilities.triage.desc),
+      },
+      {
+        icon: <Key size={20} />,
+        title: tMessage(
+          dictionary.superadmin.guide.capabilities.exemptions.title,
+        ),
+        desc: tMessage(
+          dictionary.superadmin.guide.capabilities.exemptions.desc,
+        ),
+      },
     ],
     steps: [
-      'Review the latest feedback from the community.',
-      'Identify critical bugs that need immediate fixing.',
-      'Review Limit Increase Requests.'
+      tMessage(dictionary.superadmin.guide.steps.step1),
+      tMessage(dictionary.superadmin.guide.steps.step2),
+      tMessage(dictionary.superadmin.guide.steps.step3),
     ],
-    proTip: 'Feedback is ordered by newest first, so you can always see what testers are struggling with right now.'
-  }
-};
+    proTip: tMessage(dictionary.superadmin.guide.proTip),
+  },
+});
 
-export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose, activeTab, onDoNotShowAgain }) => {
+/**
+ * A highly structured, static modal for providing macro-level overview documentation for a specific module or tab.
+ * Relies on the centralized `dictionary` for all copy.
+ *
+ * @example
+ * ```tsx
+ * <PageGuideModal
+ *   isOpen={isPageGuideOpen}
+ *   onClose={() => setIsPageGuideOpen(false)}
+ *   activeTab="dashboard"
+ * />
+ * ```
+ */
+export const PageGuideModal: React.FC<PageGuideModalProps> = ({
+  isOpen,
+  onClose,
+  activeTab,
+  onDoNotShowAgain,
+}) => {
   const [doNotShow, setDoNotShow] = useState(false);
 
   useEffect(() => {
@@ -246,12 +539,13 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
     onClose();
   };
 
-  const guide = pageGuides[activeTab] || pageGuides['dashboard'];
+  const pageGuides = getPageGuides();
+  const guide = pageGuides[activeTab] || pageGuides["dashboard"];
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-ink-dark/60 backdrop-blur-sm">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -259,36 +553,43 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
         >
           {/* Beautiful Hero Section */}
           <div className="relative bg-ink-dark text-white p-8 sm:p-10 overflow-hidden shrink-0">
-             <div className={`absolute top-0 right-0 w-96 h-96 ${guide.bgGlow} rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60`} />
-             <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-             
-             <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-               <div className={`p-5 bg-white/10 rounded-2xl ${guide.color} backdrop-blur-md border border-white/10 shadow-2xl`}>
-                 {guide.icon}
-               </div>
-               <div>
-                 <div className="flex items-center gap-3 mb-2">
-                   <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/80 border border-white/10">
-                     Module Guide
-                   </span>
-                 </div>
-                 <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-3 tracking-tight">{guide.title}</h2>
-                 <p className="text-white/80 text-base sm:text-lg max-w-2xl leading-relaxed font-light">{guide.description}</p>
-               </div>
-             </div>
-             
-             <button 
+            <div
+              className={`absolute top-0 right-0 w-96 h-96 ${guide.bgGlow} rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60`}
+            />
+            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div
+                className={`p-5 bg-white/10 rounded-2xl ${guide.color} backdrop-blur-md border border-white/10 shadow-2xl`}
+              >
+                {guide.icon}
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/80 border border-white/10">
+                    Module Guide
+                  </span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-3 tracking-tight">
+                  {guide.title}
+                </h2>
+                <p className="text-white/80 text-base sm:text-lg max-w-2xl leading-relaxed font-light">
+                  {guide.description}
+                </p>
+              </div>
+            </div>
+
+            <button
               onClick={handleClose}
               className="absolute top-6 right-6 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-20"
             >
               <X size={24} />
             </button>
           </div>
-          
+
           {/* Content Section */}
           <div className="p-8 sm:p-10 overflow-y-auto bg-paper-light flex-1">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              
               {/* Left Column: Capabilities */}
               <div className="lg:col-span-7 space-y-6">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-ink-dark/40 flex items-center gap-2">
@@ -296,13 +597,22 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
                 </h3>
                 <div className="grid gap-4">
                   {guide.capabilities.map((cap, i) => (
-                    <div key={i} className="flex items-start gap-4 p-5 rounded-2xl bg-white border border-ink-dark/5 shadow-sm hover:shadow-md transition-all group">
-                      <div className={`p-3 rounded-xl bg-paper-base ${guide.color} shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                    <div
+                      key={i}
+                      className="flex items-start gap-4 p-5 rounded-2xl bg-white border border-ink-dark/5 shadow-sm hover:shadow-md transition-all group"
+                    >
+                      <div
+                        className={`p-3 rounded-xl bg-paper-base ${guide.color} shrink-0 group-hover:scale-110 transition-transform duration-300`}
+                      >
                         {cap.icon}
                       </div>
                       <div>
-                        <h4 className="font-bold text-ink-dark text-base mb-1">{cap.title}</h4>
-                        <p className="text-sm text-ink-dark/60 leading-relaxed">{cap.desc}</p>
+                        <h4 className="font-bold text-ink-dark text-base mb-1">
+                          {cap.title}
+                        </h4>
+                        <p className="text-sm text-ink-dark/60 leading-relaxed">
+                          {cap.desc}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -314,7 +624,8 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
                 {/* Quick Start */}
                 <div className="space-y-6">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-ink-dark/40 flex items-center gap-2">
-                    <Target size={16} className="text-emerald-500" /> Quick Start
+                    <Target size={16} className="text-emerald-500" /> Quick
+                    Start
                   </h3>
                   <div className="space-y-4">
                     {guide.steps.map((step, i) => (
@@ -322,7 +633,9 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-ink-dark text-white text-xs font-bold shrink-0 mt-0.5">
                           {i + 1}
                         </div>
-                        <p className="text-ink-dark/80 text-sm leading-relaxed pt-0.5">{step}</p>
+                        <p className="text-ink-dark/80 text-sm leading-relaxed pt-0.5">
+                          {step}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -343,32 +656,36 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({ isOpen, onClose,
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
-          
+
           {/* Footer */}
           <div className="p-6 sm:px-10 border-t border-ink-dark/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center justify-center w-5 h-5 rounded border border-ink-dark/30 group-hover:border-ink-dark transition-colors bg-paper-light">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={doNotShow}
                   onChange={(e) => setDoNotShow(e.target.checked)}
                   className="absolute opacity-0 cursor-pointer w-full h-full"
                 />
-                {doNotShow && <CheckCircle2 size={14} className="text-ink-dark" />}
+                {doNotShow && (
+                  <CheckCircle2 size={14} className="text-ink-dark" />
+                )}
               </div>
               <span className="text-sm text-ink-dark/60 group-hover:text-ink-dark transition-colors font-medium">
                 Don't show this guide again
               </span>
             </label>
-            <button 
+            <button
               onClick={handleClose}
               className="w-full sm:w-auto px-8 py-3.5 bg-ink-dark text-white rounded-xl font-medium hover:bg-black transition-all shadow-lg shadow-ink-dark/20 flex items-center justify-center gap-2 group"
             >
               Get Started
-              <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              <ChevronRight
+                size={18}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </button>
           </div>
         </motion.div>

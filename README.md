@@ -11,6 +11,7 @@
 **NicheAI** is an AI-powered strategic dashboard and competitor intelligence engine. It helps product teams, founders, and strategists collect, analyze, and synthesize competitor data in real time to generate actionable insights.
 
 The platform includes:
+
 - **Dashboard & Executive Summary**: A high-level overview of your market positioning.
 - **My Product Blueprint**: Define your product's target regions, track features, and let AI generate strategic next steps. Export your plan to One-Pagers, PRDs, or standard OpenSpec `.zip` archives.
 - **Competitor Matrix**: Detailed side-by-side feature and capability comparisons.
@@ -29,32 +30,34 @@ The platform includes:
 - **AI Integration**: Google GenAI (Gemini)
 - **Data Enrichment**: Apollo.io REST API, Google Custom Search API
 
-## 💻 Local Development Setup
+## 💻 Local Development Setup (Quick Start)
 
-Follow these instructions to get the project up and running on your local machine.
+Follow these instructions to get the project up and running on your local machine in under 10 minutes.
 
 ### Prerequisites
 
-- **Node.js**: v18.0.0 or higher recommended.
-- **npm**: v9.0.0 or higher.
+| Requirement | Version | Notes                        |
+| ----------- | ------- | ---------------------------- |
+| Node.js     | v20.x   | We recommend using `nvm use` |
+| npm         | v10.x   | Included with Node           |
 
-### 1. Install Dependencies
+### Quick Start
 
-Clone the repository and install the project dependencies:
+1. Clone the repository and install dependencies:
 
 ```bash
+git clone https://github.com/your-org/nicheai.git
+cd nicheai
 npm install
 ```
 
-### 2. Environment Variables
-
-Copy the example environment variables to a new `.env` file:
+2. Set up your environment variables:
 
 ```bash
 cp .env.example .env
 ```
 
-Open the `.env` file and configure your API keys:
+3. Configure your API keys in the `.env` file:
 
 ```env
 # Google Gemini API key for generating insights
@@ -70,11 +73,10 @@ APOLLO_API_KEY="your_apollo_api_key_here"
 GOOGLE_SEARCH_API_KEY="your_google_search_api_key_here"
 GOOGLE_SEARCH_ENGINE_ID="your_google_search_engine_id_here"
 ```
-*(Note: The app will boot with the dummy keys, but data enrichment and AI features will require valid API keys.)*
 
-### 3. Start the Development Server
+_(Note: The app will boot with dummy keys, but data enrichment and AI features require valid API keys.)_
 
-Start the full-stack development environment (Express + Vite):
+4. Start the development server:
 
 ```bash
 npm run dev
@@ -86,14 +88,14 @@ The application will be available at **[http://localhost:3000](http://localhost:
 
 ## 🛠 Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Starts the Express server with Vite middleware in development mode with Hot Module Replacement (HMR). |
-| `npm run build` | Builds the React frontend into static assets in the `/dist` directory. |
-| `npm run start` | Runs the production Express server, serving the static assets from `/dist`. |
-| `npm run lint` | Runs the TypeScript compiler to check for type errors without emitting files. |
-| `npm run test` | Runs the Vitest test suite. |
-| `npm run clean` | Removes the `/dist` build directory. |
+| Command                    | Description                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`              | Starts the Express server with Vite middleware in development mode with Hot Module Replacement (HMR).          |
+| `npm run build`            | Builds the React frontend into static assets in the `/dist` directory.                                         |
+| `npm run start`            | Runs the production Express server, serving the static assets from `/dist`.                                    |
+| `npm run lint`             | Runs the TypeScript compiler to check for type errors without emitting files.                                  |
+| `npm run test`             | Runs the Vitest test suite.                                                                                    |
+| `npm run clean`            | Removes the `/dist` build directory.                                                                           |
 | `npm run swe-bench-runner` | Runs the custom SWE-bench evaluation loop to empirically test the local AI Agent setup used in development (). |
 
 ---
@@ -115,12 +117,14 @@ npm run swe-bench-runner
 ```
 
 This script will:
+
 1. Iterate over 3 configurations (Baseline, Prompts only, Full Stack).
 2. Execute 5 specific tasks (`task-*.md`) across the codebase.
 3. Automatically grade the agent's patches using Vitest and Bash scripts in the `eval_tests/` directory.
 4. Output the pass/fail results to a `swe-bench-results.log` file.
 
 **Tasks Evaluated:**
+
 - **Task 1 (Rules):** Verifies adherence to the `.cursorrules` (e.g., CO-STAR format, top-level imports, exhaustive TypeScript switches).
 - **Task 2 (Skills):** Checks if the agent successfully triggers linting (`npm run lint`) and fixes type errors.
 - **Task 3 (MCP Forcing):** Forces the agent to use the Context7 MCP server to fetch up-to-date documentation before implementing a D3.js chart.
@@ -174,10 +178,9 @@ npm run test
 
 ## 🤝 Contributing
 
-When making code changes, ensure to format the code properly and pass all linters and test suites:
+We welcome contributions! Please refer to our detailed **[CONTRIBUTING.md](CONTRIBUTING.md)** guide before starting any feature work. It covers:
 
-1. Create a feature branch.
-2. Ensure you add tests for new functionality inside `src/__tests__/`.
-3. Run `npm run lint` to catch TypeScript errors.
-4. Run `npm run test` to verify your changes haven't introduced regressions.
-5. Create a Pull Request with a clear description of the modifications.
+- Our mandatory OpenSpec feature planning workflow.
+- Conventional Commits enforced by Lefthook.
+- Testing, Squashing, and Merging PR policies.
+- Automated semantic versioning and manual release workflows.

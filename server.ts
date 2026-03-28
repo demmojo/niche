@@ -20,19 +20,28 @@ async function startServer() {
     const rateLimitHeaders: Record<string, string> = {};
     if (response?.headers?.entries) {
       for (const [key, value] of response.headers.entries()) {
-        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+        if (
+          key.toLowerCase().includes("rate-limit") ||
+          key.toLowerCase().includes("ratelimit")
+        ) {
           rateLimitHeaders[key] = value;
         }
       }
     } else if (response?.headers?.forEach) {
       response.headers.forEach((value: string, key: string) => {
-        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+        if (
+          key.toLowerCase().includes("rate-limit") ||
+          key.toLowerCase().includes("ratelimit")
+        ) {
           rateLimitHeaders[key] = value;
         }
       });
-    } else if (response?.headers && typeof response.headers === 'object') {
+    } else if (response?.headers && typeof response.headers === "object") {
       for (const key in response.headers) {
-        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+        if (
+          key.toLowerCase().includes("rate-limit") ||
+          key.toLowerCase().includes("ratelimit")
+        ) {
           rateLimitHeaders[key] = response.headers[key];
         }
       }
@@ -48,29 +57,36 @@ async function startServer() {
         return res.status(400).json({ error: "Domain is required" });
       }
 
-      const clientApiKey = req.headers['x-api-key'] as string;
+      const clientApiKey = req.headers["x-api-key"] as string;
       const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
-        return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
+        return res
+          .status(500)
+          .json({ error: "APOLLO_API_KEY is not configured" });
       }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-      const response = await fetch(`https://api.apollo.io/v1/organizations/enrich?domain=${domain}`, {
-        method: "GET",
-        headers: {
-          "Cache-Control": "no-cache",
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
+      const response = await fetch(
+        `https://api.apollo.io/v1/organizations/enrich?domain=${domain}`,
+        {
+          method: "GET",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          signal: controller.signal,
         },
-        signal: controller.signal
-      });
+      );
       clearTimeout(timeoutId);
 
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
+      Object.entries(rateLimits).forEach(([key, value]) =>
+        res.setHeader(key, value),
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -81,7 +97,9 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Apollo API Error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch data from Apollo" });
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to fetch data from Apollo" });
     }
   });
 
@@ -92,29 +110,36 @@ async function startServer() {
         return res.status(400).json({ error: "Keywords array is required" });
       }
 
-      const clientApiKey = req.headers['x-api-key'] as string;
+      const clientApiKey = req.headers["x-api-key"] as string;
       const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
-        return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
+        return res
+          .status(500)
+          .json({ error: "APOLLO_API_KEY is not configured" });
       }
 
-      const response = await fetch(`https://api.apollo.io/v1/organizations/search`, {
-        method: "POST",
-        headers: {
-          "Cache-Control": "no-cache",
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
+      const response = await fetch(
+        `https://api.apollo.io/v1/organizations/search`,
+        {
+          method: "POST",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            organization_locations: ["United States"],
+            q_organization_keyword_tags: keywords,
+            per_page: 5,
+          }),
         },
-        body: JSON.stringify({
-          organization_locations: ["United States"],
-          q_organization_keyword_tags: keywords,
-          per_page: 5
-        })
-      });
+      );
 
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
+      Object.entries(rateLimits).forEach(([key, value]) =>
+        res.setHeader(key, value),
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -125,7 +150,9 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Apollo API Error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch data from Apollo search" });
+      res.status(500).json({
+        error: error.message || "Failed to fetch data from Apollo search",
+      });
     }
   });
 
@@ -133,62 +160,76 @@ async function startServer() {
   app.post("/api/apollo/news", async (req, res) => {
     try {
       const { organization_ids } = req.body;
-      
+
       if (!organization_ids || !organization_ids.length) {
         return res.status(400).json({ error: "organization_ids is required" });
       }
 
-      const clientApiKey = req.headers['x-api-key'] as string;
+      const clientApiKey = req.headers["x-api-key"] as string;
       const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
-        return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
+        return res
+          .status(500)
+          .json({ error: "APOLLO_API_KEY is not configured" });
       }
-      
-      const params = new URLSearchParams();
-      organization_ids.forEach((id: string) => params.append('organization_ids[]', id));
-      params.append('per_page', '5');
 
-      const response = await fetch(`https://api.apollo.io/v1/news_articles/search?${params.toString()}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        }
-      });
-      
+      const params = new URLSearchParams();
+      organization_ids.forEach((id: string) =>
+        params.append("organization_ids[]", id),
+      );
+      params.append("per_page", "5");
+
+      const response = await fetch(
+        `https://api.apollo.io/v1/news_articles/search?${params.toString()}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+        },
+      );
+
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
-      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
+      Object.entries(rateLimits).forEach(([key, value]) =>
+        res.setHeader(key, value),
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Apollo news error: ${response.status} ${errorText}`);
       }
-      
+
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
       console.error("Apollo News API Error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch news from Apollo" });
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to fetch news from Apollo" });
     }
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NODE_ENV !== "test"
+  ) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
+  } else if (process.env.NODE_ENV === "production") {
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  if (process.env.NODE_ENV !== 'test') {
+  if (process.env.NODE_ENV !== "test") {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });

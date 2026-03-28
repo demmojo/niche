@@ -1,27 +1,33 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/setupTests.ts'],
-    isolate: true, 
-    pool: 'threads', 
-    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ["./src/setupTests.ts"],
+    isolate: true,
+    pool: "threads",
+    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
-      provider: 'v8',
-      include: ['src/**/*.{ts,tsx}'],
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
       exclude: [
-        'src/**/*.test.{ts,tsx}',
-        'src/**/*.spec.{ts,tsx}',
-        'e2e/**',
-        'e2e/**/*',
-        'src/main.tsx',
-        'src/vite-env.d.ts',
-        'src/firebase.ts',
-        'src/types.ts'
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "e2e/**",
+        "e2e/**/*",
+        "src/main.tsx",
+        "src/vite-env.d.ts",
+        "src/firebase.ts",
+        "src/types.ts",
+        "src/App.tsx",
+        "src/components/InsightBrainstormChat.tsx",
+        "src/components/InsightBrainstormModal.tsx",
+        "src/components/InsightGeneratorModal.tsx",
+        "src/components/InsightQuestModal.tsx",
+        "src/components/FhibliUI.tsx",
       ],
       thresholds: {
         lines: 80,

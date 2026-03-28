@@ -1,94 +1,175 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthProvider, useAuth } from '../../components/AuthProvider';
-import { onAuthStateChanged } from 'firebase/auth';
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AuthProvider, useAuth } from "../../components/AuthProvider";
+import { onAuthStateChanged } from "firebase/auth";
+import { loginWithGoogle, loginWithEmail, logout } from "../../firebase";
 
 // 1. Mock Firebase module
-vi.mock('firebase/auth', () => ({
+vi.mock("firebase/auth", () => ({
   onAuthStateChanged: vi.fn(),
   getAuth: vi.fn(),
   GoogleAuthProvider: vi.fn(),
   signInWithPopup: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
-  auth: {} 
+  auth: {},
 }));
 
-vi.mock('firebase/app', () => ({
+vi.mock("firebase/app", () => ({
   initializeApp: vi.fn(),
 }));
 
-vi.mock('firebase/firestore', () => ({
+vi.mock("firebase/firestore", () => ({
   getFirestore: vi.fn(),
   enableNetwork: vi.fn(),
   disableNetwork: vi.fn(),
-  setLogLevel: vi.fn()
+  setLogLevel: vi.fn(),
 }));
 
-vi.mock('../../src/firebase', () => ({
+vi.mock("../../firebase", () => ({
   auth: {},
   loginWithGoogle: vi.fn(),
   loginWithEmail: vi.fn(),
-  logout: vi.fn()
+  logout: vi.fn(),
 }));
 
 // 2. Create a dummy consumer to consume the context hook
 const TestConsumer = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, login, loginEmail, logout } = useAuth();
   if (loading) return <div>Loading...</div>;
-  return <div>{user ? `Logged in as ${user.email}` : 'Not logged in'}</div>;
+  return (
+    <div>
+      <div>{user ? `Logged in as ${user.email}` : "Not logged in"}</div>
+      <button onClick={login}>Login Google</button>
+      <button onClick={() => loginEmail("test@test.com", "password")}>
+        Login Email
+      </button>
+      <button onClick={logout}>Logout User</button>
+    </div>
+  );
 };
 
-describe('AuthProvider', () => {
+describe("AuthProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('initially shows loading state', () => {
+  it("initially shows loading state", () => {
     // Prevent the callback from firing immediately
     vi.mocked(onAuthStateChanged).mockImplementation(() => vi.fn());
-    
+
     render(
       <AuthProvider>
         <TestConsumer />
-      </AuthProvider>
+      </AuthProvider>,
     );
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it('updates state when a user is authenticated', async () => {
+  it("updates state when a user is authenticated", async () => {
     // Immediately trigger the callback with a mock user
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      callback({ email: 'test@example.com' } as any);
+      (callback as any)({ email: "test@example.com" } as any);
       return vi.fn(); // Mock the unsubscribe function
     });
 
     render(
       <AuthProvider>
         <TestConsumer />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     // Assert the state changes from loading to authenticated
     await waitFor(() => {
-      expect(screen.getByText('Logged in as test@example.com')).toBeInTheDocument();
+      expect(
+        screen.getByText("Logged in as test@example.com"),
+      ).toBeInTheDocument();
     });
   });
 
-  it('updates state when no user is authenticated', async () => {
+  it("updates state when no user is authenticated", async () => {
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      callback(null as any);
+      (callback as any)(null as any);
       return vi.fn();
     });
 
     render(
       <AuthProvider>
         <TestConsumer />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Not logged in')).toBeInTheDocument();
+      expect(screen.getByText("Not logged in")).toBeInTheDocument();
     });
+  });
+
+  it("calls loginWithGoogle when login is triggered", async () => {
+    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+      (callback as any)(null as any);
+      return vi.fn();
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Not logged in")).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Login Google" }));
+
+    expect(loginWithGoogle).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls loginWithEmail when loginEmail is triggered", async () => {
+    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+      (callback as any)(null as any);
+      return vi.fn();
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Not logged in")).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Login Email" }));
+
+    expect(loginWithEmail).toHaveBeenCalledWith("test@test.com", "password");
+  });
+
+  it("calls logout when logout is triggered", async () => {
+    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+      (callback as any)({ email: "test@example.com" } as any);
+      return vi.fn();
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Logged in as test@example.com"),
+      ).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Logout User" }));
+
+    expect(logout).toHaveBeenCalledTimes(1);
   });
 });

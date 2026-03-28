@@ -31,19 +31,25 @@ This file is placed at `openspec/changes/<feature-name>/proposal.md`
 
 ```markdown
 ## Why
+
 [Explain the problem or opportunity based on user input]
 
 ## What Changes
+
 [High-level summary of what is being introduced or modified]
 
 ## Capabilities
+
 ### New Capabilities
+
 - `capability-name`: [Description]
 
 ### Modified Capabilities
+
 - `capability-name`: [Description]
 
 ## Impact
+
 [What systems, modules, or areas of the codebase are affected]
 ```
 
@@ -53,21 +59,28 @@ This file is placed at `openspec/changes/<feature-name>/design.md`
 
 ```markdown
 ## Context
+
 [Background information necessary to understand the design choices]
 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - [Goal 1]
 
 **Non-Goals:**
+
 - [Non-Goal 1]
 
 ## Decisions
 
 **1. [Decision Title]**
+
 - **Decision**: [What was decided]
 - **Rationale**: [Why it was decided]
+- **Alternatives Considered**:
+  - _[Alternative 1]_: [Why it was rejected (e.g., too complex, performance hit)]
+  - _[Alternative 2]_: [Why it was rejected]
 
 ## Risks / Trade-offs
 
@@ -87,9 +100,11 @@ This file is placed at `openspec/changes/<feature-name>/specs/<feature-name>/spe
 ## Features
 
 ### 1. [Feature Component]
+
 - **Requirement:** [Detailed technical/product requirement]
 
 ## Scenarios
+
 - **WHEN** [condition or user action]
 - **THEN** [expected system outcome]
 ```
@@ -102,15 +117,18 @@ Break down the implementation into logical phases and actionable steps.
 
 ```markdown
 ## 1. [Phase 1: E.g., Backend / Data Model]
+
 - [ ] 1.1 [Task description]
 - [ ] 1.2 [Task description]
 
 ## 2. [Phase 2: E.g., Frontend / UI Integration]
+
 - [ ] 2.1 [Task description]
 ```
 
 ## Post-Creation
 
 After generating the files:
+
 1. Briefly present the scaffolded files and paths to the user.
 2. Prompt the user to review the files and request edits or approval before beginning implementation (which will be driven by the `.cursor/rules/openspec-workflow.mdc` rule).

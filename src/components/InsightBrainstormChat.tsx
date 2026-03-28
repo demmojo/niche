@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, ArrowRight, X, Loader2, MessageSquare, Send, Save } from 'lucide-react';
-import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
-import { withKeyRotation } from '../utils/geminiClient';
-import { getErrorMessage } from '../utils/errorHandler';
-import Markdown from 'react-markdown';
-import { Tooltip } from './Tooltip';
+import { dictionary, tMessage } from "../content/dictionary";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Sparkles,
+  ArrowRight,
+  X,
+  Loader2,
+  MessageSquare,
+  Send,
+  Save,
+} from "lucide-react";
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { withKeyRotation } from "../utils/geminiClient";
+import { getErrorMessage } from "../utils/errorHandler";
+import Markdown from "react-markdown";
+import { Tooltip } from "./Tooltip";
 
 interface InsightBrainstormChatProps {
   competitors: any[];
@@ -16,73 +25,112 @@ interface InsightBrainstormChatProps {
 
 interface ChatMessage {
   id: string;
-  role: 'assistant' | 'user';
+  role: "assistant" | "user";
   content: string;
   isTyping?: boolean;
 }
 
-export function InsightBrainstormChat({ competitors, insights, rawData, onSaveInsight }: InsightBrainstormChatProps) {
+export function InsightBrainstormChat({
+  competitors,
+  insights,
+  rawData,
+  onSaveInsight,
+}: InsightBrainstormChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (messages.length === 0) {
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "Hello. I am the Insight Brainstorming Engine. I have access to all your competitors, raw data, and existing insights. What area of the market would you like to explore today?"
-      }]);
+      setMessages([
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content:
+            "Hello. I am the Insight Brainstorming Engine. I have access to all your competitors, raw data, and existing insights. What area of the market would you like to explore today?",
+        },
+      ]);
     }
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
     const userMsg = inputValue.trim();
-    setInputValue('');
-    
+    setInputValue("");
+
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),
-      role: 'user',
-      content: userMsg
+      role: "user",
+      content: userMsg,
     };
-    
-    setMessages(prev => [...prev, newUserMsg]);
+
+    setMessages((prev) => [...prev, newUserMsg]);
     setIsTyping(true);
 
     try {
-      const historyText = messages.map(msg => `${msg.role === 'assistant' ? 'Assistant' : 'User'}: ${msg.content}`).join('\n');
-      
+      const historyText = messages
+        .map(
+          (msg) =>
+            `${msg.role === "assistant" ? "Assistant" : "User"}: ${msg.content}`,
+        )
+        .join("\n");
+
       const saveInsightFunctionDeclaration: FunctionDeclaration = {
         name: "save_insight",
-        description: "Save a valuable insight generated during the discussion to the Insight Library. Call this when you and the user have formulated a strong, actionable insight. The insight must be bidirectionally linked to raw data and other insights.",
+        description:
+          "Save a valuable insight generated during the discussion to the Insight Library. Call this when you and the user have formulated a strong, actionable insight. The insight must be bidirectionally linked to raw data and other insights.",
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: "A concise, catchy title for the insight." },
-            description: { type: Type.STRING, description: "A detailed explanation of the insight, its implications, and why it matters." },
-            category: { type: Type.STRING, enum: ["opportunity", "threat", "trend"], description: "The category of the insight." },
-            impact: { type: Type.STRING, enum: ["low", "medium", "high", "critical"], description: "The potential impact on the business." },
-            linkedRawDataIds: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of raw data source IDs that support this insight." },
-            linkedInsightIds: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of other insight IDs that are related to this one." }
+            title: {
+              type: Type.STRING,
+              description: "A concise, catchy title for the insight.",
+            },
+            description: {
+              type: Type.STRING,
+              description:
+                "A detailed explanation of the insight, its implications, and why it matters.",
+            },
+            category: {
+              type: Type.STRING,
+              enum: ["opportunity", "threat", "trend"],
+              description: "The category of the insight.",
+            },
+            impact: {
+              type: Type.STRING,
+              enum: ["low", "medium", "high", "critical"],
+              description: "The potential impact on the business.",
+            },
+            linkedRawDataIds: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description:
+                "Array of raw data source IDs that support this insight.",
+            },
+            linkedInsightIds: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description:
+                "Array of other insight IDs that are related to this one.",
+            },
           },
-          required: ["title", "description", "category", "impact"]
-        }
+          required: ["title", "description", "category", "impact"],
+        },
       };
 
       const prompt = `
         You are an expert Market Intelligence AI brainstorming partner.
         You have access to the following system context:
         
-        Competitors: ${JSON.stringify(competitors.map(c => ({ id: c.id, name: c.name, features: c.coreFeatures, pricing: c.freeTier })))}
-        Existing Insights: ${JSON.stringify(insights.map(i => ({ id: i.id, title: i.title, category: i.category })))}
-        Raw Data Signals: ${JSON.stringify(rawData.map(r => ({ id: r.id, excerpt: r.excerpt, type: r.type, tags: r.tags })))}
+        Competitors: ${JSON.stringify(competitors.map((c) => ({ id: c.id, name: c.name, features: c.coreFeatures, pricing: c.freeTier })))}
+        Existing Insights: ${JSON.stringify(insights.map((i) => ({ id: i.id, title: i.title, category: i.category })))}
+        Raw Data Signals: ${JSON.stringify(rawData.map((r) => ({ id: r.id, excerpt: r.excerpt, type: r.type, tags: r.tags })))}
         
         Conversation history:
         ${historyText}
@@ -100,73 +148,88 @@ export function InsightBrainstormChat({ competitors, insights, rawData, onSaveIn
           contents: prompt,
           config: {
             tools: [{ functionDeclarations: [saveInsightFunctionDeclaration] }],
-          }
+          },
         });
       });
 
-      let fullText = '';
+      let fullText = "";
       let hasFunctionCall = false;
       let finalInsightArgs: any = null;
-      const messageId = Date.now().toString() + '-text';
-      
-      setMessages(prev => [...prev, {
-        id: messageId,
-        role: 'assistant',
-        content: ''
-      }]);
+      const messageId = Date.now().toString() + "-text";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: messageId,
+          role: "assistant",
+          content: "",
+        },
+      ]);
 
       for await (const chunk of responseStream) {
         if (chunk.functionCalls && chunk.functionCalls.length > 0) {
           for (const call of chunk.functionCalls) {
-            if (call.name === 'save_insight') {
+            if (call.name === "save_insight") {
               hasFunctionCall = true;
               finalInsightArgs = call.args;
             }
           }
         }
-        
+
         if (chunk.text) {
           fullText += chunk.text;
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId ? { ...msg, content: fullText } : msg
-          ));
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === messageId ? { ...msg, content: fullText } : msg,
+            ),
+          );
         }
       }
-      
+
       if (hasFunctionCall && finalInsightArgs) {
         onSaveInsight({
           title: finalInsightArgs.title,
           description: finalInsightArgs.description,
           category: finalInsightArgs.category,
           impact: finalInsightArgs.impact,
-          source: 'Brainstorm',
+          source: "Brainstorm",
           sourceIds: finalInsightArgs.linkedRawDataIds || [],
-          linkedInsightIds: finalInsightArgs.linkedInsightIds || []
+          linkedInsightIds: finalInsightArgs.linkedInsightIds || [],
         });
-        
-        setMessages(prev => [...prev, {
-          id: Date.now().toString() + '-func',
-          role: 'assistant',
-          content: `I've saved the insight: **${finalInsightArgs.title}** to the library!`
-        }]);
-      }
-      
-      if (!fullText && !hasFunctionCall) {
-         setMessages(prev => prev.map(msg => 
-            msg.id === messageId ? { ...msg, content: "I've processed that." } : msg
-         ));
-      } else if (!fullText && hasFunctionCall) {
-         // Remove the empty text message if only a function call was made
-         setMessages(prev => prev.filter(msg => msg.id !== messageId));
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString() + "-func",
+            role: "assistant",
+            content: `I've saved the insight: **${finalInsightArgs.title}** to the library!`,
+          },
+        ]);
       }
 
+      if (!fullText && !hasFunctionCall) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, content: "I've processed that." }
+              : msg,
+          ),
+        );
+      } else if (!fullText && hasFunctionCall) {
+        // Remove the empty text message if only a function call was made
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      }
     } catch (error) {
-      console.error('Failed to get response:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "I'm having trouble connecting to the brainstorming engine. Please try again."
-      }]);
+      console.error("Failed to get response:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content:
+            "I'm having trouble connecting to the brainstorming engine. Please try again.",
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -182,43 +245,51 @@ export function InsightBrainstormChat({ competitors, insights, rawData, onSaveIn
             <Sparkles className="text-ochre w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-ink-dark text-lg tracking-tight">Insight Brainstorming Engine</h3>
-            <p className="text-xs text-ink-dark/60">AI-powered market analysis and ideation</p>
+            <h3 className="font-bold text-ink-dark text-lg tracking-tight">
+              Insight Brainstorming Engine
+            </h3>
+            <p className="text-xs text-ink-dark/60">
+              AI-powered market analysis and ideation
+            </p>
           </div>
         </div>
       </div>
-      
+
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-white">
         {messages.map((msg) => (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            key={msg.id} 
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            key={msg.id}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            {msg.role === 'assistant' && (
+            {msg.role === "assistant" && (
               <div className="w-8 h-8 rounded-full bg-paper-base border border-ink-dark/10 flex items-center justify-center shrink-0 mr-3 mt-1">
                 <Sparkles className="w-4 h-4 text-ochre" />
               </div>
             )}
-            <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm ${
-              msg.role === 'user' 
-                ? 'bg-ink-dark text-white rounded-tr-sm' 
-                : 'bg-paper-base border border-ink-dark/10 text-ink-dark rounded-tl-sm'
-            }`}>
-              <div className={`prose prose-sm max-w-none prose-p:leading-relaxed ${
-                msg.role === 'user' 
-                  ? 'prose-invert text-white/90' 
-                  : 'prose-pre:bg-white/50 prose-pre:text-ink-dark prose-pre:border prose-pre:border-ink-dark/10'
-              }`}>
+            <div
+              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm ${
+                msg.role === "user"
+                  ? "bg-ink-dark text-white rounded-tr-sm"
+                  : "bg-paper-base border border-ink-dark/10 text-ink-dark rounded-tl-sm"
+              }`}
+            >
+              <div
+                className={`prose prose-sm max-w-none prose-p:leading-relaxed ${
+                  msg.role === "user"
+                    ? "prose-invert text-white/90"
+                    : "prose-pre:bg-white/50 prose-pre:text-ink-dark prose-pre:border prose-pre:border-ink-dark/10"
+                }`}
+              >
                 <Markdown>{msg.content}</Markdown>
               </div>
             </div>
           </motion.div>
         ))}
         {isTyping && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-start"
@@ -228,9 +299,18 @@ export function InsightBrainstormChat({ competitors, insights, rawData, onSaveIn
             </div>
             <div className="bg-paper-base border border-ink-dark/10 rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-2 shadow-sm">
               <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                <span className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                <span className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                <span
+                  className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></span>
+                <span
+                  className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></span>
+                <span
+                  className="w-1.5 h-1.5 bg-ink-dark/40 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></span>
               </div>
             </div>
           </motion.div>
@@ -245,7 +325,7 @@ export function InsightBrainstormChat({ competitors, insights, rawData, onSaveIn
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
@@ -254,14 +334,17 @@ export function InsightBrainstormChat({ competitors, insights, rawData, onSaveIn
             className="w-full bg-transparent border-none resize-none max-h-32 min-h-[44px] py-2.5 px-3 text-sm text-ink-dark focus:outline-none focus:ring-0"
             disabled={isTyping}
             rows={1}
-            style={{ height: 'auto' }}
+            style={{ height: "auto" }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
+              target.style.height = "auto";
               target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
             }}
           />
-          <Tooltip content="Send message" position="top">
+          <Tooltip
+            content={tMessage(dictionary.tooltips.brainstorm.sendMessage)}
+            position="top"
+          >
             <button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}

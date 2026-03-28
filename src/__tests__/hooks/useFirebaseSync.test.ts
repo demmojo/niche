@@ -1,183 +1,222 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useFirebaseSync } from '../../src/hooks/useFirebaseSync';
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useFirebaseSync } from "../../hooks/useFirebaseSync";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { safeDisableNetwork } from "../../firebase";
+import { useAuth } from "../../components/AuthProvider";
 
-// Mock dependencies
-const mockDoc = vi.fn();
-const mockSetDoc = vi.fn(() => Promise.resolve());
-let mockOnSnapshotCallback: any;
-let mockOnSnapshotErrorCallback: any;
-
-const mockOnSnapshot = vi.fn((_docRef, onNext, onError) => {
-  mockOnSnapshotCallback = onNext;
-  mockOnSnapshotErrorCallback = onError;
-  return vi.fn(); // unsubscribe function
-});
-
-vi.mock('firebase/firestore', () => ({
-  doc: mockDoc,
-  setDoc: mockSetDoc,
-  onSnapshot: mockOnSnapshot,
+vi.mock("firebase/firestore", () => ({
+  doc: vi.fn(),
+  setDoc: vi.fn(() => Promise.resolve()),
+  onSnapshot: vi.fn(),
   getDoc: vi.fn(),
 }));
 
-const mockSafeDisableNetwork = vi.fn();
-
-vi.mock('../../src/firebase', () => ({
+vi.mock("../../firebase", () => ({
   db: {},
-  safeDisableNetwork: mockSafeDisableNetwork,
+  safeDisableNetwork: vi.fn(),
 }));
 
-const mockUseAuth = vi.fn();
-vi.mock('../../src/components/AuthProvider', () => ({
-  useAuth: mockUseAuth,
+vi.mock("../../components/AuthProvider", () => ({
+  useAuth: vi.fn(),
 }));
 
-describe('useFirebaseSync', () => {
+describe("useFirebaseSync", () => {
+  let mockOnSnapshotCallback: any;
+  let mockOnSnapshotErrorCallback: any;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mockOnSnapshotCallback = undefined;
     mockOnSnapshotErrorCallback = undefined;
+
+    vi.mocked(doc).mockReturnValue("mock-doc-ref" as any);
+
+    vi.mocked(onSnapshot).mockImplementation(
+      (_docRef: any, onNext: any, onError: any) => {
+        mockOnSnapshotCallback = onNext;
+        mockOnSnapshotErrorCallback = onError;
+        return vi.fn(); // unsubscribe function
+      },
+    );
   });
 
-  it('returns initial value when no user is authenticated', () => {
-    mockUseAuth.mockReturnValue({ user: null });
-    
-    const { result } = renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
-    expect(result.current[0]).toBe('initial');
-    expect(mockOnSnapshot).not.toHaveBeenCalled();
+  it("returns initial value when no user is authenticated", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any);
+
+    const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
+
+    expect(result.current[0]).toBe("initial");
+    expect(onSnapshot).not.toHaveBeenCalled();
   });
 
-  it('sets up listener when user is authenticated', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    mockDoc.mockReturnValue('mock-doc-ref');
-    
-    const { result } = renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
-    expect(mockOnSnapshot).toHaveBeenCalled();
-    expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'user123', 'appData', 'test-key');
-    
+  it("sets up listener when user is authenticated", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+    vi.mocked(doc).mockReturnValue("mock-doc-ref" as any);
+
+    const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
+
+    expect(onSnapshot).toHaveBeenCalled();
+    expect(doc).toHaveBeenCalledWith(
+      {},
+      "users",
+      "user123",
+      "appData",
+      "test-key",
+    );
+
     // Simulate snapshot where doc does not exist
     act(() => {
       mockOnSnapshotCallback({ exists: () => false });
     });
-    
-    expect(mockSetDoc).toHaveBeenCalledWith('mock-doc-ref', { value: 'initial' }, { merge: true });
-    expect(result.current[0]).toBe('initial');
+
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: "initial" },
+      { merge: true },
+    );
+    expect(result.current[0]).toBe("initial");
   });
 
-  it('updates state when snapshot contains data', () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
-    const { result } = renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
+  it("updates state when snapshot contains data", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
+
     act(() => {
-      mockOnSnapshotCallback({ 
+      mockOnSnapshotCallback({
         exists: () => true,
-        data: () => ({ value: 'remote-value' })
+        data: () => ({ value: "remote-value" }),
       });
     });
-    
-    expect(result.current[0]).toBe('remote-value');
+
+    expect(result.current[0]).toBe("remote-value");
   });
 
-  it('updates value locally and syncs to firebase', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
-    const { result } = renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
+  it("updates value locally and syncs to firebase", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
+
     act(() => {
-      result.current[1]('new-value');
+      result.current[1]("new-value");
     });
-    
-    expect(result.current[0]).toBe('new-value');
-    expect(mockSetDoc).toHaveBeenCalledWith(undefined, { value: 'new-value' }, { merge: true });
-    
+
+    expect(result.current[0]).toBe("new-value");
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: "new-value" },
+      { merge: true },
+    );
+
     // Simulate snapshot coming back from our own write (should be ignored due to isLocalUpdate)
     act(() => {
-      mockOnSnapshotCallback({ 
+      mockOnSnapshotCallback({
         exists: () => true,
-        data: () => ({ value: 'new-value' })
+        data: () => ({ value: "new-value" }),
       });
     });
-    
+
     // State remains unchanged
-    expect(result.current[0]).toBe('new-value');
+    expect(result.current[0]).toBe("new-value");
   });
 
-  it('handles functional state updates', () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
-    const { result } = renderHook(() => useFirebaseSync<number>('test-key', 0));
-    
+  it("handles functional state updates", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const { result } = renderHook(() => useFirebaseSync<number>("test-key", 0));
+
     act(() => {
       result.current[1]((prev) => prev + 1);
     });
-    
+
     expect(result.current[0]).toBe(1);
-    expect(mockSetDoc).toHaveBeenCalledWith(undefined, { value: 1 }, { merge: true });
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: 1 },
+      { merge: true },
+    );
   });
 
-  it('handles undefined values by saving them as null', () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
-    const { result } = renderHook(() => useFirebaseSync<string | undefined>('test-key', undefined));
-    
+  it("handles undefined values by saving them as null", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const { result } = renderHook(() =>
+      useFirebaseSync<string | undefined>("test-key", undefined),
+    );
+
     act(() => {
       mockOnSnapshotCallback({ exists: () => false });
     });
-    
-    expect(mockSetDoc).toHaveBeenCalledWith(undefined, { value: null }, { merge: true });
-    
+
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: null },
+      { merge: true },
+    );
+
     act(() => {
       result.current[1](undefined);
     });
-    
-    expect(mockSetDoc).toHaveBeenCalledWith(undefined, { value: null }, { merge: true });
+
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: null },
+      { merge: true },
+    );
   });
 
-  it('handles network errors by disabling network safely', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
+  it("handles network errors by disabling network safely", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
     // Mock setDoc to throw resource-exhausted
-    mockSetDoc.mockRejectedValueOnce({ code: 'resource-exhausted' });
-    
-    const { result } = renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
+    vi.mocked(setDoc).mockRejectedValueOnce({ code: "resource-exhausted" });
+
+    const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
+
     // Trigger setDoc failure in snapshot initialization
     await act(async () => {
       mockOnSnapshotCallback({ exists: () => false });
-      await new Promise(resolve => setTimeout(resolve, 0)); // wait for promise rejection
+      await new Promise((resolve) => setTimeout(resolve, 0)); // wait for promise rejection
     });
-    
-    expect(mockSafeDisableNetwork).toHaveBeenCalled();
-    
+
+    expect(safeDisableNetwork).toHaveBeenCalled();
+
     // Mock setDoc failure for manual update
-    mockSetDoc.mockRejectedValueOnce({ code: 'resource-exhausted' });
-    
+    vi.mocked(setDoc).mockRejectedValueOnce({ code: "resource-exhausted" });
+
     await act(async () => {
-      result.current[1]('fail-value');
-      await new Promise(resolve => setTimeout(resolve, 0));
+      result.current[1]("fail-value");
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    
-    expect(mockSafeDisableNetwork).toHaveBeenCalledTimes(2);
+
+    expect(safeDisableNetwork).toHaveBeenCalledTimes(2);
+
+    consoleSpy.mockRestore();
   });
 
-  it('handles snapshot errors gracefully', () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'user123' } });
-    
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    
-    renderHook(() => useFirebaseSync('test-key', 'initial'));
-    
+  it("handles snapshot errors gracefully", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    renderHook(() => useFirebaseSync("test-key", "initial"));
+
     act(() => {
-      mockOnSnapshotErrorCallback({ code: 'resource-exhausted', message: 'Quota exceeded' });
+      mockOnSnapshotErrorCallback({
+        code: "resource-exhausted",
+        message: "Quota exceeded",
+      });
     });
-    
-    expect(consoleSpy).toHaveBeenCalledWith('Error syncing test-key from Firebase:', expect.any(Object));
-    expect(mockSafeDisableNetwork).toHaveBeenCalled();
-    
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Error syncing test-key from Firebase:",
+      expect.any(Object),
+    );
+    expect(safeDisableNetwork).toHaveBeenCalled();
+
     consoleSpy.mockRestore();
   });
 });

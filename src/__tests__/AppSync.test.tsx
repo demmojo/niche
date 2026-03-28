@@ -1,11 +1,17 @@
-import React from 'react';
-import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import App from '../App';
-import * as firestore from 'firebase/firestore';
+import React from "react";
+import {
+  render,
+  screen,
+  act,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import App from "../App";
+import * as firestore from "firebase/firestore";
 
 // Mock dependencies
-vi.mock('firebase/firestore', () => ({
+vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
   setDoc: vi.fn(() => Promise.resolve()),
   onSnapshot: vi.fn((_doc, cb) => {
@@ -14,70 +20,81 @@ vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
 }));
 
-vi.mock('../firebase', () => ({
+vi.mock("../firebase", () => ({
   db: {},
   safeDisableNetwork: vi.fn(),
   auth: {
-    currentUser: { uid: 'test-user-id', email: 'mo@nicheai.com' },
+    currentUser: { uid: "test-user-id", email: "mo@nicheai.com" },
     onAuthStateChanged: vi.fn(),
-  }
+  },
 }));
 
-vi.mock('../components/AuthProvider', () => ({
+vi.mock("../components/AuthProvider", () => ({
   useAuth: () => ({
-    user: { uid: 'test-user-id', email: 'mo@nicheai.com' },
+    user: { uid: "test-user-id", email: "mo@nicheai.com" },
     loading: false,
     logout: vi.fn(),
   }),
 }));
 
 // Mock aiClient
-vi.mock('../utils/aiClient', () => ({
+vi.mock("../utils/aiClient", () => ({
   withModelFallback: vi.fn().mockImplementation(async (cb) => {
     return cb(
-      { 
+      {
         generateContent: vi.fn().mockResolvedValue({
-          text: JSON.stringify(['example.com']),
-          candidates: [{ groundingMetadata: { groundingChunks: [] } }]
-        }) 
-      }, 
-      'gemini-3.1-flash-preview'
+          text: JSON.stringify(["example.com"]),
+          candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+        }),
+      },
+      "gemini-3.1-flash-preview",
     );
-  })
+  }),
 }));
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-describe('App System/Integration Tests', () => {
+describe("App System/Integration Tests", () => {
   beforeEach(() => {
     window.localStorage.clear();
     delete (window as any).location;
-    window.location = new URL('http://localhost/?w=test-workspace') as any;
+    window.location = new URL("http://localhost/?w=test-workspace") as any;
 
-    window.localStorage.setItem('test-workspace_my_product_data_test-user-id_prod-kageform', JSON.stringify({
-      name: 'Test Product',
-      description: 'Test Description',
-      targetRegions: [],
-      features: [{ name: 'Test Feature 1' }],
-      strategy: []
-    }));
-    
+    window.localStorage.setItem(
+      "test-workspace_my_product_data_test-user-id_prod-kageform",
+      JSON.stringify({
+        name: "Test Product",
+        description: "Test Description",
+        targetRegions: [],
+        features: [{ name: "Test Feature 1" }],
+        strategy: [],
+      }),
+    );
+
     // Seed some mock competitors so sync runs an enrichment cycle
-    window.localStorage.setItem('test-workspace_competitors_test-user-id_prod-kageform', JSON.stringify([{
-      id: 'mock-comp-1',
-      name: 'Mock Competitor',
-      website: 'mockcomp.com',
-      techStack: ['OldTech'],
-      fundingHistory: 'Unknown'
-    }]));
-    
-    window.localStorage.setItem('test-workspace_active_product_id_test-user-id', '"prod-kageform"');
-    
+    window.localStorage.setItem(
+      "test-workspace_competitors_test-user-id_prod-kageform",
+      JSON.stringify([
+        {
+          id: "mock-comp-1",
+          name: "Mock Competitor",
+          website: "mockcomp.com",
+          techStack: ["OldTech"],
+          fundingHistory: "Unknown",
+        },
+      ]),
+    );
+
+    window.localStorage.setItem(
+      "test-workspace_active_product_id_test-user-id",
+      '"prod-kageform"',
+    );
+
     vi.clearAllMocks();
   });
 
-  it('can trigger Sync Now and handle Apollo mock responses', async () => {
+  it("can trigger Sync Now and handle Apollo mock responses", async () => {
     // Suppress console warnings about recharts
     const originalConsoleError = console.error;
     console.error = (...args) => {
@@ -87,42 +104,52 @@ describe('App System/Integration Tests', () => {
 
     // Setup fetch mock for our endpoints
     mockFetch.mockImplementation(async (url, options) => {
-      if (url === '/api/apollo/search') {
+      if (url === "/api/apollo/search") {
         return {
           ok: true,
           json: async () => ({
-            organizations: [{ website_url: 'https://newcomp.com' }]
-          })
+            organizations: [{ website_url: "https://newcomp.com" }],
+          }),
         };
       }
-      if (url === '/api/apollo/enrich') {
+      if (url === "/api/apollo/enrich") {
         return {
           ok: true,
           json: async () => ({
             organization: {
-              id: 'org123',
-              annual_revenue_printed: '10M',
+              id: "org123",
+              annual_revenue_printed: "10M",
               estimated_num_employees: 50,
-              latest_funding_stage: 'Series A',
-              total_funding_printed: '5M',
-              current_technologies: [{ name: 'React' }],
-              keywords: ['SaaS']
-            }
-          })
+              latest_funding_stage: "Series A",
+              total_funding_printed: "5M",
+              current_technologies: [{ name: "React" }],
+              keywords: ["SaaS"],
+            },
+          }),
         };
       }
-      if (url === '/api/apollo/news') {
+      if (url === "/api/apollo/news") {
         return {
           ok: true,
           json: async () => ({
-            news_articles: [{ title: 'News 1', url: 'https://news.com/1', snippet: 'A snippet' }]
-          })
+            news_articles: [
+              {
+                title: "News 1",
+                url: "https://news.com/1",
+                snippet: "A snippet",
+              },
+            ],
+          }),
         };
       }
       return { ok: true, json: async () => ({}) };
     });
 
-    let getByText: any, getAllByText: any, queryByText: any, findByText: any;
+    let getByText: any,
+      getAllByText: any,
+      queryByText: any,
+      findByText: any,
+      findAllByText: any;
 
     await act(async () => {
       const result = render(<App />);
@@ -130,15 +157,16 @@ describe('App System/Integration Tests', () => {
       getAllByText = result.getAllByText;
       queryByText = result.queryByText;
       findByText = result.findByText;
+      findAllByText = result.findAllByText;
     });
 
     // Check we are loaded
-    expect(getByText('Dashboard', { selector: 'h1' })).toBeInTheDocument();
+    expect(getByText("Dashboard", { selector: "h1" })).toBeInTheDocument();
 
     // Click Sync Now
-    const syncButtons = getAllByText('Sync Now', { selector: 'button' });
+    const syncButtons = getAllByText("Sync Now", { selector: "button" });
     expect(syncButtons.length).toBeGreaterThan(0);
-    
+
     await act(async () => {
       fireEvent.click(syncButtons[0]);
     });
@@ -148,14 +176,14 @@ describe('App System/Integration Tests', () => {
       expect(getByText(/Syncing all data sources/i)).toBeInTheDocument();
     });
 
-    // Based on the data-sync-review feature, instead of overwriting "OldTech", 
+    // Based on the data-sync-review feature, instead of overwriting "OldTech",
     // the system should queue the changes and present a "Review Changes" button.
     // Let's wait for the sync queue banner to appear.
-    const reviewBtn = await findByText('Review Changes', {}, { timeout: 8000 });
+    const reviewBtn = await findByText("Review Changes", {}, { timeout: 8000 });
     expect(reviewBtn).toBeInTheDocument();
 
-    // The state updates might still be executing async inside the queue component/fetch 
-    // before we can immediately click again without race conditions. We'll verify the 
+    // The state updates might still be executing async inside the queue component/fetch
+    // before we can immediately click again without race conditions. We'll verify the
     // queue caught the diffs directly by checking the modal.
 
     // Open the Review Modal
@@ -165,10 +193,11 @@ describe('App System/Integration Tests', () => {
 
     // Verify the diff content is rendered
     expect(await findByText(/Review Sync Changes/i)).toBeInTheDocument();
-    
+
     // We can just verify the modal has some text related to the diffs since we mocked Apollo
     // to return React and Series A.
-    expect(await findByText(/"React"/, {}, { timeout: 3000 })).toBeInTheDocument();
+    const reactElements = await findAllByText(/"React"/, {}, { timeout: 3000 });
+    expect(reactElements.length).toBeGreaterThan(0);
 
     console.error = originalConsoleError;
   });

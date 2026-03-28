@@ -1,9 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, FileText, Loader2, Database, FileJson, FileCode2, FileSpreadsheet } from 'lucide-react';
-import { Tooltip } from './Tooltip';
-import { Type } from '@google/genai';
-import { withKeyRotation } from '../utils/geminiClient';
+import { dictionary, tMessage } from "../content/dictionary";
+import React, { useState, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  X,
+  Upload,
+  FileText,
+  Loader2,
+  Database,
+  FileJson,
+  FileCode2,
+  FileSpreadsheet,
+} from "lucide-react";
+import { Tooltip } from "./Tooltip";
+import { Type } from "@google/genai";
+import { withKeyRotation } from "../utils/geminiClient";
 
 interface UploadDataModalProps {
   isOpen: boolean;
@@ -12,7 +22,12 @@ interface UploadDataModalProps {
   competitors: any[];
 }
 
-export const UploadDataModal: React.FC<UploadDataModalProps> = ({ isOpen, onClose, onDataAnalyzed, competitors }) => {
+export const UploadDataModal: React.FC<UploadDataModalProps> = ({
+  isOpen,
+  onClose,
+  onDataAnalyzed,
+  competitors,
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -49,25 +64,25 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({ isOpen, onClos
     if (!file) return;
     setIsAnalyzing(true);
     try {
-      let text = '';
-      if (typeof file.text === 'function') {
+      let text = "";
+      if (typeof file.text === "function") {
         text = await file.text();
       } else {
         text = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.onerror = (e) => reject(e);
-            reader.readAsText(file);
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = (e) => reject(e);
+          reader.readAsText(file);
         });
       }
-      
+
       const prompt = `You are a market intelligence analyst. Analyze the following raw data uploaded by the user.
       
 Data Content:
 ${text.substring(0, 15000)}
 
 Existing Competitors:
-${competitors.map(c => c.name).join(', ')}
+${competitors.map((c) => c.name).join(", ")}
 
 Extract raw data points and derive strategic insights from this text.
 Return the result as a JSON object with two arrays: "newSources" and "newInsights".
@@ -97,7 +112,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
           model: model,
           contents: prompt,
           config: {
-            responseMimeType: 'application/json',
+            responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -111,10 +126,10 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                       sourceUrl: { type: Type.STRING },
                       excerpt: { type: Type.STRING },
                       tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      confidenceLevel: { type: Type.STRING }
+                      confidenceLevel: { type: Type.STRING },
                     },
-                    required: ["type", "excerpt"]
-                  }
+                    required: ["type", "excerpt"],
+                  },
                 },
                 newInsights: {
                   type: Type.ARRAY,
@@ -125,50 +140,56 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                       description: { type: Type.STRING },
                       category: { type: Type.STRING },
                       impact: { type: Type.STRING },
-                      actionableSteps: { type: Type.ARRAY, items: { type: Type.STRING } }
+                      actionableSteps: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                      },
                     },
-                    required: ["title", "description", "category", "impact"]
-                  }
-                }
-              }
-            }
-          }
+                    required: ["title", "description", "category", "impact"],
+                  },
+                },
+              },
+            },
+          },
         });
       });
-      
-      const result = JSON.parse(response.text || '{}');
-      
+
+      const result = JSON.parse(response.text || "{}");
+
       const sources = (result.newSources || []).map((s: any) => ({
         ...s,
-        id: 'src-' + Date.now() + Math.random().toString(36).substr(2, 9),
+        id: "src-" + Date.now() + Math.random().toString(36).substr(2, 9),
         timestamp: new Date().toISOString(),
         isDeduced: true,
-        source: 'Human',
-        linkedInsightIds: []
+        source: "Human",
+        linkedInsightIds: [],
       }));
-      
+
       const insights = (result.newInsights || []).map((i: any) => ({
         ...i,
-        id: 'ins-' + Date.now() + Math.random().toString(36).substr(2, 9),
+        id: "ins-" + Date.now() + Math.random().toString(36).substr(2, 9),
         timestamp: new Date().toISOString(),
         sourceIds: [],
-        source: 'AI'
+        source: "AI",
       }));
-      
+
       onDataAnalyzed(sources, insights);
       onClose();
     } catch (error) {
-      console.error('Error analyzing file:', error);
-      alert('Failed to analyze file. Please try again.');
+      console.error("Error analyzing file:", error);
+      alert("Failed to analyze file. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const getFileIcon = (filename: string) => {
-    if (filename.endsWith('.json')) return <FileJson size={48} className="text-sky" />;
-    if (filename.endsWith('.csv')) return <FileSpreadsheet size={48} className="text-emerald-500" />;
-    if (filename.endsWith('.md')) return <FileCode2 size={48} className="text-purple-500" />;
+    if (filename.endsWith(".json"))
+      return <FileJson size={48} className="text-sky" />;
+    if (filename.endsWith(".csv"))
+      return <FileSpreadsheet size={48} className="text-emerald-500" />;
+    if (filename.endsWith(".md"))
+      return <FileCode2 size={48} className="text-purple-500" />;
     return <FileText size={48} className="text-ink-dark/40" />;
   };
 
@@ -176,7 +197,7 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-ink-dark/60 backdrop-blur-md">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -195,11 +216,16 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                     Import Raw Data
                   </h2>
                   <p className="text-ink-dark/60 mt-1 text-sm">
-                    Upload competitor research, pricing tables, or market reports. Our AI will automatically extract insights and data points.
+                    Upload competitor research, pricing tables, or market
+                    reports. Our AI will automatically extract insights and data
+                    points.
                   </p>
                 </div>
-                <Tooltip content="Close modal" position="left">
-                  <button 
+                <Tooltip
+                  content={tMessage(dictionary.tooltips.common.closeModal)}
+                  position="left"
+                >
+                  <button
                     onClick={onClose}
                     className="p-2 text-ink-dark/40 hover:text-ink-dark hover:bg-white rounded-full transition-colors"
                   >
@@ -208,16 +234,17 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                 </Tooltip>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 sm:p-8 bg-white">
-              <div 
+              <div
                 className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-200 cursor-pointer overflow-hidden
-                  ${dragActive 
-                    ? 'border-sky bg-sky/5 scale-[1.02]' 
-                    : file 
-                      ? 'border-emerald-500/50 bg-emerald-50/50' 
-                      : 'border-ink-dark/20 hover:border-ink-dark/40 hover:bg-paper-base'
+                  ${
+                    dragActive
+                      ? "border-sky bg-sky/5 scale-[1.02]"
+                      : file
+                        ? "border-emerald-500/50 bg-emerald-50/50"
+                        : "border-ink-dark/20 hover:border-ink-dark/40 hover:bg-paper-base"
                   }
                 `}
                 onClick={() => fileInputRef.current?.click()}
@@ -226,17 +253,17 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
                   accept=".txt,.csv,.json,.md"
                 />
-                
+
                 <div className="relative z-10 flex flex-col items-center">
                   {file ? (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className="flex flex-col items-center"
@@ -244,19 +271,24 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                       <div className="w-20 h-20 bg-white rounded-2xl shadow-sm border border-ink-dark/10 flex items-center justify-center mb-4">
                         {getFileIcon(file.name)}
                       </div>
-                      <p className="text-ink-dark font-semibold text-lg">{file.name}</p>
+                      <p className="text-ink-dark font-semibold text-lg">
+                        {file.name}
+                      </p>
                       <p className="text-sm text-ink-dark/50 font-medium mt-1">
                         {(file.size / 1024).toFixed(1)} KB • Ready to analyze
                       </p>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFile(null);
+                        }}
                         className="mt-4 text-xs font-semibold text-rose-500 hover:text-rose-600 uppercase tracking-wider"
                       >
                         Remove File
                       </button>
                     </motion.div>
                   ) : (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex flex-col items-center"
@@ -275,21 +307,21 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                 </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="p-6 sm:px-8 sm:py-6 border-t border-ink-dark/10 bg-paper-base flex items-center justify-between">
               <p className="text-xs text-ink-dark/40 hidden sm:block">
                 Data is processed securely via Gemini AI.
               </p>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button 
+                <button
                   onClick={onClose}
                   className="px-5 py-2.5 text-ink-dark/70 hover:text-ink-dark font-semibold transition-colors rounded-xl hover:bg-ink-dark/5"
                   disabled={isAnalyzing}
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleAnalyze}
                   disabled={!file || isAnalyzing}
                   className="relative flex items-center justify-center gap-2 px-6 py-2.5 bg-ink-dark text-white rounded-xl font-semibold hover:bg-black transition-all disabled:opacity-50 disabled:hover:bg-ink-dark shadow-md hover:shadow-lg overflow-hidden group min-w-[160px]"
@@ -301,7 +333,10 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
                     </>
                   ) : (
                     <>
-                      <Upload size={18} className="group-hover:-translate-y-1 transition-transform" />
+                      <Upload
+                        size={18}
+                        className="group-hover:-translate-y-1 transition-transform"
+                      />
                       <span>Analyze Data</span>
                     </>
                   )}
