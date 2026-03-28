@@ -1736,7 +1736,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         { id: "1", name: "Discovering new market entrants", progress: 0 },
         {
           id: "2",
-          name: "Enriching competitor data via Apollo.io",
+          name: "Enriching competitor data",
           progress: 0,
         },
         {
@@ -1917,7 +1917,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
               await sleep(i * 500); // Rate limiting for Apollo
 
               const apolloLogId = addLog(
-                "Apollo.io",
+                "Data Enrichment",
                 "Enriching " + domain + "...",
                 "pending",
               );
@@ -1995,7 +1995,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
                       "https://api.apollo.io/v1/organizations/enrich?domain=" +
                       domain,
                     excerpt:
-                      "Apollo Data for " +
+                      "Enrichment Data for " +
                       domain +
                       ": Revenue: " +
                       (org.annual_revenue_printed || "N/A") +
@@ -2067,11 +2067,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
                 } else {
                   updateLog(apolloLogId, {
                     details:
-                      "Apollo API returned " +
-                      apolloRes.status +
-                      " for " +
-                      domain +
-                      ".",
+                      "Could not fetch competitor data for " + domain + ".",
                     status: "error",
                     apiCallDetails: {
                       domain,
@@ -2181,7 +2177,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           );
         } catch (e: any) {
           console.warn("Apollo API error", e);
-          handleApiError(e, logId, "Apollo API network", () =>
+          handleApiError(e, logId, "Competitor data API network", () =>
             handleGlobalSync(2, {
               newCompetitorDomains,
               apolloData,
@@ -2210,7 +2206,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           await Promise.all(
             searchQueries.map(async (query, i) => {
               const googleLogId = addLog(
-                "Gemini Grounding",
+                "AI Grounding",
                 'Searching: "' + query + '"...',
                 "pending",
               );
@@ -2321,7 +2317,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
         try {
           if (newCompetitorDomains.length > 0) {
             const synthesizeLogId = addLog(
-              "Gemini AI",
+              "AI Analysis",
               "Synthesizing new competitor profiles...",
               "pending",
             );
@@ -2541,10 +2537,10 @@ Return a JSON array of objects matching this exact structure:
       if (startStage <= 5) {
         try {
           const geminiLogId = addLog(
-            "Gemini AI",
+            "AI Analysis",
             "Analyzing " +
               apolloData.length +
-              " Apollo records and " +
+              " enriched records and " +
               searchData.length +
               " news items...",
             "pending",
@@ -2737,7 +2733,7 @@ Return a JSON array of objects matching this exact structure:
           const featuresToUpdate = Object.keys(featureDetails);
           if (featuresToUpdate.length > 0) {
             const featureUpdateLogId = addLog(
-              "Gemini AI",
+              "AI Analysis",
               `Updating ${featuresToUpdate.length} stored feature details...`,
               "pending",
             );
@@ -6617,33 +6613,39 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                                           </Tooltip>
                                         )}
                                     </div>
-                                    {log.contextData && (
-                                      <div className="mt-2 w-full bg-paper-base/50 p-2 rounded border border-ink-dark/10 overflow-x-auto">
-                                        <div className="text-[10px] font-bold mb-1 text-ink-dark">
-                                          Context Data:
-                                        </div>
-                                        <pre className="text-[10px] text-[#8A8A8A] whitespace-pre-wrap">
+                                    {isSuperadmin && log.contextData && (
+                                      <details className="mt-2 w-full bg-paper-base/50 p-2 rounded border border-ink-dark/10 group cursor-pointer transition-colors hover:bg-paper-base/80">
+                                        <summary className="text-[10px] font-bold text-ink-dark select-none flex items-center gap-1">
+                                          <span className="group-open:rotate-90 transition-transform duration-200">
+                                            ▶
+                                          </span>
+                                          View Context Data
+                                        </summary>
+                                        <pre className="text-[10px] text-[#8A8A8A] whitespace-pre-wrap mt-2 overflow-x-auto p-2 bg-white rounded border border-ink-dark/5">
                                           {JSON.stringify(
                                             log.contextData,
                                             null,
                                             2,
                                           )}
                                         </pre>
-                                      </div>
+                                      </details>
                                     )}
-                                    {log.apiCallDetails && (
-                                      <div className="mt-2 w-full bg-paper-base/50 p-2 rounded border border-ink-dark/10 overflow-x-auto">
-                                        <div className="text-[10px] font-bold mb-1 text-ink-dark">
-                                          API Call Details:
-                                        </div>
-                                        <pre className="text-[10px] text-[#8A8A8A] whitespace-pre-wrap">
+                                    {isSuperadmin && log.apiCallDetails && (
+                                      <details className="mt-2 w-full bg-paper-base/50 p-2 rounded border border-ink-dark/10 group cursor-pointer transition-colors hover:bg-paper-base/80">
+                                        <summary className="text-[10px] font-bold text-ink-dark select-none flex items-center gap-1">
+                                          <span className="group-open:rotate-90 transition-transform duration-200">
+                                            ▶
+                                          </span>
+                                          View Response Details
+                                        </summary>
+                                        <pre className="text-[10px] text-[#8A8A8A] whitespace-pre-wrap mt-2 overflow-x-auto p-2 bg-white rounded border border-ink-dark/5">
                                           {JSON.stringify(
                                             log.apiCallDetails,
                                             null,
                                             2,
                                           )}
                                         </pre>
-                                      </div>
+                                      </details>
                                     )}
                                   </div>
                                 </div>

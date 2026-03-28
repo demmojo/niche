@@ -269,22 +269,54 @@ async function startServer() {
           .json({ error: "APOLLO_API_KEY is not configured" });
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      let response: Response | undefined;
+      let errorText = "";
 
-      const response = await fetch(
-        `https://api.apollo.io/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
-        {
-          method: "GET",
-          headers: {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-          signal: controller.signal,
-        },
-      );
-      clearTimeout(timeoutId);
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+        try {
+          response = await fetch(
+            `https://api.apollo.io/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`,
+            {
+              method: "GET",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+              signal: controller.signal,
+            },
+          );
+          clearTimeout(timeoutId);
+
+          if (response.ok) break;
+
+          errorText = await response.text();
+          if (response.status === 429 || response.status >= 500) {
+            if (attempt === 1) {
+              const delay = 1000 + Math.random() * 500;
+              await new Promise((res) => setTimeout(res, delay));
+              continue;
+            }
+          } else {
+            break; // Don't retry 400s
+          }
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          if (attempt === 1) {
+            const delay = 1000 + Math.random() * 500;
+            await new Promise((res) => setTimeout(res, delay));
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      if (!response) {
+        throw new Error("Failed to execute request after retries");
+      }
 
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
@@ -325,22 +357,59 @@ async function startServer() {
           .json({ error: "APOLLO_API_KEY is not configured" });
       }
 
-      const response = await fetch(
-        `https://api.apollo.io/v1/organizations/search`,
-        {
-          method: "POST",
-          headers: {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            organization_locations: ["United States"],
-            q_organization_keyword_tags: keywords,
-            per_page: 5,
-          }),
-        },
-      );
+      let response: Response | undefined;
+      let errorText = "";
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+        try {
+          response = await fetch(
+            `https://api.apollo.io/v1/organizations/search`,
+            {
+              method: "POST",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+              signal: controller.signal,
+              body: JSON.stringify({
+                organization_locations: ["United States"],
+                q_organization_keyword_tags: keywords,
+                per_page: 5,
+              }),
+            },
+          );
+          clearTimeout(timeoutId);
+
+          if (response.ok) break;
+
+          errorText = await response.text();
+          if (response.status === 429 || response.status >= 500) {
+            if (attempt === 1) {
+              const delay = 1000 + Math.random() * 500;
+              await new Promise((res) => setTimeout(res, delay));
+              continue;
+            }
+          } else {
+            break; // Don't retry 400s
+          }
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          if (attempt === 1) {
+            const delay = 1000 + Math.random() * 500;
+            await new Promise((res) => setTimeout(res, delay));
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      if (!response) {
+        throw new Error("Failed to execute request after retries");
+      }
 
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
@@ -389,16 +458,47 @@ async function startServer() {
       );
       params.append("per_page", "5");
 
-      const response = await fetch(
-        `https://api.apollo.io/v1/news_articles/search?${params.toString()}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-        },
-      );
+      let response: Response | undefined;
+      let errorText = "";
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          response = await fetch(
+            `https://api.apollo.io/v1/news_articles/search?${params.toString()}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+            },
+          );
+
+          if (response.ok) break;
+
+          errorText = await response.text();
+          if (response.status === 429 || response.status >= 500) {
+            if (attempt === 1) {
+              const delay = 1000 + Math.random() * 500;
+              await new Promise((res) => setTimeout(res, delay));
+              continue;
+            }
+          } else {
+            break; // Don't retry 400s
+          }
+        } catch (e: any) {
+          if (attempt === 1) {
+            const delay = 1000 + Math.random() * 500;
+            await new Promise((res) => setTimeout(res, delay));
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      if (!response) {
+        throw new Error("Failed to execute news request after retries");
+      }
 
       // Forward rate limit headers
       const rateLimits = extractRateLimitHeaders(response);
