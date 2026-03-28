@@ -93,19 +93,19 @@ export const saveByokKey = async (req: Request, res: Response) => {
           {
             eventId,
             schemaVersion: "v1",
-            eventName: "compute_upgrade",
-            actorType: "human", // assuming initiated by human via UI
+            eventType: "revenue_signal",
+            actorType: "human",
             projectId: req.body.projectId || "unknown_project",
-            upgradeType: "byok_enabled",
-            provider: provider,
-            context: {
+            payload: {
+              action: "compute_upgrade",
+              upgradeType: "byok_enabled",
+              provider: provider,
               userId,
               environment: process.env.NODE_ENV || "development",
               isTestAccount: !!isTestAccount,
-              clientIp: req.ip,
-              userAgent: req.get("user-agent") || "unknown",
-              serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
             },
+            clientTimestamp: Date.now(),
+            serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true },
         );

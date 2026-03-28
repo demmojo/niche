@@ -229,17 +229,21 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
                 const rejectedDiffsCount =
                   syncQueue.length - acceptedDiffsCount;
 
-                // Identify unique entity types mutated
                 const mutatedEntities = new Set(
                   syncQueue
                     .filter((d) => selectedIds.has(d.id))
                     .map((d) => d.entityType),
                 );
 
-                telemetry.track("market_driven_sync_commit", {
-                  acceptedDiffsCount,
-                  rejectedDiffsCount,
-                  entityTypesMutated: Array.from(mutatedEntities),
+                telemetry.push({
+                  eventType: "core_action",
+                  actorType: "human",
+                  payload: {
+                    action: "market_driven_sync_commit",
+                    acceptedDiffsCount,
+                    rejectedDiffsCount,
+                    entityTypesMutated: Array.from(mutatedEntities),
+                  },
                 });
               });
 

@@ -1,61 +1,20 @@
 import re
-import json
-import os
-import glob
 
-agents_file = '/home/demmojo/Code/nicheai/AGENTS.md'
-index_file = '/home/demmojo/Code/nicheai/.cursor/hooks/state/continual-learning-index.json'
-
-with open(agents_file, 'r') as f:
+with open('/home/demmojo/Code/nicheai/AGENTS.md', 'r') as f:
     content = f.read()
 
-# Replace the Gemini legacy fact
-old_gemini = "- Gemini 1.5 and 2.5 are legacy as of 2026; always target `gemini-3.1-flash` for rapid tasks and `gemini-3.1-pro` (or newer) for complex, critical reasoning tasks."
-new_gemini = "- Gemini 1.5 and 2.5 are legacy and strictly prohibited as of 2026; always target `gemini-3.1-flash` for rapid tasks and `gemini-3.1-pro` for critical reasoning tasks."
+# Replace the 3 OpenSpec bullets in Workspace Facts with 2 updated bullets
+old_bullets = """- **OpenSpec Lifecycle**: Strictly manage files under `openspec/` (`plans/`, `brainstorms/`, `changes/`), routing legacy `docs/` paths via `ingest.ts`. Unimplemented features are 5-file directories under `openspec/changes/`, tracked via `- [ ]` in `tasks.md`. Archive raw plans and specs properly post-implementation.
+- **OpenSpec Validation**: The `ai-eval` step is strictly blocking. The `check-ready` script validates against a local SQLite DB, requiring a spec to pass evaluation before implementation. Collision detection fail-fasts before scaffolding.
+- **OpenSpec Execution**: Strictly respect task execution order when applying OpenSpecs to prevent dependency failures, and validate task logic using tests before implementation."""
 
-if old_gemini in content:
-    content = content.replace(old_gemini, new_gemini)
-elif "- Gemini 1.5 and 2.5 are legacy and strictly prohibited" not in content:
-    content = content.replace("## Learned Workspace Facts\n", f"## Learned Workspace Facts\n{new_gemini}\n")
+new_bullets = """- **OpenSpec Lifecycle & Validation**: Strictly manage files under `openspec/`, routing legacy `docs/` via `ingest.ts`. `ai-eval` is blocking (validates against SQLite DB), and collision detection fail-fasts. Ensure rollback mechanisms for DAG validation failures and finite retry loops for `ai-eval` auto-fixes.
+- **OpenSpec Execution & Agent UX**: Respect task execution order and validate via tests before implementation. CLI tools must be JSON-native and idempotent for agents, utilizing macro-commands (`propose`/`start`) and GraphRAG for context. Automate "Halt and Update" by requiring agents to show a markdown diff before resuming."""
 
-# Add the impersonation fact
-impersonation_fact = "- For user impersonation by superadmins, NicheAI uses a \"Secondary Firebase App\" approach with Custom JWT tokens containing `{ isImpersonated: true }` claims (via POST /api/superadmin/impersonate)."
-if impersonation_fact not in content:
-    content = content.replace("## Learned Workspace Facts\n", f"## Learned Workspace Facts\n{impersonation_fact}\n")
-
-# Add the OpenSpec directory fact
-openspec_fact = "- OpenSpec files and plans are strictly managed under `openspec/` rather than `docs/`. Avoid regressing the codebase by incorrectly implementing outdated plans after directory migrations."
-if openspec_fact not in content:
-    content = content.replace("## Learned Workspace Facts\n", f"## Learned Workspace Facts\n{openspec_fact}\n")
-
-# Add the user preference for Leeropedia and pro model
-gemini_pref = "- Strictly avoid Gemini 1.5 and 2.5 models; use gemini-3.1-pro for critical tasks and ensure machine learning best practices from Leeropedia are applied."
-if gemini_pref not in content:
-    content = content.replace("## Learned User Preferences\n", f"## Learned User Preferences\n{gemini_pref}\n")
-
-with open(agents_file, 'w') as f:
-    f.write(content)
-
-# Update index file
-try:
-    with open(index_file, 'r') as f:
-        idx = json.load(f)
-except:
-    idx = {}
-
-transcripts = glob.glob('/home/demmojo/.cursor/projects/home-demmojo-Code-nicheai/agent-transcripts/*/*.jsonl')
-
-# remove missing files from index
-for fpath in list(idx.keys()):
-    if not os.path.exists(fpath):
-        del idx[fpath]
-
-for fpath in transcripts:
-    idx[fpath] = os.path.getmtime(fpath)
-
-# ensure directory exists
-os.makedirs(os.path.dirname(index_file), exist_ok=True)
-with open(index_file, 'w') as f:
-    json.dump(idx, f)
-
-print("Updates applied to AGENTS.md and index refreshed.")
+if old_bullets in content:
+    content = content.replace(old_bullets, new_bullets)
+    with open('/home/demmojo/Code/nicheai/AGENTS.md', 'w') as f:
+        f.write(content)
+    print("Updated AGENTS.md")
+else:
+    print("Could not find old bullets to replace.")

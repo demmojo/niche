@@ -93,6 +93,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.admin == true;
     }
 
+    function isImpersonated() {
+      return isAuthenticated() && request.auth.token.isImpersonated == true;
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
@@ -217,19 +221,31 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /telemetry_events/{eventId} {
+      allow read, write: if false; // Only accessible via Admin SDK backend
+    }
+
     match /workspaces/{workspaceId} {
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.members;
-      allow read, update, delete: if isAuthenticated() && (
+      allow create: if isAuthenticated() && !isImpersonated() && request.auth.uid in request.resource.data.members;
+      allow read, update: if isAuthenticated() && (
+        isAdmin() || 
+        request.auth.uid in resource.data.members
+      );
+      allow delete: if isAuthenticated() && !isImpersonated() && (
         isAdmin() || 
         request.auth.uid in resource.data.members
       );
       
       match /appData/{dataId} {
-        allow create: if isAuthenticated() && (
+        allow create: if isAuthenticated() && !isImpersonated() && (
           isAdmin() || 
           request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
         );
-        allow read, update, delete: if isAuthenticated() && (
+        allow read, update: if isAuthenticated() && (
+          isAdmin() || 
+          request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
+        );
+        allow delete: if isAuthenticated() && !isImpersonated() && (
           isAdmin() || 
           request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
         );
@@ -247,50 +263,50 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUserSettings();
-      allow update: if isOwner(userId) && isValidUserSettings();
-      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) && !isImpersonated() && isValidUserSettings();
+      allow update: if isOwner(userId) && isValidUserSettings(); // Update might be fine, or maybe limit? Let's assume destructive is delete
+      allow delete: if isOwner(userId) && !isImpersonated();
 
       match /competitors/{competitorId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidCompetitor() && uidUnchanged();
+        allow create: if isOwner(userId) && !isImpersonated() && isValidCompetitor() && uidUnchanged();
         allow update: if isOwner(userId) && isValidCompetitor() && uidNotModified();
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
 
       match /dataSources/{dataSourceId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDataSource() && uidUnchanged();
+        allow create: if isOwner(userId) && !isImpersonated() && isValidDataSource() && uidUnchanged();
         allow update: if isOwner(userId) && isValidDataSource() && uidNotModified();
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
 
       match /derivedInsights/{insightId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidDerivedInsight() && uidUnchanged();
+        allow create: if isOwner(userId) && !isImpersonated() && isValidDerivedInsight() && uidUnchanged();
         allow update: if isOwner(userId) && isValidDerivedInsight() && uidNotModified();
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
 
       match /mindmapNodes/{nodeId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidMindmapNode() && uidUnchanged();
+        allow create: if isOwner(userId) && !isImpersonated() && isValidMindmapNode() && uidUnchanged();
         allow update: if isOwner(userId) && isValidMindmapNode() && uidNotModified();
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
 
       match /systemLogs/{logId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidSystemLog() && uidUnchanged();
         allow update: if isOwner(userId) && isValidSystemLog() && uidNotModified();
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
 
       match /appData/{dataId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow create: if isOwner(userId) && !isImpersonated();
         allow update: if isOwner(userId);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) && !isImpersonated();
       }
     }
   }

@@ -1,4 +1,35 @@
 import * as fs from "fs";
+import * as readline from "readline";
+
+export async function promptUser(
+  question: string,
+  options: string[],
+): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    const ask = () => {
+      rl.question(`${question} [${options.join("/")}]: `, (answer) => {
+        if (options.includes(answer)) {
+          rl.close();
+          resolve(answer);
+        } else {
+          console.log(`Invalid option. Choose one of: ${options.join(", ")}`);
+          ask();
+        }
+      });
+    };
+    ask();
+  });
+}
+
+export async function promptUserConfirm(question: string): Promise<boolean> {
+  const answer = await promptUser(question + " (y/n)", ["y", "n", "Y", "N"]);
+  return answer.toLowerCase() === "y";
+}
 import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { ParsedSpec } from "./utils.js";
@@ -60,7 +91,12 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 /**
  *
  */
-export async function checkCollisions(specs: ParsedSpec[]) {
+export async function checkCollisions(
+  specs: ParsedSpec[],
+  interactive: boolean = false,
+  targetFeature?: string,
+  options?: { nonInteractive?: boolean; onCollision?: string },
+): Promise<string> {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("Skipping collision detection: GEMINI_API_KEY is not set.");
     return;
@@ -123,19 +159,52 @@ export async function checkCollisions(specs: ParsedSpec[]) {
 
       const sim = cosineSimilarity(vecA, vecB);
       if (sim >= threshold) {
-        console.warn(`\n⚠️ COLLISION WARNING:`);
-        console.warn(
-          `Specs '${idA}' and '${idB}' have a high semantic similarity of ${(sim * 100).toFixed(1)}%.`,
-        );
-        console.warn(
-          `Consider merging them or using 'superseded_by' if they represent the same feature.`,
-        );
+        if (!options?.nonInteractive) {
+          console.warn(`\n⚠️ COLLISION WARNING:`);
+          console.warn(
+            `Specs '${idA}' and '${idB}' have a high semantic similarity of ${(sim * 100).toFixed(1)}%.`,
+          );
+          console.warn(
+            `Consider merging them or using 'superseded_by' if they represent the same feature.`,
+          );
+        }
         collisionFound = true;
+
+        if (
+          interactive &&
+          targetFeature &&
+          (idA === targetFeature || idB === targetFeature)
+        ) {
+          if (options?.nonInteractive) {
+            const action = options.onCollision;
+            if (action === "abort") return "abort";
+            if (action === "supersede" || action === "merge") {
+              // Not actually implementing supersede/merge file mutations right now for simplicity
+              return action;
+            }
+            console.log(
+              JSON.stringify({
+                error: "collision_detected",
+                next_action: "Provide --on-collision=supersede|merge|abort",
+              }),
+            );
+            return "abort";
+          }
+
+          const answer = await promptUser(
+            `Collision detected! What would you like to do?`,
+            ["supersede", "merge", "abort"],
+          );
+          if (answer === "abort") return "abort";
+          // If merge/supersede, we just proceed for now or implement file rewrites
+          return answer;
+        }
       }
     }
   }
 
-  if (!collisionFound) {
+  if (!collisionFound && !options?.nonInteractive) {
     console.log("No significant semantic collisions detected.");
   }
+  return "ok";
 }

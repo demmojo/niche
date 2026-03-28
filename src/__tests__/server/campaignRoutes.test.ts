@@ -1405,4 +1405,128 @@ describe("campaignRoutes", () => {
       vi.mocked(admin.firestore).mockRestore();
     });
   });
+
+  describe("POST /evaluate-taxonomy", () => {
+    it("returns 401 if unauthorized", async () => {
+      const response = await request(app).post(
+        "/api/campaign/evaluate-taxonomy",
+      );
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 400 if missing payload", async () => {
+      const response = await request(app)
+        .post("/api/campaign/evaluate-taxonomy")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({});
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid payload.");
+    });
+
+    it("returns 202 and processes async if payload is valid", async () => {
+      const admin = await import("firebase-admin");
+      const mockSet = vi.fn().mockResolvedValue(true);
+      const mockUpdate = vi.fn().mockResolvedValue(true);
+
+      vi.mocked(admin.firestore).mockReturnValue({
+        collection: vi
+          .fn()
+          .mockReturnValue({ doc: vi.fn().mockReturnValue({ set: mockSet }) }),
+        doc: vi.fn().mockReturnValue({ update: mockUpdate }),
+        runTransaction: vi.fn(async (cb) => {
+          await cb({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ evaluationStatus: "evaluating" }),
+            }),
+            update: mockUpdate,
+          } as any);
+        }),
+      } as any);
+
+      const genai = await import("@google/genai");
+      (genai as any).__embedContentMock.mockResolvedValue({
+        embeddings: [{ values: new Array(768).fill(0).fill(1, 0, 1) }],
+      });
+      (genai as any).__generateContentMock.mockResolvedValue({
+        text: '{"classification": "OBJECTIVE_SYNONYM", "confidence": 0.9}',
+      });
+
+      const response = await request(app)
+        .post("/api/campaign/evaluate-taxonomy")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({
+          featuresToMerge: ["F1", "F2"],
+          customName: "Merged",
+          workspaceId: "ws-1",
+        });
+
+      expect(response.status).toBe(202);
+      expect(response.body.status).toBe("evaluating");
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      vi.mocked(admin.firestore).mockRestore();
+    });
+
+    it("covers missing lines: API missing key error", async () => {
+      const prevKey = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const response1 = await request(app)
+        .post("/api/campaign/evaluate-taxonomy")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({
+          featuresToMerge: ["F1", "F2"],
+          customName: "Merged",
+          workspaceId: "ws-1",
+        });
+
+      expect(response1.status).toBe(202);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Evaluate taxonomy failed:",
+        expect.any(Error),
+      );
+
+      process.env.GEMINI_API_KEY = prevKey;
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("triggers line 254-258 in campaignRoutes.ts (ai.models is undefined)", async () => {
+      const genai = await import("@google/genai");
+      const originalGoogleGenAI = genai.GoogleGenAI;
+
+      const mockModels = undefined;
+      (genai as any).GoogleGenAI = vi.fn().mockImplementation(() => ({
+        models: mockModels,
+      }));
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const { runDeepValidationCampaign } =
+        await import("../../server/campaignRoutes");
+      await runDeepValidationCampaign(
+        "job-id",
+        "user",
+        [{ name: "test" }],
+        "base",
+      );
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "ai.models IS UNDEFINED! ai:",
+        expect.anything(),
+        "GoogleGenAI:",
+        expect.anything(),
+      );
+
+      (genai as any).GoogleGenAI = originalGoogleGenAI;
+      consoleErrorSpy.mockRestore();
+    });
+  });
 });

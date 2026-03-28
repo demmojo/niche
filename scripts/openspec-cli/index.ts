@@ -13,9 +13,11 @@ import { checkCollisions } from "./collision.js";
 import { buildContext } from "./context.js";
 import { runEval } from "./eval.js";
 import { checkReadiness } from "./readiness.js";
-import { ingestPlan } from "./ingest.js";
 import { generateDocs } from "./generate-docs.js";
 import { checkCoverage } from "./coverage.js";
+
+import { proposePlan } from "./propose.js";
+import { startFeature } from "./start.js";
 
 const program = new Command();
 
@@ -25,6 +27,41 @@ program
     "OpenSpec DAG Engine: Manage, validate, and compile spec-driven development feature graphs.",
   )
   .version("1.0.0");
+
+program
+  .command("propose")
+  .argument("<path-to-plan.md>", "The path to the plan markdown file")
+  .option("--non-interactive", "Run in headless mode with JSON output")
+  .option(
+    "--on-collision <action>",
+    "Action to take on collision (supersede|merge|abort)",
+  )
+  .option("--auto-fix", "Automatically run LLM to fix ai-eval failures")
+  .option(
+    "--clear-state",
+    "Clear existing sqlite state for the generated feature before evaluating",
+  )
+  .description(
+    "Parse a plan, check collisions, scaffold safely, and run evaluations",
+  )
+  .action(async (planPath, options) => {
+    await proposePlan(planPath, options);
+  });
+
+program
+  .command("start")
+  .argument("<feature-name>", "The exact folder name of the feature")
+  .option("--non-interactive", "Run in headless mode with JSON output")
+  .option(
+    "--auto-fix",
+    "Automatically run LLM to fix ai-eval failures if needed",
+  )
+  .description(
+    "Validate dependencies and evaluation history, then generate implementation context",
+  )
+  .action(async (featureName, options) => {
+    await startFeature(featureName, options);
+  });
 
 program
   .command("validate")
@@ -87,16 +124,6 @@ program
     if (!isReady) {
       process.exit(1);
     }
-  });
-
-program
-  .command("ingest")
-  .argument("<path-to-plan.md>", "The path to the plan markdown file")
-  .description(
-    "Parse a markdown plan, transform it to OpenSpec artifacts, and scaffold the feature directory",
-  )
-  .action(async (planPath) => {
-    await ingestPlan(planPath);
   });
 
 program

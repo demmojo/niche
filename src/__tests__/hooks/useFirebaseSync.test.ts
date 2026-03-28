@@ -294,4 +294,35 @@ describe("useFirebaseSync", () => {
       { merge: true },
     );
   });
+
+  it("handles undefined newValue (line 111)", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+    const { result } = renderHook(() =>
+      useFirebaseSync<string | undefined>("testKey", "initial"),
+    );
+
+    act(() => {
+      mockOnSnapshotCallback({
+        exists: () => true,
+        data: () => ({ value: "initial" }),
+        metadata: { hasPendingWrites: false },
+      });
+    });
+
+    vi.mocked(setDoc).mockClear();
+
+    act(() => {
+      result.current[1](undefined);
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: null },
+      { merge: true },
+    );
+  });
 });

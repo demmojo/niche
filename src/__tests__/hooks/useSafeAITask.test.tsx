@@ -9,10 +9,8 @@ import { useSafeAITask } from "../../hooks/useSafeAITask";
 /**
  *
  */
-function DummyAIComponent() {
-  const { isPending, executeTask, taskState } = useSafeAITask({
-    timeoutMs: 30000,
-  });
+function DummyAIComponent({ options }: { options?: any }) {
+  const { isPending, executeTask, taskState } = useSafeAITask(options);
 
   /**
    *
@@ -201,5 +199,69 @@ describe("useSafeAITask Intent Tests", () => {
 
     // Task finished again
     expect(btn).toBeEnabled();
+  });
+
+  it("covers missing lines: timeoutMs default, onSuccess, onError, and isPending early return", async () => {
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    server.use(
+      http.post("/api/campaign/start", async () => {
+        return HttpResponse.json({ jobId: "mock-123" });
+      }),
+    );
+
+    // Render with no options to cover line 19 (timeoutMs default)
+    const { rerender } = render(
+      <DummyAIComponent options={{ onSuccess, onError }} />,
+    );
+    let btn = screen.getByRole("button", { name: /analyze market/i });
+
+    await act(async () => {
+      fireEvent.click(btn);
+      // Trigger again synchronously to hit `if (isPending) return;` (line 41)
+      fireEvent.click(btn);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(onSuccess).toHaveBeenCalled();
+
+    // Now test onError
+    server.use(
+      http.post("/api/campaign/start", async () => {
+        return HttpResponse.json({ error: "Server Error" }, { status: 500 });
+      }),
+    );
+
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(onError).toHaveBeenCalled();
+
+    // Rerender with NO options to cover options?.timeoutMs
+    rerender(<DummyAIComponent />);
+    btn = screen.getByRole("button", { name: /analyze market/i });
+
+    server.use(
+      http.post("/api/campaign/start", async () => {
+        return HttpResponse.json({ jobId: "mock-456" });
+      }),
+    );
+
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
   });
 });

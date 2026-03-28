@@ -176,6 +176,24 @@ describe("scoringEngine", () => {
     });
   });
 
+  describe("getTaxonomyThresholds", () => {
+    it("returns correct thresholds for known model", async () => {
+      const { getTaxonomyThresholds } =
+        await import("../../utils/scoringEngine");
+      const t = getTaxonomyThresholds("text-embedding-004");
+      expect(t.objective).toBe(0.85);
+      expect(t.subjective).toBe(0.6);
+    });
+
+    it("returns default thresholds for unknown model", async () => {
+      const { getTaxonomyThresholds } =
+        await import("../../utils/scoringEngine");
+      const t = getTaxonomyThresholds("unknown-model");
+      expect(t.objective).toBe(0.85);
+      expect(t.subjective).toBe(0.6);
+    });
+  });
+
   describe("calculateCosineSimilarity", () => {
     it("calculates cosine similarity correctly", () => {
       const v1 = new Float32Array([1, 0, 0]);

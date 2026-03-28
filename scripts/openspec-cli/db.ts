@@ -86,6 +86,38 @@ export function getLastFailedEval(specId: string): any | null {
 /**
  *
  */
+export function getLastSuccessfulEval(specId: string): any | null {
+  try {
+    const db = getDb();
+    const stmt = db.prepare(
+      "SELECT * FROM eval_history WHERE spec_id = ? AND success = 1 ORDER BY created_at DESC LIMIT 1",
+    );
+    const result = stmt.get(specId) as any;
+    if (result) {
+      return {
+        ...result,
+        feedback: result.feedback ? JSON.parse(result.feedback) : null,
+      };
+    }
+  } catch (err) {
+    console.warn("Warning: Failed to read from eval history:", err);
+  }
+  return null;
+}
+
+export function clearEvalState(specId: string) {
+  try {
+    const db = getDb();
+    const stmt = db.prepare("DELETE FROM eval_history WHERE spec_id = ?");
+    stmt.run(specId);
+  } catch (err) {
+    console.warn("Warning: Failed to clear eval history:", err);
+  }
+}
+
+/**
+ *
+ */
 function pruneHistory(db: Database.Database) {
   try {
     // Keep only the last 30 days

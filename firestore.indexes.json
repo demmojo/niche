@@ -1,0 +1,17 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "telemetry_events",
+      "fieldPath": "timestamp",
+      "indexes": [],
+      "ttl": true
+    },
+    {
+      "collectionGroup": "telemetry_events",
+      "fieldPath": "serverTimestamp",
+      "indexes": [],
+      "ttl": true
+    }
+  ]
+}

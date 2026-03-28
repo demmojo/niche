@@ -173,12 +173,17 @@ export default function LensStrategyConsole({
 
     // Telemetry Event 3: Retention Proxy - Lens Agent Evaluated (Accept)
     import("../../utils/telemetry").then(({ telemetry }) => {
-      telemetry.track("lens_agent_evaluated", {
-        suggestionType: suggestion.type,
-        outcome: "accepted",
-        dataFingerprint:
-          String(stats.tracked) + "-" + String(stats.featuresIndexed),
-        textLength: suggestion.description.length,
+      telemetry.push({
+        eventType: "retention_proxy",
+        actorType: "human",
+        payload: {
+          action: "lens_agent_evaluated",
+          suggestionType: suggestion.type,
+          outcome: "accepted",
+          dataFingerprint:
+            String(stats.tracked) + "-" + String(stats.featuresIndexed),
+          textLength: suggestion.description.length,
+        },
       });
     });
 
@@ -209,13 +214,18 @@ export default function LensStrategyConsole({
 
     // Telemetry Event 3: Retention Proxy - Lens Agent Evaluated (Reject)
     import("../../utils/telemetry").then(({ telemetry }) => {
-      telemetry.track("lens_agent_evaluated", {
-        suggestionType: suggestion.type,
-        outcome: "rejected",
-        rejectionReason: reason,
-        dataFingerprint:
-          String(stats.tracked) + "-" + String(stats.featuresIndexed),
-        textLength: suggestion.description.length,
+      telemetry.push({
+        eventType: "retention_proxy",
+        actorType: "human",
+        payload: {
+          action: "lens_agent_evaluated",
+          suggestionType: suggestion.type,
+          outcome: "rejected",
+          rejectionReason: reason,
+          dataFingerprint:
+            String(stats.tracked) + "-" + String(stats.featuresIndexed),
+          textLength: suggestion.description.length,
+        },
       });
     });
 

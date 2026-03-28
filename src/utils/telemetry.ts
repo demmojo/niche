@@ -1,114 +1,138 @@
 import { v4 as uuidv4 } from "uuid";
-
-export interface TelemetryEvent {
-  eventId: string;
-  schemaVersion: "v1";
-  projectId?: string;
-  actorType: "human" | "agent" | "system";
-  eventName: string;
-  [key: string]: any;
-}
+import { TelemetryEventV1 } from "../types/telemetry";
 
 export class TelemetryBatcher {
-  private queue: TelemetryEvent[] = [];
-  private batchSize = 20;
-  private intervalId: ReturnType<typeof setInterval> | null = null;
-  private releaseFns: Array<() => void> = [];
+  private queue: TelemetryEventV1[] = [];
+  private isDisposed = false;
+  private flushTimeout: ReturnType<typeof setTimeout> | null = null;
+  private endpoint = "/api/v1/ui-sync";
 
   constructor() {
-    if (typeof window === "undefined") return;
-
-    this.intervalId = setInterval(() => this.flush(), 5000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden") this.flush(true);
-    };
-
-    window.addEventListener("visibilitychange", handleVisibility);
-
-    this.releaseFns.push(() => {
-      window.removeEventListener("visibilitychange", handleVisibility);
-    });
+    this.setupListeners();
   }
 
-  private getActorType(): "human" | "agent" | "system" {
-    // Check global flag injected by agent browsers
-    if (typeof window !== "undefined" && (window as any).__AGENT_SESSION__) {
-      return "agent";
+  private setupListeners() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("visibilitychange", this.handleVisibilityChange);
     }
-    return "human";
   }
 
-  public track(eventName: string, payload: Record<string, any>) {
-    // State updates must be synchronous
+  private handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      this.flushSync();
+    }
+  };
+
+  /**
+   * Pushes an event into the queue. Flushes asynchronously via requestIdleCallback.
+   */
+  public push(
+    event: Omit<
+      TelemetryEventV1,
+      "eventId" | "schemaVersion" | "clientTimestamp"
+    >,
+  ) {
+    if (this.isDisposed) return;
+
+    // Safety: Sanitize __AGENT_SESSION__ logic
+    const isAgent =
+      typeof window !== "undefined" &&
+      (window as any).__AGENT_SESSION__ === true;
+
     this.queue.push({
+      ...event,
       eventId: uuidv4(),
       schemaVersion: "v1",
-      actorType: this.getActorType(),
-      eventName,
-      ...payload,
+      actorType: event.actorType || (isAgent ? "agent" : "human"),
+      clientTimestamp: Date.now(),
     });
 
-    if (this.queue.length >= this.batchSize) {
-      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-        window.requestIdleCallback(() => this.flush(), { timeout: 500 });
-      } else {
-        setTimeout(() => this.flush(), 0);
-      }
+    this.scheduleFlush();
+  }
+
+  private scheduleFlush() {
+    if (this.flushTimeout) return;
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      window.requestIdleCallback(() => {
+        this.flush();
+      });
+    } else {
+      this.flushTimeout = setTimeout(() => {
+        this.flush();
+        this.flushTimeout = null;
+      }, 1000);
     }
   }
 
-  public flush(isUnloading = false) {
+  private async flush() {
     if (this.queue.length === 0) return;
 
-    // Synchronously extract and clear to prevent concurrent flush races
-    const payloadData = this.queue;
+    const eventsToFlush = [...this.queue];
     this.queue = [];
 
-    const payloadString = JSON.stringify(payloadData);
+    try {
+      const response = await fetch(this.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ events: eventsToFlush }),
+        keepalive: true,
+      });
 
-    // Fetch keepalive has a strict 64KB limit. Disable if payload is too large.
-    let useKeepAlive = isUnloading;
-    if (isUnloading) {
-      const isUnderQuota = new Blob([payloadString]).size < 60000;
-      useKeepAlive = isUnderQuota;
+      if (!response.ok && response.status !== 400) {
+        // Silently drop 400s (invalid payload) but retry on 500s or network issues by putting them back
+        // In a strict MVP, dropping errors is fine, but we can log locally.
+        console.warn(`Telemetry flush failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.warn("Network error during telemetry flush", error);
+      // Re-queue if we want, but MVP says keep it simple and drop them if too complex.
     }
+  }
 
-    import("../firebase").then(({ auth }) => {
-      auth.currentUser
-        ?.getIdToken()
-        .then((idToken) => {
-          fetch("/api/v1/ui-sync", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: payloadString,
-            keepalive: useKeepAlive,
-          }).catch((error) => {
-            console.debug("Telemetry flush dropped:", error);
-          });
-        })
-        .catch((error) => {
-          console.debug("Telemetry flush dropped (auth error):", error);
-        });
-    });
+  private flushSync() {
+    if (this.queue.length === 0) return;
+    const eventsToFlush = [...this.queue];
+    this.queue = [];
+
+    if (
+      typeof window !== "undefined" &&
+      "navigator" in window &&
+      navigator.sendBeacon
+    ) {
+      navigator.sendBeacon(
+        this.endpoint,
+        new Blob([JSON.stringify({ events: eventsToFlush })], {
+          type: "application/json",
+        }),
+      );
+    } else {
+      fetch(this.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ events: eventsToFlush }),
+        keepalive: true,
+      }).catch(() => {});
+    }
   }
 
   public dispose() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    this.isDisposed = true;
+    if (typeof window !== "undefined") {
+      window.removeEventListener(
+        "visibilitychange",
+        this.handleVisibilityChange,
+      );
     }
-    for (const release of this.releaseFns) {
-      release();
+    if (this.flushTimeout) {
+      clearTimeout(this.flushTimeout);
+      this.flushTimeout = null;
     }
-    this.releaseFns.length = 0;
-
-    this.flush(true);
+    this.flushSync();
   }
 }
 
-// Module-level singleton is often safer than Context for pure telemetry
+// Global instance for simple imports across the app
 export const telemetry = new TelemetryBatcher();

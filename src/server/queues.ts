@@ -263,33 +263,35 @@ export const startNetworkIoWorker = () => {
       if (job.data?.url) {
         const db = admin.firestore();
         const eventId = require("uuid").v4();
+        const batch = db.batch();
 
-        await db
-          .collection("telemetry_events")
-          .doc(eventId)
-          .set(
-            {
-              eventId,
-              schemaVersion: "v1",
-              eventName: "competitor_ingestion_completed",
-              actorType: "human",
-              projectId: job.data.projectId || "unknown_project",
+        batch.set(
+          db.collection("telemetry_events").doc(eventId),
+          {
+            eventId,
+            schemaVersion: "v1",
+            eventType: "activation",
+            actorType: "human",
+            projectId: job.data.projectId || "unknown_project",
+            payload: {
               competitorCount: 1,
               featuresExtractedCount: 0,
               durationMs:
                 job.finishedOn && job.processedOn
                   ? job.finishedOn - job.processedOn
                   : 0,
-              context: {
-                jobId: job.id,
-                userId: job.data.userId || "unknown",
-                environment: process.env.NODE_ENV || "development",
-                isTestAccount: false,
-                serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-              },
+              jobId: job.id,
+              userId: job.data.userId || "unknown",
+              environment: process.env.NODE_ENV || "development",
+              isTestAccount: false,
             },
-            { merge: true },
-          );
+            clientTimestamp: Date.now(),
+            serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        await batch.commit();
       }
     } catch (e) {
       console.error("Failed to log telemetry for networkIoQueue:", e);

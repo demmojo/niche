@@ -36,6 +36,8 @@ import {
 } from "./src/server/rateLimit";
 
 import { campaignRouter } from "./src/server/campaignRoutes";
+import { telemetryRouter } from "./src/server/routes/telemetryRoutes";
+import { superadminRouter } from "./src/server/superadminRoutes";
 
 dotenv.config();
 
@@ -81,6 +83,12 @@ async function startServer() {
 
   // New Tarpit Validation Campaign Routes
   app.use("/api/campaign", campaignRouter);
+
+  // Telemetry Routes
+  app.use("/api", telemetryRouter);
+
+  // Superadmin Routes
+  app.use("/api/superadmin", superadminRouter);
 
   // IDEATION ENDPOINTS
 
