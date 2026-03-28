@@ -5,6 +5,9 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+/**
+ *
+ */
 function getSpecContent(spec: ParsedSpec): string {
   try {
     const proposal = fs.readFileSync(
@@ -22,6 +25,9 @@ function getSpecContent(spec: ParsedSpec): string {
   }
 }
 
+/**
+ *
+ */
 export async function runEval(specs: ParsedSpec[]) {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("Skipping eval: GEMINI_API_KEY is not set.");

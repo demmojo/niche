@@ -1,5 +1,8 @@
 import { ParsedSpec } from "./utils.js";
 
+/**
+ *
+ */
 export function checkCycles(specs: ParsedSpec[]) {
   // Build adjacency list for "depends_on" relationships
   const adj = new Map<string, string[]>();
@@ -51,6 +54,9 @@ export function checkCycles(specs: ParsedSpec[]) {
   const visited = new Set<string>();
   const recStack = new Set<string>();
 
+  /**
+   *
+   */
   function dfs(node: string, path: string[]): boolean {
     if (recStack.has(node)) {
       console.error(`Cycle detected! Path: ${path.join(" -> ")} -> ${node}`);

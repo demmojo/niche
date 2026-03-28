@@ -8,6 +8,7 @@ export interface GenerateParams {
     responseSchema?: any;
     tools?: any[];
   };
+  sensitive?: boolean;
 }
 
 export type Capability = "reasoning" | "chat" | "extraction";
@@ -30,11 +31,17 @@ export const proModels = [
   "gpt-4o",
 ];
 
+/**
+ *
+ */
 export const getMainModel = (): string => {
   const data = localStorage.getItem("ai_main_model");
   return data || "default-pro";
 };
 
+/**
+ *
+ */
 export const setMainModel = (model: string) => {
   localStorage.setItem("ai_main_model", model);
 };
@@ -45,6 +52,9 @@ export interface AIModel {
   provider: string;
 }
 
+/**
+ *
+ */
 export const fetchAvailableModels = async (): Promise<AIModel[]> => {
   const models: AIModel[] = [];
   [
@@ -70,6 +80,9 @@ export const fetchAvailableModels = async (): Promise<AIModel[]> => {
   return models;
 };
 
+/**
+ *
+ */
 class AIClient {
   public lastTokens?: { input: number; output: number };
 
@@ -87,7 +100,7 @@ class AIClient {
     const res = await fetch("/api/llm/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ model, params }),
+      body: JSON.stringify({ model, params, sensitive: params.sensitive }),
       signal,
     });
 
@@ -129,6 +142,9 @@ class AIClient {
     signal?: AbortSignal,
   ): Promise<any> {
     const result = await this.generateContent(model, params, signal);
+    /**
+     *
+     */
     async function* dummyStream() {
       yield result;
     }
@@ -136,6 +152,9 @@ class AIClient {
   }
 }
 
+/**
+ *
+ */
 const getProviderForModel = (
   modelId: string,
 ): "gemini" | "openai" | "anthropic" => {
@@ -149,6 +168,9 @@ const getProviderForModel = (
   return "gemini";
 };
 
+/**
+ *
+ */
 export const withModelFallback = async <T>(
   operation: (ai: any, model: string, signal?: AbortSignal) => Promise<T>,
   config: { capability: Capability } = { capability: "chat" },
@@ -184,6 +206,9 @@ export const withModelFallback = async <T>(
 
     while (attempts <= maxRetries) {
       try {
+        /**
+         *
+         */
         const executeWithTimeout = async (): Promise<T> => {
           return new Promise<T>((resolve, reject) => {
             const controller = new AbortController();

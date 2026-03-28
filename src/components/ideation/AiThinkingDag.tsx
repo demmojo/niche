@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Network,
@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebase";
 
 interface AiThinkingDagProps {
   jobId: string;
@@ -24,11 +26,20 @@ interface DagNode {
   error?: string;
 }
 
+const STATE_IDLE = Symbol("IDLE");
+const STATE_POLLING = Symbol("POLLING");
+const STATE_COMPLETED = Symbol("COMPLETED");
+
+/**
+ *
+ */
 export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
   jobId,
   competitorsCount,
   onComplete,
 }) => {
+  const [isPending, startTransition] = useTransition();
+  const [appState, setAppState] = useState<symbol>(STATE_POLLING);
   const [nodes, setNodes] = useState<DagNode[]>([
     {
       id: "network-io",
@@ -50,122 +61,68 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
     },
   ]);
 
+  const progressRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
   useEffect(() => {
-    // 1. Establish SSE Connection
-    const eventSource = new EventSource("/api/sse");
+    if (!jobId || appState !== STATE_POLLING) return;
 
-    eventSource.onmessage = (event) => {
-      // Handles native unnamed events if any
-    };
+    const docRef = doc(db, "campaign_jobs", jobId);
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
 
-    eventSource.addEventListener("progress", (e: any) => {
-      const data = JSON.parse(e.data);
-      console.log("SSE Progress:", data);
+      const progress = data.progress || 0;
+      const total = data.total || competitorsCount || 1;
+      const percentage = Math.min(100, Math.round((progress / total) * 100));
 
-      // Map job ID to node ID
-      let targetNodeId = "synthesize";
-      if (data.jobId?.includes("scrape")) targetNodeId = "network-io";
-      else if (data.jobId?.includes("vision")) targetNodeId = "vision-ml";
+      // 1. High-frequency visual updates: Bypass React Virtual DOM for progress bar
+      if (
+        progressRef.current &&
+        textRef.current &&
+        data.status === "processing"
+      ) {
+        progressRef.current.style.width = `${percentage}%`;
+        textRef.current.textContent = `${percentage}% Complete...`;
+      }
 
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === targetNodeId
-            ? { ...n, status: "processing", progress: data.progress }
-            : n,
-        ),
-      );
-    });
-
-    eventSource.addEventListener("completed", (e: any) => {
-      const data = JSON.parse(e.data);
-
-      let targetNodeId = "synthesize";
-      if (data.jobId?.includes("scrape")) targetNodeId = "network-io";
-      else if (data.jobId?.includes("vision")) targetNodeId = "vision-ml";
-
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === targetNodeId
-            ? { ...n, status: "success", progress: 100 }
-            : n,
-        ),
-      );
-
-      // Mock advancing to the next stage if network-io is done
-      if (targetNodeId === "network-io") {
-        setTimeout(() => {
+      // 2. Low-frequency structural updates: Use React startTransition
+      if (data.status === "completed" && appState !== STATE_COMPLETED) {
+        setAppState(STATE_COMPLETED);
+        startTransition(() => {
+          setNodes((prev) =>
+            prev.map((n) => ({ ...n, status: "success", progress: 100 })),
+          );
+          if (data.results) {
+            onComplete(data.results);
+          }
+        });
+      } else if (data.status === "failed") {
+        setAppState(STATE_IDLE);
+        startTransition(() => {
+          setNodes((prev) =>
+            prev.map((n) => ({
+              ...n,
+              status: "failed",
+              error: data.error || "Job failed",
+            })),
+          );
+        });
+      } else if (data.status === "processing") {
+        startTransition(() => {
           setNodes((prev) =>
             prev.map((n) =>
-              n.id === "vision-ml"
-                ? { ...n, status: "processing", progress: 50 }
+              n.id === "network-io"
+                ? { ...n, status: "processing", progress: percentage }
                 : n,
             ),
           );
-
-          setTimeout(() => {
-            setNodes((prev) =>
-              prev.map((n) =>
-                n.id === "vision-ml"
-                  ? { ...n, status: "success", progress: 100 }
-                  : n,
-              ),
-            );
-
-            setTimeout(() => {
-              setNodes((prev) =>
-                prev.map((n) =>
-                  n.id === "synthesize"
-                    ? { ...n, status: "success", progress: 100 }
-                    : n,
-                ),
-              );
-
-              // Proceed to next phase with mock data
-              onComplete([
-                {
-                  id: 1,
-                  title: "Role-Based Access Control",
-                  cost: 5,
-                  source: "Competitor A",
-                },
-                {
-                  id: 2,
-                  title: "Real-time Collaboration",
-                  cost: 12,
-                  source: "Competitor B",
-                },
-                {
-                  id: 3,
-                  title: "AI Automation Workflow",
-                  cost: 20,
-                  source: "Competitor A",
-                },
-              ]);
-            }, 1000);
-          }, 2000);
-        }, 1000);
+        });
       }
     });
 
-    eventSource.addEventListener("failed", (e: any) => {
-      const data = JSON.parse(e.data);
-      let targetNodeId = "synthesize";
-      if (data.jobId?.includes("scrape")) targetNodeId = "network-io";
-      else if (data.jobId?.includes("vision")) targetNodeId = "vision-ml";
-
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === targetNodeId
-            ? { ...n, status: "failed", error: data.error }
-            : n,
-        ),
-      );
-    });
-
-    return () => {
-      eventSource.close();
-    };
-  }, [jobId, onComplete]);
+    return () => unsubscribe();
+  }, [jobId, appState, competitorsCount, onComplete]);
 
   return (
     <div className="flex-1 w-full bg-[#111] text-white p-8 relative flex items-center justify-center font-mono">
@@ -210,6 +167,7 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
                 {/* Progress Bar Background */}
                 {node.status === "processing" && (
                   <div
+                    ref={node.id === "network-io" ? progressRef : null}
                     className="absolute inset-0 bg-sky-500/5 transition-all duration-300 ease-out"
                     style={{ width: `${node.progress}%` }}
                   />
@@ -248,7 +206,10 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
                       {node.label}
                     </h3>
                     {node.status === "processing" && (
-                      <p className="text-sky-400 text-sm mt-1">
+                      <p
+                        ref={node.id === "network-io" ? textRef : null}
+                        className="text-sky-400 text-sm mt-1"
+                      >
                         {node.progress}% Complete...
                       </p>
                     )}

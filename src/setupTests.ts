@@ -44,6 +44,9 @@ const CONSOLE_ERROR_ALLOW_LIST = [
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+/**
+ *
+ */
 console.error = (...args: any[]) => {
   const msg =
     typeof args[0] === "string"
@@ -55,6 +58,9 @@ console.error = (...args: any[]) => {
   originalConsoleError(...args);
 };
 
+/**
+ *
+ */
 console.warn = (...args: any[]) => {
   const msg =
     typeof args[0] === "string"

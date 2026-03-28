@@ -6,10 +6,16 @@ import { MentionList } from "./MentionList";
 let abortController: AbortController | null = null;
 let debounceTimeout: NodeJS.Timeout | null = null;
 
+/**
+ *
+ */
 export const createMentionSuggestion = (triggerChar: string): any => {
   return {
     char: triggerChar,
 
+    /**
+     *
+     */
     items: async ({ query }: { query: string }) => {
       // Return default empty state if no query
       if (!query && triggerChar === "@") {
@@ -68,11 +74,17 @@ export const createMentionSuggestion = (triggerChar: string): any => {
       });
     },
 
+    /**
+     *
+     */
     render: () => {
       let component: ReactRenderer;
       let popup: TippyInstance[];
 
       return {
+        /**
+         *
+         */
         onStart: (props: any) => {
           component = new ReactRenderer(MentionList, {
             props,
@@ -85,6 +97,9 @@ export const createMentionSuggestion = (triggerChar: string): any => {
 
           popup = tippy("body", {
             getReferenceClientRect: props.clientRect,
+            /**
+             *
+             */
             appendTo: () => document.body,
             content: component.element,
             showOnCreate: true,

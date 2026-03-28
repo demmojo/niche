@@ -1,3 +1,6 @@
+/**
+ *
+ */
 export async function calculateImageHash(file: File): Promise<string> {
   return new Promise(async (resolve, reject) => {
     // Create a worker from the file URL
@@ -8,6 +11,9 @@ export async function calculateImageHash(file: File): Promise<string> {
       },
     );
 
+    /**
+     *
+     */
     worker.onmessage = (e) => {
       if (e.data.type === "success") {
         resolve(e.data.hash);
@@ -17,6 +23,9 @@ export async function calculateImageHash(file: File): Promise<string> {
       worker.terminate();
     };
 
+    /**
+     *
+     */
     worker.onerror = (err) => {
       reject(err);
       worker.terminate();

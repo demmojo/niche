@@ -9,6 +9,9 @@ interface TooltipProps {
   delay?: number;
 }
 
+/**
+ *
+ */
 export const Tooltip: React.FC<TooltipProps> = ({
   children,
   content,
@@ -24,21 +27,33 @@ export const Tooltip: React.FC<TooltipProps> = ({
     };
   }, []);
 
+  /**
+   *
+   */
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setIsVisible(true), delay);
   };
 
+  /**
+   *
+   */
   const handleMouseLeave = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsVisible(false);
   };
 
+  /**
+   *
+   */
   const handleFocus = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsVisible(true);
   };
 
+  /**
+   *
+   */
   const handleBlur = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsVisible(false);
@@ -47,6 +62,9 @@ export const Tooltip: React.FC<TooltipProps> = ({
   // On touch devices, tooltips can be annoying or get stuck.
   // A common pattern is to show them on touchstart (or tap) and hide on document tap elsewhere.
   // For simplicity and accessibility, we ensure focus and blur work.
+  /**
+   *
+   */
   const handleTouchStart = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsVisible(true);

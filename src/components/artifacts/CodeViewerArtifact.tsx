@@ -16,6 +16,9 @@ interface CodeViewerArtifactProps {
   onDeploy?: () => void;
 }
 
+/**
+ *
+ */
 export default function CodeViewerArtifact({
   acceptedFeatures,
   onDeploy,

@@ -52,6 +52,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#differentiator"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       return {
         instances: [
@@ -140,6 +143,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#swot", "#threats"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       return {
         instances: [
@@ -198,6 +204,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#flow", "#error"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const inst1 = `inst-${Date.now()}-1`;
       const inst2 = `inst-${Date.now()}-2`;
@@ -263,6 +272,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#gap", "#action"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const inst1 = `inst-${Date.now()}-1`;
       const inst2 = `inst-${Date.now()}-2`;
@@ -328,6 +340,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#journey", "#retention"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const inst1 = `inst-${Date.now()}-1`;
       const inst2 = `inst-${Date.now()}-2`;
@@ -393,6 +408,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#gtm", "#sales"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const inst1 = `inst-${Date.now()}-1`;
       const inst2 = `inst-${Date.now()}-2`;
@@ -464,6 +482,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#rca", "#root"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const insts = cardIds.map((id, i) => ({
         id: `inst-${Date.now()}-${i}`,
@@ -518,6 +539,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#lean", "#revenue"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       return {
         instances: [
@@ -581,6 +605,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#persona", "#behavior"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const inst1 = `inst-${Date.now()}-1`;
       return {
@@ -661,6 +688,9 @@ export const templates: Record<string, TemplateDefinition> = {
         tags: ["#content", "#distribution"],
       },
     ],
+    /**
+     *
+     */
     layout: (cardIds) => {
       const rootInst = `inst-${Date.now()}-0`;
       const distInst = `inst-${Date.now()}-4`;

@@ -1,5 +1,8 @@
 const ALPHA_LIMIT_KEY = 'nicheai_alpha_usage';
 
+/**
+ *
+ */
 export const checkAlphaLimit = (): boolean => {
   const today = new Date().toISOString().split('T')[0];
   const data = localStorage.getItem(ALPHA_LIMIT_KEY);
@@ -17,6 +20,9 @@ export const checkAlphaLimit = (): boolean => {
   return true; // Under limit
 };
 
+/**
+ *
+ */
 export const recordAlphaUsage = () => {
   const today = new Date().toISOString().split('T')[0];
   localStorage.getItem(ALPHA_LIMIT_KEY);

@@ -21,6 +21,9 @@ pubSub.on("message", (channel, message) => {
 });
 
 // Function to publish events to Redis Streams AND PubSub
+/**
+ *
+ */
 export const publishSseEvent = async (
   jobId: string,
   eventName: string,
@@ -46,6 +49,9 @@ export const publishSseEvent = async (
   pubSub.publish("sse_events", JSON.stringify({ eventName, data }));
 };
 
+/**
+ *
+ */
 export const sseEndpoint = async (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");

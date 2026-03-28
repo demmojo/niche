@@ -1,5 +1,8 @@
 import { Page } from "@playwright/test";
 
+/**
+ *
+ */
 export async function seedAuth(page: Page) {
   await page.route(
     "https://identitytoolkit.googleapis.com/**",
@@ -21,6 +24,9 @@ export async function seedAuth(page: Page) {
   );
 }
 
+/**
+ *
+ */
 export async function seedCompetitors(page: Page, competitors: any[]) {
   await page.route("**/api/apollo/search", async (route) => {
     await route.fulfill({
@@ -59,6 +65,9 @@ export async function seedCompetitors(page: Page, competitors: any[]) {
   });
 }
 
+/**
+ *
+ */
 export async function seedInsights(page: Page, insights: any[]) {
   await page.route(
     "https://generativelanguage.googleapis.com/**",

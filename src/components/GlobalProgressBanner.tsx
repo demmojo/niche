@@ -13,6 +13,9 @@ interface GlobalProgressBannerProps {
   activeTasks: Task[];
 }
 
+/**
+ *
+ */
 export const GlobalProgressBanner: React.FC<GlobalProgressBannerProps> = ({ isSyncing, activeTasks }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isVisible, setIsVisible] = useState(false);

@@ -18,6 +18,9 @@ const funnelData = [
   { step: "Waitlist Form", users: 211, drop: 211 },
 ];
 
+/**
+ *
+ */
 export function FakeDoorValidation() {
   const viewsKey: keyof (typeof funnelData)[0] = "users";
 

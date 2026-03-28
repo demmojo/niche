@@ -27,6 +27,9 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
   const [loadingExpanded, setLoadingExpanded] = useState(false);
 
   // Flatten items for keyboard navigation in multi-category view
+  /**
+   *
+   */
   const getFlatItems = () => {
     if (expandedCategory) {
       return expandedItems;
@@ -80,6 +83,9 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
   }, [expandedCategory, query]);
 
   useImperativeHandle(ref, () => ({
+    /**
+     *
+     */
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
       if (event.key === "ArrowUp") {
         setSelectedIndex(
@@ -114,6 +120,9 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
     },
   }));
 
+  /**
+   *
+   */
   const getIconForCategory = (category: string) => {
     switch (category) {
       case "competitor":
@@ -129,6 +138,9 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
     }
   };
 
+  /**
+   *
+   */
   const formatCategoryName = (category: string) => {
     return category
       .split("_")

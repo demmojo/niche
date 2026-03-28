@@ -15,6 +15,9 @@ interface DeploymentVisualizerProps {
   onAuditClick?: () => void;
 }
 
+/**
+ *
+ */
 export default function DeploymentVisualizer({
   versionName = "v1.0.0-draft",
   onAuditClick,
@@ -54,6 +57,9 @@ export default function DeploymentVisualizer({
   useEffect(() => {
     let isMounted = true;
 
+    /**
+     *
+     */
     const startDeploy = async () => {
       try {
         const stream = await deployToCloudflare("niche-app-generated");

@@ -140,7 +140,8 @@ service cloud.firestore {
              isValidOptionalString('apolloApiKey', 0, 1000) &&
              (!( 'autoSync' in request.resource.data ) || request.resource.data.autoSync is bool) &&
              (!( 'syncInterval' in request.resource.data ) || request.resource.data.syncInterval is number) &&
-             isValidOptionalString('defaultConfidenceThreshold', 0, 100);
+             isValidOptionalString('defaultConfidenceThreshold', 0, 100) &&
+             (!( 'actionCredits' in request.resource.data ) || request.resource.data.actionCredits is number);
     }
 
     function isValidCompetitor() {
@@ -208,6 +209,13 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /campaign_jobs/{jobId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Clients cannot create/update/delete campaign jobs directly, 
+      // they must use the BFF API `/api/campaign/start`
+      allow create, update, delete: if false;
+    }
 
     match /workspaces/{workspaceId} {
       allow create: if isAuthenticated() && request.auth.uid in request.resource.data.members;

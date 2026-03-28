@@ -8,6 +8,9 @@ interface TemplateGuideSidebarProps {
   onConnectData: () => void;
 }
 
+/**
+ *
+ */
 export function TemplateGuideSidebar({
   templateId,
   isOpen,
@@ -16,6 +19,9 @@ export function TemplateGuideSidebar({
 }: TemplateGuideSidebarProps) {
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const renderGuideContent = () => {
     switch (templateId) {
       case "feature-velocity":

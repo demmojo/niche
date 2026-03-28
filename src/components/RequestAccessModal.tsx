@@ -12,6 +12,9 @@ interface RequestAccessModalProps {
   user: any;
 }
 
+/**
+ *
+ */
 export function RequestAccessModal({
   open,
   onOpenChange,
@@ -21,6 +24,9 @@ export function RequestAccessModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  /**
+   *
+   */
   const handleRequest = async () => {
     setIsSubmitting(true);
     try {

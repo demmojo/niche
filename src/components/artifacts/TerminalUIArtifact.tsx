@@ -3,6 +3,9 @@ import { B_H2, B_Badge, B_Button, B_Card, B_TextBody } from "../BrutalistUI";
 import { Loader2, ArrowRight } from "lucide-react";
 import { deployToCloudflare } from "../../services/cloudflareService";
 
+/**
+ *
+ */
 export default function TerminalUIArtifact() {
   const [logs, setLogs] = useState<string[]>([
     "> INITIALIZING DEPLOYMENT PIPELINE...",
@@ -16,6 +19,9 @@ export default function TerminalUIArtifact() {
   useEffect(() => {
     let isMounted = true;
 
+    /**
+     *
+     */
     const startDeploy = async () => {
       try {
         const stream = await deployToCloudflare("niche-app-generated");

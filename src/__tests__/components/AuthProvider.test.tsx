@@ -35,6 +35,9 @@ vi.mock("../../firebase", () => ({
 }));
 
 // 2. Create a dummy consumer to consume the context hook
+/**
+ *
+ */
 const TestConsumer = () => {
   const { user, loading, login, loginEmail, logout } = useAuth();
   if (loading) return <div>Loading...</div>;

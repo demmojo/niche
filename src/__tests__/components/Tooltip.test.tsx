@@ -12,12 +12,18 @@ import { Tooltip } from "../../components/Tooltip";
 
 vi.mock("motion/react", () => ({
   motion: {
+    /**
+     *
+     */
     div: ({ children, className }: any) => (
       <div className={className} data-testid="tooltip-content">
         {children}
       </div>
     ),
   },
+  /**
+   *
+   */
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 

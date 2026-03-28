@@ -6,15 +6,45 @@ import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
+  /**
+   *
+   */
   Table: () => <span data-testid="icon-table" />,
+  /**
+   *
+   */
   Download: () => <span data-testid="icon-download" />,
+  /**
+   *
+   */
   Search: () => <span data-testid="icon-search" />,
+  /**
+   *
+   */
   Filter: () => <span data-testid="icon-filter" />,
+  /**
+   *
+   */
   ExternalLink: () => <span data-testid="icon-external-link" />,
+  /**
+   *
+   */
   ChevronDown: () => <span data-testid="icon-chevron-down" />,
+  /**
+   *
+   */
   ChevronUp: () => <span data-testid="icon-chevron-up" />,
+  /**
+   *
+   */
   Loader2: () => <span data-testid="icon-loader" />,
+  /**
+   *
+   */
   Sparkles: () => <span data-testid="icon-sparkles" />,
+  /**
+   *
+   */
   Plus: () => <span data-testid="icon-plus" />,
 }));
 
@@ -30,6 +60,9 @@ vi.mock("../../utils/aiClient", () => ({
 
 // Mock react-markdown
 vi.mock("react-markdown", () => ({
+  /**
+   *
+   */
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="markdown">{children}</div>
   ),
@@ -37,6 +70,9 @@ vi.mock("react-markdown", () => ({
 
 // Mock Tooltip component
 vi.mock("../../components/Tooltip", () => ({
+  /**
+   *
+   */
   Tooltip: ({
     children,
     content,

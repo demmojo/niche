@@ -6,6 +6,9 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+/**
+ *
+ */
 export async function generateDocs() {
   const templatePath = path.join(
     process.cwd(),
@@ -25,6 +28,7 @@ export async function generateDocs() {
   // 1. Get all OpenSpecs and format raw data
   const specs = getAllSpecs();
   let rawSpecData = "";
+  const specSummaries = new Map<string, string>();
   for (const spec of specs) {
     const proposalPath = path.join(spec.dirPath, "proposal.md");
     let summary = "No proposal found.";
@@ -40,6 +44,9 @@ export async function generateDocs() {
         summary = proposalContent.slice(0, 150).replace(/\n/g, " ") + "...";
       }
     }
+    // Clean up newlines for the markdown table
+    summary = summary.replace(/\n/g, " ");
+    specSummaries.set(spec.id, summary);
     const relativeLink = `openspec/changes/${spec.id}`;
     rawSpecData += `- Feature: ${spec.id}\n  Status: ${spec.data.status}\n  Summary: ${summary}\n  Link: ${relativeLink}\n\n`;
   }
@@ -57,11 +64,12 @@ export async function generateDocs() {
   console.log("Compiling live project documentation...");
 
   let gitSummaryText = gitHistory;
-  let specTableText = `| Feature | Summary | Status | Link |\n|---------|---------|--------|------|\n`;
+  let specTableText = `| Feature | Summary | Status | Link |\n|---|---|---|---|\n`;
   let techDebtText = "No tech debt recorded.";
   for (const spec of specs) {
-    const relativeLink = `[${spec.id}](openspec/changes/${spec.id})`;
-    specTableText += `| ${spec.id} | Derived from proposal | ${spec.data.status} | ${relativeLink} |\n`;
+    const summaryText = specSummaries.get(spec.id) || "Derived from proposal";
+    const relativeLink = `[Link](openspec/changes/${spec.id})`;
+    specTableText += `| ${spec.id} | ${summaryText} | ${spec.data.status} | ${relativeLink} |\n`;
   }
 
   // 3. Use Machine Learning to ensure documentation is up-to-date and accurate

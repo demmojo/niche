@@ -19,6 +19,9 @@ interface Message {
   contextUsed?: { type: "tag" | "card"; value: string }[];
 }
 
+/**
+ *
+ */
 export function MindmapAIChat({
   activeWhiteboardId,
   onClose,
@@ -48,6 +51,9 @@ export function MindmapAIChat({
   }, [messages]);
 
   // Mentions logic
+  /**
+   *
+   */
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
@@ -79,6 +85,9 @@ export function MindmapAIChat({
       .map((t) => ({ type: "card", value: t })),
   ].slice(0, 10);
 
+  /**
+   *
+   */
   const insertMention = (mention: { type: string; value: string }) => {
     const cursorPosition = inputRef.current?.selectionStart || 0;
     const textBeforeCursor = input.substring(0, cursorPosition);
@@ -96,6 +105,9 @@ export function MindmapAIChat({
     inputRef.current?.focus();
   };
 
+  /**
+   *
+   */
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
@@ -184,6 +196,9 @@ export function MindmapAIChat({
     }
   };
 
+  /**
+   *
+   */
   const handlePinInsight = (content: string) => {
     // Generate a title summarizing the content (in prod, maybe ask Gemini to title it)
     const title = "AI Insight: " + content.substring(0, 20) + "...";

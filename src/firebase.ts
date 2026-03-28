@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, deleteApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -6,10 +6,14 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithCustomToken
 } from "firebase/auth";
 import { getFirestore, setLogLevel, disableNetwork } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
+/**
+ *
+ */
 const getApiKey = () => {
   if (
     typeof import.meta !== "undefined" &&
@@ -33,17 +37,87 @@ const configToUse = {
   apiKey: getApiKey() || firebaseConfig.apiKey,
 };
 
-const app = initializeApp(configToUse);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const defaultApp = initializeApp(configToUse);
+const defaultDb = getFirestore(defaultApp, firebaseConfig.firestoreDatabaseId);
+const defaultAuth = getAuth(defaultApp);
 
 // Suppress internal Firestore logs, especially for quota exceeded errors
 setLogLevel("silent");
 
-export const auth = getAuth(app);
+// Track active impersonation app
+let impersonationApp: any = null;
+
+// Proxy objects that forward to the impersonation app if it exists, otherwise default app
+export const db = new Proxy(defaultDb, {
+  get(target, prop) {
+    const activeDb = impersonationApp ? getFirestore(impersonationApp, firebaseConfig.firestoreDatabaseId) : target;
+    const value = activeDb[prop as keyof typeof defaultDb];
+    if (typeof value === 'function') {
+      return value.bind(activeDb);
+    }
+    return value;
+  }
+});
+
+export const auth = new Proxy(defaultAuth, {
+  get(target, prop) {
+    const activeAuth = impersonationApp ? getAuth(impersonationApp) : target;
+    const value = activeAuth[prop as keyof typeof defaultAuth];
+    if (typeof value === 'function') {
+      return value.bind(activeAuth);
+    }
+    return value;
+  }
+});
+
+const IMPERSONATION_TOKEN_KEY = 'niche_impersonation_token';
+
+export const startImpersonation = async (customToken: string) => {
+  if (impersonationApp) {
+    await stopImpersonation();
+  }
+  impersonationApp = initializeApp(configToUse, 'impersonation-session');
+  const impAuth = getAuth(impersonationApp);
+  await signInWithCustomToken(impAuth, customToken);
+  
+  sessionStorage.setItem(IMPERSONATION_TOKEN_KEY, customToken);
+  (window as any).__niche_impersonating = true;
+  // Re-trigger auth state listeners
+  window.dispatchEvent(new Event('auth-state-changed'));
+};
+
+export const stopImpersonation = async () => {
+  if (impersonationApp) {
+    const appToDelete = impersonationApp;
+    impersonationApp = null;
+    await signOut(getAuth(appToDelete));
+    await deleteApp(appToDelete);
+    sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+    (window as any).__niche_impersonating = false;
+    window.dispatchEvent(new Event('auth-state-changed'));
+  }
+};
+
+// Check for existing impersonation session on boot
+if (typeof window !== 'undefined') {
+  const existingToken = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY);
+  if (existingToken) {
+    // We don't await this so it doesn't block boot, but it means the app might render briefly as the admin.
+    // In a real robust implementation, we would wait for this in the AuthProvider.
+    startImpersonation(existingToken).catch(() => {
+      sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+    });
+  }
+}
+
+
 
 let isNetworkDisabled = false;
 let disableNetworkPromise: Promise<void> | null = null;
 
+/**
+ *
+ */
 export const safeDisableNetwork = async () => {
   if (isNetworkDisabled) return;
   if (disableNetworkPromise) return disableNetworkPromise;
@@ -62,6 +136,9 @@ export const safeDisableNetwork = async () => {
   }
 };
 
+/**
+ *
+ */
 export const loginWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   try {
@@ -72,6 +149,9 @@ export const loginWithGoogle = async () => {
   }
 };
 
+/**
+ *
+ */
 export const loginWithEmail = async (email: string, password: string) => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
@@ -93,6 +173,9 @@ export const loginWithEmail = async (email: string, password: string) => {
   }
 };
 
+/**
+ *
+ */
 export const logout = async () => {
   try {
     await signOut(auth);

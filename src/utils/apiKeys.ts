@@ -5,10 +5,16 @@ export type ApiService = "gemini" | "apollo" | "exa" | "openai" | "anthropic";
 // if the cookie was set, though technically the actual key is HTTP-Only now.
 // For backward compatibility in logic that checks `if (getCustomApiKey('gemini'))`,
 // we will just return a placeholder string or rely on localStorage flag.
+/**
+ *
+ */
 export const getCustomApiKey = (service: ApiService): string | null => {
   return localStorage.getItem(`custom_api_key_configured_${service}`);
 };
 
+/**
+ *
+ */
 export const setCustomApiKey = async (service: ApiService, key: string) => {
   if (key) {
     localStorage.setItem(`custom_api_key_configured_${service}`, "true");

@@ -23,6 +23,9 @@ interface AssetVersion {
   created_at: string;
 }
 
+/**
+ *
+ */
 export const RawDataLibraryTabular: React.FC = () => {
   const [data, setData] = useState<AssetVersion[]>([]);
   const [consolidatedMetrics, setConsolidatedMetrics] = useState<
@@ -36,6 +39,9 @@ export const RawDataLibraryTabular: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"assets" | "metrics">("metrics");
 
   useEffect(() => {
+    /**
+     *
+     */
     const fetchData = async () => {
       try {
         if (!supabase) {
@@ -89,6 +95,9 @@ export const RawDataLibraryTabular: React.FC = () => {
       }
     };
 
+    /**
+     *
+     */
     const loadMockData = () => {
       // Mock data for UI development fallback
       setData([
@@ -150,6 +159,9 @@ export const RawDataLibraryTabular: React.FC = () => {
     fetchData();
   }, []);
 
+  /**
+   *
+   */
   const getIcon = (type: string) => {
     switch (type) {
       case "json":
@@ -163,6 +175,9 @@ export const RawDataLibraryTabular: React.FC = () => {
     }
   };
 
+  /**
+   *
+   */
   const toggleRow = (metricName: string) => {
     const next = new Set(expandedRows);
     if (next.has(metricName)) {
@@ -173,6 +188,9 @@ export const RawDataLibraryTabular: React.FC = () => {
     setExpandedRows(next);
   };
 
+  /**
+   *
+   */
   const handlePin = async (metric: RawDataMetric) => {
     try {
       // Create synthetic version event for audit trail in a real system:

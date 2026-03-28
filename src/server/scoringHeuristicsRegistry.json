@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "heuristics": {
+    "TARPIT_THRESHOLD": 80,
+    "APOLLO_MAX_SATURATION": 500,
+    "WEIGHT_UNIQUENESS": 0.4,
+    "WEIGHT_APOLLO": 0.6,
+    "ORTHOGONAL_DISTANCE_TAU": 0.7,
+    "LOCAL_DENSITY_THRESHOLD": 0.2
+  },
+  "history": [
+    {
+      "date": "2026-03-28",
+      "author": "OpenSpec Apply",
+      "description": "Initial setup of the Versioned Heuristic Registry for the Hybrid Scoring Engine."
+    }
+  ]
+}

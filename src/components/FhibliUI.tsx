@@ -7,21 +7,39 @@ import {
 } from 'lucide-react';
 
 // --- Typography ---
+/**
+ *
+ */
 export const H1 = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <h1 className={`text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-ghibli-charcoal mb-4 ${className}`}>{children}</h1>
 );
+/**
+ *
+ */
 export const H2 = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <h2 className={`text-3xl md:text-4xl font-heading font-semibold text-ghibli-charcoal mb-3 ${className}`}>{children}</h2>
 );
+/**
+ *
+ */
 export const H3 = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <h3 className={`text-2xl md:text-3xl font-heading font-semibold text-ghibli-charcoal mb-3 ${className}`}>{children}</h3>
 );
+/**
+ *
+ */
 export const TextLg = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <p className={`text-lg md:text-xl text-ghibli-charcoal-light mb-2 ${className}`}>{children}</p>
 );
+/**
+ *
+ */
 export const TextMd = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <p className={`text-base text-ghibli-charcoal-light mb-2 ${className}`}>{children}</p>
 );
+/**
+ *
+ */
 export const TextSm = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <p className={`text-sm text-ghibli-charcoal-light mb-1 ${className}`}>{children}</p>
 );
@@ -35,6 +53,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   badge?: string;
 }
 
+/**
+ *
+ */
 export const Button = ({ 
   children, variant = 'primary', size = 'md', 
   startIcon, endIcon, badge, className = '', ...props 
@@ -75,6 +96,9 @@ export const Button = ({
 };
 
 // --- Cards ---
+/**
+ *
+ */
 export const Card = ({ children, className = '', hover = true }: { children: React.ReactNode, className?: string, hover?: boolean }) => (
   <div className={`bg-white rounded-3xl p-6 shadow-soft border border-ghibli-wood-100 ${hover ? 'hover:shadow-soft-hover transition-shadow duration-300' : ''} ${className} relative overflow-hidden`}>
     {/* Subtle paper texture overlay */}
@@ -86,6 +110,9 @@ export const Card = ({ children, className = '', hover = true }: { children: Rea
 );
 
 // --- Badges ---
+/**
+ *
+ */
 export const Badge = ({ children, variant = 'default', className = '' }: { children: React.ReactNode, variant?: 'default' | 'success' | 'warning' | 'error', className?: string }) => {
   const variants = {
     default: "bg-ghibli-blue-100 text-ghibli-charcoal",
@@ -101,6 +128,9 @@ export const Badge = ({ children, variant = 'default', className = '' }: { child
 };
 
 // --- Inputs ---
+/**
+ *
+ */
 export const Input = ({ label, className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) => (
   <div className={`flex flex-col gap-1.5 ${className}`}>
     {label && <label className="text-sm font-semibold text-ghibli-charcoal-light ml-1">{label}</label>}
@@ -111,6 +141,9 @@ export const Input = ({ label, className = '', ...props }: React.InputHTMLAttrib
   </div>
 );
 
+/**
+ *
+ */
 export const Textarea = ({ label, className = '', ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) => (
   <div className={`flex flex-col gap-1.5 ${className}`}>
     {label && <label className="text-sm font-semibold text-ghibli-charcoal-light ml-1">{label}</label>}
@@ -122,6 +155,9 @@ export const Textarea = ({ label, className = '', ...props }: React.TextareaHTML
 );
 
 // --- Accordion ---
+/**
+ *
+ */
 export const Accordion = ({ title, children, defaultOpen = false }: { title: string, children: React.ReactNode, defaultOpen?: boolean }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
@@ -155,6 +191,9 @@ export const Accordion = ({ title, children, defaultOpen = false }: { title: str
 };
 
 // --- Avatar ---
+/**
+ *
+ */
 export const Avatar = ({ src, alt, size = 'md', fallback }: { src?: string, alt?: string, size?: 'sm' | 'md' | 'lg', fallback: string }) => {
   const sizes = {
     sm: "w-8 h-8 text-xs",
@@ -170,6 +209,9 @@ export const Avatar = ({ src, alt, size = 'md', fallback }: { src?: string, alt?
 };
 
 // --- Leaf Animation ---
+/**
+ *
+ */
 export const LeafAnimation = () => {
   return (
     <div className="leaf-container">

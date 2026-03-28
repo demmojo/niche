@@ -4,6 +4,9 @@ import { describe, it, expect, vi } from "vitest";
 import { AlphaBadge } from "../../components/AlphaBadge";
 
 vi.mock("lucide-react", () => ({
+  /**
+   *
+   */
   AlertTriangle: () => <div data-testid="icon-alert" />,
 }));
 

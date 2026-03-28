@@ -6,23 +6,38 @@ import { DashboardExtensions } from "../../components/DashboardExtensions";
 
 // Mock child components to isolate tests
 vi.mock("../../components/FakeDoorMetrics", () => ({
+  /**
+   *
+   */
   FakeDoorMetrics: () => <div data-testid="fake-door-metrics" />,
 }));
 
 vi.mock("../../components/SuggestionFeed", () => ({
+  /**
+   *
+   */
   SuggestionFeed: () => <div data-testid="suggestion-feed" />,
 }));
 
 vi.mock("../../components/CapabilityGapDashboard", () => ({
+  /**
+   *
+   */
   CapabilityGapDashboard: () => <div data-testid="capability-gap-dashboard" />,
 }));
 
 vi.mock("../../components/VisualSyncModal", () => ({
+  /**
+   *
+   */
   VisualSyncModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? <div data-testid="visual-sync-modal" /> : null,
 }));
 
 vi.mock("../../components/DeploymentWizardModal", () => ({
+  /**
+   *
+   */
   DeploymentWizardModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? <div data-testid="deployment-wizard-modal" /> : null,
 }));

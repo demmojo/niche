@@ -1,54 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { AiThinkingDag } from "../../../../src/components/ideation/AiThinkingDag";
 import { act } from "react";
+import * as firestore from "firebase/firestore";
 
-// Make a Mock Event Source that we can control
-class MockEventSource {
-  url: string;
-  listeners: Record<string, Function[]> = {};
+// Mock firebase/firestore
+vi.mock("firebase/firestore", () => {
+  return {
+    doc: vi.fn(),
+    onSnapshot: vi.fn(),
+    getFirestore: vi.fn()
+  };
+});
 
-  constructor(url: string) {
-    this.url = url;
-    (globalThis as any).__mockEventSource = this;
-  }
-
-  addEventListener(event: string, callback: Function) {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
-    }
-    this.listeners[event].push(callback);
-  }
-
-  removeEventListener(event: string, callback: Function) {
-    if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter(
-        (cb) => cb !== callback,
-      );
-    }
-  }
-
-  close() {}
-
-  // Helper to trigger events
-  trigger(eventName: string, data: any) {
-    if (this.listeners[eventName]) {
-      const eventObj = { data: JSON.stringify(data) };
-      this.listeners[eventName].forEach((cb) => cb(eventObj));
-    }
-  }
-}
+vi.mock("../../../../src/firebase", () => ({
+  db: {}
+}));
 
 describe("AiThinkingDag", () => {
+  let snapshotCallback: Function;
+
   beforeEach(() => {
-    vi.stubGlobal("EventSource", MockEventSource);
+    vi.clearAllMocks();
     vi.useFakeTimers();
+
+    vi.mocked(firestore.onSnapshot).mockImplementation((docRef, cb: any) => {
+      snapshotCallback = cb;
+      return vi.fn(); // return an unsubscribe function
+    });
   });
 
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it("renders initial nodes correctly", () => {
@@ -79,13 +63,14 @@ describe("AiThinkingDag", () => {
       />,
     );
 
-    const es = (globalThis as any).__mockEventSource as MockEventSource;
-
     act(() => {
-      es.trigger("progress", { jobId: "scrape-123", progress: 45 });
+      snapshotCallback({
+        exists: () => true,
+        data: () => ({ status: "processing", progress: 1, total: 3 })
+      });
     });
 
-    expect(screen.getByText("45% Complete...")).toBeInTheDocument();
+    expect(screen.getByText("33% Complete...")).toBeInTheDocument();
   });
 
   it("advances through the DAG flow automatically after network-io completes", async () => {
@@ -98,37 +83,15 @@ describe("AiThinkingDag", () => {
       />,
     );
 
-    const es = (globalThis as any).__mockEventSource as MockEventSource;
-
     act(() => {
-      es.trigger("completed", { jobId: "scrape-123" });
+      snapshotCallback({
+        exists: () => true,
+        data: () => ({ status: "completed", progress: 3, total: 3, results: [{ name: "foo" }] })
+      });
     });
 
-    // We have a chain of setTimeouts in the component:
-    // 1000ms -> set vision-ml to 50%
-    // +2000ms -> set vision-ml to 100%
-    // +1000ms -> set synthesize to 100%
-    // +1000ms -> call onComplete
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(screen.getByText("50% Complete...")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(onComplete).toHaveBeenCalled();
+    // We check that onComplete is called
+    expect(onComplete).toHaveBeenCalledWith([{ name: "foo" }]);
   });
 
   it("shows failure state when a job fails", async () => {
@@ -141,15 +104,13 @@ describe("AiThinkingDag", () => {
       />,
     );
 
-    const es = (globalThis as any).__mockEventSource as MockEventSource;
-
     act(() => {
-      es.trigger("failed", {
-        jobId: "vision-123",
-        error: "Failed to extract vision",
+      snapshotCallback({
+        exists: () => true,
+        data: () => ({ status: "failed", error: "Failed to extract vision" })
       });
     });
 
-    expect(screen.getByText("Failed to extract vision")).toBeInTheDocument();
+    expect(screen.getAllByText("Failed to extract vision").length).toBeGreaterThan(0);
   });
 });

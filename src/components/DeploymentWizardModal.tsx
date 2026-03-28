@@ -17,6 +17,9 @@ interface DeploymentWizardModalProps {
   myProductData: MyProductData;
 }
 
+/**
+ *
+ */
 export const DeploymentWizardModal: React.FC<DeploymentWizardModalProps> = ({
   isOpen,
   onClose,
@@ -28,6 +31,9 @@ export const DeploymentWizardModal: React.FC<DeploymentWizardModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleOAuthConnect = () => {
     setIsConnecting(true);
     setTimeout(() => {
@@ -37,6 +43,9 @@ export const DeploymentWizardModal: React.FC<DeploymentWizardModalProps> = ({
     }, 2000);
   };
 
+  /**
+   *
+   */
   const simulateDeployment = () => {
     let currentStatus = 0;
     const interval = setInterval(() => {

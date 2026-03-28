@@ -2,6 +2,9 @@ import { supabase } from "./hashing";
 import { executeActionLogic } from "./backgroundProcessor";
 import { DLQRecord } from "../types";
 
+/**
+ *
+ */
 export async function processDLQ() {
   console.log("Checking Dead-Letter Queue for pending retries...");
 

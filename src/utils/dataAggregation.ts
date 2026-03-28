@@ -11,6 +11,9 @@ export interface ConsolidatedMetric {
   is_pinned?: boolean;
 }
 
+/**
+ *
+ */
 export function aggregateMetrics(
   metrics: RawDataMetric[],
 ): ConsolidatedMetric[] {
@@ -104,6 +107,9 @@ export function aggregateMetrics(
   return result;
 }
 
+/**
+ *
+ */
 export function calculateCombinedTrust(metric: RawDataMetric): number {
   const staticWeight = metric.static_source_weight ?? 50;
   const aiScore = metric.ai_confidence_score ?? 50;

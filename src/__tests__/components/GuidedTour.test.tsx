@@ -43,6 +43,9 @@ describe("GuidedTour Component", () => {
     document.querySelector = vi.fn().mockImplementation((selector: string) => {
       if (selector === ".step-1" || selector === ".step-2") {
         const el = document.createElement("div");
+        /**
+         *
+         */
         el.getBoundingClientRect = () => ({
           top: 100,
           left: 100,
@@ -52,6 +55,9 @@ describe("GuidedTour Component", () => {
           height: 100,
           x: 100,
           y: 100,
+          /**
+           *
+           */
           toJSON: () => {},
         });
         return el;

@@ -7,6 +7,9 @@ interface LimitReachedModalProps {
   onRequestIncrease: () => void;
 }
 
+/**
+ *
+ */
 export function LimitReachedModal({
   isOpen,
   onClose,

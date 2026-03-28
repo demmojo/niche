@@ -2,6 +2,7 @@ import { Queue, Worker, QueueEvents } from "bullmq";
 import Redis from "ioredis";
 import * as dotenv from "dotenv";
 import { publishSseEvent } from "./sse";
+import * as admin from "firebase-admin";
 
 dotenv.config();
 
@@ -17,9 +18,20 @@ export const connection = new Redis(
 // Create Queues
 export const networkIoQueue = new Queue("network-io-queue", { connection });
 export const visionMlQueue = new Queue("vision-ml-queue", { connection });
+export const brandWizardQueue = new Queue("brand-wizard-queue", { connection });
+export const brandReviewQueue = new Queue("brand-review-queue", { connection });
+export const marketIntelligenceQueue = new Queue("market-intelligence-queue", {
+  connection,
+});
+export const distillationQueue = new Queue("distillation-queue", {
+  connection,
+});
 
 // Custom Full Jitter Backoff Strategy
 // delay = base * 2^attempt + random(0, 1000)
+/**
+ *
+ */
 const fullJitterBackoff = (attemptsMade: number) => {
   const baseDelay = 1000; // 1 second
   const maxDelay = 30000; // 30 seconds
@@ -28,30 +40,146 @@ const fullJitterBackoff = (attemptsMade: number) => {
   return exponential + jitter;
 };
 
-// --- Mock Exa Scraping Logic for Network IO ---
-export const startNetworkIoWorker = () => {
+/**
+ * Halts queue execution by throwing a specialized error, which acts
+ * as a yield to the frontend. The task writes its state to Firestore.
+ */
+export class ConsentRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConsentRequiredError";
+  }
+}
+
+export const requestUserConsent = async (
+  jobId: string,
+  proposedAction: any,
+  context: any,
+) => {
+  const db = admin.firestore();
+
+  await db.collection("Tasks").doc(jobId).set(
+    {
+      status: "PENDING_CONSENT",
+      proposedAction,
+      context,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  throw new ConsentRequiredError(
+    "Task paused pending user consent in the Action Audit Log.",
+  );
+};
+
+import Exa from "exa-js";
+
+import { Piscina } from "piscina";
+import path from "path";
+
+// --- Taxonomy Merge Outbox Worker (Phase 5) ---
+let taxonomyPool: Piscina;
+if (process.env.NODE_ENV !== "test") {
+  taxonomyPool = new Piscina({
+    filename: path.resolve(__dirname, "./workers/taxonomyPiscinaWorker.ts"),
+    minThreads: 1,
+    maxThreads: 4,
+    execArgv: ["--import", "tsx"], // needed for running TS files in Piscina thread
+  });
+}
+
+export const startTaxonomyOutboxWorker = () => {
+  // A simple polling worker
+  setInterval(async () => {
+    try {
+      const db = admin.firestore();
+      const snap = await db
+        .collection("taxonomy_merge_events")
+        .where("status", "==", "pending")
+        .limit(10)
+        .get();
+
+      for (const doc of snap.docs) {
+        // Mark as processing
+        await doc.ref.update({ status: "processing" });
+
+        // Hand off to piscina pool
+        taxonomyPool
+          .run({ eventId: doc.id, proposalId: doc.data().proposalId })
+          .catch((e) => {
+            console.error("Taxonomy pool error:", e);
+            doc.ref.update({ status: "failed", error: e.message });
+          });
+      }
+    } catch (e) {
+      console.error("Taxonomy outbox poll failed:", e);
+    }
+  }, 10000); // poll every 10s
+};
+
+// --- Continuous Distillation Worker (Phase 5) ---
+export const startDistillationWorker = () => {
   const worker = new Worker(
-    "network-io-queue",
+    "distillation-queue",
     async (job) => {
       publishSseEvent(job.id || "unknown", "progress", {
-        status: "Scraping competitor...",
-        progress: 20,
+        status: "Starting continuous distillation...",
+        progress: 10,
       });
 
-      // Simulating a network call that could fail (Circuit breaker logic can be added here)
-      // For now, we just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // 1. Fetch the last_processed_id from some config table or state
+      const db = admin.firestore();
+      const stateDoc = await db
+        .collection("system_state")
+        .doc("distillation")
+        .get();
+      const lastProcessedId = stateDoc.exists
+        ? stateDoc.data()?.last_processed_id
+        : "00000000-0000-0000-0000-000000000000";
 
-      publishSseEvent(job.id || "unknown", "progress", {
-        status: "Processing data...",
-        progress: 80,
-      });
+      // 2. Query Postgres (via Supabase) for rows after lastProcessedId
+      // For this implementation we mock the query:
+      const { supabase } = await import("../utils/hashing");
+      const { data, error } = await supabase
+        .from("raw_data_versions")
+        .select("id, blob_uri, extracted_metadata")
+        .gt("id", lastProcessedId)
+        .order("id", { ascending: true })
+        .limit(100);
 
-      return {
-        success: true,
-        url: job.data.url,
-        text: "Simulated scraped content from " + job.data.url,
-      };
+      if (error) {
+        throw new Error(
+          "Failed to fetch records for distillation: " + error.message,
+        );
+      }
+
+      if (data && data.length > 0) {
+        const newWatermark = data[data.length - 1].id;
+
+        // Simulate Distillation (Extracting key insights via Gemini before TTL deletes raw blobs)
+        publishSseEvent(job.id || "unknown", "progress", {
+          status: `Distilling ${data.length} records...`,
+          progress: 50,
+        });
+
+        // 3. Update the watermark
+        await db.collection("system_state").doc("distillation").set(
+          {
+            last_processed_id: newWatermark,
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        return { success: true, recordsProcessed: data.length, newWatermark };
+      } else {
+        return {
+          success: true,
+          recordsProcessed: 0,
+          newWatermark: lastProcessedId,
+        };
+      }
     },
     {
       connection,
@@ -63,7 +191,7 @@ export const startNetworkIoWorker = () => {
 
   worker.on("completed", (job) => {
     publishSseEvent(job.id || "unknown", "completed", {
-      status: "Done",
+      status: "Distillation Completed",
       result: job.returnvalue,
     });
   });
@@ -74,25 +202,163 @@ export const startNetworkIoWorker = () => {
 
   return worker;
 };
+/**
+ *
+ */
+export const startNetworkIoWorker = () => {
+  const worker = new Worker(
+    "network-io-queue",
+    async (job) => {
+      publishSseEvent(job.id || "unknown", "progress", {
+        status: "Scraping competitor via Exa...",
+        progress: 20,
+      });
 
-// --- Mock Vision ML Logic ---
+      const key = process.env.EXA_API_KEY;
+      if (!key) throw new Error("EXA_API_KEY is missing");
+      const exa = new Exa(key);
+
+      const response = await exa.search(job.data.url, {
+        type: "neural",
+        numResults: 1,
+        contents: {
+          text: {
+            maxCharacters: 4000,
+            includeHtmlTags: false,
+          },
+        },
+      });
+
+      publishSseEvent(job.id || "unknown", "progress", {
+        status: "Processing data...",
+        progress: 80,
+      });
+
+      const resultText =
+        response.results && response.results.length > 0
+          ? response.results[0].text
+          : "";
+
+      return {
+        success: true,
+        url: job.data.url,
+        text: resultText,
+      };
+    },
+    {
+      connection,
+      settings: {
+        backoffStrategy: fullJitterBackoff,
+      },
+    },
+  );
+
+  worker.on("completed", async (job) => {
+    publishSseEvent(job.id || "unknown", "completed", {
+      status: "Done",
+      result: job.returnvalue,
+    });
+
+    try {
+      if (job.data?.url) {
+        const db = admin.firestore();
+        const eventId = require("uuid").v4();
+
+        await db
+          .collection("telemetry_events")
+          .doc(eventId)
+          .set(
+            {
+              eventId,
+              schemaVersion: "v1",
+              eventName: "competitor_ingestion_completed",
+              actorType: "human",
+              projectId: job.data.projectId || "unknown_project",
+              competitorCount: 1,
+              featuresExtractedCount: 0,
+              durationMs:
+                job.finishedOn && job.processedOn
+                  ? job.finishedOn - job.processedOn
+                  : 0,
+              context: {
+                jobId: job.id,
+                userId: job.data.userId || "unknown",
+                environment: process.env.NODE_ENV || "development",
+                isTestAccount: false,
+                serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            },
+            { merge: true },
+          );
+      }
+    } catch (e) {
+      console.error("Failed to log telemetry for networkIoQueue:", e);
+    }
+  });
+
+  worker.on("failed", (job, err) => {
+    publishSseEvent(job?.id || "unknown", "failed", { error: err.message });
+  });
+
+  return worker;
+};
+
+import { GoogleGenAI } from "@google/genai";
+
+// --- Vision ML Logic (Gemini 1.5 Pro) ---
+/**
+ *
+ */
 export const startVisionMlWorker = () => {
   const worker = new Worker(
     "vision-ml-queue",
     async (job) => {
       publishSseEvent(job.id || "unknown", "progress", {
-        status: "Analyzing image...",
+        status: "Analyzing image via Gemini Vision...",
         progress: 10,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 4000));
+      const { imageBase64, mimeType } = job.data;
+      if (!imageBase64) throw new Error("Missing imageBase64");
+
+      const key = process.env.GEMINI_API_KEY;
+      if (!key) throw new Error("GEMINI_API_KEY is missing");
+      const ai = new GoogleGenAI({ apiKey: key });
+
+      const prompt =
+        "Analyze this image and extract the key features present in the UI. Return a JSON object with a single key 'features' mapping to an array of strings.";
+      const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+
+      const geminiRes = await ai.models.generateContent({
+        model: "gemini-3.1-pro",
+        contents: [
+          prompt,
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType || "image/png",
+            },
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction:
+            'You are a UI analysis expert. Always output valid JSON matching { "features": ["feat1", "feat2"] }.',
+        },
+      });
 
       publishSseEvent(job.id || "unknown", "progress", {
         status: "Extracting features...",
         progress: 90,
       });
 
-      return { success: true, features: ["Mock Feature 1", "Mock Feature 2"] };
+      const responseText = geminiRes.text || "{}";
+      const realResponse =
+        typeof responseText === "string"
+          ? JSON.parse(responseText)
+          : responseText;
+
+      return { success: true, features: realResponse.features || [] };
     },
     {
       connection,

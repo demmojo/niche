@@ -15,6 +15,9 @@ interface CapabilityGapDashboardProps {
   competitors: Competitor[];
 }
 
+/**
+ *
+ */
 export const CapabilityGapDashboard: React.FC<CapabilityGapDashboardProps> = ({
   productData,
   competitors,

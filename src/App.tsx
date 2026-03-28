@@ -4,6 +4,8 @@ import { DataSourceCard } from "./components/DataSourceCard";
 import { dictionary, tMessage } from "./content/dictionary";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useSyncQueue } from "./hooks/useSyncQueue";
+import { useSafeAITask } from "./hooks/useSafeAITask";
+import { useTaxonomySync } from "./hooks/useTaxonomySync";
 import {
   createCompetitorDiffs,
   filterVerifiedDiffs,
@@ -102,7 +104,10 @@ import { VisualWhiteboard } from "./components/whiteboard/VisualWhiteboard";
 import { StrategyToolbox } from "./components/StrategyToolbox";
 import { useVisualKnowledgeStore } from "./store/visualKnowledgeStore";
 import { Settings as SettingsComponent } from "./components/Settings";
-import { AlphaBadge } from "./components/AlphaBadge";
+import { MarketShiftBanner } from "./components/MarketShiftBanner";
+import { ComputeMeter } from "./components/ComputeMeter";
+import { TarpitWarningModal } from "./components/TarpitWarningModal";
+import { useActionCredits } from "./hooks/useActionCredits";
 import { SupportHelpPage } from "./components/SupportHelpPage";
 import { SuperadminDashboard } from "./components/SuperadminDashboard";
 import { DLQViewer } from "./components/DLQViewer";
@@ -114,6 +119,7 @@ import { Heart } from "lucide-react";
 import { MarketValueNotebook } from "./components/MarketValueNotebook";
 import { RapidPdlcWorkflow } from "./components/RapidPdlcWorkflow";
 import { DataPointsTable } from "./components/DataPointsTable";
+import { HeadToHeadComparison } from "./components/HeadToHeadComparison";
 import { UnifiedIdeationEngine } from "./components/ideation/UnifiedIdeationEngine";
 import { MyProduct, MyProductData } from "./components/MyProduct";
 import { useAuth } from "./components/AuthProvider";
@@ -121,6 +127,8 @@ import { InsightBrainstormModal } from "./components/InsightBrainstormModal";
 import { PageGuideModal } from "./components/PageGuideModal";
 import { UploadDataModal } from "./components/UploadDataModal";
 import { ConsolidateFeaturesModal } from "./components/ConsolidateFeaturesModal";
+import { TaxonomyMergeModal } from "./components/TaxonomyMergeModal";
+
 import { GlobalProgressBanner } from "./components/GlobalProgressBanner";
 import { Tooltip } from "./components/Tooltip";
 import ExportButton from "./components/ExportButton";
@@ -822,7 +830,7 @@ function AuthScreen() {
   );
 }
 
-function SyncNowButton({
+function DeepValidationButton({
   isSyncing,
   syncProgress,
   handleGlobalSync,
@@ -833,30 +841,37 @@ function SyncNowButton({
       <button
         onClick={() => handleGlobalSync(1)}
         disabled={isSyncing}
-        className={`flex items-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-xl text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300 ${
+        className={`flex items-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-xl text-sm font-sans font-black uppercase tracking-wider hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300 ${
           isSyncing ? "opacity-50 cursor-not-allowed" : ""
         }`}
       >
         <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
-        {isSyncing ? `Syncing... (${syncProgress}%)` : "Sync Now"}
+        {isSyncing
+          ? `Running Campaign... (${syncProgress}%)`
+          : "Run Deep Validation Campaign"}
       </button>
 
       {/* Tooltip */}
-      <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+      <div className="absolute top-full right-0 mt-2 w-72 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
         <p className="text-sm text-ink-dark mb-2">
           {isSyncing
-            ? `Sync in progress. Background tasks are ${syncProgress}% complete.`
-            : "Fetch the latest data across all competitors and queue proposed updates for manual review."}
+            ? `Validation in progress. Extracted ${syncProgress}% of competitor profiles.`
+            : "Launch a heavy validation campaign to enrich all competitors and calculate market saturation (Tarpit Risk)."}
         </p>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowSyncInfo(true);
-          }}
-          className="text-xs text-[#8A8A8A] font-bold hover:underline pointer-events-auto"
-        >
-          Learn more about syncing
-        </button>
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-ink-dark/10">
+          <span className="text-xs font-bold text-ink-dark/70">
+            COST: 1 ACTION CREDIT
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowSyncInfo(true);
+            }}
+            className="text-xs font-bold text-sky hover:underline pointer-events-auto"
+          >
+            Learn More
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -984,7 +999,6 @@ export function useLocalStorage<T>(
   const stateRef = useRef<T>(storedValue);
   stateRef.current = storedValue;
 
-  const isLocalUpdate = useRef(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -1012,9 +1026,13 @@ export function useLocalStorage<T>(
     const unsubscribe = onSnapshot(
       docRef,
       (docSnap) => {
-        if (isLocalUpdate.current) {
-          isLocalUpdate.current = false;
+        if (docSnap.metadata.hasPendingWrites) {
           return;
+        }
+
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
         }
 
         // If we have unsynced local changes, don't overwrite them with older server data
@@ -1063,8 +1081,6 @@ export function useLocalStorage<T>(
   const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
     const newValue =
       value instanceof Function ? value(stateRef.current) : value;
-
-    isLocalUpdate.current = true;
 
     // Debounce the Firebase write by 2 seconds to save quota
     if (syncTimeoutRef.current) {
@@ -1412,11 +1428,31 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
       defaultProductData,
     );
 
-  const [competitors, setCompetitors] = useMigratedFirestoreDoc<Competitor[]>(
+  const [rawCompetitors, setCompetitors] = useMigratedFirestoreDoc<
+    Competitor[]
+  >(
     `competitors_${user.uid}_${productId}`,
     `competitors_${productId}`,
     defaultCompetitors,
   );
+
+  const { displayTaxonomy, evaluationStatus, mergeFeatures } =
+    useTaxonomySync();
+
+  const competitors = React.useMemo(() => {
+    if (!displayTaxonomy || displayTaxonomy.length === 0) return rawCompetitors;
+
+    return rawCompetitors.map((c) => {
+      if (!c.coreFeatures) return c;
+      const newFeatures = c.coreFeatures.map((f) => {
+        const alias = displayTaxonomy.find((t) =>
+          t.originalFeatures.includes(f),
+        );
+        return alias ? alias.id : f;
+      });
+      return { ...c, coreFeatures: Array.from(new Set(newFeatures)) };
+    });
+  }, [rawCompetitors, displayTaxonomy]);
   const [rawDataSources, setRawDataSources] = useMigratedFirestoreDoc<
     DataSource[]
   >(
@@ -1451,6 +1487,9 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   const [selectedCompetitorId, setSelectedCompetitorId] = useState<
     string | null
   >(null);
+  const [comparingCompetitorIds, setComparingCompetitorIds] = useState<
+    string[]
+  >([]);
 
   // Discovery State
   const [isDiscovering, setIsDiscovering] = useState(false);
@@ -1573,6 +1612,24 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
     new Date().toISOString(),
   );
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const [isTarpitWarningOpen, setIsTarpitWarningOpen] = useState(false);
+  const [tarpitCompetitors, setTarpitCompetitors] = useState<any[]>([]);
+  const credits = useActionCredits();
+
+  const { isLocked: isStartingCampaign, executeTask: startCampaignTask } =
+    useSafeAITask({
+      timeoutMs: 30000,
+      onTimeout: () => {
+        addToast("Analysis took too long. Please try again.", "error");
+        setIsSyncing(false);
+      },
+      onError: (err) => {
+        addToast(err.message || "Failed to start campaign", "error");
+        setIsSyncing(false);
+      },
+    });
+
   const [activeTasks, setActiveTasks] = useState<
     { id: string; name: string; progress: number }[]
   >([]);
@@ -1614,7 +1671,11 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   const [isBrainstormModalOpen, setIsBrainstormModalOpen] = useState(false);
   const [isPageGuideOpen, setIsPageGuideOpen] = useState(false);
   const [isUploadDataModalOpen, setIsUploadDataModalOpen] = useState(false);
+
   const [isConsolidateModalOpen, setIsConsolidateModalOpen] = useState(false);
+  const [isTaxonomyMergeModalOpen, setIsTaxonomyMergeModalOpen] =
+    useState(false);
+
   const [seenGuides, setSeenGuides] = useLocalStorage<Record<string, number>>(
     `seen_guides_v2_${user.uid}_${productId}`,
     {},
@@ -1737,1160 +1798,93 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
   };
 
   const handleGlobalSync = async (startStage = 1, initialState: any = {}) => {
-    if (startStage === 1 && !isSuperadmin && !checkAlphaLimit()) {
-      setIsLimitModalOpen(true);
-      return;
-    }
     if (syncQueue.length > 0) {
       addToast("Please review and commit pending sync changes first.", "error");
       return;
     }
-    if (isSyncing && startStage === 1) {
-      addToast(
-        "Sync already in progress. " + syncProgress + "% complete.",
-        "info",
-      );
+    if (isSyncing || isStartingCampaign) {
+      addToast("Campaign already in progress.", "info");
       return;
     }
 
-    const toastId = addToast(
-      startStage === 1
-        ? "Syncing all data sources and generating insights..."
-        : `Resuming sync from stage ${startStage}...`,
-      "loading",
-    );
+    if (!competitors || competitors.length === 0) {
+      addToast("Please add at least 1 competitor first.", "error");
+      return;
+    }
+
     setIsSyncing(true);
-    if (startStage === 1) {
-      // setSyncTimeRemaining is removed
-      setActiveTasks([
-        { id: "1", name: "Discovering new market entrants", progress: 0 },
-        {
-          id: "2",
-          name: "Enriching competitor data",
-          progress: 0,
+
+    startCampaignTask(async (signal) => {
+      const res = await fetch("/api/campaign/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user?.getIdToken()}`,
         },
-        {
-          id: "3",
-          name: "Fetching market news via Google Search",
-          progress: 0,
-        },
-        { id: "4", name: "Synthesizing competitor profiles", progress: 0 },
-        { id: "5", name: "Generating strategic insights", progress: 0 },
-        { id: "6", name: "Updating system context summary", progress: 0 },
-        { id: "7", name: "Updating stored feature details", progress: 0 },
-      ]);
-    }
-    const logId = addLog(
-      "Global Sync",
-      startStage === 1
-        ? "Started syncing all data sources..."
-        : `Resuming sync from stage ${startStage}...`,
-      "pending",
-    );
-
-    let newCompetitorDomains: string[] =
-      initialState.newCompetitorDomains || [];
-    let apolloData: any[] = initialState.apolloData || [];
-    let searchData: any[] = initialState.searchData || [];
-
-    try {
-      // --- STAGE 1: Discover New Competitors ---
-      if (startStage <= 1) {
-        try {
-          const discoverLogId = addLog(
-            "Market Discovery",
-            "Scanning for new competitors...",
-            "pending",
-          );
-          const knownNames = competitors.map((c) => c.name).join("\n, ");
-
-          let apolloDomains: string[] = [];
-          try {
-            const keywords = myProductData.features
-              .map((f) => f.name)
-              .concat([myProductData.name])
-              .filter(Boolean);
-            if (keywords.length > 0) {
-              const customApiKey = getCustomApiKey("apollo");
-              const headers: Record<string, string> = {
-                "Content-Type": "application/json",
-              };
-              if (customApiKey) headers["x-api-key"] = customApiKey;
-
-              const apolloSearchRes = await fetch("/api/apollo/search", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ keywords }),
-              });
-
-              if (apolloSearchRes.status === 429) {
-                const error: any = new Error(
-                  "Rate limit exceeded for Apollo API",
-                );
-                error.isRateLimit = true;
-                error.message =
-                  (customApiKey
-                    ? "RateLimit:CustomKey:"
-                    : "RateLimit:GlobalKey:") + error.message;
-                throw error;
-              }
-
-              if (apolloSearchRes.ok) {
-                const apolloSearchData = await apolloSearchRes.json();
-                if (apolloSearchData.organizations) {
-                  apolloDomains = apolloSearchData.organizations
-                    .map(
-                      (org: any) =>
-                        org.website_url
-                          ?.replace(/^https?:\/\//, "")
-                          .split("/")[0],
-                    )
-                    .filter(Boolean);
-                }
-                // Update Rate Limits if headers exist
-                const limitStr =
-                  apolloSearchRes.headers?.get?.("x-rate-limit-limit");
-                const remainingStr = apolloSearchRes.headers?.get?.(
-                  "x-rate-limit-remaining",
-                );
-                const resetStr =
-                  apolloSearchRes.headers?.get?.("x-rate-limit-reset");
-                if (limitStr) {
-                  const limit = parseInt(limitStr, 10);
-                  const remaining = remainingStr
-                    ? parseInt(remainingStr, 10)
-                    : null;
-                  const reset = resetStr ? parseInt(resetStr, 10) : null;
-                  if (!isNaN(limit))
-                    updateRateLimits("apollo", limit, remaining, reset);
-                }
-                trackRequest("apollo", customApiKey || "env_key", false);
-              } else {
-                trackRequest("apollo", customApiKey || "env_key", true);
-              }
-            }
-          } catch (err) {
-            console.warn("Apollo search failed, falling back to LLM", err);
-          }
-
-          const response = await withModelFallback(
-            async (ai, model) => {
-              return await ai.generateContent(model, {
-                contents:
-                  `Based on these known competitors in the space of ${myProductData.name || "this industry"}: ` +
-                  knownNames +
-                  `. Identify up to 5 emerging or lesser-known competitors that are NOT in this list. Return ONLY a JSON array of their website domains (e.g. ["example.com", "test.io"]).`,
-                config: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                },
-              });
-            },
-            { capability: "chat" },
-          );
-          const llmDomains = JSON.parse(response.text || "[]");
-          newCompetitorDomains = [
-            ...new Set([...apolloDomains, ...llmDomains]),
-          ];
-
-          updateLog(discoverLogId, {
-            details:
-              "Discovered " +
-              newCompetitorDomains.length +
-              " potential new competitors.",
-            status: "success",
-            contextData: newCompetitorDomains,
-            apiCallDetails: {
-              prompt: "Discover new competitors",
-              response: newCompetitorDomains,
-            },
-          });
-        } catch (e: any) {
-          console.warn("Discovery failed", e);
-          handleApiError(e, logId, "Market discovery", () =>
-            handleGlobalSync(1, {
-              newCompetitorDomains,
-              apolloData,
-              searchData,
-            }),
-          );
-          setIsSyncing(false);
-          removeToast(toastId);
-          return;
-        }
-        setActiveTasks((prev) =>
-          prev.map((t) => (t.id === "1" ? { ...t, progress: 100 } : t)),
-        );
-      }
-
-      // --- STAGE 2: Apollo Enrichment & News ---
-      if (startStage <= 2) {
-        try {
-          const domainsToEnrich = [
-            ...new Set([
-              ...competitors
-                .map(
-                  (c) => c.website?.replace(/^https?:\/\//, "").split("/")[0],
-                )
-                .filter(Boolean),
-              ...newCompetitorDomains,
-            ]),
-          ].slice(0, 3); // Limit to 3 to avoid long syncs/rate limits
-
-          const sleep = (ms: number) =>
-            new Promise((resolve) => setTimeout(resolve, ms));
-
-          await Promise.all(
-            domainsToEnrich.map(async (domain, i) => {
-              if (!domain) return;
-
-              await sleep(i * 500); // Rate limiting for Apollo
-
-              const apolloLogId = addLog(
-                "Data Enrichment",
-                "Enriching " + domain + "...",
-                "pending",
-              );
-              let orgId = "";
-              try {
-                const customApiKey = getCustomApiKey("apollo");
-                const headers: Record<string, string> = {
-                  "Content-Type": "application/json",
-                };
-                if (customApiKey) headers["x-api-key"] = customApiKey;
-
-                const apolloRes = await fetch("/api/apollo/enrich", {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({ domain }),
-                });
-
-                if (apolloRes.status === 429) {
-                  const error: any = new Error(
-                    "Rate limit exceeded for Apollo API",
-                  );
-                  error.isRateLimit = true;
-                  error.message =
-                    (customApiKey
-                      ? "RateLimit:CustomKey:"
-                      : "RateLimit:GlobalKey:") + error.message;
-                  throw error;
-                }
-
-                if (apolloRes.ok) {
-                  const data = await apolloRes.json();
-                  apolloData.push(data);
-
-                  // Update Rate Limits if headers exist
-                  const limitStr =
-                    apolloRes.headers?.get?.("x-rate-limit-limit");
-                  const remainingStr = apolloRes.headers?.get?.(
-                    "x-rate-limit-remaining",
-                  );
-                  const resetStr =
-                    apolloRes.headers?.get?.("x-rate-limit-reset");
-                  if (limitStr) {
-                    const limit = parseInt(limitStr, 10);
-                    const remaining = remainingStr
-                      ? parseInt(remainingStr, 10)
-                      : null;
-                    const reset = resetStr ? parseInt(resetStr, 10) : null;
-                    if (!isNaN(limit))
-                      updateRateLimits("apollo", limit, remaining, reset);
-                  }
-                  trackRequest("apollo", customApiKey || "env_key", false);
-
-                  const org = data.organization || {};
-                  orgId = org.id || "";
-
-                  // Extract key strategic metrics
-                  const techStack = (org.current_technologies || []).map(
-                    (t: any) => t.name,
-                  );
-                  const funding = org.latest_funding_stage
-                    ? org.latest_funding_stage +
-                      " (" +
-                      (org.total_funding_printed || "N/A") +
-                      ")"
-                    : "N/A";
-                  const positioning = (org.keywords || []).slice(0, 8);
-
-                  const newSource: DataSource = {
-                    id: "src-apollo-" + Date.now() + "-" + i,
-                    competitorId:
-                      competitors.find((c) => c.website?.includes(domain))
-                        ?.id || "unknown",
-                    type: "api",
-                    sourceUrl:
-                      "https://api.apollo.io/v1/organizations/enrich?domain=" +
-                      domain,
-                    excerpt:
-                      "Enrichment Data for " +
-                      domain +
-                      ": Revenue: " +
-                      (org.annual_revenue_printed || "N/A") +
-                      " | Employees: " +
-                      (org.estimated_num_employees || "N/A") +
-                      " | Funding: " +
-                      funding +
-                      " | Tech Stack: " +
-                      (techStack.slice(0, 5).join(", ") || "N/A") +
-                      " | Positioning Keywords: " +
-                      (positioning.join(", ") || "N/A") +
-                      " | Description: " +
-                      (org.short_description || "N/A"),
-                    timestamp: new Date().toISOString(),
-                    tags: [
-                      "enrichment",
-                      "apollo",
-                      "company-data",
-                      "tech-stack",
-                      "funding",
-                    ],
-                    confidenceLevel: "High",
-                    isDeduced: false,
-                    source: "Apollo.io",
-                  };
-                  setRawDataSources((prev) => [newSource, ...prev]);
-
-                  // Queue diffs instead of direct overwrite
-                  const compTarget = competitors.find((c) =>
-                    c.website?.includes(domain),
-                  );
-                  if (compTarget) {
-                    const diffs = createCompetitorDiffs(
-                      compTarget,
-                      {
-                        fundingHistory: funding,
-                        headcountGrowth: org.estimated_num_employees,
-                        techStack: techStack,
-                        seoKeywords: positioning,
-                      },
-                      compTarget.id,
-                    );
-
-                    const allowedDiffs = filterVerifiedDiffs(
-                      diffs,
-                      compTarget.verifiedFields,
-                    );
-                    if (allowedDiffs.length > 0) {
-                      queueSyncChanges(allowedDiffs);
-                    }
-                  }
-
-                  updateLog(apolloLogId, {
-                    details: "Successfully enriched " + domain + ".",
-                    status: "success",
-                    contextData: {
-                      revenue: org.annual_revenue_printed,
-                      employees: org.estimated_num_employees,
-                      funding: funding,
-                      techStack: techStack,
-                      keywords: positioning,
-                    },
-                    apiCallDetails: {
-                      domain,
-                      responseStatus: apolloRes.status,
-                      data: org,
-                    },
-                  });
-                } else {
-                  updateLog(apolloLogId, {
-                    details:
-                      "Could not fetch competitor data for " + domain + ".",
-                    status: "error",
-                    apiCallDetails: {
-                      domain,
-                      responseStatus: apolloRes.status,
-                    },
-                  });
-                }
-              } catch (e: any) {
-                updateLog(apolloLogId, {
-                  details: "Network error enriching " + domain + ".",
-                  status: "error",
-                  apiCallDetails: { error: e.message },
-                });
-              }
-
-              // Fetch Apollo News if orgId exists
-              if (orgId) {
-                try {
-                  const customApiKey = getCustomApiKey("apollo");
-                  const headers: Record<string, string> = {
-                    "Content-Type": "application/json",
-                  };
-                  if (customApiKey) headers["x-api-key"] = customApiKey;
-
-                  const newsRes = await fetch("/api/apollo/news", {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({ organization_ids: [orgId] }),
-                  });
-
-                  if (newsRes.status === 429) {
-                    const error: any = new Error(
-                      "Rate limit exceeded for Apollo API",
-                    );
-                    error.isRateLimit = true;
-                    error.message =
-                      (customApiKey
-                        ? "RateLimit:CustomKey:"
-                        : "RateLimit:GlobalKey:") + error.message;
-                    throw error;
-                  }
-
-                  if (newsRes.ok) {
-                    const newsData = await newsRes.json();
-
-                    // Update Rate Limits if headers exist
-                    const limitStr =
-                      newsRes.headers?.get?.("x-rate-limit-limit");
-                    const remainingStr = newsRes.headers?.get?.(
-                      "x-rate-limit-remaining",
-                    );
-                    const resetStr =
-                      newsRes.headers?.get?.("x-rate-limit-reset");
-                    if (limitStr) {
-                      const limit = parseInt(limitStr, 10);
-                      const remaining = remainingStr
-                        ? parseInt(remainingStr, 10)
-                        : null;
-                      const reset = resetStr ? parseInt(resetStr, 10) : null;
-                      if (!isNaN(limit))
-                        updateRateLimits("apollo", limit, remaining, reset);
-                    }
-                    trackRequest("apollo", customApiKey || "env_key", false);
-                    if (
-                      newsData.news_articles &&
-                      newsData.news_articles.length > 0
-                    ) {
-                      const excerpts = newsData.news_articles
-                        .map(
-                          (article: any) =>
-                            `[${article.title}](${article.url}): ${article.snippet}`,
-                        )
-                        .join("\n");
-                      const newSource: DataSource = {
-                        id: "src-apollo-news-" + Date.now() + "-" + i,
-                        competitorId:
-                          competitors.find((c) => c.website?.includes(domain))
-                            ?.id || "unknown",
-                        type: "news",
-                        sourceUrl: newsData.news_articles[0].url,
-                        excerpt: excerpts,
-                        timestamp: new Date().toISOString(),
-                        tags: ["news", "apollo"],
-                        confidenceLevel: "High",
-                        isDeduced: false,
-                        source: "Apollo.io",
-                      };
-                      setRawDataSources((prev) => [newSource, ...prev]);
-                    }
-                  }
-                } catch (e) {
-                  console.warn("Apollo news fetch failed for", domain, e);
-                }
-              }
-
-              setActiveTasks((prev) =>
-                prev.map((t) =>
-                  t.id === "2"
-                    ? {
-                        ...t,
-                        progress: ((i + 1) / domainsToEnrich.length) * 100,
-                      }
-                    : t,
-                ),
-              );
-            }),
-          );
-        } catch (e: any) {
-          console.warn("Apollo API error", e);
-          handleApiError(e, logId, "Competitor data API network", () =>
-            handleGlobalSync(2, {
-              newCompetitorDomains,
-              apolloData,
-              searchData,
-            }),
-          );
-          setIsSyncing(false);
-          removeToast(toastId);
-          return;
-        }
-        setActiveTasks((prev) =>
-          prev.map((t) => (t.id === "2" ? { ...t, progress: 100 } : t)),
-        );
-      }
-
-      // --- STAGE 3: Gemini Search Grounding ---
-      if (startStage <= 3) {
-        try {
-          const searchQueries = [
-            `${myProductData.name || "SaaS"} market trends ${new Date().getFullYear()}`,
-            ...competitors
-              .slice(0, 2)
-              .map((c) => c.name + " news OR pricing OR features"),
-          ];
-
-          await Promise.all(
-            searchQueries.map(async (query, i) => {
-              const googleLogId = addLog(
-                "AI Grounding",
-                'Searching: "' + query + '"...',
-                "pending",
-              );
-              try {
-                const response = await withModelFallback(
-                  async (ai, model) => {
-                    return await ai.generateContent(model, {
-                      contents: `Search the web for: ${query}. Provide a brief summary of the top results.`,
-                      config: {
-                        tools: [{ googleSearch: {} }], // Enables native Gemini Grounding
-                      },
-                    });
-                  },
-                  { capability: "chat" },
-                );
-
-                const summary = response.text || "No summary generated.";
-                searchData.push({ query, summary, rawResults: "" });
-
-                // Safely extract grounding metadata for verifiable citations
-                const groundingMetadata =
-                  response.candidates?.[0]?.groundingMetadata;
-                const chunks = groundingMetadata?.groundingChunks || [];
-
-                let sourceUrls = [];
-                // Map grounding chunks to our DataSource model for provenance
-                chunks.forEach((chunk: any, chunkIndex: number) => {
-                  if (chunk.web?.uri) {
-                    sourceUrls.push(chunk.web.uri);
-                    const newSource: DataSource = {
-                      id: `src-grounding-${Date.now()}-${i}-${chunkIndex}`,
-                      competitorId:
-                        competitors.find((c) => query.includes(c.name))?.id ||
-                        "unknown",
-                      type: "gemini-grounding",
-                      sourceUrl: chunk.web.uri,
-                      excerpt: `Grounded Source: ${chunk.web.title || "Web Result"}\nContext: ${summary.substring(0, 150)}...`,
-                      timestamp: new Date().toISOString(),
-                      tags: ["gemini-grounding", "market-research"],
-                      confidenceLevel: "High",
-                      isDeduced: false,
-                      source: "AI",
-                    };
-                    setRawDataSources((prev) => [newSource, ...prev]);
-                  }
-                });
-
-                if (chunks.length === 0) {
-                  // Fallback source if no chunks
-                  const newSource: DataSource = {
-                    id: "src-search-" + Date.now() + "-" + i,
-                    competitorId:
-                      competitors.find((c) => query.includes(c.name))?.id ||
-                      "unknown",
-                    type: "website",
-                    sourceUrl:
-                      "google.com/search?q=" + encodeURIComponent(query),
-                    excerpt: summary,
-                    timestamp: new Date().toISOString(),
-                    tags: ["search", "market-research"],
-                    confidenceLevel: "Medium",
-                    isDeduced: true,
-                    source: "AI",
-                  };
-                  setRawDataSources((prev) => [newSource, ...prev]);
-                }
-
-                updateLog(googleLogId, {
-                  details: `Successfully searched: "${query}". Extracted ${chunks.length} citations.`,
-                  status: "success",
-                  contextData: { summary },
-                  apiCallDetails: { query, tool: "googleSearch" },
-                });
-              } catch (e: any) {
-                updateLog(googleLogId, {
-                  details: 'Search failed for "' + query + '".',
-                  status: "error",
-                  apiCallDetails: { error: e.message },
-                });
-              }
-
-              setActiveTasks((prev) =>
-                prev.map((t) =>
-                  t.id === "3"
-                    ? { ...t, progress: ((i + 1) / searchQueries.length) * 100 }
-                    : t,
-                ),
-              );
-            }),
-          );
-        } catch (e: any) {
-          console.warn("Search stage failed", e);
-          handleApiError(e, logId, "Market search", () =>
-            handleGlobalSync(3, {
-              newCompetitorDomains,
-              apolloData,
-              searchData,
-            }),
-          );
-          setIsSyncing(false);
-          removeToast(toastId);
-          return;
-        }
-        setActiveTasks((prev) =>
-          prev.map((t) => (t.id === "3" ? { ...t, progress: 100 } : t)),
-        );
-      }
-
-      // --- STAGE 4: Synthesize Competitors ---
-      if (startStage <= 4) {
-        try {
-          if (newCompetitorDomains.length > 0) {
-            const synthesizeLogId = addLog(
-              "AI Analysis",
-              "Synthesizing new competitor profiles...",
-              "pending",
-            );
-            const response = await withModelFallback(
-              async (ai, model) => {
-                return await ai.generateContent(model, {
-                  contents: `Based on the following Apollo.io enrichment data and Google Search news, generate complete competitor profiles for the newly discovered domains: ${newCompetitorDomains.join("\n, ")}. 
-
-CRITICAL: You must evaluate each domain using a True Competitor Score methodology (0-100). Calculate this by summing:
-1. Target Audience Overlap (0-25 points)
-2. Feature Parity (0-25 points)
-3. Pricing Model Similarity (0-25 points)
-4. Use-case/Market Positioning (0-25 points)
-
-If the True Competitor Score is less than 60, mark isTrueCompetitor as false and provide a disqualificationReason.
-
-Apollo Data: ${JSON.stringify(apolloData)}
-Search Data: ${JSON.stringify(searchData)}
-
-Return a JSON array of objects matching this exact structure:
-{
-  "isTrueCompetitor": true/false,
-  "trueCompetitorScore": 0-100,
-  "disqualificationReason": "Reason if score < 60, else empty",
-  "competitorData": {
-    "id": "unique-string",
-    "name": "Company Name",
-    "website": "https://example.com",
-    "description": "Short description",
-    "freeTier": "Yes/No - Details",
-    "spamProtection": "Details",
-    "integrations": ["Integration 1", "Integration 2"],
-    "targetAudience": "Audience description",
-    "marketSegments": ["Segment 1", "Segment 2"],
-    "dataSovereignty": "Details",
-    "sovereigntyScore": "low" | "medium" | "high",
-    "logoUrl": "https://logo.clearbit.com/example.com",
-    "financialSnapshot": "Details",
-    "fundingStage": "Details",
-    "estimatedARR": "Use the best data and approach (e.g., funding rounds, employee count, web traffic) to estimate ARR. Provide a range with 95% confidence level accuracy (e.g., '$15M - $25M (95% CI)')",
-    "estimatedUserBase": "Use the best data and approach (e.g., web traffic, app downloads, public milestones) to estimate user base size. Provide a range with 95% confidence level accuracy (e.g., '80K - 120K active users (95% CI)')",
-    "coreFeatures": ["Feature 1", "Feature 2"],
-    "pricingModel": "Pricing details",
-    "howWeCompare": "Details",
-    "competitorScore": 0-100,
-    "trustScore": 0-100,
-    "marketCommonalityIndex": 0-100,
-    "resourceSimilarityScore": 0-100,
-    "lastUpdated": "ISO date string"
-  }
-}`,
-                  config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                      type: Type.ARRAY,
-                      items: {
-                        type: Type.OBJECT,
-                        properties: {
-                          isTrueCompetitor: { type: Type.BOOLEAN },
-                          trueCompetitorScore: { type: Type.NUMBER },
-                          disqualificationReason: { type: Type.STRING },
-                          competitorData: {
-                            type: Type.OBJECT,
-                            properties: {
-                              id: { type: Type.STRING },
-                              name: { type: Type.STRING },
-                              website: { type: Type.STRING },
-                              description: { type: Type.STRING },
-                              freeTier: { type: Type.STRING },
-                              spamProtection: { type: Type.STRING },
-                              integrations: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                              },
-                              targetAudience: { type: Type.STRING },
-                              marketSegments: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                              },
-                              dataSovereignty: { type: Type.STRING },
-                              sovereigntyScore: {
-                                type: Type.STRING,
-                                enum: ["low", "medium", "high"],
-                              },
-                              logoUrl: { type: Type.STRING },
-                              financialSnapshot: { type: Type.STRING },
-                              fundingStage: { type: Type.STRING },
-                              estimatedARR: { type: Type.STRING },
-                              estimatedUserBase: { type: Type.STRING },
-                              coreFeatures: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING },
-                              },
-                              pricingModel: { type: Type.STRING },
-                              howWeCompare: { type: Type.STRING },
-                              competitorScore: { type: Type.NUMBER },
-                              trustScore: { type: Type.NUMBER },
-                              marketCommonalityIndex: { type: Type.NUMBER },
-                              resourceSimilarityScore: { type: Type.NUMBER },
-                              lastUpdated: { type: Type.STRING },
-                            },
-                            required: [
-                              "id",
-                              "name",
-                              "website",
-                              "description",
-                              "freeTier",
-                              "spamProtection",
-                              "integrations",
-                              "targetAudience",
-                              "marketSegments",
-                              "dataSovereignty",
-                              "sovereigntyScore",
-                              "logoUrl",
-                              "financialSnapshot",
-                              "coreFeatures",
-                              "pricingModel",
-                              "howWeCompare",
-                              "competitorScore",
-                              "trustScore",
-                              "marketCommonalityIndex",
-                              "resourceSimilarityScore",
-                            ],
-                          },
-                        },
-                        required: [
-                          "isTrueCompetitor",
-                          "trueCompetitorScore",
-                          "competitorData",
-                        ],
-                      },
-                    },
-                  },
-                });
-              },
-              { capability: "reasoning" },
-            );
-
-            const results = JSON.parse(response.text || "[]");
-            const validCompetitors: Competitor[] = [];
-            const disqualified: any[] = [];
-
-            for (const res of results) {
-              if (res.isTrueCompetitor && res.trueCompetitorScore >= 60) {
-                validCompetitors.push(res.competitorData);
-              } else {
-                disqualified.push(res);
-              }
-            }
-
-            if (disqualified.length > 0) {
-              addLog(
-                "Competitor Qualification",
-                `Disqualified ${disqualified.length} domains: ${disqualified.map((d: any) => `${d.competitorData?.name || "Unknown"} (Score: ${d.trueCompetitorScore}) - ${d.disqualificationReason}`).join("\n | ")}`,
-                "info",
-              );
-            }
-
-            if (validCompetitors.length > 0) {
-              const existingIds = new Set(competitors.map((c) => c.id));
-              const existingNames = new Set(
-                competitors.map((c) => c.name.toLowerCase()),
-              );
-              const uniqueNew = validCompetitors.filter(
-                (c: any) =>
-                  !existingIds.has(c.id) &&
-                  !existingNames.has(c.name.toLowerCase()),
-              );
-
-              if (uniqueNew.length > 0) {
-                const diffs = uniqueNew.map((comp: any) => ({
-                  id: `diff-new-comp-${comp.id}-${Date.now()}`,
-                  entityId: comp.id,
-                  entityType: "Competitor" as "Competitor",
-                  field: "new_competitor",
-                  oldValue: null,
-                  newValue: comp,
-                  description: `Add new synthesized competitor: ${comp.name}`,
-                }));
-                queueSyncChanges(diffs);
-              }
-              updateLog(synthesizeLogId, {
-                details: `Synthesized and qualified ${validCompetitors.length} new competitor profiles (Pending Review).`,
-                status: "success",
-                apiCallDetails: {
-                  prompt: "Synthesize competitors",
-                  response: results,
-                },
-              });
-            } else {
-              updateLog(synthesizeLogId, {
-                details: "No new qualified competitors synthesized.",
-                status: "info",
-                apiCallDetails: {
-                  prompt: "Synthesize competitors",
-                  response: results,
-                },
-              });
-            }
-          }
-        } catch (e: any) {
-          console.warn("Synthesis failed", e);
-          handleApiError(e, logId, "Competitor synthesis", () =>
-            handleGlobalSync(4, {
-              newCompetitorDomains,
-              apolloData,
-              searchData,
-            }),
-          );
-          setIsSyncing(false);
-          removeToast(toastId);
-          return;
-        }
-        setActiveTasks((prev) =>
-          prev.map((t) => (t.id === "4" ? { ...t, progress: 100 } : t)),
-        );
-      }
-
-      // --- STAGE 5: Insight Generation & System Context ---
-      if (startStage <= 5) {
-        try {
-          const geminiLogId = addLog(
-            "AI Analysis",
-            "Analyzing " +
-              apolloData.length +
-              " enriched records and " +
-              searchData.length +
-              " news items...",
-            "pending",
-          );
-          const contextData = {
-            competitors: competitors.map((c) => ({
-              name: c.name,
-              features: c.coreFeatures,
-              score: c.competitorScore,
-            })),
-            apolloEnrichment: apolloData.map((d) => ({
-              name: d.organization?.name,
-              revenue: d.organization?.annual_revenue_printed,
-              funding: d.organization?.latest_funding_stage,
-              totalFunding: d.organization?.total_funding_printed,
-              keywords: d.organization?.keywords,
-              techStack: (d.organization?.current_technologies || [])
-                .map((t: any) => t.name)
-                .slice(0, 5),
-              employees: d.organization?.estimated_num_employees,
-            })),
-            recentNews: searchData.map((s) => ({
-              title: s.title,
-              snippet: s.snippet,
-            })),
-          };
-
-          setRawContextData(contextData);
-
-          const response = await withModelFallback(
-            async (ai, model) => {
-              return await ai.generateContent(model, {
-                contents:
-                  "Analyze the following competitor data, Apollo.io enrichment data, and recent Google Search news. Provide a concise, high-level summary of the current market landscape, key threats, and top opportunities. Keep it under 150 words. Also generate 3-5 specific, actionable insights (opportunities, threats, or trends) based on this data, and estimate some high-level market metrics. \n\nData: " +
-                  JSON.stringify(contextData),
-                config: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                      systemContext: {
-                        type: Type.STRING,
-                        description:
-                          "A concise, high-level summary of the current market landscape, key threats, and top opportunities.",
-                      },
-                      insights: {
-                        type: Type.ARRAY,
-                        items: {
-                          type: Type.OBJECT,
-                          properties: {
-                            title: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            category: {
-                              type: Type.STRING,
-                              enum: ["opportunity", "threat", "trend"],
-                            },
-                            impact: {
-                              type: Type.STRING,
-                              enum: ["low", "medium", "high", "critical"],
-                            },
-                          },
-                          required: [
-                            "title",
-                            "description",
-                            "category",
-                            "impact",
-                          ],
-                        },
-                      },
-                      metrics: {
-                        type: Type.OBJECT,
-                        properties: {
-                          topIntegrations: { type: Type.STRING },
-                          estimatedMarketValue: { type: Type.STRING },
-                          trends: {
-                            type: Type.OBJECT,
-                            properties: {
-                              tracked: { type: Type.STRING },
-                              pricingChanges: { type: Type.STRING },
-                              featuresIndexed: { type: Type.STRING },
-                              estimatedMarketValue: { type: Type.STRING },
-                            },
-                          },
-                        },
-                      },
-                    },
-                    required: ["systemContext", "insights", "metrics"],
-                  },
-                },
-              });
-            },
-            { capability: "reasoning" },
-          );
-
-          setActiveTasks((prev) =>
-            prev.map((t) => (t.id === "5" ? { ...t, progress: 100 } : t)),
-          );
-          setActiveTasks((prev) =>
-            prev.map((t) => (t.id === "6" ? { ...t, progress: 100 } : t)),
-          );
-
-          const resultData = JSON.parse(response.text || "{}");
-
-          const diffs = [];
-          if (resultData.systemContext) {
-            diffs.push({
-              id: `diff-sysctx-summary-${Date.now()}`,
-              entityId: "system-context",
-              entityType: "SystemContext" as "SystemContext",
-              field: "summary",
-              oldValue: systemContextSummary,
-              newValue: resultData.systemContext,
-              description: "Update System Context Summary",
-            });
-          }
-          if (resultData.insights && resultData.insights.length > 0) {
-            const newInsights = resultData.insights.map((i: any) => ({
-              id: `di-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              title: i.title,
-              description: i.description,
-              category: i.category,
-              impact: i.impact,
-              timestamp: new Date().toISOString(),
-              source: "AI Pipeline",
-            }));
-            diffs.push({
-              id: `diff-sysctx-insights-${Date.now()}`,
-              entityId: "system-context",
-              entityType: "SystemContext" as "SystemContext",
-              field: "insights",
-              oldValue: [],
-              newValue: newInsights,
-              description: `Add ${newInsights.length} new insights`,
-            });
-          }
-          if (resultData.metrics) {
-            diffs.push({
-              id: `diff-sysctx-metrics-${Date.now()}`,
-              entityId: "system-context",
-              entityType: "SystemContext" as "SystemContext",
-              field: "marketMetrics",
-              oldValue: marketMetrics,
-              newValue: { ...marketMetrics, ...resultData.metrics },
-              description: "Update Market Metrics",
-            });
-          }
-          if (diffs.length > 0) {
-            queueSyncChanges(diffs);
-          }
-
-          updateLog(geminiLogId, {
-            details: `Generated ${resultData.insights?.length || 0} insights and system context (Pending Review).`,
-            status: "success",
-            apiCallDetails: {
-              prompt: "Analyze context data",
-              response: resultData,
-            },
-          });
-
-          setLastSynced(new Date().toISOString());
-          removeToast(toastId);
-          addToast(
-            "System successfully synced. Ready to generate insights.",
-            "success",
-          );
-          updateLog(logId, {
-            details: "Data successfully fetched. Changes are pending review.",
-            status: "success",
-            retryAction: undefined,
-          });
-          if (startStage === 1) recordAlphaUsage();
-
-          // Open the interactive insight generator
-          setIsInsightGeneratorOpen(true);
-        } catch (e: any) {
-          console.warn("Insight generation failed", e);
-          handleApiError(e, logId, "Insight generation", () =>
-            handleGlobalSync(5, {
-              newCompetitorDomains,
-              apolloData,
-              searchData,
-            }),
-          );
-          setIsSyncing(false);
-          removeToast(toastId);
-          return;
-        }
-      }
-
-      // --- STAGE 7: Update Feature Details ---
-      if (startStage <= 7) {
-        try {
-          const featuresToUpdate = Object.keys(featureDetails);
-          if (featuresToUpdate.length > 0) {
-            const featureUpdateLogId = addLog(
-              "AI Analysis",
-              `Updating ${featuresToUpdate.length} stored feature details...`,
-              "pending",
-            );
-
-            const featureMap: Record<string, string[]> = {};
-            competitors.forEach((c) => {
-              if (c.coreFeatures) {
-                c.coreFeatures.forEach((f: string) => {
-                  const normalized = f.trim();
-                  if (!featureMap[normalized]) {
-                    featureMap[normalized] = [];
-                  }
-                  featureMap[normalized].push(c.name);
-                });
-              }
-            });
-
-            const validFeatures = featuresToUpdate.filter((f) => featureMap[f]);
-
-            if (validFeatures.length > 0) {
-              // Process in smaller batches to avoid token limits
-              const batchSize = 10;
-              const updatedFeatures: Record<string, string> = {};
-
-              for (let i = 0; i < validFeatures.length; i += batchSize) {
-                const batch = validFeatures.slice(i, i + batchSize);
-
-                const response = await withModelFallback(async (ai, model) => {
-                  return await ai.generateContent(model, {
-                    contents: `You are an expert market analyst. For each of the following features, provide a detailed breakdown in the context of ${myProductData.name || "the product's market"}.
-                  
-Features to analyze:
-${batch.map((f) => `- ${f} (Companies: ${featureMap[f].join("\n, ")})`).join("\n\n")}
-                  
-Format your response as a JSON object where the key is the exact feature name and the value is the markdown string.
-The markdown MUST follow this exact structure:
-### Overview
-(Brief explanation)
-### Key Sub-features
-(Bullet points)
-### Company Implementations
-(Specific details based on the companies listed)`,
-                    config: {
-                      responseMimeType: "application/json",
-                      responseSchema: {
-                        type: Type.OBJECT,
-                        properties: batch.reduce(
-                          (acc, f) => {
-                            acc[f] = { type: Type.STRING };
-                            return acc;
-                          },
-                          {} as Record<string, any>,
-                        ),
-                        required: batch,
-                      },
-                    },
-                  });
-                });
-
-                const batchResult = JSON.parse(response.text || "{}");
-                Object.assign(updatedFeatures, batchResult);
-                setActiveTasks((prev) =>
-                  prev.map((t) =>
-                    t.id === "7"
-                      ? {
-                          ...t,
-                          progress:
-                            ((i + batch.length) / validFeatures.length) * 100,
-                        }
-                      : t,
-                  ),
-                );
-              }
-
-              setFeatureDetails((prev) => ({ ...prev, ...updatedFeatures }));
-              updateLog(featureUpdateLogId, {
-                details: `Successfully updated ${validFeatures.length} feature details.`,
-                status: "success",
-              });
-            } else {
-              updateLog(featureUpdateLogId, {
-                details: `No valid features to update.`,
-                status: "success",
-              });
-              setActiveTasks((prev) =>
-                prev.map((t) => (t.id === "7" ? { ...t, progress: 100 } : t)),
-              );
-            }
-          } else {
-            setActiveTasks((prev) =>
-              prev.map((t) => (t.id === "7" ? { ...t, progress: 100 } : t)),
-            );
-          }
-        } catch (e: any) {
-          console.warn("Feature details update failed", e);
-          // Non-fatal error, just continue
-          setActiveTasks((prev) =>
-            prev.map((t) => (t.id === "7" ? { ...t, progress: 100 } : t)),
-          );
-        }
-      }
-    } catch (e: any) {
-      console.error("Global sync failed", e);
-      const errorMsg = getErrorMessage(e);
-      updateLog(logId, {
-        details: "Global sync failed unexpectedly: " + errorMsg,
-        status: "error",
+        body: JSON.stringify({ competitors, baseIdea: myProductData }),
+        signal,
       });
-    } finally {
-      setIsSyncing(false);
-      // setSyncTimeRemaining is removed
-      setTimeout(() => {
-        setActiveTasks([]);
-      }, 3000);
-    }
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(
+          data.error || data.message || "Failed to start validation campaign",
+        );
+      }
+
+      const { jobId } = await res.json();
+      addToast("Validation campaign started...", "loading");
+
+      const jobRef = doc(db, "campaign_jobs", jobId);
+
+      const unsubscribe = onSnapshot(jobRef, (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+
+        if (data.total && data.total > 0) {
+          setActiveTasks([
+            {
+              id: "1",
+              name: "Deep Validation Campaign",
+              progress: Math.min(
+                Math.round((data.progress / data.total) * 100),
+                99,
+              ),
+            },
+          ]);
+        }
+
+        if (data.status === "completed") {
+          setIsSyncing(false);
+          setActiveTasks([
+            { id: "1", name: "Deep Validation Campaign", progress: 100 },
+          ]);
+          setTimeout(() => setActiveTasks([]), 3000);
+          unsubscribe();
+
+          const results = data.results || [];
+          const highRisk = results.filter(
+            (c: any) => c.trueCompetitorScore >= 0.65,
+          );
+          const cloneRisk = results.filter(
+            (c: any) => c.trueCompetitorScore >= 0.85,
+          );
+
+          if (cloneRisk.length >= 1 || highRisk.length >= 4) {
+            setTarpitCompetitors(results);
+            setIsTarpitWarningOpen(true);
+          } else {
+            addToast("Validation successful. Market looks clear!", "success");
+            setCompetitors(results);
+          }
+        } else if (data.status === "failed") {
+          setIsSyncing(false);
+          setActiveTasks([]);
+          unsubscribe();
+          addToast("Validation failed: " + data.error, "error");
+        }
+      });
+    });
   };
 
   const runSystemCheck = async () => {
@@ -4521,6 +3515,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <MarketShiftBanner />
         {syncQueue.length > 0 && (
           <div className="bg-sky text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0 z-40">
             <div className="flex items-center gap-3">
@@ -4755,7 +3750,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
         <ConsolidateFeaturesModal
           isOpen={isConsolidateModalOpen}
           onClose={() => setIsConsolidateModalOpen(false)}
-          competitors={competitors}
+          competitors={rawCompetitors}
           onConsolidate={(updates) => {
             setCompetitors((prev) =>
               prev.map((c) => {
@@ -4773,6 +3768,12 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             );
             addToast("Capabilities aggregated successfully", "success");
           }}
+        />
+
+        <TaxonomyMergeModal
+          isOpen={isTaxonomyMergeModalOpen}
+          onClose={() => setIsTaxonomyMergeModalOpen(false)}
+          competitors={rawCompetitors}
         />
 
         {/* CREATE INSIGHT MODAL */}
@@ -4972,7 +3973,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                 <HelpCircle size={18} />
               </button>
             </Tooltip>
-            <SyncNowButton
+            <DeepValidationButton
               isSyncing={isSyncing}
               syncProgress={syncProgress}
               handleGlobalSync={() => {
@@ -5019,63 +4020,79 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               />
             )}
 
-            {/* SUMMARY PAGE */}
-            {!selectedSourceId && selectedSummaryId && (
-              <SummaryPage
-                productContext={
-                  myProductData.name ||
-                  myProductData.description ||
-                  "the product's market"
-                }
-                title={selectedSummaryId}
-                value={
-                  selectedSummaryId === "Competitors Tracked"
-                    ? stats.tracked
-                    : selectedSummaryId === "Recent Pricing Changes"
-                      ? stats.pricingChanges
-                      : selectedSummaryId === "Features Indexed"
-                        ? stats.featuresIndexed
-                        : selectedSummaryId === "Est. Market Value"
-                          ? stats.estimatedMarketValue
-                          : stats.topIntegrations
-                }
-                trend={
-                  selectedSummaryId === "Competitors Tracked"
-                    ? stats.trends.tracked
-                    : selectedSummaryId === "Recent Pricing Changes"
-                      ? stats.trends.pricingChanges
-                      : selectedSummaryId === "Features Indexed"
-                        ? stats.trends.featuresIndexed
-                        : selectedSummaryId === "Est. Market Value"
-                          ? stats.trends.estimatedMarketValue
-                          : undefined
-                }
-                icon={<Database size={18} className="text-[#8A8A8A]" />}
-                stats={stats}
+            {/* HEAD TO HEAD COMPARISON PAGE */}
+            {comparingCompetitorIds.length > 0 && (
+              <HeadToHeadComparison
+                competitorIds={comparingCompetitorIds}
                 competitors={competitors}
-                featureDetails={featureDetails}
-                setFeatureDetails={setFeatureDetails}
-                onBack={() => setSelectedSummaryId(null)}
-                onAddFeatureToProduct={(featureName: string) => {
-                  if (
-                    !myProductData.features.some((f) => f.name === featureName)
-                  ) {
-                    setMyProductData((prev) => ({
-                      ...prev,
-                      features: [
-                        ...prev.features,
-                        {
-                          id: Date.now().toString(),
-                          name: featureName,
-                          status: "planned" as const,
-                          description: "",
-                        },
-                      ],
-                    }));
-                  }
-                }}
+                myProductData={myProductData}
+                onBack={() => setComparingCompetitorIds([])}
               />
             )}
+
+            {/* SUMMARY PAGE */}
+            {comparingCompetitorIds.length === 0 &&
+              !selectedSourceId &&
+              selectedSummaryId && (
+                <SummaryPage
+                  productContext={
+                    myProductData.name ||
+                    myProductData.description ||
+                    "the product's market"
+                  }
+                  title={selectedSummaryId}
+                  value={
+                    selectedSummaryId === "Competitors Tracked"
+                      ? stats.tracked
+                      : selectedSummaryId === "Recent Pricing Changes"
+                        ? stats.pricingChanges
+                        : selectedSummaryId === "Features Indexed"
+                          ? stats.featuresIndexed
+                          : selectedSummaryId === "Est. Market Value"
+                            ? stats.estimatedMarketValue
+                            : stats.topIntegrations
+                  }
+                  trend={
+                    selectedSummaryId === "Competitors Tracked"
+                      ? stats.trends.tracked
+                      : selectedSummaryId === "Recent Pricing Changes"
+                        ? stats.trends.pricingChanges
+                        : selectedSummaryId === "Features Indexed"
+                          ? stats.trends.featuresIndexed
+                          : selectedSummaryId === "Est. Market Value"
+                            ? stats.trends.estimatedMarketValue
+                            : undefined
+                  }
+                  icon={<Database size={18} className="text-[#8A8A8A]" />}
+                  stats={stats}
+                  competitors={competitors}
+                  featureDetails={featureDetails}
+                  setFeatureDetails={setFeatureDetails}
+                  onBack={() => setSelectedSummaryId(null)}
+                  onAddFeatureToProduct={(featureName: string) => {
+                    if (
+                      !myProductData.features.some(
+                        (f) => f.name === featureName,
+                      )
+                    ) {
+                      setMyProductData((prev) => ({
+                        ...prev,
+                        features: [
+                          ...prev.features,
+                          {
+                            id: Date.now().toString(),
+                            name: featureName,
+                            status: "planned" as const,
+                            description: "",
+                          },
+                        ],
+                      }));
+                    }
+                  }}
+                  comparingCompetitorIds={comparingCompetitorIds}
+                  setComparingCompetitorIds={setComparingCompetitorIds}
+                />
+              )}
 
             {/* SCOUT PAGE (Detailed Competitor View) */}
             {(activeTab === "dashboard" || activeTab === "matrix") &&
@@ -5115,6 +4132,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               !selectedSummaryId &&
               !selectedCompetitorId && (
                 <MyProduct
+                  projectId={productId}
                   productData={myProductData}
                   setProductData={setMyProductData}
                   competitors={competitors}
@@ -5227,19 +4245,32 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                         </p>
                       </div>
                       <div className="hidden sm:flex gap-2">
-                        <Tooltip
-                          content={tMessage(
-                            dictionary.tooltips.matrix.aggregateFeatures,
-                          )}
-                          position="top"
-                        >
-                          <button
-                            onClick={() => setIsConsolidateModalOpen(true)}
-                            className="flex items-center justify-center gap-2 px-5 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
+                        <div className="flex gap-2">
+                          <Tooltip
+                            content={tMessage(
+                              dictionary.tooltips.matrix.aggregateFeatures,
+                            )}
+                            position="top"
                           >
-                            <Combine size={16} /> Aggregate Capabilities
-                          </button>
-                        </Tooltip>
+                            <button
+                              onClick={() => setIsConsolidateModalOpen(true)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 border border-[#2C2C2C] text-[#2C2C2C] rounded-full text-sm font-sans font-medium hover:bg-[#2C2C2C] hover:text-[#F5F3ED] transition-all duration-300"
+                            >
+                              <Combine size={16} /> Auto-Aggregate
+                            </button>
+                          </Tooltip>
+                          <Tooltip
+                            content="Manually merge taxonomy features (HITL)"
+                            position="top"
+                          >
+                            <button
+                              onClick={() => setIsTaxonomyMergeModalOpen(true)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-full text-sm font-sans font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+                            >
+                              <Combine size={16} /> Manual Merge
+                            </button>
+                          </Tooltip>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -6624,7 +5655,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                             No background tasks are currently running.
                           </p>
                           <div className="mt-6 flex flex-wrap justify-center gap-4">
-                            <SyncNowButton
+                            <DeepValidationButton
                               isSyncing={isSyncing}
                               syncProgress={syncProgress}
                               handleGlobalSync={() => {
@@ -8041,6 +7072,8 @@ function SummaryPage({
   featureDetails,
   setFeatureDetails,
   onAddFeatureToProduct,
+  comparingCompetitorIds,
+  setComparingCompetitorIds,
 }: any) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -8214,6 +7247,8 @@ function SummaryPage({
               featureDetails={featureDetails}
               setFeatureDetails={setFeatureDetails}
               onAddFeatureToProduct={onAddFeatureToProduct}
+              comparingCompetitorIds={comparingCompetitorIds}
+              setComparingCompetitorIds={setComparingCompetitorIds}
             />
           </div>
         )}

@@ -40,7 +40,6 @@ interface GuidedTourProps {
  *
  * Used in combination with `useOnboarding` to prevent collisions with static modals.
  * Needs `data-tour="name"` selectors present in the DOM.
- *
  * @example
  * ```tsx
  * const { isTourActive, completeTour } = useOnboarding('guideKey', 'tourKey');
@@ -108,6 +107,9 @@ export function GuidedTour({
 
   if (!isOpen || !currentStep) return null;
 
+  /**
+   *
+   */
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
@@ -116,6 +118,9 @@ export function GuidedTour({
     }
   };
 
+  /**
+   *
+   */
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex((prev) => prev - 1);
@@ -123,6 +128,9 @@ export function GuidedTour({
   };
 
   // Calculate Popover Position
+  /**
+   *
+   */
   const getPopoverStyle = () => {
     if (!targetRect) {
       // Center if no target

@@ -28,6 +28,9 @@ interface InsightEngineChatProps {
   addToast: (msg: string, type: "success" | "error") => void;
 }
 
+/**
+ *
+ */
 export function InsightEngineChat({
   chatState,
   setChatState,
@@ -46,6 +49,9 @@ export function InsightEngineChat({
   const [mentionQuery, setMentionQuery] = useState("");
 
   React.useEffect(() => {
+    /**
+     *
+     */
     const handleClickOutside = (e: MouseEvent) => {
       if (chatState === "locked") {
         const chatEl = document.getElementById("insight-engine-chat");

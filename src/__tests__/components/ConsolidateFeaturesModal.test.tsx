@@ -6,14 +6,29 @@ import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock dependencies
 vi.mock("lucide-react", () => ({
+  /**
+   *
+   */
   X: () => <div data-testid="icon-x" />,
+  /**
+   *
+   */
   Combine: () => <div data-testid="icon-combine" />,
+  /**
+   *
+   */
   Loader2: () => <div data-testid="icon-loader2" />,
+  /**
+   *
+   */
   Check: () => <div data-testid="icon-check" />,
 }));
 
 vi.mock("motion/react", () => ({
   motion: {
+    /**
+     *
+     */
     div: ({
       children,
       className,
@@ -26,6 +41,9 @@ vi.mock("motion/react", () => ({
       </div>
     ),
   },
+  /**
+   *
+   */
   AnimatePresence: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
@@ -45,6 +63,9 @@ vi.mock("../../utils/aiClient", () => ({
 
 // Mock Tooltip to just render its children to avoid testing tooltip internals
 vi.mock("../../components/Tooltip", () => ({
+  /**
+   *
+   */
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

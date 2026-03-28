@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 
 // --- Brutalist Typography ---
+/**
+ *
+ */
 export const B_H1 = ({
   children,
   className = "",
@@ -17,6 +20,9 @@ export const B_H1 = ({
   </h1>
 );
 
+/**
+ *
+ */
 export const B_H2 = ({
   children,
   className = "",
@@ -31,6 +37,9 @@ export const B_H2 = ({
   </h2>
 );
 
+/**
+ *
+ */
 export const B_H3 = ({
   children,
   className = "",
@@ -45,6 +54,9 @@ export const B_H3 = ({
   </h3>
 );
 
+/**
+ *
+ */
 export const B_TextBody = ({
   children,
   className = "",
@@ -57,6 +69,9 @@ export const B_TextBody = ({
   </p>
 );
 
+/**
+ *
+ */
 export const B_TextData = ({
   children,
   className = "",
@@ -75,6 +90,9 @@ interface B_ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   endIcon?: React.ReactNode;
 }
 
+/**
+ *
+ */
 export const B_Button = ({
   children,
   variant = "primary",
@@ -120,6 +138,9 @@ export const B_Button = ({
 };
 
 // --- Brutalist Cards ---
+/**
+ *
+ */
 export const B_Card = ({
   children,
   className = "",
@@ -140,6 +161,9 @@ export const B_Card = ({
 );
 
 // --- Brutalist Badges ---
+/**
+ *
+ */
 export const B_Badge = ({
   children,
   variant = "info",
@@ -165,6 +189,9 @@ export const B_Badge = ({
 };
 
 // --- Brutalist Inputs ---
+/**
+ *
+ */
 export const B_Input = ({
   label,
   className = "",
@@ -183,6 +210,9 @@ export const B_Input = ({
   </div>
 );
 
+/**
+ *
+ */
 export const B_Textarea = ({
   label,
   className = "",

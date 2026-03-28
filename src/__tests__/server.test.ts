@@ -11,6 +11,9 @@ process.env.NODE_ENV = "test";
 
 // Mock auth middleware to let all requests through for backend testing
 vi.mock("../../src/server/authMiddleware", () => ({
+  /**
+   *
+   */
   requireAuth: (req: any, res: any, next: any) => next(),
 }));
 

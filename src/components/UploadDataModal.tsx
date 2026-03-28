@@ -25,6 +25,9 @@ interface UploadDataModalProps {
   competitors: any[];
 }
 
+/**
+ *
+ */
 export const UploadDataModal: React.FC<UploadDataModalProps> = ({
   isOpen,
   onClose,
@@ -68,6 +71,9 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
   }, [files]);
 
   useEffect(() => {
+    /**
+     *
+     */
     const handlePaste = (e: ClipboardEvent) => {
       if (!isOpen) return;
       const items = e.clipboardData?.items;
@@ -100,6 +106,9 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen]);
 
+  /**
+   *
+   */
   const processNewFiles = (newFiles: File[]) => {
     const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
     const textFiles = newFiles.filter((f) => !f.type.startsWith("image/"));
@@ -125,12 +134,18 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processNewFiles(Array.from(e.target.files));
     }
   };
 
+  /**
+   *
+   */
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -141,6 +156,9 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -150,11 +168,17 @@ export const UploadDataModal: React.FC<UploadDataModalProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const removeFile = (e: React.MouseEvent, fileName: string) => {
     e.stopPropagation();
     setFiles((prev) => prev.filter((f) => f.name !== fileName));
   };
 
+  /**
+   *
+   */
   const handleAnalyze = async () => {
     if (files.length === 0) return;
     setIsAnalyzing(true);
@@ -200,7 +224,13 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
         } else {
           text = await new Promise((resolve, reject) => {
             const reader = new FileReader();
+            /**
+             *
+             */
             reader.onload = (e) => resolve(e.target?.result as string);
+            /**
+             *
+             */
             reader.onerror = (e) => reject(e);
             reader.readAsText(textFile);
           });
@@ -331,6 +361,9 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
     }
   };
 
+  /**
+   *
+   */
   const getFileIcon = (filename: string) => {
     if (filename.endsWith(".json"))
       return <FileJson size={32} className="text-sky" />;

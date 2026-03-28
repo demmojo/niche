@@ -12,6 +12,9 @@ interface CustomCardNodeProps {
   };
 }
 
+/**
+ *
+ */
 export function CustomCardNode({ data }: CustomCardNodeProps) {
   const { cards, updateCard, deleteCard, removeCardFromWhiteboard } =
     useVisualKnowledgeStore(
@@ -29,6 +32,9 @@ export function CustomCardNode({ data }: CustomCardNodeProps) {
 
   if (!card) return null;
 
+  /**
+   *
+   */
   const getCardStyle = () => {
     switch (card.type) {
       case "root":
@@ -44,6 +50,9 @@ export function CustomCardNode({ data }: CustomCardNodeProps) {
     }
   };
 
+  /**
+   *
+   */
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && newTag.trim()) {
       const tag = newTag.trim().startsWith("#")
@@ -59,6 +68,9 @@ export function CustomCardNode({ data }: CustomCardNodeProps) {
     }
   };
 
+  /**
+   *
+   */
   const removeTag = (tagToRemove: string) => {
     updateCard(card.id, { tags: card.tags.filter((t) => t !== tagToRemove) });
   };

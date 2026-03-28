@@ -7,9 +7,12 @@ import { ReactFlowProvider } from "@xyflow/react";
 
 // Mock React Flow since it uses ResizeObserver and canvas elements which aren't in jsdom
 vi.mock("@xyflow/react", () => {
-  let _nodes: any[] = [];
-  let _edges: any[] = [];
+  const _nodes: any[] = [];
+  const _edges: any[] = [];
   return {
+    /**
+     *
+     */
     ReactFlow: ({
       children,
       onConnect,
@@ -44,15 +47,30 @@ vi.mock("@xyflow/react", () => {
         {children}
       </div>
     ),
+    /**
+     *
+     */
     Background: () => <div data-testid="rf-background" />,
+    /**
+     *
+     */
     Controls: () => <div data-testid="rf-controls" />,
+    /**
+     *
+     */
     MiniMap: ({ nodeColor, nodeStrokeColor }: any) => {
       // call them to satisfy coverage
       if (nodeColor) nodeColor({});
       if (nodeStrokeColor) nodeStrokeColor({});
       return <div data-testid="rf-minimap" />;
     },
+    /**
+     *
+     */
     ReactFlowProvider: ({ children }: any) => <div>{children}</div>,
+    /**
+     *
+     */
     useNodesState: (initial: any) => {
       const [nodes, setNodes] = React.useState(initial);
       const onNodesChange = React.useCallback((changes: any) => {
@@ -60,6 +78,9 @@ vi.mock("@xyflow/react", () => {
       }, []);
       return [nodes, setNodes, onNodesChange];
     },
+    /**
+     *
+     */
     useEdgesState: (initial: any) => {
       const [edges, setEdges] = React.useState(initial);
       const onEdgesChange = React.useCallback((changes: any) => {
@@ -69,6 +90,9 @@ vi.mock("@xyflow/react", () => {
     },
     addEdge: vi.fn(),
     Position: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" },
+    /**
+     *
+     */
     Handle: () => <div data-testid="rf-handle" />,
   };
 });

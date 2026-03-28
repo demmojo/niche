@@ -39,7 +39,6 @@ export interface Whiteboard {
 
 /**
  * Core interface for the Visual Knowledge Store.
- *
  * @description
  * This store manages the state of the visual whiteboard ecosystem. It relies on a
  * Context-Bound Vanilla Zustand architecture rather than a standard global singleton.
@@ -82,12 +81,18 @@ interface VisualKnowledgeState {
   setInitialData: (data: Partial<VisualKnowledgeState>) => void;
 }
 
+/**
+ *
+ */
 export const createVisualKnowledgeStore = () =>
   createStore<VisualKnowledgeState>((set, get) => ({
     cards: {},
     whiteboards: {},
     activeWhiteboardId: null,
 
+    /**
+     *
+     */
     addCard: (cardData) => {
       const id = `card-${Date.now()}`;
       set((state) => ({
@@ -99,6 +104,9 @@ export const createVisualKnowledgeStore = () =>
       return id;
     },
 
+    /**
+     *
+     */
     updateCard: (id, updates) => {
       set((state) => ({
         cards: {
@@ -108,6 +116,9 @@ export const createVisualKnowledgeStore = () =>
       }));
     },
 
+    /**
+     *
+     */
     deleteCard: (id) => {
       set((state) => {
         const newCards = { ...state.cards };
@@ -143,6 +154,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     createWhiteboard: (name) => {
       const id = `wb-${Date.now()}`;
       set((state) => ({
@@ -160,10 +174,16 @@ export const createVisualKnowledgeStore = () =>
       return id;
     },
 
+    /**
+     *
+     */
     setActiveWhiteboard: (id) => {
       set({ activeWhiteboardId: id });
     },
 
+    /**
+     *
+     */
     updateWhiteboard: (id, updates) => {
       set((state) => ({
         whiteboards: {
@@ -173,6 +193,9 @@ export const createVisualKnowledgeStore = () =>
       }));
     },
 
+    /**
+     *
+     */
     placeCardOnWhiteboard: (whiteboardId, cardId, position) => {
       const instanceId = `inst-${Date.now()}`;
       set((state) => {
@@ -194,6 +217,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     removeCardFromWhiteboard: (whiteboardId, instanceId) => {
       set((state) => {
         const wb = state.whiteboards[whiteboardId];
@@ -217,6 +243,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     updateCardInstancePosition: (whiteboardId, instanceId, position) => {
       set((state) => {
         const wb = state.whiteboards[whiteboardId];
@@ -236,6 +265,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     addEdge: (whiteboardId, edgeData) => {
       const id = `edge-${Date.now()}`;
       set((state) => {
@@ -254,6 +286,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     removeEdge: (whiteboardId, edgeId) => {
       set((state) => {
         const wb = state.whiteboards[whiteboardId];
@@ -271,6 +306,9 @@ export const createVisualKnowledgeStore = () =>
       });
     },
 
+    /**
+     *
+     */
     setInitialData: (data) => {
       set(data);
     },
@@ -284,12 +322,10 @@ export const VisualKnowledgeContext = createContext<ReturnType<
 
 /**
  * React Context Provider for the Visual Knowledge Store.
- *
  * @description
  * Creates an isolated vanilla store instance for the React sub-tree. If running
  * in a test environment (`process.env.NODE_ENV === "test"`), it automatically injects
  * a shared `testVisualKnowledgeStore` to allow test utilities to pre-seed state.
- *
  * @example
  * ```tsx
  * <VisualKnowledgeProvider>
@@ -320,13 +356,10 @@ export function VisualKnowledgeProvider({
 
 /**
  * Overloaded hook to consume the Context-Bound Visual Knowledge Store.
- *
  * @description
  * This hook must be used within a `<VisualKnowledgeProvider>`. To prevent unnecessary
  * re-renders, ALWAYS pass a selector and wrap it with `useShallow` from `zustand/react/shallow`.
- *
  * @throws {Error} If called outside of a `<VisualKnowledgeProvider>` tree.
- *
  * @example
  * ```tsx
  * const { cards, addCard } = useVisualKnowledgeStore(

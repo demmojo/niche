@@ -1,5 +1,7 @@
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `analytical-template-system`.
+
 The current analytics offerings in NicheAI lack the visual fidelity ("wow factor") and flexible reporting capabilities required by executives and power users. Furthermore, as data scales, manual curation of features and market signals becomes a bottleneck. We need a system that not only looks stunning but actively learns and deduplicates data to ensure high-signal insights.
 
 ## What Changes

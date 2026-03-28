@@ -11,6 +11,7 @@ import {
 import {
   generateContentHandler,
   generateContentStreamHandler,
+  reviewArtifactHandler,
 } from "./src/server/llmRoutes";
 import {
   calculateExactHash,
@@ -23,6 +24,8 @@ import { sseEndpoint } from "./src/server/sse";
 import {
   startNetworkIoWorker,
   startVisionMlWorker,
+  startDistillationWorker,
+  startTaxonomyOutboxWorker,
   networkIoQueue,
   visionMlQueue,
 } from "./src/server/queues";
@@ -32,11 +35,17 @@ import {
   enrichmentLimiter,
 } from "./src/server/rateLimit";
 
+import { campaignRouter } from "./src/server/campaignRoutes";
+
 dotenv.config();
 
 // Start Background Workers
-startNetworkIoWorker();
-startVisionMlWorker();
+if (process.env.NODE_ENV !== "test") {
+  startNetworkIoWorker();
+  startVisionMlWorker();
+  startDistillationWorker();
+  startTaxonomyOutboxWorker();
+}
 
 async function startServer() {
   const app = express();
@@ -60,6 +69,7 @@ async function startServer() {
     requireAuth,
     generateContentStreamHandler,
   );
+  app.post("/api/reviewArtifact", requireAuth, reviewArtifactHandler);
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -68,6 +78,9 @@ async function startServer() {
 
   // SSE Streaming Endpoint for "AI Thinking DAG UI"
   app.get("/api/sse", sseEndpoint);
+
+  // New Tarpit Validation Campaign Routes
+  app.use("/api/campaign", campaignRouter);
 
   // IDEATION ENDPOINTS
 
@@ -274,35 +287,18 @@ async function startServer() {
   });
 
   // Tarpit Analyzer Endpoint
-  app.post("/api/tarpit-analyze", requireAuth, async (req, res) => {
-    try {
-      const { productName, productDescription } = req.body;
-      if (!productName || !productDescription) {
-        return res
-          .status(400)
-          .json({ error: "Missing product name or description" });
-      }
+  const { scoringRouter } = await import("./src/server/scoringRoutes");
+  const { runTarpitClustering } = await import("./src/services/tarpitFlywheel");
 
-      // Mock AI response for now (to be replaced with actual geminiClient call if needed)
-      const mockResponse = {
-        isTarpit:
-          productDescription.toLowerCase().includes("email") ||
-          productDescription.toLowerCase().includes("crm"),
-        score: 85,
-        reasoning:
-          "The concept is too broad and faces immense competition from established players.",
-        suggestedNiches: [
-          "A CRM specifically for independent dog walkers",
-          "An email client for lawyers with built-in e-discovery",
-        ],
-      };
+  // Start periodic clustering for the Data Flywheel
+  setInterval(
+    () => {
+      runTarpitClustering().catch(console.error);
+    },
+    60 * 60 * 1000,
+  ); // Hourly
 
-      res.status(200).json(mockResponse);
-    } catch (error: any) {
-      console.error("Tarpit Analyzer Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+  app.use("/api", scoringRouter);
 
   // Visual Intelligence & BYOK Proxy
   app.post("/api/visual/analyze", requireAuth, async (req, res) => {
@@ -313,36 +309,77 @@ async function startServer() {
         return res.status(400).json({ error: "Missing image or API key" });
       }
 
-      // Step 1: OmniParser (Mock bounding boxes)
-      const omniParserMock = {
-        elements: [
+      // 1. Multimodal LLM to output strict JSON with _reasoning field (Refactored Visual Intelligence Pipeline)
+      // Call Gemini 3.1 Pro natively
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: userApiKey || process.env.GEMINI_API_KEY,
+      });
+      const { z } = await import("zod");
+      const { zodToJsonSchema } = await import("zod-to-json-schema");
+
+      const VisualSchema = z.object({
+        _reasoning: z.string(),
+        features: z.array(
+          z.object({
+            name: z.string(),
+            confidence: z.number().min(0).max(1),
+            boundingBoxId: z.string().optional(),
+          }),
+        ),
+      });
+
+      const prompt =
+        "Analyze this image and extract the key UI features present. Provide reasoning for your extraction.";
+      const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+
+      const geminiRes = await ai.models.generateContent({
+        model: "gemini-3.1-pro",
+        contents: [
+          prompt,
           {
-            id: "btn-1",
-            type: "button",
-            text: "Sign Up",
-            bbox: [10, 20, 100, 40],
+            inlineData: {
+              data: base64Data,
+              mimeType: "image/png",
+            },
           },
-          { id: "img-1", type: "image", bbox: [50, 50, 200, 200] },
         ],
-      };
-
-      // Step 2: BYOK Gateway (Downscale image)
-      const isDownscaled = true;
-
-      // Step 3: Multimodal LLM (Mock API call)
-      const extractedFeatures = [
-        {
-          name: "One-Click Onboarding",
-          confidence: 0.95,
-          boundingBoxId: "btn-1",
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: zodToJsonSchema(
+            VisualSchema as any,
+            "VisualSchema",
+          ) as any,
+          systemInstruction:
+            "You are an expert UI analyzer. Respond with strict JSON matching the schema.",
         },
-        { name: "Visual Dashboard", confidence: 0.88, boundingBoxId: "img-1" },
-      ];
+      });
+
+      const parsedResponse = JSON.parse(geminiRes.text || "{}");
+      const validatedVisual = VisualSchema.parse(parsedResponse);
+
+      // 2. Map visual JSON features through deterministic vector mapping scripts
+      // Convert features to a deterministic string to hash
+      const featureString = validatedVisual.features
+        .map((f) => f.name)
+        .sort()
+        .join("|");
+
+      // 3. Wire existing SimHash deduplication logic into the new ingestion pipelines
+      const { calculateSimHash, calculateExactHash } =
+        await import("./src/utils/hashing");
+      const simHash = calculateSimHash(featureString);
+      const exactHash = calculateExactHash(featureString);
+
+      // (Optional) Check Supabase for duplicates using simHash/exactHash here
+      // ...
 
       res.status(200).json({
-        omniParser: omniParserMock,
-        features: extractedFeatures,
-        proxyInfo: { downscaled: isDownscaled, provider: provider || "gemini" },
+        _reasoning: validatedVisual._reasoning,
+        features: validatedVisual.features,
+        simHash,
+        exactHash,
+        proxyInfo: { downscaled: true, provider: provider || "gemini" },
       });
     } catch (error: any) {
       console.error("Visual Intelligence Error:", error);

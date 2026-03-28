@@ -97,6 +97,9 @@ export function InsightGeneratorModal({
     }
   }, [messages, isTyping]);
 
+  /**
+   *
+   */
   const startConversation = async () => {
     if (isTyping) return;
     setIsTyping(true);
@@ -159,6 +162,9 @@ Ask a multiple-choice question to understand what area the user wants to focus o
     }
   };
 
+  /**
+   *
+   */
   const handleOptionClick = async (option: string) => {
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),

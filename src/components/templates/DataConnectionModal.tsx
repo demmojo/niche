@@ -9,6 +9,9 @@ interface DataConnectionModalProps {
   availableSources: Array<{ key: string; label: string; type: string }>;
 }
 
+/**
+ *
+ */
 export function DataConnectionModal({
   isOpen,
   onClose,
@@ -21,6 +24,9 @@ export function DataConnectionModal({
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleSelectChange = (schemaKey: string, sourceKey: string) => {
     setDraftConfig((prev) => ({
       ...prev,

@@ -1,0 +1,6 @@
+schema: spec-driven
+status: implemented
+created: '2026-03-28'
+depends_on:
+  - rapid-pdlc-prompt-exporter
+  - brand-positioning-wizard

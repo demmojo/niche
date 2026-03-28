@@ -69,6 +69,9 @@ describe("ExternalSignalsSyncJob", () => {
       vi.spyOn(apiKeys, "getCustomApiKey").mockReturnValue("fake-key");
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => ({
           results: [{ text: "Too expensive", title: "Review 1" }],
         }),
@@ -104,6 +107,9 @@ describe("ExternalSignalsSyncJob", () => {
       vi.spyOn(apiKeys, "getCustomApiKey").mockReturnValue("fake-key");
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => ({ results: [] }),
       });
 
@@ -165,6 +171,9 @@ describe("ExternalSignalsSyncJob", () => {
       vi.spyOn(apiKeys, "getCustomApiKey").mockReturnValue("fake-key");
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => ({
           results: [{ text: "How do I do X", title: "Forum post" }],
         }),
@@ -198,6 +207,9 @@ describe("ExternalSignalsSyncJob", () => {
       vi.spyOn(apiKeys, "getCustomApiKey").mockReturnValue("fake-key");
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => ({
           results: [],
         }),
@@ -227,6 +239,9 @@ describe("ExternalSignalsSyncJob", () => {
       vi.spyOn(apiKeys, "getCustomApiKey").mockReturnValue("fake-key");
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => ({ results: [] }),
       });
 

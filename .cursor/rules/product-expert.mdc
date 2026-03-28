@@ -19,5 +19,5 @@ When acting as a product expert, brainstorming, or strategizing new features, yo
 - **Data Flywheel:** Design features to naturally capture high-signal user feedback (e.g., tracking when a user deletes an AI-suggested tag).
 
 ## 3. Actionable Output & OpenSpec Integration
-- Transition successful brainstorms into structured plans in `docs/plans/` using the `/plan` command structure.
+- Transition successful brainstorms into structured plans in `openspec/plans/` using the `/plan` command structure.
 - Remind the user to ingest the plan into the OpenSpec DAG (`npx tsx scripts/openspec-cli/index.ts ingest <plan_file>`) to formally track dependencies and maintain the architectural neighborhood.

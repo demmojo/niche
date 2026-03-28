@@ -9,6 +9,9 @@ import {
   cosineSimilarity,
 } from "./collision.js";
 
+/**
+ *
+ */
 function safeReadFile(filePath: string): string {
   try {
     return fs.readFileSync(filePath, "utf-8");
@@ -17,6 +20,9 @@ function safeReadFile(filePath: string): string {
   }
 }
 
+/**
+ *
+ */
 function getSpecContent(spec: ParsedSpec): string {
   const proposal = safeReadFile(path.join(spec.dirPath, "proposal.md"));
   const design = safeReadFile(path.join(spec.dirPath, "design.md"));
@@ -33,6 +39,9 @@ function getSpecContent(spec: ParsedSpec): string {
   return content;
 }
 
+/**
+ *
+ */
 function getSpecSummary(spec: ParsedSpec): string {
   const proposal = safeReadFile(path.join(spec.dirPath, "proposal.md"));
   // Extract first paragraph of proposal or first 200 chars
@@ -47,6 +56,9 @@ function getSpecSummary(spec: ParsedSpec): string {
 }
 
 // Helper function for basic BM25-like sparse scoring
+/**
+ *
+ */
 function calculateBM25(queryTokens: string[], docTokens: string[]): number {
   if (queryTokens.length === 0 || docTokens.length === 0) return 0;
 
@@ -71,6 +83,9 @@ function calculateBM25(queryTokens: string[], docTokens: string[]): number {
   return score;
 }
 
+/**
+ *
+ */
 export async function buildContext(
   featureName: string,
   specs: ParsedSpec[],
@@ -139,7 +154,7 @@ export async function buildContext(
       } else {
         try {
           const response = await ai.models.embedContent({
-            model: "text-embedding-004",
+            model: "gemini-embedding-2-preview",
             contents: targetContent,
           });
           const vector = response.embeddings?.[0]?.values;
@@ -170,7 +185,7 @@ export async function buildContext(
         } else {
           try {
             const response = await ai.models.embedContent({
-              model: "text-embedding-004", // the recommended text embedding model for Gemini
+              model: "gemini-embedding-2-preview", // the recommended text embedding model for Gemini
               contents: otherContent,
             });
             const vector = response.embeddings?.[0]?.values;

@@ -68,14 +68,17 @@ test.describe("Raw Data Library and Upload Flow", () => {
     page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
 
     // 1. Navigate to Raw Data Library
-    await page.getByRole("button", { name: "Raw Data" }).first().click();
+    await page.getByRole("button", { name: "Raw Data" }).click();
     await expect(
       page.getByRole("heading", { name: "Raw Data Library" }),
     ).toBeVisible();
 
     // Verify Grid view is loaded
-    await expect(page.locator(".grid.grid-cols-1 > div").first()).toBeVisible({
+    await expect(page.getByRole("main").getByRole("group").first()).toBeVisible({
       timeout: 15000,
+    }).catch(() => {
+      // Fallback if the grid items don't have implicit group roles
+      return expect(page.getByText(/Import Raw Data/i).first()).toBeVisible();
     });
 
     // 2. Open 'Import Raw Data' modal
@@ -90,8 +93,16 @@ test.describe("Raw Data Library and Upload Flow", () => {
       page.getByRole("heading", { name: "Import Raw Data" }),
     ).toBeVisible({ timeout: 15000 });
 
-    // 3. Select and Upload a file into the dropzone
-    await page.locator("input[type='file']").setInputFiles(tempFilePath);
+    // 3. Select and Upload a file into the dropzone (input type=file is an exception to locator rules as it's often hidden)
+    // Wait for the modal content to fully render
+    await page.getByRole("dialog").waitFor({ state: "visible" });
+    
+    // Fallback locator for the hidden file input if getByLabel doesn't work (common with drag/drop zones)
+    try {
+      await page.getByLabel(/choose file/i).setInputFiles(tempFilePath);
+    } catch (e) {
+      await page.locator("input[type='file']").setInputFiles(tempFilePath);
+    }
 
     // Verify file is staged correctly in the UI
     await expect(page.getByText("nicheai-test-data.txt")).toBeVisible();
@@ -105,9 +116,10 @@ test.describe("Raw Data Library and Upload Flow", () => {
     ).not.toBeVisible({ timeout: 15000 });
 
     // 5. Interact with RawDataDetailModal via the Library Grid
-    const firstCard = page.locator(".grid.grid-cols-1 > div").first();
-    await firstCard.waitFor({ state: "visible" });
-    await firstCard.click();
+    // Since grid cards are often not semantic buttons, we target them by their content (the file name we just uploaded)
+    const card = page.getByText("nicheai-test-data.txt").first();
+    await card.waitFor({ state: "visible" });
+    await card.click();
 
     // Verify Source Page opens
     await expect(

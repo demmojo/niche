@@ -9,6 +9,9 @@ interface SyncReviewModalProps {
   onCommit: (selectedIds: string[]) => void;
 }
 
+/**
+ *
+ */
 export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
   isOpen,
   onClose,
@@ -36,6 +39,9 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleToggle = (id: string) => {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id);
@@ -43,6 +49,9 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
     setSelectedIds(next);
   };
 
+  /**
+   *
+   */
   const handleToggleGroup = (entityId: string, groupDiffs: SyncDiff[]) => {
     const groupIds = groupDiffs.map((d) => d.id);
     const allSelected = groupIds.every((id) => selectedIds.has(id));
@@ -56,10 +65,16 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
     setSelectedIds(next);
   };
 
+  /**
+   *
+   */
   const handleSelectAll = () => {
     setSelectedIds(new Set(syncQueue.map((d) => d.id)));
   };
 
+  /**
+   *
+   */
   const handleDeselectAll = () => {
     setSelectedIds(new Set());
   };
@@ -205,7 +220,28 @@ export const SyncReviewModal: React.FC<SyncReviewModalProps> = ({
           </button>
           <button
             onClick={() => {
-              onCommit(Array.from(selectedIds));
+              const selectedArray = Array.from(selectedIds);
+              onCommit(selectedArray);
+              
+              // Telemetry Event 2: Core Action - Market-Driven Sync Commit
+              import('../utils/telemetry').then(({ telemetry }) => {
+                const acceptedDiffsCount = selectedArray.length;
+                const rejectedDiffsCount = syncQueue.length - acceptedDiffsCount;
+                
+                // Identify unique entity types mutated
+                const mutatedEntities = new Set(
+                  syncQueue
+                    .filter(d => selectedIds.has(d.id))
+                    .map(d => d.entityType)
+                );
+
+                telemetry.track('market_driven_sync_commit', {
+                  acceptedDiffsCount,
+                  rejectedDiffsCount,
+                  entityTypesMutated: Array.from(mutatedEntities)
+                });
+              });
+              
               onClose();
             }}
             disabled={selectedIds.size === 0}

@@ -3,6 +3,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UnifiedIdeationEngine } from "../../../../src/components/ideation/UnifiedIdeationEngine";
 
 // Mock the EventSource for AiThinkingDag
+/**
+ *
+ */
 class MockEventSource {
   onmessage: any = null;
   addEventListener = vi.fn();
@@ -58,6 +61,9 @@ describe("UnifiedIdeationEngine", () => {
   it("submits competitors and transitions to AiThinkingDag", async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      /**
+       *
+       */
       json: async () => ({ jobId: "mock-job-123" }),
     });
 
@@ -98,6 +104,9 @@ describe("UnifiedIdeationEngine", () => {
     vi.spyOn(window, "alert").mockImplementation(() => {});
     (global.fetch as any).mockResolvedValueOnce({
       ok: false,
+      /**
+       *
+       */
       json: async () => ({ error: "Failed to start job" }),
     });
 

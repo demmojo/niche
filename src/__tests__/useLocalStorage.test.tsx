@@ -20,6 +20,9 @@ vi.mock("../firebase", () => ({
   safeDisableNetwork: vi.fn(),
 }));
 
+/**
+ *
+ */
 function TestComponent({
   initialValue,
   storageKey,

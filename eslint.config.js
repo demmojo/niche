@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
+import playwright from "eslint-plugin-playwright";
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "blob-report"] },
@@ -47,4 +48,21 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // E2E Tests Specific Config
+    files: ["e2e/**/*.spec.ts"],
+    plugins: {
+      playwright,
+    },
+    rules: {
+      ...playwright.configs["flat/recommended"].rules,
+      "playwright/no-networkidle": "error",
+      "playwright/prefer-web-first-assertions": "error",
+      "playwright/no-restricted-matchers": [
+        "error",
+        { "page.locator": "Use getByRole, getByLabel, or other accessibility locators instead for intent-based testing." }
+      ],
+      "jsdoc/require-jsdoc": "off", // Don't require JSDoc for test files
+    }
+  }
 );

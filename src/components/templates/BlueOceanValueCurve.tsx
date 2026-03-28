@@ -38,6 +38,9 @@ const valueCurveData = [
   },
 ];
 
+/**
+ *
+ */
 export function BlueOceanValueCurve() {
   return (
     <div className="p-8 h-full overflow-y-auto bg-[#0F172A] text-white font-mono">

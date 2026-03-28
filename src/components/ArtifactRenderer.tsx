@@ -23,6 +23,9 @@ interface ArtifactRendererProps {
   onDeploy?: () => void;
 }
 
+/**
+ *
+ */
 export function ArtifactRenderer({
   activeArtifact,
   features,

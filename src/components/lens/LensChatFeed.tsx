@@ -10,6 +10,9 @@ interface LensChatFeedProps {
   onDismiss: (suggestion: LensSuggestion, reason: string) => void;
 }
 
+/**
+ *
+ */
 export function LensChatFeed({
   messages,
   isTyping,

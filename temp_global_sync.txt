@@ -1,0 +1,101 @@
+
+  const handleGlobalSync = async (startStage = 1, initialState: any = {}) => {
+    if (syncQueue.length > 0) {
+      addToast("Please review and commit pending sync changes first.", "error");
+      return;
+    }
+    if (isSyncing) {
+      addToast("Campaign already in progress.", "info");
+      return;
+    }
+    
+    // Fallback if no competitors
+    if (!competitors || competitors.length === 0) {
+      addToast("Please add at least 1 competitor first.", "error");
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      
+      const res = await fetch("/api/campaign/start", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${await user?.getIdToken()}` 
+        },
+        body: JSON.stringify({ competitors, baseIdea: myProductData })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        addToast(data.error || data.message || "Failed to start validation campaign", "error");
+        setIsSyncing(false);
+        return;
+      }
+      
+      const { jobId } = await res.json();
+      addToast("Validation campaign started...", "loading");
+      
+      const jobRef = doc(db, "campaign_jobs", jobId);
+      
+      const unsubscribe = onSnapshot(jobRef, (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        
+        // Update progress banner
+        if (data.total && data.total > 0) {
+            setActiveTasks([
+              { id: "1", name: "Deep Validation Campaign", progress: Math.min(Math.round((data.progress / data.total) * 100), 99) }
+            ]);
+        }
+        
+        if (data.status === "completed") {
+          setIsSyncing(false);
+          setActiveTasks([{ id: "1", name: "Deep Validation Campaign", progress: 100 }]);
+          
+          setTimeout(() => setActiveTasks([]), 3000);
+          unsubscribe();
+          
+          const results = data.results || [];
+          
+          // Check Tarpit Math
+          const highRisk = results.filter((c: any) => c.trueCompetitorScore >= 0.65);
+          const cloneRisk = results.filter((c: any) => c.trueCompetitorScore >= 0.85);
+          
+          if (cloneRisk.length >= 1 || highRisk.length >= 4) {
+            setTarpitCompetitors(results);
+            setIsTarpitWarningOpen(true);
+          } else {
+            addToast("Validation successful. Market looks clear!", "success");
+            setCompetitors(results); // Map results back to update local UI
+          }
+        } else if (data.status === "failed") {
+          setIsSyncing(false);
+          setActiveTasks([]);
+          unsubscribe();
+          addToast("Validation failed: " + data.error, "error");
+        }
+      });
+      
+    } catch (e: any) {
+      setIsSyncing(false);
+      addToast(e.message || "Failed to start campaign", "error");
+    }
+  };  const runSystemCheck = async () => {
+    addLog("System Check", "Starting comprehensive system check...", "pending");
+    let issuesFound = 0;
+
+    let updatedCompetitors = [...competitors];
+    let updatedRawDataSources = [...rawDataSources];
+    let updatedDerivedInsights = [...derivedInsights];
+    let needsUpdate = false;
+
+    // 1. Validate Competitors
+    addLog(
+      "System Check",
+      `Validating ${competitors.length} competitors...`,
+      "info",
+    );
+    updatedCompetitors = updatedCompetitors.map((comp) => {
+      let fixedComp = { ...comp };

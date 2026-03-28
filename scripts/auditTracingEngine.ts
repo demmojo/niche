@@ -50,12 +50,15 @@ const expectedFinalState = {
   pricingModel: "Freemium ($10/mo)",
 };
 
+/**
+ *
+ */
 async function runDataAudit() {
   console.log("🔍 Starting Flow Tracing Data Audit...\n");
 
-  let computedState = { ...initialCompetitorState };
+  const computedState = { ...initialCompetitorState };
   let orphansFound = 0;
-  let continuityErrors = 0;
+  const continuityErrors = 0;
 
   console.log("1️⃣  Verifying State Playback (Payload Fidelity)...");
 

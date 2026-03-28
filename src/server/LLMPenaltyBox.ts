@@ -7,6 +7,9 @@ interface PenaltyBoxState {
   nextAttempt: number;
 }
 
+/**
+ *
+ */
 export class LLMPenaltyBox {
   private static instance: LLMPenaltyBox;
   private registry = new Map<Provider, PenaltyBoxState>();

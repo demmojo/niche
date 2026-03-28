@@ -68,6 +68,9 @@ const TOOLS = [
   },
 ];
 
+/**
+ *
+ */
 export function StrategyToolbox() {
   const [activeTool, setActiveTool] = useState<{
     id: string;
@@ -167,6 +170,9 @@ export function StrategyToolbox() {
   );
 }
 
+/**
+ *
+ */
 function DatabaseIcon(props: any) {
   return (
     <svg

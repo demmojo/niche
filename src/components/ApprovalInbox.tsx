@@ -12,12 +12,18 @@ interface InboxItem {
   status: string;
 }
 
+/**
+ *
+ */
 export const ApprovalInbox: React.FC = () => {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLocalDbOffline, setIsLocalDbOffline] = useState(false);
 
   useEffect(() => {
+    /**
+     *
+     */
     const fetchInbox = async () => {
       try {
         if (!supabase) {
@@ -54,6 +60,9 @@ export const ApprovalInbox: React.FC = () => {
       }
     };
 
+    /**
+     *
+     */
     const loadMockData = () => {
       // Mock data if no DB yet
       setItems([
@@ -72,6 +81,9 @@ export const ApprovalInbox: React.FC = () => {
     fetchInbox();
   }, []);
 
+  /**
+   *
+   */
   const handleAction = async (
     id: string,
     action: "keep_both" | "update" | "discard",

@@ -9,9 +9,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { demoValidationCampaigns } from "../../utils/demoMockData";
 import { ValidationCampaign } from "../../types";
+import { useMarketIntelligence } from "../../hooks/useMarketIntelligence";
+import { Loader2 } from "lucide-react";
 
+/**
+ *
+ */
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data: ValidationCampaign = payload[0].payload;
@@ -60,9 +64,15 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+/**
+ *
+ */
 export const FakeDoorValidation: React.FC = () => {
+  const fetchState = useMarketIntelligence<ValidationCampaign>("market_validation_campaigns");
+
   const data = useMemo(() => {
-    return demoValidationCampaigns.map((item) => ({
+    if (fetchState.status !== "success") return [];
+    return fetchState.data.map((item) => ({
       name: item.name,
       Impressions: item.adImpressions,
       Clicks: item.ctaClicks,
@@ -70,7 +80,26 @@ export const FakeDoorValidation: React.FC = () => {
       Intent: item.purchaseIntent,
       ...item,
     }));
-  }, []);
+  }, [fetchState]);
+
+  if (fetchState.status === "loading" || fetchState.status === "idle") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="flex flex-col items-center gap-3 text-ink-dark/60">
+          <Loader2 className="animate-spin w-8 h-8" />
+          <p className="font-serif">Loading Pretotyping Data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchState.status === "error") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="text-rose-600 font-bold">Failed to load Validation Campaigns</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-full">

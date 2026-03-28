@@ -11,9 +11,13 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { demoAssumptions } from "../../utils/demoMockData";
 import { Assumption } from "../../types";
+import { useMarketIntelligence } from "../../hooks/useMarketIntelligence";
+import { Loader2 } from "lucide-react";
 
+/**
+ *
+ */
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data: Assumption = payload[0].payload;
@@ -55,16 +59,41 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+/**
+ *
+ */
 export const AssumptionMapping: React.FC = () => {
+  const fetchState = useMarketIntelligence<Assumption>("market_assumptions");
+
   const data = useMemo(() => {
-    return demoAssumptions.map((item) => ({
+    if (fetchState.status !== "success") return [];
+    return fetchState.data.map((item) => ({
       ...item,
       // For Recharts Scatter
       x: item.evidenceStrength,
       y: item.importanceScore,
       z: 1, // Fixed size
     }));
-  }, []);
+  }, [fetchState]);
+
+  if (fetchState.status === "loading" || fetchState.status === "idle") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="flex flex-col items-center gap-3 text-ink-dark/60">
+          <Loader2 className="animate-spin w-8 h-8" />
+          <p className="font-serif">Loading Assumption Mapping...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchState.status === "error") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="text-rose-600 font-bold">Failed to load Assumptions</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-full">

@@ -1,5 +1,7 @@
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `gemini-model-upgrade-routing`.
+
 Currently, NicheAI users can select a list of AI models that the application cycles through for all tasks. This is suboptimal. Using a slow, expensive "Pro" model (like Gemini 3.1 Pro or Claude 3.7 Sonnet) for simple formatting or extraction tasks wastes tokens and degrades user experience. Conversely, using a fast model for deep strategic synthesis yields poor results. We need an intelligent, automated routing system that selects the best model for the job without burdening the user with granular, per-flow configuration.
 
 ## What Changes

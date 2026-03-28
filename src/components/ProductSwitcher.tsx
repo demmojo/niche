@@ -2,11 +2,7 @@ import React, { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronDown, Plus, Sparkles } from "lucide-react";
 import { RequestAccessModal } from "./RequestAccessModal";
-
-export type Product = {
-  id: string;
-  name: string;
-};
+import { Product } from "../types/product";
 
 interface ProductSwitcherProps {
   products: Product[];
@@ -16,6 +12,9 @@ interface ProductSwitcherProps {
   user: any;
 }
 
+/**
+ *
+ */
 export function ProductSwitcher({
   products,
   activeProductId,

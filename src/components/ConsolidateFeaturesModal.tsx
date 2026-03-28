@@ -53,6 +53,9 @@ export const ConsolidateFeaturesModal: React.FC<
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleAnalyze = async () => {
     if (!competitors || competitors.length < 2) return;
     setIsAnalyzing(true);

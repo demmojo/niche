@@ -9,8 +9,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { demoValueFactors } from "../../utils/demoMockData";
+import { ValueFactor } from "../../types";
+import { useMarketIntelligence } from "../../hooks/useMarketIntelligence";
+import { Loader2 } from "lucide-react";
 
+/**
+ *
+ */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -36,9 +41,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+/**
+ *
+ */
 export const BlueOceanValueCurve: React.FC = () => {
+  const fetchState = useMarketIntelligence<ValueFactor>("market_value_factors");
+
   const data = useMemo(() => {
-    return demoValueFactors.map((item) => {
+    if (fetchState.status !== "success") return [];
+    return fetchState.data.map((item) => {
       const point: any = {
         name: item.name,
         "Our Product": item.userProductScore,
@@ -49,7 +60,24 @@ export const BlueOceanValueCurve: React.FC = () => {
       });
       return point;
     });
-  }, []);
+  }, [fetchState]);
+
+  if (fetchState.status === "loading" || fetchState.status === "idle") {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <Loader2 className="animate-spin w-8 h-8 text-ink-dark/60 mb-2" />
+        <p className="text-sm text-ink-dark/60 font-serif">Loading Blue Ocean factors...</p>
+      </div>
+    );
+  }
+
+  if (fetchState.status === "error") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="text-rose-600 font-bold">Failed to load Value Factors</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-full">

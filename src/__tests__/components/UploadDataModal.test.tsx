@@ -70,6 +70,9 @@ describe("UploadDataModal", () => {
     );
 
     const file = new File(["dummy content"], "test.csv", { type: "text/csv" });
+    /**
+     *
+     */
     file.text = async () => "dummy content";
 
     const input = document.querySelector(

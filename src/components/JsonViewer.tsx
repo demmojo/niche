@@ -8,6 +8,9 @@ export const JsonViewer = React.memo(function JsonViewer({
 }) {
   const [copied, setCopied] = useState(false);
 
+  /**
+   *
+   */
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
@@ -18,10 +21,13 @@ export const JsonViewer = React.memo(function JsonViewer({
     }
   };
 
-  let formattedJson = text;
+  const formattedJson = text;
   try {
     const parsed = JSON.parse(text);
 
+    /**
+     *
+     */
     const renderNode = (data: any): React.ReactNode => {
       if (typeof data !== "object" || data === null) {
         return (

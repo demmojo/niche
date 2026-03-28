@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 
+/**
+ *
+ */
 export function useUrlSearchParam(
   key: string,
   defaultValue: string,
@@ -10,6 +13,9 @@ export function useUrlSearchParam(
   });
 
   useEffect(() => {
+    /**
+     *
+     */
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setValue(params.get(key) || defaultValue);
@@ -19,6 +25,9 @@ export function useUrlSearchParam(
     return () => window.removeEventListener("popstate", handlePopState);
   }, [key, defaultValue]);
 
+  /**
+   *
+   */
   const updateValue = (newValue: string) => {
     setValue(newValue);
     const url = new URL(window.location.href);

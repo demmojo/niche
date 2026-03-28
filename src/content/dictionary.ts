@@ -1,5 +1,8 @@
 export type LocalizedString = string & { readonly __brand: unique symbol };
 
+/**
+ *
+ */
 export function tMessage(copy: string): LocalizedString {
   return copy as LocalizedString;
 }
@@ -104,7 +107,7 @@ export const dictionary = {
         },
         competitorLandscape: {
           title: "Competitor Landscape",
-          desc: "See who is dominating and who is vulnerable.",
+          desc: "See who is dominating and who is vulnerable. Click on 'Competitors Tracked' to access the Head-to-Head Comparison tool.",
         },
       },
       steps: {
@@ -245,6 +248,10 @@ export const dictionary = {
         aiChat: {
           title: "Proactive AI Research Partner",
           desc: "Discuss market shifts with Lens, our AI Product Strategist, who automatically analyzes your newly synced data and drafts features and insights.",
+        },
+        taxonomyMerge: {
+          title: "Human-in-the-Loop Merging",
+          desc: "Clean up the taxonomy by manually merging subjective identical features, while the AI safeguards the global dataset.",
         },
       },
       steps: {

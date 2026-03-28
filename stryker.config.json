@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "reporters": ["progress", "clear-text"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/components/ComputeMeter.tsx",
+    "src/components/TarpitWarningModal.tsx",
+    "src/hooks/useActionCredits.ts",
+    "src/hooks/useSafeAITask.ts",
+    "src/utils/scoringEngine.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "commandRunner": {
+    "command": "npx vitest run src/__tests__/components/ComputeMeter.test.tsx src/__tests__/components/TarpitWarningModal.test.tsx src/__tests__/hooks/useActionCredits.test.tsx src/__tests__/hooks/useSafeAITask.test.tsx src/__tests__/utils/scoringEngine.test.ts"
+  }
+}

@@ -18,6 +18,9 @@ dotenv.config();
 
 const TIMEOUT_MS = 3000;
 
+/**
+ *
+ */
 export async function runDriftHealing(): Promise<void> {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("Skipping drift healing: GEMINI_API_KEY is not set.");
@@ -73,9 +76,12 @@ Keep it extremely concise.`;
 
     // We implement a Promise.race to ensure we fail open if the LLM takes too long (> 3s).
     // The developer's commit should not be blocked indefinitely.
+    /**
+     *
+     */
     const resultPromise = async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash", // Use a faster model for pre-commit
+        model: "gemini-3.1-flash", // Use a faster model for pre-commit
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -115,7 +121,7 @@ Keep it extremely concise.`;
       // If a tech debt task is generated, append it to a global tech-debt doc.
       // In the future, this can be routed to a specific spec's tasks.md via context mapping.
       if (result.techDebtTask) {
-        const techDebtPath = path.resolve("docs/brainstorms/tech-debt.md");
+        const techDebtPath = path.resolve("openspec/brainstorms/tech-debt.md");
 
         let existingContent = "";
         try {
@@ -145,10 +151,9 @@ Keep it extremely concise.`;
 }
 
 if (
-  require.main === module ||
-  (typeof process !== "undefined" &&
-    process.argv[1] &&
-    process.argv[1].endsWith("drift.ts"))
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  process.argv[1].endsWith("drift.ts")
 ) {
   runDriftHealing().catch((e) => {
     console.error("Fatal error in drift healer:", e);

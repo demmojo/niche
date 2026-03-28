@@ -1,5 +1,8 @@
 import { ParsedSpec } from "./utils.js";
 
+/**
+ *
+ */
 export function checkReadiness(
   specs: ParsedSpec[],
   targetSpecId: string,

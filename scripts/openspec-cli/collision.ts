@@ -16,6 +16,9 @@ export interface EmbeddingCache {
   };
 }
 
+/**
+ *
+ */
 export function getCache(): EmbeddingCache {
   if (fs.existsSync(CACHE_FILE)) {
     return JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
@@ -23,15 +26,24 @@ export function getCache(): EmbeddingCache {
   return {};
 }
 
+/**
+ *
+ */
 export function saveCache(cache: EmbeddingCache) {
   fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
 }
 
 // Simple hash function for text
+/**
+ *
+ */
 export function hashText(text: string): string {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
+/**
+ *
+ */
 export function cosineSimilarity(a: number[], b: number[]): number {
   let dotProduct = 0;
   let normA = 0;
@@ -45,6 +57,9 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+/**
+ *
+ */
 export async function checkCollisions(specs: ParsedSpec[]) {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("Skipping collision detection: GEMINI_API_KEY is not set.");
@@ -76,7 +91,7 @@ export async function checkCollisions(specs: ParsedSpec[]) {
     } else {
       try {
         const response = await ai.models.embedContent({
-          model: "text-embedding-004",
+          model: "gemini-embedding-2-preview",
           contents: textToEmbed,
         });
         const vector = response.embeddings?.[0]?.values;

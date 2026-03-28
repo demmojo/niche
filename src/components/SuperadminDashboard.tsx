@@ -4,6 +4,9 @@ import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { FeedbackMessage } from '../types';
 import { AlertCircle, Lightbulb, MessageSquare, Loader2 } from 'lucide-react';
 
+/**
+ *
+ */
 export function SuperadminDashboard({ isSuperadmin }: { isSuperadmin: boolean }) {
   const [feedback, setFeedback] = useState<FeedbackMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +14,9 @@ export function SuperadminDashboard({ isSuperadmin }: { isSuperadmin: boolean })
   useEffect(() => {
     if (!isSuperadmin) return;
 
+    /**
+     *
+     */
     const fetchFeedback = async () => {
       try {
         const q = query(collection(db, 'alpha_feedback'), orderBy('timestamp', 'desc'));

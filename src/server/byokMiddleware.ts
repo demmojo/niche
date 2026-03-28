@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
 import crypto from "crypto";
+import * as admin from "firebase-admin";
+import { v4 as uuidv4 } from "uuid";
 
 // Use a strong, rotated server-side secret for cookie encryption
 const COOKIE_ENCRYPTION_KEY =
@@ -10,6 +12,9 @@ const ENCRYPTION_KEY = Buffer.from(COOKIE_ENCRYPTION_KEY.slice(0, 64), "hex"); /
 const IV_LENGTH = 16;
 
 // AES-256-GCM Encryption Utility
+/**
+ *
+ */
 export function encryptKey(text: string) {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
@@ -20,6 +25,9 @@ export function encryptKey(text: string) {
 }
 
 // AES-256-GCM Decryption Utility
+/**
+ *
+ */
 export function decryptKey(text: string) {
   const [ivHex, authTagHex, encryptedHex] = text.split(":");
   const decipher = crypto.createDecipheriv(
@@ -36,13 +44,14 @@ export function decryptKey(text: string) {
 export interface ByokRequest extends Request {
   llmApiKey?: string;
   apolloApiKey?: string;
+  user?: { uid: string; email?: string; admin?: boolean };
 }
 
 /**
  * 1. Endpoint: Save the BYOK Key
  * Route: POST /api/settings/byok
  */
-export const saveByokKey = (req: Request, res: Response) => {
+export const saveByokKey = async (req: Request, res: Response) => {
   const { provider, apiKey } = req.body;
 
   if (!provider || !apiKey) {
@@ -64,6 +73,40 @@ export const saveByokKey = (req: Request, res: Response) => {
       path: "/api/", // Strict scoping
     }),
   );
+
+  // Telemetry Event 4: Revenue Signal - Compute Upgrade
+  try {
+    const userReq = req as any;
+    const userId = userReq.user?.uid;
+    const isTestAccount = 
+      userReq.user?.email?.endsWith('@nicheai.com') || 
+      userReq.user?.email?.includes('+test@');
+      
+    if (userId) {
+      const db = admin.firestore();
+      const eventId = uuidv4();
+      
+      await db.collection("telemetry_events").doc(eventId).set({
+        eventId,
+        schemaVersion: "v1",
+        eventName: "compute_upgrade",
+        actorType: "human", // assuming initiated by human via UI
+        projectId: req.body.projectId || "unknown_project",
+        upgradeType: "byok_enabled",
+        provider: provider,
+        context: {
+          userId,
+          environment: process.env.NODE_ENV || "development",
+          isTestAccount: !!isTestAccount,
+          clientIp: req.ip,
+          userAgent: req.get('user-agent') || 'unknown',
+          serverTimestamp: admin.firestore.FieldValue.serverTimestamp()
+        }
+      }, { merge: true });
+    }
+  } catch (e) {
+    console.error("Failed to log telemetry for BYOK:", e);
+  }
 
   res
     .status(200)

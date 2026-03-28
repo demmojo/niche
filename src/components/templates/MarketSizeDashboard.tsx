@@ -26,6 +26,9 @@ interface PresentationViewerProps {
 }
 
 // LTTB (Largest Triangle Three Buckets) Downsampling algorithm
+/**
+ *
+ */
 function downsample(data: any[], threshold: number) {
   if (!data || data.length <= threshold) return data;
 
@@ -57,7 +60,7 @@ function downsample(data: any[], threshold: number) {
 
     // Find the point in the current bucket that forms the largest triangle
     let rangeStart = Math.floor(i * bucketSize) + 1;
-    let rangeEnd = Math.floor((i + 1) * bucketSize) + 1;
+    const rangeEnd = Math.floor((i + 1) * bucketSize) + 1;
     let maxArea = -1;
     let maxAreaIndex = -1;
 
@@ -96,6 +99,9 @@ function downsample(data: any[], threshold: number) {
 }
 
 // Mock Data
+/**
+ *
+ */
 const generateMockData = (points: number) => {
   return Array.from({ length: points }).map((_, i) => {
     return {
@@ -106,6 +112,9 @@ const generateMockData = (points: number) => {
   });
 };
 
+/**
+ *
+ */
 export default function MarketSizeDashboard({
   templateId,
 }: PresentationViewerProps) {

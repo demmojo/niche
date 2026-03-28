@@ -24,6 +24,9 @@ const mockAuditData = [
   { date: "Day 7", users: 1850, conversion: 8.5, bounce: 35 },
 ];
 
+/**
+ *
+ */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -58,6 +61,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+/**
+ *
+ */
 export const ContinuousFeatureAudit: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-full">
@@ -191,6 +197,9 @@ export const ContinuousFeatureAudit: React.FC = () => {
   );
 };
 
+/**
+ *
+ */
 function CheckCircle(props: any) {
   return (
     <svg

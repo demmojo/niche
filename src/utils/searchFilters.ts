@@ -1,5 +1,8 @@
 import { Competitor, DataSource, DerivedInsight } from '../types';
 
+/**
+ *
+ */
 export const filterCompetitors = (
   competitors: Competitor[],
   searchQuery: string,
@@ -28,6 +31,9 @@ export const filterCompetitors = (
   });
 };
 
+/**
+ *
+ */
 export const filterRawData = (
   sources: DataSource[],
   searchQuery: string,
@@ -53,6 +59,9 @@ export const filterRawData = (
   });
 };
 
+/**
+ *
+ */
 export const filterInsights = (
   insights: DerivedInsight[],
   searchQuery: string,

@@ -30,6 +30,9 @@ import { InviteMemberModal } from "./InviteMemberModal";
 const INPUT_PRICE_PER_M = 1.25;
 const OUTPUT_PRICE_PER_M = 5.0;
 
+/**
+ *
+ */
 export const Settings: React.FC = () => {
   const { user } = useAuth();
   const isSuperadmin = user?.email === "mo@nicheai.com";
@@ -48,6 +51,9 @@ export const Settings: React.FC = () => {
   // API Key State
   const placeholderText = "********-configured-********";
 
+  /**
+   *
+   */
   const initKey = (service: ApiService) => {
     const val = getCustomApiKey(service);
     return val === "true" ? placeholderText : val || "";
@@ -90,6 +96,9 @@ export const Settings: React.FC = () => {
     setStats(getUsageStats());
 
     // Fetch models
+    /**
+     *
+     */
     const loadModels = async () => {
       setIsFetchingModels(true);
       try {
@@ -104,6 +113,9 @@ export const Settings: React.FC = () => {
     loadModels();
 
     // Update countdown timer
+    /**
+     *
+     */
     const updateTimer = () => {
       const resetTime = getResetTime().getTime();
       const now = new Date().getTime();
@@ -137,12 +149,18 @@ export const Settings: React.FC = () => {
     };
   }, []);
 
+  /**
+   *
+   */
   const handleMainModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newVal = e.target.value;
     setLocalMainModel(newVal);
     setMainModel(newVal);
   };
 
+  /**
+   *
+   */
   const handleSaveKeys = async () => {
     if (geminiKey !== placeholderText)
       await setCustomApiKey("gemini", geminiKey);
@@ -165,6 +183,9 @@ export const Settings: React.FC = () => {
     }
   };
 
+  /**
+   *
+   */
   const copyWorkspaceLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);

@@ -6,6 +6,9 @@ interface IntentRouterProps {
   onSelect: (intent: "idea" | "brainstorm") => void;
 }
 
+/**
+ *
+ */
 export const IntentRouter: React.FC<IntentRouterProps> = ({ onSelect }) => {
   return (
     <div className="flex-1 w-full flex items-center justify-center p-8 relative">

@@ -11,6 +11,9 @@ interface InviteMemberModalProps {
   user: any;
 }
 
+/**
+ *
+ */
 export function InviteMemberModal({
   open,
   onOpenChange,
@@ -21,6 +24,9 @@ export function InviteMemberModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  /**
+   *
+   */
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !workspaceId) return;

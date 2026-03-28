@@ -3,6 +3,9 @@ import * as path from "path";
 
 let _db: Database.Database | null = null;
 
+/**
+ *
+ */
 export function getDb(): Database.Database {
   if (!_db) {
     const dbPath = path.resolve(
@@ -29,6 +32,9 @@ export function getDb(): Database.Database {
   return _db;
 }
 
+/**
+ *
+ */
 export function saveEval(
   id: string,
   specId: string,
@@ -58,6 +64,9 @@ export function saveEval(
   }
 }
 
+/**
+ *
+ */
 export function getLastFailedEval(specId: string): any | null {
   try {
     const db = getDb();
@@ -74,6 +83,9 @@ export function getLastFailedEval(specId: string): any | null {
   return null;
 }
 
+/**
+ *
+ */
 function pruneHistory(db: Database.Database) {
   try {
     // Keep only the last 30 days

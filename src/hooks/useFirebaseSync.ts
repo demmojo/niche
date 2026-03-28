@@ -36,7 +36,6 @@ export function useFirebaseSync<T>(
   const { user } = useAuth();
   const [storedValue, setStoredValue] = useState<T>(initialValue);
   const isInitialLoad = useRef(true);
-  const isLocalUpdate = useRef(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -50,9 +49,15 @@ export function useFirebaseSync<T>(
     const unsubscribe = onSnapshot(
       docRef,
       (docSnap) => {
-        if (isLocalUpdate.current) {
-          isLocalUpdate.current = false;
+        // Ignore snapshots triggered by our own local uncommitted writes
+        if (docSnap.metadata.hasPendingWrites) {
           return;
+        }
+
+        // If a remote update comes in, clear any pending local writes to prevent overwriting it with stale local data
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
         }
 
         if (docSnap.exists()) {
@@ -96,7 +101,6 @@ export function useFirebaseSync<T>(
       value instanceof Function ? value(stateRef.current) : value;
 
     if (user) {
-      isLocalUpdate.current = true;
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }

@@ -7,6 +7,8 @@ export interface TarpitAnalysisResult {
   score: number; // 0-100, 100 being extremely generic/tarpit
   reasoning: string;
   suggestedNiches: string[];
+  message?: string;
+  status?: string;
 }
 
 const tarpitSchema = z.object({
@@ -32,6 +34,9 @@ const tarpitSchema = z.object({
     ),
 });
 
+/**
+ *
+ */
 export async function analyzeProductForTarpit(
   productName: string,
   productDescription: string,

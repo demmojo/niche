@@ -2,7 +2,32 @@
   <img width="1200" height="475" alt="NicheAI Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
   <h1>NicheAI</h1>
   <p>An advanced, AI-driven Competitive Intelligence & Market Analysis tool</p>
+
+  <p>
+    <a href="https://github.com/your-org/nicheai/actions"><img src="https://img.shields.io/github/actions/workflow/status/your-org/nicheai/ci.yml?branch=main" alt="CI Status" /></a>
+  </p>
 </div>
+
+---
+
+## 📑 Table of Contents
+
+- [Overview](#-overview)
+- [Tech Stack](#-tech-stack)
+- [Architecture & Boundaries](#-architecture--boundaries)
+- [Design Philosophy](#-design-philosophy)
+- [Security & Data](#-security--data)
+- [Product Roadmap & OpenSpecs](#️-product-roadmap--openspecs)
+- [Recent Momentum](#-recent-momentum)
+- [Sprint Insights & Tech Debt](#-sprint-insights--tech-debt)
+- [Local Development Setup (Quick Start)](#-local-development-setup-quick-start)
+- [Available Scripts](#-available-scripts)
+- [AI Agent Benchmarking (SWE-Bench)](#-ai-agent-benchmarking-swe-bench)
+- [Testing](#-testing)
+- [Project Structure](#-project-structure)
+- [Contributing](#-contributing)
+- [Community & Support](#-community--support)
+- [License](#-license)
 
 ---
 
@@ -230,9 +255,22 @@ npm run test
 
 ## 🤝 Contributing
 
-We welcome contributions! Please refer to our detailed **[CONTRIBUTING.md](CONTRIBUTING.md)** guide before starting any feature work. It covers:
+This project is strictly proprietary and closed-source. We do not accept external pull requests. 
 
+If you are an internal team member or contractor, please refer to our internal **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for:
 - Our mandatory OpenSpec feature planning workflow.
 - Conventional Commits enforced by Lefthook.
 - Testing, Squashing, and Merging PR policies.
-- Automated semantic versioning and manual release workflows.
+
+## 💬 Community & Support
+
+For customers requiring support or wishing to report bugs, please contact us directly:
+
+- **Email Support:** [support@nicheai.com](mailto:support@nicheai.com)
+- **Security Disclosures:** If you believe you have found a security vulnerability, please securely email [security@nicheai.com](mailto:security@nicheai.com) instead of opening a public issue.
+
+## 📄 License
+
+**Copyright (c) 2026 NicheAI. All Rights Reserved.**
+
+This software and associated documentation files are the proprietary and confidential property of NicheAI. Use, copying, modification, merging, publishing, distribution, sublicensing, and/or selling copies of the Software is strictly prohibited without express written permission. See the [LICENSE](LICENSE) file for complete details.

@@ -1,3 +1,6 @@
+/**
+ *
+ */
 export const setOnboardingState = (key: string, value: string) => {
   localStorage.setItem(key, value);
   // Dispatch native storage event for cross-tab, and a custom event for the current tab
@@ -7,6 +10,9 @@ export const setOnboardingState = (key: string, value: string) => {
   );
 };
 
+/**
+ *
+ */
 export const subscribeToStorage = (listener: () => void) => {
   window.addEventListener("storage", listener);
   window.addEventListener("local-storage-update", listener);

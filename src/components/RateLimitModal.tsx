@@ -8,6 +8,9 @@ interface RateLimitModalProps {
   message?: string;
 }
 
+/**
+ *
+ */
 export function RateLimitModal({ isOpen, onClose, onRequestIncrease, message }: RateLimitModalProps) {
   if (!isOpen) return null;
 

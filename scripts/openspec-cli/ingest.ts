@@ -39,7 +39,16 @@ const IngestSchema = z.object({
     .describe("List of feature-names this depends on"),
 });
 
+/**
+ *
+ */
 export async function ingestPlan(planPath: string) {
+  // Backwards compatibility for docs/plans/...
+  if (planPath.includes("docs/plans/")) {
+    console.warn("⚠️  Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...");
+    planPath = planPath.replace("docs/plans/", "openspec/plans/");
+  }
+
   if (!fs.existsSync(planPath)) {
     console.error(`Error: Plan file not found at ${planPath}`);
     throw new Error(`Error: Plan file not found at ${planPath}`);
@@ -121,7 +130,7 @@ export async function ingestPlan(planPath: string) {
     await checkCollisions(updatedSpecs);
 
     // Archive original plan
-    const archiveDir = path.join(process.cwd(), "docs", "archive", "plans");
+    const archiveDir = path.join(process.cwd(), "openspec", "archive", "plans");
     if (!fs.existsSync(archiveDir)) {
       fs.mkdirSync(archiveDir, { recursive: true });
     }

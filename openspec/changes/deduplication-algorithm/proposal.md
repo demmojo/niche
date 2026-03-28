@@ -1,5 +1,7 @@
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `raw-data-library`.
+
 The current deduplication logic for raw data ingestion needs to be formalized to ensure high data quality. We must reliably identify when incoming raw data (competitor data, scraped content, images) is identical, slightly modified, or semantically similar to existing records. Furthermore, this logic must degrade gracefully in local development environments where Supabase and `pgvector` might not be available, ensuring developers can still test ingestion flows without a full production database setup.
 
 ## What Changes

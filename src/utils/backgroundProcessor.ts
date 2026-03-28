@@ -1,6 +1,9 @@
 import { supabase } from "./hashing";
 import { InboxItem } from "../hooks/useApprovalStore";
 
+/**
+ *
+ */
 export async function executeActionLogic(
   item: InboxItem,
   action: "keep_both" | "update" | "discard",

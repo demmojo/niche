@@ -6,6 +6,9 @@ import { useVisualKnowledgeStore } from "../../../store/visualKnowledgeStore";
 
 // Mock React Flow Handle
 vi.mock("@xyflow/react", () => ({
+  /**
+   *
+   */
   Handle: () => <div data-testid="rf-handle" />,
   Position: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" },
 }));
@@ -41,6 +44,9 @@ describe("CustomCardNode Component", () => {
       updatedStore.whiteboards[mockWhiteboardId].cardInstances[0].id;
   });
 
+  /**
+   *
+   */
   const renderComponent = () => {
     const data = {
       instanceId: mockInstanceId,

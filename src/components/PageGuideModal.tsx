@@ -64,6 +64,9 @@ interface GuideData {
   proTip: string;
 }
 
+/**
+ *
+ */
 const getPageGuides = (): Record<string, GuideData> => ({
   ideation: {
     title: "Unified Ideation Engine",
@@ -329,6 +332,15 @@ const getPageGuides = (): Record<string, GuideData> => ({
           dictionary.marketAnalysis.guide.capabilities.aiChat.desc,
         ),
       },
+      {
+        icon: <Combine size={20} />,
+        title: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.taxonomyMerge.title,
+        ),
+        desc: tMessage(
+          dictionary.marketAnalysis.guide.capabilities.taxonomyMerge.desc,
+        ),
+      },
     ],
     steps: [
       tMessage(dictionary.marketAnalysis.guide.steps.step1),
@@ -570,7 +582,6 @@ const getPageGuides = (): Record<string, GuideData> => ({
 /**
  * A highly structured, static modal for providing macro-level overview documentation for a specific module or tab.
  * Relies on the centralized `dictionary` for all copy.
- *
  * @example
  * ```tsx
  * <PageGuideModal
@@ -596,6 +607,9 @@ export const PageGuideModal: React.FC<PageGuideModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleClose = () => {
     if (doNotShow && onDoNotShowAgain) {
       onDoNotShowAgain();

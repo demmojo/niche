@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { AuthProvider } from "./components/AuthProvider";
 import { VisualKnowledgeProvider } from "./store/visualKnowledgeStore";
+import { CitationMapProvider } from "./store/citationMapStore";
 
 // Suppress MetaMask connection errors caused by browser extensions
 window.addEventListener("unhandledrejection", (event) => {
@@ -20,7 +21,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <VisualKnowledgeProvider>
-        <App />
+        <CitationMapProvider>
+          <App />
+        </CitationMapProvider>
       </VisualKnowledgeProvider>
     </AuthProvider>
   </StrictMode>,

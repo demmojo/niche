@@ -3,6 +3,8 @@ name: create-openspec
 description: Scaffolds a new OpenSpec feature directory. Use when the user asks to plan a new feature, create an OpenSpec, or scaffold a feature spec.
 ---
 
+> **Note**: `docs/plans/` and `docs/brainstorms/` have been moved to `openspec/plans/` and `openspec/brainstorms/` as of Mar 2026. Do not create new documents in `docs/`.
+
 # Create OpenSpec Workflow
 
 This project uses the `openspec` standard to plan, design, and manage features. The standard mandates a specific directory structure with markdown templates under `openspec/changes/<feature-name>/`.
@@ -14,7 +16,7 @@ When asked to create a new OpenSpec or plan a feature:
 1. **Pre-requisite Review:** You MUST use the `Shell` or `Read` tools to review all existing specs in `openspec/changes/` and `openspec/archive/`. Check for overlaps, conflicts, or if the proposed feature alters an existing implemented/unimplemented spec.
    - If there is an overlap, ask the user if the new spec should _supersede_ the old one, or if they should be merged.
    - If superseding, update the old spec's `.openspec.yaml` to include `status: superseded` and `superseded_by: <new-feature-name>`, and add a warning to the top of its `proposal.md`.
-2. **Ingestion Pipeline Shortcut:** If the user provides an existing plan document (e.g., from `docs/plans/`), you **MUST NOT** scaffold the files manually. Instead, you MUST use the ingestion pipeline by running `npx tsx scripts/openspec-cli/index.ts ingest <path-to-plan.md>`. This will automatically parse the plan, generate the OpenSpec artifacts, check for collisions, and archive the original plan. You can skip steps 3-6 if you do this.
+2. **Ingestion Pipeline Shortcut:** If the user provides an existing plan document (e.g., from `openspec/plans/`), you **MUST NOT** scaffold the files manually. Instead, you MUST use the ingestion pipeline by running `npx tsx scripts/openspec-cli/index.ts ingest <path-to-plan.md>`. This will automatically parse the plan, generate the OpenSpec artifacts, check for collisions, and archive the original plan. You can skip steps 3-6 if you do this.
 3. **Future Extractor Mandate:** While creating plans or specs, at the end make sure to populate "Future Considerations" or potential "Architectural, Design and Future Potential To Dos". This feeds the living roadmap document.
 4. Ask the user for the feature name and a brief description if not already provided.
 5. Determine a short `feature-name` (kebab-case) for the directory.

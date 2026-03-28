@@ -1,6 +1,9 @@
 import React from "react";
 import { B_H2, B_Badge, B_TextBody, B_Card } from "../BrutalistUI";
 
+/**
+ *
+ */
 export function OpportunitySolutionTree() {
   return (
     <div className="p-8 h-full overflow-y-auto bg-[#0F172A] text-white font-mono">

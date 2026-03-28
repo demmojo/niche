@@ -101,6 +101,9 @@ export const withKeyRotation = async <T>(
   let currentModel = getSelectedModel();
   const ai = new GoogleGenAI({ apiKey: key });
 
+  /**
+   *
+   */
   const executeWithTimeout = async (model: string): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
       const controller = new AbortController();
@@ -121,6 +124,9 @@ export const withKeyRotation = async <T>(
     });
   };
 
+  /**
+   *
+   */
   const formatError = (err: any) => {
     let msg = "";
     if (typeof err === "string") {
@@ -166,6 +172,9 @@ export const withKeyRotation = async <T>(
     return newErr;
   };
 
+  /**
+   *
+   */
   const doCall = async (model: string, maxRetries: number) => {
     let attempts = 0;
     while (attempts <= maxRetries) {

@@ -1,0 +1,27 @@
+// Add this at the end of the POST /api/campaign/start describe block
+    it("executes the background campaign successfully, computes Float32 math, and deducts credit", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      
+      vi.mocked(credits.getActionCredits).mockResolvedValueOnce(10);
+      
+      const response = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ competitors: [{ domain: "example.com" }], baseIdea: {} });
+      
+      expect(response.status).toBe(202);
+      
+      // Wait for the background process (p-map + timeout) to finish
+      await vi.advanceTimersByTimeAsync(1000);
+      
+      // Check that it updated Firestore
+      const dbMock = admin.firestore();
+      const updateMock = dbMock.collection("jobs").doc("foo").update;
+      
+      expect(updateMock).toHaveBeenCalled();
+      
+      // Check that it deducted the credit
+      expect(credits.deductActionCredit).toHaveBeenCalledWith("test-uid");
+      
+      vi.useRealTimers();
+    });

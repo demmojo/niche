@@ -23,6 +23,9 @@ interface FakeDoorMetricsProps {
   siteToken?: string;
 }
 
+/**
+ *
+ */
 export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
   siteToken,
 }) => {
@@ -30,6 +33,9 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   *
+   */
   const fetchMetrics = async () => {
     setIsLoading(true);
     setError(null);

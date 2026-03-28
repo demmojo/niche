@@ -14,6 +14,9 @@ interface SuggestionFeedProps {
   ) => void;
 }
 
+/**
+ *
+ */
 export const SuggestionFeed: React.FC<SuggestionFeedProps> = ({
   insights,
   productData,

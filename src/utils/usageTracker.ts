@@ -35,8 +35,14 @@ export interface UsageStats {
 const USAGE_STORAGE_KEY = "api_usage_stats";
 const KEYS_STORAGE_KEY = "api_keys_usage";
 
+/**
+ *
+ */
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
+/**
+ *
+ */
 const createEmptyServiceStats = (): ServiceUsageStats => ({
   requests: 0,
   requestsPerModel: {},
@@ -53,6 +59,9 @@ let cachedUsageStats: UsageStats | null = null;
 let cachedKeyUsage: Record<string, KeyUsage> | null = null;
 let flushTimeout: any = null;
 
+/**
+ *
+ */
 const flushToStorage = () => {
   if (cachedUsageStats) {
     localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(cachedUsageStats));
@@ -63,12 +72,18 @@ const flushToStorage = () => {
   flushTimeout = null;
 };
 
+/**
+ *
+ */
 const scheduleFlush = () => {
   if (!flushTimeout) {
     flushTimeout = setTimeout(flushToStorage, 3000);
   }
 };
 
+/**
+ *
+ */
 export const getUsageStats = (): UsageStats => {
   const today = getTodayDateString();
   if (cachedUsageStats && cachedUsageStats.date === today) {
@@ -108,6 +123,9 @@ export const getUsageStats = (): UsageStats => {
   return cachedUsageStats;
 };
 
+/**
+ *
+ */
 export const getKeyUsage = (): Record<string, KeyUsage> => {
   if (cachedKeyUsage) return cachedKeyUsage;
 
@@ -124,6 +142,9 @@ export const getKeyUsage = (): Record<string, KeyUsage> => {
   return cachedKeyUsage;
 };
 
+/**
+ *
+ */
 export const updateRateLimits = (
   service: "gemini" | "apollo" | "exa" | "openai" | "anthropic",
   limit: number | null,
@@ -153,6 +174,9 @@ export const updateRateLimits = (
   scheduleFlush();
 };
 
+/**
+ *
+ */
 export const trackRequest = (
   service: "gemini" | "apollo" | "exa" | "openai" | "anthropic",
   key: string,
@@ -220,6 +244,9 @@ export const trackRequest = (
   scheduleFlush();
 };
 
+/**
+ *
+ */
 export const getResetTime = () => {
   const now = new Date();
   const ptString = now.toLocaleString("en-US", {

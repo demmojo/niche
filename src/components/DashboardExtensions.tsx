@@ -15,6 +15,9 @@ interface DashboardExtensionsProps {
   competitors: Competitor[];
 }
 
+/**
+ *
+ */
 export const DashboardExtensions: React.FC<DashboardExtensionsProps> = ({
   productData,
   setProductData,
@@ -24,6 +27,9 @@ export const DashboardExtensions: React.FC<DashboardExtensionsProps> = ({
   const [isVisualSyncOpen, setIsVisualSyncOpen] = useState(false);
   const [isDeploymentOpen, setIsDeploymentOpen] = useState(false);
 
+  /**
+   *
+   */
   const handleAcceptSuggestion = (
     name: string,
     description: string,

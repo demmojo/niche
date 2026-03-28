@@ -3,6 +3,9 @@ import { subscribeToStorage, setOnboardingState } from "../utils/storage";
 
 export type OnboardingStep = "initializing" | "modal" | "tour" | "completed";
 
+/**
+ *
+ */
 export function useOnboarding(modalKey: string, tourKey: string) {
   // 1. Safely read from localStorage without hydration mismatches
   const rawModalSeen = useSyncExternalStore(

@@ -14,6 +14,9 @@ export const supabase =
             Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`,
           },
         },
+        /**
+         *
+         */
         accessToken: async () => {
           // Automatically inject the Firebase JWT into Supabase requests
           return (await auth.currentUser?.getIdToken(false)) ?? "";

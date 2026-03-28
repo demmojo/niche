@@ -10,6 +10,9 @@ export type IdeationPhase =
   | "thinking"
   | "hybrid-builder";
 
+/**
+ *
+ */
 export const UnifiedIdeationEngine: React.FC = () => {
   const [phase, setPhase] = useState<IdeationPhase>("routing");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -19,6 +22,9 @@ export const UnifiedIdeationEngine: React.FC = () => {
   const [competitorUrls, setCompetitorUrls] = useState<string[]>([]);
   const [extractedFeatures, setExtractedFeatures] = useState<any[]>([]);
 
+  /**
+   *
+   */
   const handleIntentSelected = (intent: "idea" | "brainstorm") => {
     if (intent === "idea") {
       // In a full flow, this would go to Tarpit Analyzer
@@ -29,6 +35,9 @@ export const UnifiedIdeationEngine: React.FC = () => {
     }
   };
 
+  /**
+   *
+   */
   const handleStartIngestion = async (urls: string[]) => {
     setCompetitorUrls(urls);
     setPhase("thinking");
@@ -53,6 +62,9 @@ export const UnifiedIdeationEngine: React.FC = () => {
     }
   };
 
+  /**
+   *
+   */
   const handleThinkingComplete = (features: any[]) => {
     setExtractedFeatures(features);
     setPhase("hybrid-builder");

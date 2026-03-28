@@ -72,7 +72,10 @@ describe("useFirebaseSync", () => {
 
     // Simulate snapshot where doc does not exist
     act(() => {
-      mockOnSnapshotCallback({ exists: () => false });
+      mockOnSnapshotCallback({
+        exists: () => false,
+        metadata: { hasPendingWrites: false },
+      });
     });
 
     expect(setDoc).toHaveBeenCalledWith(
@@ -92,6 +95,7 @@ describe("useFirebaseSync", () => {
       mockOnSnapshotCallback({
         exists: () => true,
         data: () => ({ value: "remote-value" }),
+        metadata: { hasPendingWrites: false },
       });
     });
 
@@ -124,6 +128,7 @@ describe("useFirebaseSync", () => {
       mockOnSnapshotCallback({
         exists: () => true,
         data: () => ({ value: "new-value" }),
+        metadata: { hasPendingWrites: false },
       });
     });
 
@@ -161,7 +166,10 @@ describe("useFirebaseSync", () => {
     );
 
     act(() => {
-      mockOnSnapshotCallback({ exists: () => false });
+      mockOnSnapshotCallback({
+        exists: () => false,
+        metadata: { hasPendingWrites: false },
+      });
     });
 
     expect(setDoc).toHaveBeenCalledWith(
@@ -191,7 +199,10 @@ describe("useFirebaseSync", () => {
 
     // Trigger setDoc failure in snapshot initialization
     await act(async () => {
-      mockOnSnapshotCallback({ exists: () => false });
+      mockOnSnapshotCallback({
+        exists: () => false,
+        metadata: { hasPendingWrites: false },
+      });
       await vi.runAllTimersAsync();
     });
 
@@ -224,5 +235,63 @@ describe("useFirebaseSync", () => {
     });
 
     expect(safeDisableNetwork).toHaveBeenCalled();
+  });
+
+  it("returns early when docSnap.metadata.hasPendingWrites is true (lines 54-55)", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+    const { result } = renderHook(() =>
+      useFirebaseSync<string>("testKey", "initial"),
+    );
+
+    act(() => {
+      mockOnSnapshotCallback({
+        exists: () => true,
+        data: () => ({ value: "ignored-value" }),
+        metadata: { hasPendingWrites: true },
+      });
+    });
+
+    // Should not have updated state because it was ignored
+    expect(result.current[0]).toBe("initial");
+  });
+
+  it("clears syncTimeoutRef.current on sequential setValue calls (lines 105-106)", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+    const { result } = renderHook(() =>
+      useFirebaseSync<string>("testKey", "initial"),
+    );
+
+    act(() => {
+      // simulate snapshot init so setDoc isn't called for initialization
+      mockOnSnapshotCallback({
+        exists: () => true,
+        data: () => ({ value: "initial" }),
+        metadata: { hasPendingWrites: false },
+      });
+    });
+
+    // Clear initial mock calls
+    vi.mocked(setDoc).mockClear();
+
+    act(() => {
+      result.current[1]("first-update");
+    });
+
+    act(() => {
+      result.current[1]("second-update");
+    });
+
+    // Advance by 2 seconds to trigger the final timeout
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    // setDoc should have only been called once for the second update, not the first
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(setDoc).toHaveBeenCalledWith(
+      "mock-doc-ref",
+      { value: "second-update" },
+      { merge: true },
+    );
   });
 });

@@ -24,6 +24,9 @@ interface DocumentationWizardModalProps {
 
 type FormatOption = "onepager" | "prd" | "openspec" | "validation";
 
+/**
+ *
+ */
 export const DocumentationWizardModal: React.FC<
   DocumentationWizardModalProps
 > = ({ isOpen, onClose, myProductData, insights }) => {
@@ -42,22 +45,40 @@ export const DocumentationWizardModal: React.FC<
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleNext = () => setStep((prev) => Math.min(prev + 1, 4));
+  /**
+   *
+   */
   const handleBack = () => setStep((prev) => Math.max(prev - 1, 1));
 
+  /**
+   *
+   */
   const toggleFeature = (f: string) =>
     setSelectedFeatures((prev) =>
       prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f],
     );
+  /**
+   *
+   */
   const toggleNextStep = (s: string) =>
     setSelectedNextSteps((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
+  /**
+   *
+   */
   const toggleInsight = (id: string) =>
     setSelectedInsights((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
 
+  /**
+   *
+   */
   const generateDocument = () => {
     setIsGenerating(true);
     setStep(4);
@@ -137,12 +158,18 @@ export default function Landing() {
     }, 1500);
   };
 
+  /**
+   *
+   */
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedDoc);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /**
+   *
+   */
   const handleExport = async () => {
     if (format === "openspec") {
       const zip = new JSZip();

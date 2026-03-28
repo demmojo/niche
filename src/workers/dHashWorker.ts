@@ -1,5 +1,8 @@
 /// <reference lib="webworker" />
 
+/**
+ *
+ */
 self.onmessage = async (e: MessageEvent) => {
   const bitmap: ImageBitmap = e.data;
 
@@ -14,6 +17,9 @@ self.onmessage = async (e: MessageEvent) => {
   }
 };
 
+/**
+ *
+ */
 async function calculateDHash(bitmap: ImageBitmap): Promise<string> {
   // Resize to 9x8 to calculate difference horizontally
   const width = 9;

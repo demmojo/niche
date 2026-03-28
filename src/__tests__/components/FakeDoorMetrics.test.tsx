@@ -42,6 +42,9 @@ describe("FakeDoorMetrics", () => {
 
   it("shows empty state when pageViews is 0", async () => {
     (global.fetch as any).mockResolvedValue({
+      /**
+       *
+       */
       json: () => Promise.resolve({ pageViews: 0 }),
     });
 
@@ -54,6 +57,9 @@ describe("FakeDoorMetrics", () => {
 
   it("shows metrics dashboard when data is available", async () => {
     (global.fetch as any).mockResolvedValue({
+      /**
+       *
+       */
       json: () =>
         Promise.resolve({
           pageViews: 1234,

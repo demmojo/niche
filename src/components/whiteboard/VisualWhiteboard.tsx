@@ -41,6 +41,9 @@ const nodeTypes = {
   customCard: CustomCardNode,
 };
 
+/**
+ *
+ */
 const getTourSteps = (): TourStep[] => [
   {
     target: '[data-tour="whiteboard-list"]',
@@ -78,6 +81,9 @@ const getTourSteps = (): TourStep[] => [
   },
 ];
 
+/**
+ *
+ */
 export function VisualWhiteboard() {
   const {
     whiteboards,
@@ -200,6 +206,9 @@ export function VisualWhiteboard() {
     [activeWhiteboardId, updateCardInstancePosition],
   );
 
+  /**
+   *
+   */
   const handleCreateBoard = (templateId: string) => {
     const template = templates[templateId];
     if (!template) return;
@@ -226,6 +235,9 @@ export function VisualWhiteboard() {
     setShowTemplateModal(false);
   };
 
+  /**
+   *
+   */
   const createBlankBoard = () => {
     createWhiteboard("New Whiteboard");
     setShowTemplateModal(false);

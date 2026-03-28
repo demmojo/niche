@@ -8,6 +8,9 @@ interface TinderForFeaturesProps {
   onReject: (id: string) => void;
 }
 
+/**
+ *
+ */
 export default function TinderForFeatures({
   features,
   onAccept,

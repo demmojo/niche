@@ -14,6 +14,9 @@ export interface AuthenticatedRequest extends Request {
   user?: admin.auth.DecodedIdToken;
 }
 
+/**
+ *
+ */
 export const requireAuth = async (
   req: AuthenticatedRequest,
   res: Response,

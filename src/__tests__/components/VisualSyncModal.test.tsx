@@ -59,6 +59,9 @@ describe("VisualSyncModal", () => {
   it("processes image upload and shows proposed updates", async () => {
     // Mock successful fetch for image processing
     (global.fetch as any).mockResolvedValue({
+      /**
+       *
+       */
       json: () =>
         Promise.resolve({
           proposedUpdates: [

@@ -21,9 +21,12 @@ import Markdown from "react-markdown";
 import { Tooltip } from "./Tooltip";
 import ExportButton from "./ExportButton";
 import { DocumentationWizardModal } from "./DocumentationWizardModal";
+import { StrategyToCodeWizard } from "./StrategyToCodeWizard";
+import { BrandIdentityWidget } from "./brand-wizard/BrandIdentityWidget";
 import { DerivedInsight } from "../types";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { useProjectBrandIdentity } from "../hooks/useProjectBrandIdentity";
 
 const strategySchema = z.object({
   strategies: z.array(
@@ -57,30 +60,49 @@ export interface ProductStrategy {
   status: "todo" | "doing" | "done";
 }
 
+import { GeneratedPromptMeta } from "../types/promptExporter";
+
 export interface MyProductData {
   name: string;
   description: string;
   targetRegions: string[];
+  targetAudience?: string;
   features: ProductFeature[];
   strategy: ProductStrategy[];
+  generatedPrompts?: GeneratedPromptMeta[];
   verifiedFields?: Record<string, boolean>;
   allowAiWriteAccess?: boolean;
 }
 
 interface MyProductProps {
+  projectId: string;
   productData: MyProductData;
   setProductData: React.Dispatch<React.SetStateAction<MyProductData>>;
   competitors: any[];
   insights: DerivedInsight[];
 }
 
+/**
+ *
+ */
 export const MyProduct: React.FC<MyProductProps> = ({
+  projectId,
   productData,
   setProductData,
   competitors,
   insights,
 }) => {
+  const brandState = useProjectBrandIdentity(projectId);
+  const brand = brandState.status === "success" ? brandState.data : null;
+  const brandStyles = brand
+    ? ({
+        "--brand-primary": brand.primary_color,
+        "--brand-primary-fg": brand.primary_fg,
+      } as React.CSSProperties)
+    : {};
+
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isStrategyWizardOpen, setIsStrategyWizardOpen] = useState(false);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [editName, setEditName] = useState(productData.name);
   const [editDescription, setEditDescription] = useState(
@@ -101,6 +123,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
   const [isAnalyzingTarpit, setIsAnalyzingTarpit] = useState(false);
   const [tarpitWarning, setTarpitWarning] = useState<any>(null);
 
+  /**
+   *
+   */
   const analyzeTarpit = async (name: string, description: string) => {
     setIsAnalyzingTarpit(true);
     try {
@@ -125,6 +150,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const handleSaveDetails = async () => {
     // Before saving, run tarpit analysis
     await analyzeTarpit(editName, editDescription);
@@ -142,6 +170,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setIsEditingDetails(false);
   };
 
+  /**
+   *
+   */
   const overrideTarpitWarning = () => {
     setProductData((prev) => ({
       ...prev,
@@ -156,11 +187,17 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setTarpitWarning(null);
   };
 
+  /**
+   *
+   */
   const handleAcceptTarpitConstraint = (niche: string) => {
     setEditDescription((prev) => prev + "\nConstraint: " + niche);
     setTarpitWarning(null);
   };
 
+  /**
+   *
+   */
   const handleAddFeature = () => {
     if (!newFeatureName.trim()) return;
     setProductData((prev) => ({
@@ -178,6 +215,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setNewFeatureName("");
   };
 
+  /**
+   *
+   */
   const handleRemoveFeature = (id: string) => {
     setProductData((prev) => ({
       ...prev,
@@ -185,6 +225,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     }));
   };
 
+  /**
+   *
+   */
   const handleUpdateFeatureStatus = (
     id: string,
     status: ProductFeature["status"],
@@ -195,12 +238,18 @@ export const MyProduct: React.FC<MyProductProps> = ({
     }));
   };
 
+  /**
+   *
+   */
   const handleEditFeature = (feature: ProductFeature) => {
     setEditingFeatureId(feature.id);
     setEditingFeatureName(feature.name);
     setEditingFeatureDesc(feature.description || "");
   };
 
+  /**
+   *
+   */
   const handleSaveFeature = (id: string) => {
     if (!editingFeatureName.trim()) return;
     setProductData((prev) => ({
@@ -218,6 +267,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setEditingFeatureId(null);
   };
 
+  /**
+   *
+   */
   const handleAddStrategy = () => {
     if (!newStrategyContent.trim()) return;
     setProductData((prev) => ({
@@ -234,6 +286,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     setNewStrategyContent("");
   };
 
+  /**
+   *
+   */
   const handleRemoveStrategy = (id: string) => {
     setProductData((prev) => ({
       ...prev,
@@ -241,6 +296,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     }));
   };
 
+  /**
+   *
+   */
   const handleUpdateStrategyStatus = (
     id: string,
     status: ProductStrategy["status"],
@@ -251,6 +309,9 @@ export const MyProduct: React.FC<MyProductProps> = ({
     }));
   };
 
+  /**
+   *
+   */
   const generateStrategy = async () => {
     setIsGeneratingStrategy(true);
     try {
@@ -271,6 +332,10 @@ export const MyProduct: React.FC<MyProductProps> = ({
 </market>
       `;
 
+      const brandContext = brand
+        ? `\n<brand_personality>Tone: ${brand.tone.replace(/[<>]/g, "")}</brand_personality>\nAll generated features and strategies MUST align with this brand personality.`
+        : "";
+
       const prompt = `
 You are an expert Product Manager and Strategist. (Context)
 Your goal is to generate 3 strategic next steps or action items to improve the product's market position. (Objective)
@@ -283,6 +348,7 @@ Return a strictly formatted JSON object with an array of strings. (Response)
 2. Consider target regions for expansion or localization.
 3. Identify potential differentiators.
 </processing_rules>
+${brandContext}
 
 ${context}
       `;
@@ -331,7 +397,11 @@ ${context}
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 bg-white">
+    <div
+      className="h-full overflow-y-auto p-6 bg-white transition-colors duration-300 ease-in-out"
+      style={brandStyles}
+    >
+      <BrandIdentityWidget projectId={projectId} />
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="flex justify-between items-end mb-8 mt-4">
           <div>
@@ -344,6 +414,12 @@ ${context}
             <p className="text-[#8A8A8A] text-sm font-sans mt-2">
               Manage your product details, features, and strategy.
             </p>
+            <ExportButton
+              onExport={() => setIsStrategyWizardOpen(true)}
+              label="Generate UI Code"
+              tooltipText="Export system prompts to generate code using AI visual editors"
+              actionName="generate_ui_code"
+            />
           </div>
           <ExportButton
             onExport={() => setIsWizardOpen(true)}
@@ -759,6 +835,13 @@ ${context}
         onClose={() => setIsWizardOpen(false)}
         myProductData={productData}
         insights={insights}
+      />
+      <StrategyToCodeWizard
+        isOpen={isStrategyWizardOpen}
+        onClose={() => setIsStrategyWizardOpen(false)}
+        myProductData={productData}
+        setProductData={setProductData}
+        projectId={projectId}
       />
     </div>
   );

@@ -247,12 +247,21 @@ describe("aiClient utils", () => {
     it("handles malformed JSON parsing panics gracefully", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
+        /**
+         *
+         */
         json: async () => {
           throw new SyntaxError("Unexpected token < in JSON at position 0");
         },
+        /**
+         *
+         */
         text: async () => "<html>Gateway Timeout</html>",
       });
 
+      /**
+       *
+       */
       const mockOp = async (ai: any) =>
         ai.generateContent("gemini-3.1-pro-preview", { contents: "hello" });
 

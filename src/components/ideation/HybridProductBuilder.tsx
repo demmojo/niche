@@ -15,6 +15,9 @@ interface HybridProductBuilderProps {
   onFinish: (approvedFeatures: any[]) => void;
 }
 
+/**
+ *
+ */
 export const HybridProductBuilder: React.FC<HybridProductBuilderProps> = ({
   features: initialFeatures,
   onFinish,
@@ -28,6 +31,9 @@ export const HybridProductBuilder: React.FC<HybridProductBuilderProps> = ({
   const controls = useAnimation();
 
   // Add gap features
+  /**
+   *
+   */
   const handleFindNiche = () => {
     const gapFeatures = [
       {
@@ -52,6 +58,9 @@ export const HybridProductBuilder: React.FC<HybridProductBuilderProps> = ({
     setDeck([...gapFeatures, ...deck]);
   };
 
+  /**
+   *
+   */
   const handleSwipe = async (dir: "left" | "right", feature: any) => {
     if (dir === "right") {
       const newBudget = budgetUsed + feature.cost;
@@ -72,6 +81,9 @@ export const HybridProductBuilder: React.FC<HybridProductBuilderProps> = ({
     setDeck(deck.slice(1));
   };
 
+  /**
+   *
+   */
   const handleDragEnd = async (e: any, info: PanInfo, feature: any) => {
     const threshold = 100;
     if (info.offset.x > threshold) {

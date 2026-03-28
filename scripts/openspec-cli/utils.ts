@@ -13,6 +13,9 @@ export interface ParsedSpec {
   data: OpenSpec;
 }
 
+/**
+ *
+ */
 export async function generateWithSelfHealing<T>(
   ai: GoogleGenAI,
   modelName: string,
@@ -81,6 +84,9 @@ export async function generateWithSelfHealing<T>(
   throw new Error("Unreachable");
 }
 
+/**
+ *
+ */
 export function truncateGitDiff(diff: string, maxLines: number = 500): string {
   const lines = diff.split("\n");
   if (lines.length <= maxLines) return diff;
@@ -98,10 +104,16 @@ export function truncateGitDiff(diff: string, maxLines: number = 500): string {
 
 import * as crypto from "crypto";
 
+/**
+ *
+ */
 export function hashString(str: string): string {
   return crypto.createHash("sha256").update(str).digest("hex");
 }
 
+/**
+ *
+ */
 export function getAllSpecs(
   baseDirs: string[] = ["openspec/changes", "openspec/archive"],
 ): ParsedSpec[] {

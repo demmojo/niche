@@ -1,5 +1,7 @@
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `analytical-template-system`.
+
 Founders and Product Managers waste months and thousands of dollars building features nobody wants. Traditional market research is slow, manual, and disconnected from the actual product development cycle. Users need a system that acts like an AI-powered Chief Product Officer—one that automatically gathers market intelligence, applies battle-tested frameworks (JTBD, Blue Ocean, Assumption Mapping), and tells them exactly where the market gaps are. The core value is **de-risking the product before writing a single line of code**.
 
 ## What Changes

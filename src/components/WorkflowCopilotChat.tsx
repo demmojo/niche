@@ -15,6 +15,9 @@ interface WorkflowCopilotChatProps {
   onSendMessage: (msg: string) => void;
 }
 
+/**
+ *
+ */
 export function WorkflowCopilotChat({
   chatHistory,
   isTyping,
@@ -22,6 +25,9 @@ export function WorkflowCopilotChat({
 }: WorkflowCopilotChatProps) {
   const [chatInput, setChatInput] = useState("");
 
+  /**
+   *
+   */
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!chatInput.trim() || isTyping) return;

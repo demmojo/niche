@@ -1,5 +1,8 @@
 import stringHash from "string-hash";
 // A simple Levenshtein distance function for fuzzy matching
+/**
+ *
+ */
 function levenshteinDistance(a: string, b: string): number {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
@@ -26,6 +29,9 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 // Normalize text for comparison (lowercase, strip extra whitespace, normalize unicode)
+/**
+ *
+ */
 function normalizeText(text: string): string {
   return text
     .normalize("NFKC")

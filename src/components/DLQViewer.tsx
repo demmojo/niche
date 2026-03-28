@@ -14,6 +14,9 @@ interface DLQItem {
   payload: any;
 }
 
+/**
+ *
+ */
 export function DLQViewer() {
   const [items, setItems] = useState<DLQItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,6 +24,9 @@ export function DLQViewer() {
     "pending" | "retrying" | "resolved" | "terminal" | "all"
   >("all");
 
+  /**
+   *
+   */
   const fetchDLQ = async () => {
     setLoading(true);
     let query = supabase
@@ -47,6 +53,9 @@ export function DLQViewer() {
     fetchDLQ();
   }, [filterStatus]);
 
+  /**
+   *
+   */
   const handleRetry = async (job: DLQItem) => {
     try {
       console.log(`Manual retry for job ${job.id}`);
@@ -101,6 +110,9 @@ export function DLQViewer() {
     fetchDLQ();
   };
 
+  /**
+   *
+   */
   const handleBulkRetry = async () => {
     const pendingJobs = items.filter(
       (i) =>
@@ -114,6 +126,9 @@ export function DLQViewer() {
     fetchDLQ();
   };
 
+  /**
+   *
+   */
   const handleDelete = async (job: DLQItem) => {
     if (
       !window.confirm("Are you sure you want to permanently discard this job?")

@@ -22,6 +22,9 @@ interface LensStrategyConsoleProps {
   onAddInsight?: (title: string, description: string) => void;
 }
 
+/**
+ *
+ */
 export default function LensStrategyConsole({
   stats,
   competitors,
@@ -158,12 +161,25 @@ export default function LensStrategyConsole({
     }
   }, []);
 
+  /**
+   *
+   */
   const handleApproveSuggestion = (suggestion: LensSuggestion) => {
     if (suggestion.type === "feature" && onAddFeature) {
       onAddFeature(suggestion.title, suggestion.description);
     } else if (suggestion.type === "insight" && onAddInsight) {
       onAddInsight(suggestion.title, suggestion.description);
     }
+
+    // Telemetry Event 3: Retention Proxy - Lens Agent Evaluated (Accept)
+    import('../../utils/telemetry').then(({ telemetry }) => {
+      telemetry.track('lens_agent_evaluated', {
+        suggestionType: suggestion.type,
+        outcome: 'accepted',
+        dataFingerprint: String(stats.tracked) + '-' + String(stats.featuresIndexed),
+        textLength: suggestion.description.length
+      });
+    });
 
     // Remove the suggestion from the UI
     setChatHistory((prev) =>
@@ -177,6 +193,9 @@ export default function LensStrategyConsole({
     );
   };
 
+  /**
+   *
+   */
   const handleDismissSuggestion = (
     suggestion: LensSuggestion,
     reason: string,
@@ -186,6 +205,17 @@ export default function LensStrategyConsole({
       ...prev,
       { itemTitle: suggestion.title, reason, timestamp: Date.now() },
     ]);
+
+    // Telemetry Event 3: Retention Proxy - Lens Agent Evaluated (Reject)
+    import('../../utils/telemetry').then(({ telemetry }) => {
+      telemetry.track('lens_agent_evaluated', {
+        suggestionType: suggestion.type,
+        outcome: 'rejected',
+        rejectionReason: reason,
+        dataFingerprint: String(stats.tracked) + '-' + String(stats.featuresIndexed),
+        textLength: suggestion.description.length
+      });
+    });
 
     // 2. Remove the suggestion from the UI
     setChatHistory((prev) =>

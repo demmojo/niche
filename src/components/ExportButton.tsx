@@ -12,6 +12,9 @@ interface ExportButtonProps {
   className?: string;
 }
 
+/**
+ *
+ */
 const ExportButton: React.FC<ExportButtonProps> = ({
   onExport,
   label = "Export",
@@ -19,6 +22,9 @@ const ExportButton: React.FC<ExportButtonProps> = ({
   actionName = "export_data",
   className = "",
 }) => {
+  /**
+   *
+   */
   const handleExport = () => {
     // Stub check for subscription tier
     const isAllowed = checkSubscriptionTier(actionName, "free");

@@ -34,6 +34,9 @@ interface DataPoint {
 import { Tooltip } from "./Tooltip";
 import { Plus } from "lucide-react";
 
+/**
+ *
+ */
 export const DataPointsTable: React.FC<{
   type: string;
   data: any[];
@@ -43,6 +46,8 @@ export const DataPointsTable: React.FC<{
   >;
   onAddFeatureToProduct?: (featureName: string) => void;
   productContext?: string;
+  comparingCompetitorIds?: string[];
+  setComparingCompetitorIds?: React.Dispatch<React.SetStateAction<string[]>>;
 }> = ({
   type,
   data,
@@ -50,6 +55,8 @@ export const DataPointsTable: React.FC<{
   setFeatureDetails,
   onAddFeatureToProduct,
   productContext = "the product's market",
+  comparingCompetitorIds = [],
+  setComparingCompetitorIds,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -75,11 +82,15 @@ export const DataPointsTable: React.FC<{
   const [isGeneratingStories, setIsGeneratingStories] = useState<
     Record<string, boolean>
   >({});
+  const [localComparingIds, setLocalComparingIds] = useState<string[]>([]);
 
   const actualFeatureDetails = featureDetails || localFeatureDetails;
   const actualSetFeatureDetails = setFeatureDetails || setLocalFeatureDetails;
 
   // Mock data generation based on type
+  /**
+   *
+   */
   const generateMockData = (): DataPoint[] => {
     if (type === "Competitors Tracked") {
       return data.map((c, i) => ({
@@ -283,6 +294,9 @@ export const DataPointsTable: React.FC<{
     currentPage * itemsPerPage,
   );
 
+  /**
+   *
+   */
   const handleRowClick = async (row: DataPoint) => {
     if (type !== "Features Indexed") return;
 
@@ -336,6 +350,9 @@ Format your response in Markdown using the exact structure below. (Response)
     }
   };
 
+  /**
+   *
+   */
   const handleSort = (key: string) => {
     let direction: "asc" | "desc" = "desc";
     if (
@@ -348,6 +365,9 @@ Format your response in Markdown using the exact structure below. (Response)
     setSortConfig({ key, direction });
   };
 
+  /**
+   *
+   */
   const handleGenerateStories = async (row: DataPoint) => {
     setIsGeneratingStories((prev) => ({ ...prev, [row.id]: true }));
     try {
@@ -394,6 +414,9 @@ Keep it concise and actionable.`,
     }
   };
 
+  /**
+   *
+   */
   const handleSuggestFeature = async () => {
     setIsSuggestingFeature(true);
     try {
@@ -482,6 +505,14 @@ Provide a concise, actionable recommendation in Markdown format.`,
               </Tooltip>
             </>
           )}
+          {type === "Competitors Tracked" && localComparingIds.length > 0 && setComparingCompetitorIds && (
+            <button
+              onClick={() => setComparingCompetitorIds(localComparingIds)}
+              className="flex items-center gap-2 bg-ink-dark text-paper-light px-3 py-1.5 rounded-md text-sm font-medium hover:bg-black transition-colors"
+            >
+              Compare {localComparingIds.length} Product{localComparingIds.length !== 1 ? 's' : ''}
+            </button>
+          )}
           <div className="relative flex-1 sm:w-48">
             <Search
               size={14}
@@ -532,6 +563,9 @@ Provide a concise, actionable recommendation in Markdown format.`,
         <table className="w-full text-left text-sm">
           <thead className="bg-paper-base/50 text-ink-dark/60 uppercase tracking-wider text-xs">
             <tr>
+              {type === "Competitors Tracked" && (
+                <th className="px-4 py-3 font-medium w-10"></th>
+              )}
               <th
                 className="px-4 py-3 font-medium cursor-pointer hover:text-ink-dark transition-colors"
                 onClick={() =>
@@ -635,7 +669,7 @@ Provide a concise, actionable recommendation in Markdown format.`,
             {paginatedData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={type === "Competitors Tracked" ? 7 : 6}
                   className="px-4 py-8 text-center text-ink-dark/40"
                 >
                   No data points found matching your filter.
@@ -648,6 +682,27 @@ Provide a concise, actionable recommendation in Markdown format.`,
                     onClick={() => handleRowClick(row)}
                     className={`hover:bg-paper-base/50 transition-colors ${type === "Features Indexed" ? "cursor-pointer" : ""} ${expandedRowId === row.id ? "bg-paper-base/30" : ""}`}
                   >
+                    {type === "Competitors Tracked" && (
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={localComparingIds.includes(row.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              if (localComparingIds.length >= 2) {
+                                // max 2 enforced, replace oldest
+                                setLocalComparingIds([localComparingIds[1], row.id]);
+                              } else {
+                                setLocalComparingIds([...localComparingIds, row.id]);
+                              }
+                            } else {
+                              setLocalComparingIds(localComparingIds.filter(id => id !== row.id));
+                            }
+                          }}
+                          className="rounded border-ink-dark/30 text-ink-dark focus:ring-ink-dark/20"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-ink-dark">
                       {type === "Features Indexed" ? row.value : row.source}
                     </td>

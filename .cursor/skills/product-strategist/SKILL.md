@@ -29,8 +29,8 @@ Follow these steps iteratively with the user using the **AskUserQuestion** tool:
 Once the idea is validated and shaped:
 
 1. Synthesize the findings into a clear, actionable strategy.
-2. Draft the plan in `docs/plans/<YYYY-MM-DD>-<type>-<name>-plan.md` using the standard plan format.
-3. Advise the user to ingest the plan into the OpenSpec DAG using `npx tsx scripts/openspec-cli/index.ts ingest docs/plans/<filename>.md`.
+2. Draft the plan in `openspec/plans/<YYYY-MM-DD>-<type>-<name>-plan.md` using the standard plan format.
+3. Advise the user to ingest the plan into the OpenSpec DAG using `npx tsx scripts/openspec-cli/index.ts ingest openspec/plans/<filename>.md`.
 
 ## Core Philosophy
 

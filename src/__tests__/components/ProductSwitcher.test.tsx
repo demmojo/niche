@@ -5,24 +5,45 @@ import { ProductSwitcher } from "../../components/ProductSwitcher";
 // Mock the Radix UI primitives as they can be tricky in JSDOM without proper layout
 vi.mock("@radix-ui/react-dropdown-menu", () => {
   return {
+    /**
+     *
+     */
     Root: ({ children }: any) => (
       <div data-testid="dropdown-root">{children}</div>
     ),
+    /**
+     *
+     */
     Trigger: ({ children }: any) => (
       <button data-testid="dropdown-trigger">{children}</button>
     ),
+    /**
+     *
+     */
     Portal: ({ children }: any) => (
       <div data-testid="dropdown-portal">{children}</div>
     ),
+    /**
+     *
+     */
     Content: ({ children }: any) => (
       <div data-testid="dropdown-content">{children}</div>
     ),
+    /**
+     *
+     */
     Label: ({ children }: any) => <div>{children}</div>,
+    /**
+     *
+     */
     Item: ({ children, onSelect }: any) => (
       <button data-testid="dropdown-item" onClick={onSelect}>
         {children}
       </button>
     ),
+    /**
+     *
+     */
     Separator: () => <hr />,
   };
 });
@@ -39,7 +60,7 @@ describe("ProductSwitcher Role-Based Rendering", () => {
 
     render(
       <ProductSwitcher
-        products={mockProducts}
+        products={mockProducts as any}
         activeProductId="1"
         onSelectProduct={handleSelect}
         isSuperadmin={true}
@@ -61,7 +82,7 @@ describe("ProductSwitcher Role-Based Rendering", () => {
 
     render(
       <ProductSwitcher
-        products={mockProducts}
+        products={mockProducts as any}
         activeProductId="1"
         onSelectProduct={handleSelect}
         isSuperadmin={false}
@@ -84,7 +105,7 @@ describe("ProductSwitcher Role-Based Rendering", () => {
 
     render(
       <ProductSwitcher
-        products={mockProducts}
+        products={mockProducts as any}
         activeProductId="1"
         onSelectProduct={handleSelect}
         isSuperadmin={false}

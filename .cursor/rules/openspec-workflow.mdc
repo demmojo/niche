@@ -5,13 +5,15 @@ alwaysApply: true
 
 # OpenSpec Workflow
 
+> **Note**: `docs/plans/` and `docs/brainstorms/` have been moved to `openspec/plans/` and `openspec/brainstorms/` as of Mar 2026. Do not create new documents in `docs/`.
+
 This project relies on `openspec/changes/` directories containing `proposal.md`, `design.md`, `specs/`, and `tasks.md` files to document and guide feature implementation.
 
 ## Pre-flight / Planning Phase (CRITICAL)
 Before you propose a new feature, run `/plan`, or create a new OpenSpec:
 1. **Discover Existing Specs:** You MUST run `npx tsx scripts/openspec-cli/index.ts detect-collisions` to detect overlaps or read `openspec/changes/` to see what is already planned.
 2. **Identify Overlaps:** If the new feature overlaps or conflicts with an existing spec (e.g. `product-evolution-engine`), determine if the new spec should *supersede* the old one or complement it.
-3. **Ingest to OpenSpec:** The output from `/plan` (in `docs/plans/`) is an ephemeral staging area. You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `docs/plans/` markdown file. You MUST ingest it into the OpenSpec DAG first by running `npx tsx scripts/openspec-cli/index.ts ingest docs/plans/<plan_filename>.md`.
+3. **Ingest to OpenSpec:** The output from `/plan` (in `openspec/plans/`) is an ephemeral staging area. You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `openspec/plans/` markdown file. You MUST ingest it into the OpenSpec DAG first by running `npx tsx scripts/openspec-cli/index.ts ingest openspec/plans/<plan_filename>.md`.
 4. **Supersede Specs:** If a spec is superseded or removed:
    - Update its `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
    - Add a `> **NOTICE:** This spec has been **superseded** by [new-spec].` block to the very top of its `proposal.md`.

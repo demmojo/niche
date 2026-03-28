@@ -14,6 +14,9 @@ interface InsightBrainstormModalProps {
   onSaveInsight: (insight: any) => void;
 }
 
+/**
+ *
+ */
 export function InsightBrainstormModal({
   isOpen,
   onClose,

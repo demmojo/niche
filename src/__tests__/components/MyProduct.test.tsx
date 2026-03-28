@@ -7,24 +7,69 @@ import { withModelFallback } from "../../../src/utils/aiClient";
 
 // Mock lucide icons
 vi.mock("lucide-react", () => ({
+  /**
+   *
+   */
   Package: () => <div data-testid="icon-package" />,
+  /**
+   *
+   */
   Target: () => <div data-testid="icon-target" />,
+  /**
+   *
+   */
   MapPin: () => <div data-testid="icon-mappin" />,
+  /**
+   *
+   */
   List: () => <div data-testid="icon-list" />,
+  /**
+   *
+   */
   Plus: () => <div data-testid="icon-plus" />,
+  /**
+   *
+   */
   Sparkles: () => <div data-testid="icon-sparkles" />,
+  /**
+   *
+   */
   Trash2: () => <div data-testid="icon-trash2" />,
+  /**
+   *
+   */
   Edit2: () => <div data-testid="icon-edit2" />,
+  /**
+   *
+   */
   Check: () => <div data-testid="icon-check" />,
+  /**
+   *
+   */
   X: () => <div data-testid="icon-x" />,
+  /**
+   *
+   */
   ChevronDown: () => <div data-testid="icon-chevrondown" />,
+  /**
+   *
+   */
   ChevronUp: () => <div data-testid="icon-chevronup" />,
+  /**
+   *
+   */
   Download: () => <div data-testid="icon-download" />,
+  /**
+   *
+   */
   Loader2: () => <div data-testid="icon-loader2" />,
 }));
 
 // Mock ExportButton
 vi.mock("../../../src/components/ExportButton", () => ({
+  /**
+   *
+   */
   default: ({ onExport, label }: any) => (
     <button onClick={onExport} data-testid="export-button">
       {label}
@@ -34,6 +79,9 @@ vi.mock("../../../src/components/ExportButton", () => ({
 
 // Mock DocumentationWizardModal
 vi.mock("../../../src/components/DocumentationWizardModal", () => ({
+  /**
+   *
+   */
   DocumentationWizardModal: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="wizard-modal">
@@ -46,6 +94,9 @@ vi.mock("../../../src/components/DocumentationWizardModal", () => ({
 
 // Mock Tooltip
 vi.mock("../../../src/components/Tooltip", () => ({
+  /**
+   *
+   */
   Tooltip: ({ children, content }: any) => (
     <div data-testid="tooltip" title={content}>
       {children}
@@ -65,17 +116,29 @@ vi.mock("@google/genai", () => ({
 
 // Mock react-markdown
 vi.mock("react-markdown", () => ({
+  /**
+   *
+   */
   default: ({ children }: any) => <div data-testid="markdown">{children}</div>,
 }));
 
 // Mock motion/react as requested
 vi.mock("motion/react", () => ({
   motion: {
+    /**
+     *
+     */
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    /**
+     *
+     */
     button: ({ children, ...props }: any) => (
       <button {...props}>{children}</button>
     ),
   },
+  /**
+   *
+   */
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
@@ -93,10 +156,14 @@ const mockCompetitors = [{ name: "Comp A", features: ["Comp Feat 1"] }];
 
 const mockInsights: any[] = [];
 
+/**
+ *
+ */
 const MyProductWrapper = ({ initialData = mockInitialData }) => {
   const [data, setData] = useState(initialData);
   return (
     <MyProduct
+      projectId="test-project"
       productData={data}
       setProductData={setData}
       competitors={mockCompetitors}
@@ -267,7 +334,7 @@ describe("MyProduct Component", () => {
 
     expect(screen.queryByTestId("wizard-modal")).not.toBeInTheDocument();
 
-    const exportBtn = screen.getByTestId("export-button");
+    const exportBtn = screen.getByText("Generate Docs");
     fireEvent.click(exportBtn);
 
     expect(screen.getByTestId("wizard-modal")).toBeInTheDocument();

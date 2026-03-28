@@ -6,6 +6,9 @@ import { RapidPdlcWorkflow } from "../../../src/components/RapidPdlcWorkflow";
 // Mock the artifacts to avoid Suspense/React.lazy issues with fake timers
 vi.mock("../../../src/components/ArtifactRenderer", () => {
   return {
+    /**
+     *
+     */
     ArtifactRenderer: ({
       activeArtifact,
       features,

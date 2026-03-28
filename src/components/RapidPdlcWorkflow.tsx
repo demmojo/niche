@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { WorkflowCopilotChat, CopilotMessage } from "./WorkflowCopilotChat";
 import { ArtifactRenderer } from "./ArtifactRenderer";
 
+/**
+ *
+ */
 export function RapidPdlcWorkflow() {
   const [chatHistory, setChatHistory] = useState<CopilotMessage[]>([
     {
@@ -20,6 +23,9 @@ export function RapidPdlcWorkflow() {
   // Simple state machine for the workflow
   const [step, setStep] = useState<number>(1);
 
+  /**
+   *
+   */
   const handleSendMessage = (content: string) => {
     const userMsg: CopilotMessage = {
       id: Date.now().toString(),
@@ -31,7 +37,7 @@ export function RapidPdlcWorkflow() {
 
     // Simulate AI response and step progression
     setTimeout(() => {
-      let aiMsg: CopilotMessage = {
+      const aiMsg: CopilotMessage = {
         id: (Date.now() + 1).toString(),
         role: "ai",
         content: "",
@@ -89,6 +95,9 @@ export function RapidPdlcWorkflow() {
     }, 2000);
   };
 
+  /**
+   *
+   */
   const handleDeploy = () => {
     setActiveArtifact("TerminalUI");
     const aiMsg: CopilotMessage = {
@@ -100,12 +109,18 @@ export function RapidPdlcWorkflow() {
     setStep(5);
   };
 
+  /**
+   *
+   */
   const handleFeatureAccept = (id: string) => {
     const f = features.find((feat) => feat.id === id);
     if (f) setAcceptedFeatures((prev) => [...prev, f]);
     setFeatures((prev) => prev.filter((feat) => feat.id !== id));
   };
 
+  /**
+   *
+   */
   const handleFeatureReject = (id: string) => {
     setFeatures((prev) => prev.filter((feat) => feat.id !== id));
   };

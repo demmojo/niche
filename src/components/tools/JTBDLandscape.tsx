@@ -10,9 +10,13 @@ import {
   ReferenceArea,
   Cell,
 } from "recharts";
-import { demoJTBDs } from "../../utils/demoMockData";
 import { JobToBeDone } from "../../types";
+import { useMarketIntelligence } from "../../hooks/useMarketIntelligence";
+import { Loader2 } from "lucide-react";
 
+/**
+ *
+ */
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data: JobToBeDone = payload[0].payload;
@@ -54,16 +58,42 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+/**
+ *
+ */
 export const JTBDLandscape: React.FC = () => {
+  const fetchState = useMarketIntelligence<JobToBeDone>("market_jtbds");
+
   const data = useMemo(() => {
-    return demoJTBDs.map((item) => ({
+    if (fetchState.status !== "success") return [];
+    
+    return fetchState.data.map((item) => ({
       ...item,
       // For Recharts Scatter
       x: item.currentSatisfactionScore,
       y: item.importanceScore,
       z: item.opportunityScore,
     }));
-  }, []);
+  }, [fetchState]);
+
+  if (fetchState.status === "loading" || fetchState.status === "idle") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="flex flex-col items-center gap-3 text-ink-dark/60">
+          <Loader2 className="animate-spin w-8 h-8" />
+          <p className="font-serif">Loading JTBD Landscape...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchState.status === "error") {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-white border border-rose-200 rounded-xl shadow-sm p-8 min-h-[400px]">
+        <div className="text-rose-600 font-bold">Failed to load JTBDs</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-white border border-ink-dark/10 rounded-xl shadow-sm p-8 min-h-full">

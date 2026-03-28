@@ -1,3 +1,6 @@
+/**
+ *
+ */
 export const getErrorMessage = (error: any): string => {
   if (!error) return "Unknown error occurred";
 

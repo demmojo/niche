@@ -31,6 +31,9 @@ export interface LensResponse {
   suggestions: Omit<LensSuggestion, "id">[];
 }
 
+/**
+ *
+ */
 const parseLensJSON = (text: string): LensResponse => {
   try {
     const cleaned = text
@@ -48,6 +51,9 @@ const parseLensJSON = (text: string): LensResponse => {
   }
 };
 
+/**
+ *
+ */
 const buildLensSystemPrompt = (
   context: LensContext,
   additionalInstructions = "",
@@ -141,6 +147,9 @@ const responseSchema = {
   required: ["message", "options"],
 };
 
+/**
+ *
+ */
 export const runLensDeepAnalysis = async (
   context: LensContext,
 ): Promise<LensResponse> => {
@@ -165,6 +174,9 @@ export const runLensDeepAnalysis = async (
   return parseLensJSON(response.text || "");
 };
 
+/**
+ *
+ */
 export const generateLensChatResponse = async (
   context: LensContext,
   userPrompt: string,

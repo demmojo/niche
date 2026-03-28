@@ -10,6 +10,9 @@ interface PresentationViewerProps {
   templateId: string;
 }
 
+/**
+ *
+ */
 export default function PresentationViewer({
   templateId,
 }: PresentationViewerProps) {
@@ -17,6 +20,9 @@ export default function PresentationViewer({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Render the specific analytical template
+  /**
+   *
+   */
   const renderTemplate = () => {
     switch (templateId) {
       case "market-size":

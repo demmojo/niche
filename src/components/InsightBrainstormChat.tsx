@@ -122,6 +122,9 @@ export function InsightBrainstormChat({
       }),
     ],
     content: "",
+    /**
+     *
+     */
     onUpdate: ({ editor }) => {
       setInputValue(editor.getText());
     },
@@ -130,6 +133,9 @@ export function InsightBrainstormChat({
         class:
           "w-full bg-transparent border-none resize-none max-h-32 min-h-[44px] py-2.5 px-3 text-sm text-ink-dark focus:outline-none focus:ring-0 overflow-y-auto",
       },
+      /**
+       *
+       */
       handleKeyDown: (view, event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
@@ -141,6 +147,9 @@ export function InsightBrainstormChat({
     },
   });
 
+  /**
+   *
+   */
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 

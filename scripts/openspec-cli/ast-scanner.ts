@@ -22,6 +22,9 @@ export interface FileASTDiff {
   modified: { old: SemanticSignature; new: SemanticSignature }[];
 }
 
+/**
+ *
+ */
 function extractSignatures(sourceFile: SourceFile): SemanticSignature[] {
   const signatures: SemanticSignature[] = [];
 
@@ -80,6 +83,9 @@ function extractSignatures(sourceFile: SourceFile): SemanticSignature[] {
   return signatures;
 }
 
+/**
+ *
+ */
 export function getStagedASTDiff(): FileASTDiff[] {
   const project = new Project({
     useInMemoryFileSystem: true,
@@ -156,6 +162,9 @@ export function getStagedASTDiff(): FileASTDiff[] {
   return diffs;
 }
 
+/**
+ *
+ */
 export function formatDiffForLLM(diffs: FileASTDiff[]): string {
   let output = "";
   for (const diff of diffs) {

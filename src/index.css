@@ -21,6 +21,9 @@
   --color-brutal-surface: #1e293b;
   --color-brutal-text: #f8fafc;
 
+  --color-brand-primary: var(--brand-primary, #3B82F6);
+  --color-brand-fg: var(--brand-primary-fg, #ffffff);
+
   --color-moss: #3a6c49;
   --color-sage: #68806e;
   --color-terracotta: #c46a5a;

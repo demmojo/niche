@@ -10,6 +10,9 @@ const DEFCON_STYLES: Record<number, string> = {
   5: "bg-white text-black border-black border-4", // Normal
 };
 
+/**
+ *
+ */
 const BlockScore = ({ score, max = 4 }: { score: number; max?: number }) => {
   const filled = "█".repeat(score);
   const empty = "░".repeat(max - score);
@@ -29,6 +32,9 @@ const competitors = [
   { name: "AlphaBuild", defcon: 5, cap: 1, mkt: 1 },
 ];
 
+/**
+ *
+ */
 export function CompetitorThreatMatrix() {
   return (
     <div className="p-8 h-full overflow-y-auto bg-[#0F172A] text-white">

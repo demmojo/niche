@@ -12,8 +12,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
+/**
+ *
+ */
 export const useAuth = () => useContext(AuthContext);
 
+/**
+ *
+ */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -64,12 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return unsubscribe;
   }, []);
 
+  /**
+   *
+   */
   const loginWithGoogleFn = async () => {
     await loginWithGoogle();
   };
+  /**
+   *
+   */
   const loginWithEmailFn = async (email: string, pass: string) => {
     await loginWithEmail(email, pass);
   };
+  /**
+   *
+   */
   const logoutUserFn = async () => {
     await logout();
   };

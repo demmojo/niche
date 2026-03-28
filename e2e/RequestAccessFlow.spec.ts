@@ -13,40 +13,36 @@ test.describe("Request Access Flow", () => {
     page,
   }) => {
     // Note: Due to mock auth, we might have one product.
-    // If we have a product dropdown trigger, click it
-    await page
-      .waitForSelector('button[aria-haspopup="menu"]', {
-        state: "visible",
-        timeout: 5000,
-      })
-      .catch(() => null);
+    // If we have a product dropdown trigger, click it using accessibility roles
+    const dropdownTrigger = page.getByRole("button", { name: /switch product/i, exact: false }).or(
+      page.getByRole("button", { name: /current product/i, exact: false })
+    ).or(page.locator('button[aria-haspopup="menu"]').first());
 
-    const dropdown = await page.$('button[aria-haspopup="menu"]');
-    if (dropdown) {
-      await dropdown.click();
+    await dropdownTrigger.waitFor({ state: "visible", timeout: 5000 }).catch(() => null);
+
+    if (await dropdownTrigger.isVisible()) {
+      await dropdownTrigger.click();
 
       // Look for the Add New Product option in the dropdown portal
-      const addProduct = page.locator('div[role="menuitem"]', {
-        hasText: "Add New Product",
-      });
+      const addProduct = page.getByRole("menuitem", { name: /add new product/i });
       await addProduct.click();
 
       // Wait for the modal to appear
-      const modal = page.locator('[role="dialog"]');
+      const modal = page.getByRole("dialog");
       await expect(modal).toBeVisible();
 
       // Ensure it says "Upgrade to Access"
       await expect(page.getByText("Upgrade to Access")).toBeVisible();
 
       // Click Request Access
-      const requestBtn = page.locator("button", { hasText: "Request Access" });
+      const requestBtn = modal.getByRole("button", { name: /request access/i });
       await requestBtn.click();
 
       // Expect success screen
-      await expect(page.getByText("Request Sent!")).toBeVisible();
+      await expect(modal.getByText("Request Sent!")).toBeVisible();
 
       // Close modal
-      const closeBtn = page.locator("button", { hasText: "Close" });
+      const closeBtn = modal.getByRole("button", { name: /close/i });
       await closeBtn.click();
 
       // Ensure modal is gone

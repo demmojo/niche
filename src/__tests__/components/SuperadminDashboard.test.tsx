@@ -26,6 +26,9 @@ describe("SuperadminDashboard", () => {
       docs: [
         {
           id: "1",
+          /**
+           *
+           */
           data: () => ({
             type: "Bug",
             message: "test bug",

@@ -1,5 +1,7 @@
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `raw-data-image-storage`.
+
 Users often gather competitive intelligence through visual means, such as screenshots of competitor products, pricing pages, or marketing materials. Currently, the "Import Raw Data" modal only supports text-based files (TXT, CSV, JSON, Markdown). Forcing users to manually extract text from images introduces friction. Adding support for image uploads, drag-and-drop, and copy-paste will drastically improve the data ingestion experience.
 
 ## What Changes

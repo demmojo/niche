@@ -1,5 +1,8 @@
 import { Competitor, SyncDiff } from '../types';
 
+/**
+ *
+ */
 export function createCompetitorDiffs(
   oldComp: Competitor | undefined,
   newComp: Partial<Competitor>,
@@ -38,6 +41,9 @@ export function createCompetitorDiffs(
   return diffs;
 }
 
+/**
+ *
+ */
 export function filterVerifiedDiffs(diffs: SyncDiff[], verifiedFields: Record<string, boolean> | undefined): SyncDiff[] {
   if (!verifiedFields) return diffs;
   return diffs.filter(diff => !verifiedFields[diff.field]);

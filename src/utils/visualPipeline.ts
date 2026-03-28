@@ -30,6 +30,9 @@ export interface VisualAnalysisResult {
 }
 
 // 1. Step 1: Fast/Local Bounding Box Detection (Mocked OmniParser)
+/**
+ *
+ */
 export async function runOmniParser(
   imageBase64: string,
 ): Promise<OmniParserResult> {
@@ -55,6 +58,9 @@ export async function runOmniParser(
 }
 
 // 2. Step 2: Multimodal LLM Semantic Mapping
+/**
+ *
+ */
 export async function extractFeaturesFromVisuals(
   imageBase64: string,
   omniParserData: OmniParserResult,
@@ -96,6 +102,9 @@ export async function extractFeaturesFromVisuals(
 }
 
 // Main Orchestrator
+/**
+ *
+ */
 export async function analyzeVisuals(
   imageBase64: string,
   provider: string = "gemini",

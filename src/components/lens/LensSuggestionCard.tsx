@@ -14,6 +14,9 @@ const REJECTION_REASONS = [
   "INACCURATE",
 ];
 
+/**
+ *
+ */
 export function LensSuggestionCard({
   suggestion,
   onApprove,

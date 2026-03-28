@@ -1,5 +1,8 @@
 import { Type } from "@google/genai";
 
+/**
+ *
+ */
 export function zodToGeminiSchema(schema: any): any {
   if (!schema || !schema._def) return {};
 

@@ -1,0 +1,3 @@
+const { GoogleGenAI } = require("@google/genai");
+console.log(GoogleGenAI.prototype);
+// let's try to see if embedContent gives something if mock...

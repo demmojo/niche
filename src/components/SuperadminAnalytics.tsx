@@ -1,66 +1,54 @@
-import React from "react";
-import {
-  BarChart as BarChartIcon,
-  Users,
-  Lightbulb,
-  Activity,
-  AlertTriangle,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from "recharts";
+import React, { useState, useTransition, useEffect } from "react";
+import { AlertTriangle, Users, Play, LogOut, Activity } from "lucide-react";
+import { initializeApp, deleteApp, getApp } from "firebase/app";
+import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
+import { getFirestore, collection, getDocs, limit, query, orderBy } from "firebase/firestore";
+import { auth, db, startImpersonation } from "../firebase";
 
-// Mock data for the dashboard
-const KPI_DATA = {
-  totalWorkspaces: 142,
-  activeCompetitorsTracked: 843,
-  insightsGenerated: 12540,
-  systemErrorRate: 1.2,
-};
+interface StrategicSummary {
+  strategic_summary: string;
+  action_items: string[];
+  referenced_metrics: Array<{ metric_name: string; exact_value: number }>;
+}
 
-const CHART_COLORS = ["#C16E5A", "#4A7A64", "#D4B872", "#2C2C2C", "#8A8A8A"];
-
-const ENGAGEMENT_DATA = [
-  { name: "Mon", searches: 400, syncs: 240 },
-  { name: "Tue", searches: 300, syncs: 139 },
-  { name: "Wed", searches: 520, syncs: 380 },
-  { name: "Thu", searches: 450, syncs: 290 },
-  { name: "Fri", searches: 600, syncs: 420 },
-  { name: "Sat", searches: 200, syncs: 150 },
-  { name: "Sun", searches: 250, syncs: 180 },
-];
-
-const INSIGHTS_DISTRIBUTION = [
-  { name: "Threats", value: 45 },
-  { name: "Opportunities", value: 35 },
-  { name: "Trends", value: 20 },
-];
-
-const SOURCE_COVERAGE = [
-  { name: "Website Scraping", value: 65 },
-  { name: "News & PR", value: 20 },
-  { name: "API (Apollo/Exa)", value: 15 },
-];
+type SummaryState = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: StrategicSummary }
+  | { status: 'error'; error: string };
 
 export function SuperadminAnalytics({
   isSuperadmin,
 }: {
   isSuperadmin: boolean;
 }) {
+  const [summaryState, setSummaryState] = useState<SummaryState>({ status: 'idle' });
+  const [isPending, startTransition] = useTransition();
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isSuperadmin) return;
+    
+    // Fetch a few recent users to show in the impersonation table
+    const fetchUsers = async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        const res = await fetch('/api/superadmin/users', {
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+        if (!res.ok) throw new Error('Failed to fetch superadmin users');
+        const data = await res.json();
+        setUsers(data.users || []);
+      } catch (err) {
+        console.error("Error fetching users for superadmin:", err);
+      }
+    };
+    
+    fetchUsers();
+  }, [isSuperadmin]);
+
   if (!isSuperadmin) {
     return (
       <div className="flex items-center justify-center h-full p-8 text-center text-ink-dark/60">
@@ -70,277 +58,178 @@ export function SuperadminAnalytics({
     );
   }
 
+  const generateSummary = async () => {
+    setSummaryState({ status: 'loading' });
+    
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/v1/summary', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ context: "Looking for feature-bloat indicators." })
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch summary');
+
+      const data: StrategicSummary = await response.json();
+      
+      startTransition(() => {
+        setSummaryState({ status: 'success', data });
+      });
+    } catch (err) {
+      startTransition(() => {
+        setSummaryState({ status: 'error', error: err instanceof Error ? err.message : 'Unknown error' });
+      });
+    }
+  };
+
+  const handleImpersonate = async (targetUid: string) => {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/superadmin/impersonate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ targetUid })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to impersonate');
+      
+      // Secondary App logic
+      await startImpersonation(data.token);
+      
+      // Reload the page to reset all states with the new auth context
+      window.location.href = '/';
+      
+    } catch (err: any) {
+      alert("Impersonation failed: " + err.message);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-8 h-full overflow-y-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold font-serif text-ink-dark tracking-tight mb-2 flex items-center gap-3">
-          <BarChartIcon className="text-moss" size={32} />
-          Platform Analytics
+        <h1 className="text-3xl font-bold font-serif text-ink-dark tracking-tight mb-2">
+          Platform Telemetry & Operations
         </h1>
         <p className="text-ink-dark/60">
-          Key Performance Indicators for the Competitive Intelligence platform.
+          Actionable MVP signals and administrative magic login.
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2 text-ink-dark/60">
-            <Users size={18} />
-            <span className="text-sm font-semibold uppercase tracking-wider">
-              Total Workspaces
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-ink-dark">
-            {KPI_DATA.totalWorkspaces}
-          </div>
-          <div className="text-xs text-moss font-medium mt-2">
-            +12% from last month
-          </div>
-        </div>
-
-        <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2 text-ink-dark/60">
-            <BarChartIcon size={18} />
-            <span className="text-sm font-semibold uppercase tracking-wider">
-              Competitors Tracked
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-ink-dark">
-            {KPI_DATA.activeCompetitorsTracked}
-          </div>
-          <div className="text-xs text-moss font-medium mt-2">
-            +5% from last month
-          </div>
-        </div>
-
-        <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2 text-ink-dark/60">
-            <Lightbulb size={18} />
-            <span className="text-sm font-semibold uppercase tracking-wider">
-              Insights Generated
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-ink-dark">
-            {(KPI_DATA.insightsGenerated / 1000).toFixed(1)}k
-          </div>
-          <div className="text-xs text-moss font-medium mt-2">
-            +24% from last month
-          </div>
-        </div>
-
-        <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2 text-ink-dark/60">
-            <Activity size={18} />
-            <span className="text-sm font-semibold uppercase tracking-wider">
-              System Error Rate
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-ink-dark">
-            {KPI_DATA.systemErrorRate}%
-          </div>
-          <div className="text-xs text-moss font-medium mt-2">
-            -0.3% from last month
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Engagement Line Chart */}
-        <div className="bg-paper-card border border-ink-dark/10 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-ink-dark mb-6">
-            Daily Activity (7 Days)
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={ENGAGEMENT_DATA}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient
-                    id="colorSearches"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor={CHART_COLORS[0]}
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={CHART_COLORS[0]}
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                  <linearGradient id="colorSyncs" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor={CHART_COLORS[1]}
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={CHART_COLORS[1]}
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#E5E5E5"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#8A8A8A", fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#8A8A8A", fontSize: 12 }}
-                  dx={-10}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: "#FCFBFA",
-                    borderRadius: "8px",
-                    border: "1px solid #E5E5E5",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  }}
-                  itemStyle={{ color: "#2C2C2C", fontWeight: 500 }}
-                />
-                <Legend
-                  iconType="circle"
-                  wrapperStyle={{ paddingTop: "20px" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="searches"
-                  name="Searches & Queries"
-                  stroke={CHART_COLORS[0]}
-                  fillOpacity={1}
-                  fill="url(#colorSearches)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="syncs"
-                  name="Data Syncs"
-                  stroke={CHART_COLORS[1]}
-                  fillOpacity={1}
-                  fill="url(#colorSyncs)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+        {/* Generative UI Summary */}
+        <div className="bg-paper-light border-2 border-ink-dark rounded-xl p-6 shadow-storybook">
+          <div className="mb-6 pb-4 border-b border-ink-dark/20 flex justify-between items-center">
+            <h2 className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
+              <Activity size={20} className="text-accent-coral" />
+              Strategic Summary
+            </h2>
+            <button 
+              onClick={generateSummary}
+              disabled={summaryState.status === 'loading'}
+              className="px-4 py-2 bg-ink-dark text-white font-bold text-sm uppercase rounded-md hover:bg-ink-dark/80 disabled:opacity-50 transition-colors"
+            >
+              {summaryState.status === 'loading' ? 'Analyzing...' : 'Generate Review'}
+            </button>
           </div>
+
+          {summaryState.status === 'error' && (
+            <div className="mb-4 p-4 bg-accent-coral/10 border-l-4 border-accent-coral font-mono text-sm text-ink-dark">
+              {summaryState.error}
+            </div>
+          )}
+
+          {summaryState.status === 'idle' && (
+            <p className="text-ink-dark/60 italic text-sm text-center py-8">
+              Click generate to run the 4-Event LLM analysis.
+            </p>
+          )}
+
+          {summaryState.status === 'success' && (
+            <div className="space-y-6">
+              <section>
+                <h3 className="text-sm font-bold uppercase text-moss mb-2">Executive Summary</h3>
+                <p className="text-ink-dark leading-relaxed font-serif text-lg">
+                  {summaryState.data.strategic_summary}
+                </p>
+              </section>
+
+              <section>
+                <h3 className="text-sm font-bold uppercase text-accent-coral mb-2">Action Items</h3>
+                <ul className="list-disc pl-5 space-y-2">
+                  {summaryState.data.action_items.map((item, idx) => (
+                    <li key={idx} className="text-ink-dark font-medium">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              
+              <section>
+                <h3 className="text-xs font-bold uppercase text-ink-dark/40 mb-2">Cited Metrics</h3>
+                <div className="flex flex-wrap gap-2">
+                  {summaryState.data.referenced_metrics.map((metric, idx) => (
+                    <span key={idx} className="px-2 py-1 bg-ink-dark/5 text-ink-dark rounded text-xs font-mono">
+                      {metric.metric_name}: {metric.exact_value}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
         </div>
 
-        {/* Distribution Donut Chart */}
-        <div className="bg-paper-card border border-ink-dark/10 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-ink-dark mb-6">
-            Insights Distribution
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={INSIGHTS_DISTRIBUTION}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {INSIGHTS_DISTRIBUTION.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: "#FCFBFA",
-                    borderRadius: "8px",
-                    border: "1px solid #E5E5E5",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  }}
-                  itemStyle={{ color: "#2C2C2C", fontWeight: 500 }}
-                />
-                <Legend
-                  iconType="circle"
-                  layout="vertical"
-                  verticalAlign="middle"
-                  align="right"
-                />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Magic Login Users Table */}
+        <div className="bg-paper-light border-2 border-ink-dark rounded-xl p-6 shadow-storybook">
+          <div className="mb-6 pb-4 border-b border-ink-dark/20">
+            <h2 className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
+              <Users size={20} className="text-moss" />
+              Active Users (Magic Login)
+            </h2>
           </div>
-        </div>
-
-        {/* Source Coverage Bar Chart */}
-        <div className="bg-paper-card border border-ink-dark/10 rounded-2xl p-6 shadow-sm lg:col-span-2">
-          <h3 className="text-lg font-bold text-ink-dark mb-6">
-            Data Source Utilization
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={SOURCE_COVERAGE}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={false}
-                  stroke="#E5E5E5"
-                />
-                <XAxis
-                  type="number"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#8A8A8A", fontSize: 12 }}
-                  dx={10}
-                />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#2C2C2C", fontSize: 12, fontWeight: 500 }}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: "#FCFBFA",
-                    borderRadius: "8px",
-                    border: "1px solid #E5E5E5",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  }}
-                  cursor={{ fill: "rgba(0,0,0,0.02)" }}
-                />
-                <Bar
-                  dataKey="value"
-                  name="Percentage (%)"
-                  fill={CHART_COLORS[2]}
-                  radius={[0, 4, 4, 0]}
-                >
-                  {SOURCE_COVERAGE.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-ink-dark/20 text-ink-dark/60 text-xs uppercase tracking-wider">
+                  <th className="pb-3 font-semibold">User ID</th>
+                  <th className="pb-3 font-semibold">Project Name</th>
+                  <th className="pb-3 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm text-ink-dark">
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-8 text-center text-ink-dark/50 italic">
+                      No recent active projects found.
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((u, i) => (
+                    <tr key={i} className="border-b border-ink-dark/10 last:border-0 hover:bg-ink-dark/5 transition-colors">
+                      <td className="py-4 font-mono text-xs">{u.uid.slice(0, 8)}...</td>
+                      <td className="py-4 font-medium">{u.name}</td>
+                      <td className="py-4 text-right">
+                        <button
+                          onClick={() => handleImpersonate(u.uid)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ink-dark/10 hover:bg-ink-dark/20 text-ink-dark font-bold rounded transition-colors text-xs uppercase tracking-wide"
+                        >
+                          <Play size={14} />
+                          Login As
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

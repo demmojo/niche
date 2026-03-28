@@ -12,6 +12,9 @@ import {
 import { FeedbackMessage } from "../types";
 import { useOnboarding } from "../hooks/useOnboarding";
 
+/**
+ *
+ */
 export function SupportHelpPage({
   user,
   initialType = "General",
@@ -33,7 +36,13 @@ export function SupportHelpPage({
   );
 
   useEffect(() => {
+    /**
+     *
+     */
     const handleOnline = () => setIsOffline(false);
+    /**
+     *
+     */
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener("online", handleOnline);
@@ -45,6 +54,9 @@ export function SupportHelpPage({
     };
   }, []);
 
+  /**
+   *
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -72,6 +84,9 @@ export function SupportHelpPage({
     }
   };
 
+  /**
+   *
+   */
   const handleResetTour = () => {
     resetOnboarding();
     // In a real app we might redirect or show a toast

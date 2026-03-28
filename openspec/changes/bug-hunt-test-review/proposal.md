@@ -2,6 +2,8 @@
 
 ## Why
 
+> **NOTICE:** This spec has been **superseded** by `codebase-test-quality-review`.
+
 We need to ensure high test coverage and fix bugs to maintain application stability, prevent future regressions, and increase overall developer confidence.
 
 ## What Changes

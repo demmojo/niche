@@ -5,22 +5,46 @@ import { MarketValueNotebook } from "../../components/MarketValueNotebook";
 
 // --- Mocks ---
 vi.mock("lucide-react", () => ({
+  /**
+   *
+   */
   Play: () => <div data-testid="icon-play" />,
+  /**
+   *
+   */
   CheckCircle2: () => <div data-testid="icon-check" />,
+  /**
+   *
+   */
   Loader2: () => <div data-testid="icon-loader" />,
+  /**
+   *
+   */
   Database: () => <div data-testid="icon-database" />,
+  /**
+   *
+   */
   Calculator: () => <div data-testid="icon-calculator" />,
+  /**
+   *
+   */
   TrendingUp: () => <div data-testid="icon-trending-up" />,
 }));
 
 vi.mock("motion/react", () => ({
   motion: {
+    /**
+     *
+     */
     div: ({ children, ...props }: any) => (
       <div data-testid="motion-div" {...props}>
         {children}
       </div>
     ),
   },
+  /**
+   *
+   */
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
@@ -34,6 +58,9 @@ vi.mock("../../utils/geminiClient", () => ({
 }));
 
 vi.mock("../../components/Tooltip", () => ({
+  /**
+   *
+   */
   Tooltip: ({ children, content }: any) => (
     <div data-testid="tooltip" title={content as string}>
       {children}

@@ -6,12 +6,18 @@ interface CompetitorIngestionProps {
   onStart: (urls: string[]) => void;
 }
 
+/**
+ *
+ */
 export const CompetitorIngestion: React.FC<CompetitorIngestionProps> = ({
   onStart,
 }) => {
   const [urls, setUrls] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState("");
 
+  /**
+   *
+   */
   const handleAddUrl = () => {
     let trimmed = currentInput.trim();
     if (!trimmed) return;
@@ -35,6 +41,9 @@ export const CompetitorIngestion: React.FC<CompetitorIngestionProps> = ({
     setCurrentInput("");
   };
 
+  /**
+   *
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -42,6 +51,9 @@ export const CompetitorIngestion: React.FC<CompetitorIngestionProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const removeUrl = (idx: number) => {
     setUrls(urls.filter((_, i) => i !== idx));
   };

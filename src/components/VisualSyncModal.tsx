@@ -17,6 +17,9 @@ interface VisualSyncModalProps {
   setMyProductData: React.Dispatch<React.SetStateAction<MyProductData>>;
 }
 
+/**
+ *
+ */
 export const VisualSyncModal: React.FC<VisualSyncModalProps> = ({
   isOpen,
   onClose,
@@ -31,10 +34,16 @@ export const VisualSyncModal: React.FC<VisualSyncModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   *
+   */
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
+      /**
+       *
+       */
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
         processImage(reader.result as string);
@@ -43,6 +52,9 @@ export const VisualSyncModal: React.FC<VisualSyncModalProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const processImage = async (base64: string) => {
     setStep("processing");
     try {
@@ -63,6 +75,9 @@ export const VisualSyncModal: React.FC<VisualSyncModalProps> = ({
     }
   };
 
+  /**
+   *
+   */
   const applyUpdates = () => {
     setMyProductData((prev) => {
       const newFeatures = [...prev.features];

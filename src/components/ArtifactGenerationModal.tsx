@@ -25,6 +25,9 @@ interface ArtifactGenerationModalProps {
   contextData: any;
 }
 
+/**
+ *
+ */
 export const ArtifactGenerationModal: React.FC<
   ArtifactGenerationModalProps
 > = ({ isOpen, onClose, contextData }) => {

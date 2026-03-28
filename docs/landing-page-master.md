@@ -59,6 +59,27 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/unified-ideation.webm" autoplay loop muted playsinline></video>`
 
+### 7. Human-in-the-Loop Taxonomy Merging
+
+- **Value Prop:** "Clean, deduplicated market taxonomies powered by you and AI."
+- **Description:** Take control of your market analysis with optimistic UI feature merging. Select similar features and merge them instantly while a Hybrid Validation Pipeline (Cosine Similarity + LLM-as-a-Judge) works in the background to safely update the global taxonomy without polluting the data.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/taxonomy-merging.webm" autoplay loop muted playsinline></video>`
+
+### 8. Head-to-Head Product Comparison
+
+- **Value Prop:** "See exactly where you win and lose against competitors."
+- **Description:** Compare your product directly against top competitors in a side-by-side view. Easily spot differences in core features, target audience, pricing strategy, and integrations. Our automated data normalization ensures you're comparing apples to apples.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/head-to-head-comparison.webm" autoplay loop muted playsinline></video>`
+
+### 9. Rapid Strategy-to-Code Exporter
+
+- **Value Prop:** "Instantly translate product strategy into production-ready UI."
+- **Description:** Don't let your validated ideas sit in a document. The Strategy-to-Code Wizard instantly generates CO-STAR optimized prompts injecting your Jobs-to-be-Done, competitor flaws, and explicit Brand Identity (colors, fonts, tone). Paste these into external AI code generators, then use our Loop-Back Artifact Reviewer to semantically validate the generated code against your strategic constraints.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/strategy-to-code-exporter.webm" autoplay loop muted playsinline></video>`
+
 ---
 
 ## Maintenance Guidelines
