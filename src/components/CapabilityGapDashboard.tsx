@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Activity,
   Percent,
+  Info,
 } from "lucide-react";
 import { MyProductData } from "./MyProduct";
 import { Competitor } from "../types";
@@ -41,23 +42,43 @@ export const CapabilityGapDashboard: React.FC<CapabilityGapDashboardProps> = ({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Activity className="text-emerald-500" size={24} />
-          <h3 className="text-xl font-bold text-ink-dark">
+          <h3 className="text-xl font-bold text-ink-dark flex items-center gap-2">
             Capability Gap Analysis
+            <Tooltip content="Compares your defined product features against all known features of your tracked competitors to identify missing capabilities.">
+              <Info
+                size={16}
+                className="text-ink-muted hover:text-ink-dark transition-colors cursor-help"
+              />
+            </Tooltip>
           </h3>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full">
           <Percent size={16} className="text-emerald-600" />
-          <span className="font-bold text-emerald-700">
+          <span className="font-bold text-emerald-700 flex items-center gap-2">
             Market Parity: {parityScore}%
+            <Tooltip content="The percentage of common competitor features that your product currently supports. Higher parity means fewer capability gaps.">
+              <Info
+                size={14}
+                className="text-emerald-700/50 hover:text-emerald-800 transition-colors cursor-help"
+              />
+            </Tooltip>
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-paper-base border border-ink-dark/10 rounded-xl p-5">
-          <h4 className="font-bold text-ink-dark flex items-center gap-2 mb-4">
-            <XCircle className="text-terracotta" size={18} /> Capability Gaps
-          </h4>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-bold text-ink-dark flex items-center gap-2">
+              <XCircle className="text-terracotta" size={18} /> Capability Gaps
+            </h4>
+            <Tooltip content="Features present in competitor products that are currently missing from your product capabilities.">
+              <Info
+                size={14}
+                className="text-ink-muted hover:text-ink-dark transition-colors cursor-help"
+              />
+            </Tooltip>
+          </div>
           <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
             {capabilityGaps.length > 0 ? (
               capabilityGaps.map((gap, i) => (
@@ -82,10 +103,18 @@ export const CapabilityGapDashboard: React.FC<CapabilityGapDashboardProps> = ({
         </div>
 
         <div className="bg-paper-base border border-ink-dark/10 rounded-xl p-5">
-          <h4 className="font-bold text-ink-dark flex items-center gap-2 mb-4">
-            <CheckCircle2 className="text-emerald-500" size={18} /> Met
-            Capabilities
-          </h4>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-bold text-ink-dark flex items-center gap-2">
+              <CheckCircle2 className="text-emerald-500" size={18} /> Met
+              Capabilities
+            </h4>
+            <Tooltip content="Competitor features that your product currently supports.">
+              <Info
+                size={14}
+                className="text-ink-muted hover:text-ink-dark transition-colors cursor-help"
+              />
+            </Tooltip>
+          </div>
           <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
             {commonFeatures.length > 0 ? (
               commonFeatures.map((feat, i) => (
