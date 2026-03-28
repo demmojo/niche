@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../utils/hashing";
 
-interface Version {
+interface AssetVersion {
   id: string;
   logical_asset_id: string;
   data_type: "json" | "markdown" | "image";
@@ -24,7 +24,7 @@ interface Version {
 interface RawDataDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  asset: Version | null;
+  asset: AssetVersion | null;
 }
 
 /**
@@ -35,7 +35,7 @@ export const RawDataDetailModal: React.FC<RawDataDetailModalProps> = ({
   onClose,
   asset,
 }) => {
-  const [history, setHistory] = useState<Version[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
@@ -191,7 +191,7 @@ export const RawDataDetailModal: React.FC<RawDataDetailModalProps> = ({
               <div className="pt-8 border-t border-gray-100 mt-8">
                 <h3 className="text-lg font-serif font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <History size={18} className="text-gray-500" />
-                  Version History
+                  Global Snapshot Timeline
                 </h3>
 
                 {loadingHistory ? (
@@ -199,77 +199,103 @@ export const RawDataDetailModal: React.FC<RawDataDetailModalProps> = ({
                     <Loader2 size={24} className="animate-spin" />
                   </div>
                 ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
+                  <div className="relative pl-6 border-l-2 border-gray-200 ml-4 space-y-8">
                     {history.map((v, index) => {
                       const isCurrent = v.id === asset.id;
                       const isExpanded = !!expandedRows[v.id];
 
                       return (
-                        <div key={v.id} className="bg-white">
+                        <div key={v.id} className="relative">
+                          {/* Timeline dot */}
                           <div
-                            className={`p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors ${isCurrent ? "bg-blue-50/30" : ""}`}
-                            onClick={() => toggleRow(v.id)}
+                            className={`absolute -left-[33px] top-1 w-4 h-4 rounded-full border-2 border-white ${isCurrent ? "bg-blue-500" : "bg-gray-300"}`}
+                          ></div>
+
+                          <div
+                            className={`bg-white border rounded-lg overflow-hidden transition-all ${isCurrent ? "border-blue-200 shadow-sm" : "border-gray-200"}`}
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="text-sm font-mono text-gray-500 w-24">
-                                {v.id.substring(0, 8)}
+                            <div
+                              className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 transition-colors ${isCurrent ? "bg-blue-50/30" : ""}`}
+                              onClick={() => toggleRow(v.id)}
+                            >
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-3">
+                                  <span className="font-semibold text-gray-900">
+                                    Version {history.length - index}
+                                  </span>
+                                  {isCurrent && (
+                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-medium">
+                                      Current Active
+                                    </span>
+                                  )}
+                                  {v.extracted_metadata?.is_synthetic_pin && (
+                                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-medium">
+                                      Manual Pin
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-500 flex items-center gap-2">
+                                  <span className="font-mono text-xs">
+                                    {v.id.substring(0, 8)}
+                                  </span>
+                                  <span>•</span>
+                                  <span>
+                                    {new Date(v.created_at).toLocaleString()}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-600 w-48">
-                                {new Date(v.created_at).toLocaleString()}
+
+                              <div className="flex items-center gap-3 self-start sm:self-auto">
+                                {!isCurrent && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRevert(v.id);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded transition-colors"
+                                  >
+                                    <RotateCcw size={14} /> Restore Snapshot
+                                  </button>
+                                )}
                               </div>
-                              {isCurrent && (
-                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-medium">
-                                  Current Active
-                                </span>
-                              )}
                             </div>
 
-                            <div className="flex items-center gap-3">
-                              {!isCurrent && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRevert(v.id);
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded transition-colors"
-                                >
-                                  <RotateCcw size={14} /> Revert to this
-                                </button>
-                              )}
-                            </div>
+                            {isExpanded && (
+                              <div className="p-4 bg-gray-50 border-t border-gray-100">
+                                <h4 className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
+                                  Snapshot Data
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      Storage URI
+                                    </div>
+                                    <div className="text-xs font-mono bg-white p-2 rounded border border-gray-200 text-blue-600 truncate">
+                                      {v.blob_uri}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      Data Type
+                                    </div>
+                                    <div className="text-xs bg-white p-2 rounded border border-gray-200 font-medium">
+                                      {v.data_type}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Extracted Metadata
+                                </div>
+                                <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs font-mono overflow-auto max-h-60">
+                                  {JSON.stringify(
+                                    v.extracted_metadata,
+                                    null,
+                                    2,
+                                  )}
+                                </pre>
+                              </div>
+                            )}
                           </div>
-
-                          {isExpanded && (
-                            <div className="p-4 bg-gray-50 border-t border-gray-100">
-                              <h4 className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
-                                Historical Snapshot
-                              </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                  <div className="text-xs text-gray-500 mb-1">
-                                    Blob URI
-                                  </div>
-                                  <div className="text-xs font-mono bg-white p-2 rounded border">
-                                    {v.blob_uri}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-xs text-gray-500 mb-1">
-                                    Data Type
-                                  </div>
-                                  <div className="text-xs bg-white p-2 rounded border">
-                                    {v.data_type}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-500 mb-1">
-                                Metadata
-                              </div>
-                              <pre className="bg-gray-800 text-green-400 p-3 rounded text-xs font-mono overflow-auto">
-                                {JSON.stringify(v.extracted_metadata, null, 2)}
-                              </pre>
-                            </div>
-                          )}
                         </div>
                       );
                     })}

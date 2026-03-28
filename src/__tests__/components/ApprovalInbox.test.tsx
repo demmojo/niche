@@ -27,7 +27,9 @@ describe("ApprovalInbox", () => {
 
   it("renders loading state initially", () => {
     // Provide a promise that doesn't resolve immediately
-    vi.mocked(supabase!.order).mockReturnValue(new Promise(() => {}) as any);
+    vi.mocked((supabase as any).order).mockReturnValue(
+      new Promise(() => {}) as any,
+    );
     render(<ApprovalInbox />);
     expect(screen.getByText("Loading inbox...")).toBeInTheDocument();
   });
@@ -45,7 +47,7 @@ describe("ApprovalInbox", () => {
       },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: mockItems,
       error: null,
     } as any);
@@ -61,7 +63,7 @@ describe("ApprovalInbox", () => {
   });
 
   it("displays mock data if Supabase fetch fails", async () => {
-    vi.mocked(supabase!.order).mockRejectedValueOnce(
+    vi.mocked((supabase as any).order).mockRejectedValueOnce(
       new Error("Failed to fetch"),
     );
 
@@ -77,7 +79,7 @@ describe("ApprovalInbox", () => {
   });
 
   it("displays empty state when no items", async () => {
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: [],
       error: null,
     } as any);
@@ -104,11 +106,11 @@ describe("ApprovalInbox", () => {
       },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: mockItems,
       error: null,
     } as any);
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any)
       .mockResolvedValueOnce({ error: null } as any); // update response
 
@@ -125,8 +127,8 @@ describe("ApprovalInbox", () => {
       expect(screen.queryByText(/asset123/)).not.toBeInTheDocument();
     });
 
-    expect(supabase?.from).toHaveBeenCalledWith("raw_data_inbox");
-    expect(supabase?.update).toHaveBeenCalledWith(
+    expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
+    expect((supabase as any).update).toHaveBeenCalledWith(
       expect.objectContaining({ status: "resolved_discard" }),
     );
   });
@@ -144,11 +146,11 @@ describe("ApprovalInbox", () => {
       },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: mockItems,
       error: null,
     } as any);
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any)
       .mockResolvedValueOnce({ error: null } as any); // update response
 
@@ -164,7 +166,7 @@ describe("ApprovalInbox", () => {
       expect(screen.queryByText(/asset123/)).not.toBeInTheDocument();
     });
 
-    expect(supabase?.update).toHaveBeenCalledWith(
+    expect((supabase as any).update).toHaveBeenCalledWith(
       expect.objectContaining({ status: "resolved_keep_both" }),
     );
   });
@@ -182,11 +184,11 @@ describe("ApprovalInbox", () => {
       },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: mockItems,
       error: null,
     } as any);
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any)
       .mockResolvedValueOnce({ error: null } as any); // update response
 
@@ -202,7 +204,7 @@ describe("ApprovalInbox", () => {
       expect(screen.queryByText(/asset123/)).not.toBeInTheDocument();
     });
 
-    expect(supabase?.update).toHaveBeenCalledWith(
+    expect((supabase as any).update).toHaveBeenCalledWith(
       expect.objectContaining({ status: "resolved_update" }),
     );
   });
@@ -220,12 +222,12 @@ describe("ApprovalInbox", () => {
       },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: mockItems,
       error: null,
     } as any);
     // Simulate error during action
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any)
       .mockRejectedValueOnce(new Error("Network error"));
     const consoleWarnSpy = vi
@@ -250,7 +252,7 @@ describe("ApprovalInbox", () => {
   });
 
   it("loads mock data if error object is returned without throwing", async () => {
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: null,
       error: { message: "Failed to fetch" },
     } as any);

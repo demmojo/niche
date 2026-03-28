@@ -6763,10 +6763,10 @@ function ScoutPage({
     try {
       const response = await withModelFallback(async (ai, model) => {
         return await ai.generateContent(model, {
-          contents: `Analyze the following competitor data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
+          contents: `Analyze the following competitor data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(competitor)} \n\nSources: ${JSON.stringify(sources)}`,
         });
       });
-      setAnalysisResult(response.text || "No analysis generated.");
+      setAnalysisResult(response.text || "[]");
     } catch (error: any) {
       console.error(error);
       setAnalysisResult(
@@ -7562,10 +7562,10 @@ function SourcePage({
     try {
       const response = await withModelFallback(async (ai, model) => {
         return await ai.generateContent(model, {
-          contents: `Analyze the following source data. Return the source data as tables or excerpts and a summary explaining why this matters. Data: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
+          contents: `Analyze the following source data. Extract exact dimension-level metrics and assign an 'ai_confidence_score' (0-100) based on the context of the extraction. Return the output as a clean, highly structured JSON array of objects, where each object has: { metric_name: string, value: string|number, ai_confidence_score: number, reasoning: string }. Do not return any Markdown wrapping or backticks, just the JSON string. \n\nData: ${JSON.stringify(source)} \n\nCompetitor: ${competitorName}`,
         });
       });
-      setAnalysisResult(response.text || "No analysis generated.");
+      setAnalysisResult(response.text || "[]");
     } catch (error: any) {
       console.error(error);
       setAnalysisResult(
@@ -7617,9 +7617,77 @@ function SourcePage({
       {analysisResult && (
         <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl prose prose-sm max-w-none">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
-            <Sparkles size={18} /> AI Analysis
+            <Sparkles size={18} /> AI Extracted Metrics
           </h3>
-          <Markdown>{analysisResult}</Markdown>
+          {(() => {
+            try {
+              // Try to strip backticks if AI ignored instructions
+              const cleanJson = analysisResult
+                .replace(/```json\n?|\n?```/g, "")
+                .trim();
+              const parsed = JSON.parse(cleanJson);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return (
+                  <div className="overflow-hidden rounded-lg border border-ink-dark/20">
+                    <table className="w-full text-sm text-left m-0">
+                      <thead className="bg-paper-base/50">
+                        <tr>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Metric
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Value
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Confidence
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Reasoning
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-ink-dark/30">
+                        {parsed.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-paper-base/30">
+                            <td className="px-4 py-3 text-ink-dark font-medium capitalize">
+                              {item.metric_name}
+                            </td>
+                            <td className="px-4 py-3 text-ink-dark">
+                              {item.value}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${item.ai_confidence_score >= 80 ? "bg-emerald-100 text-emerald-800" : item.ai_confidence_score >= 50 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}
+                              >
+                                {item.ai_confidence_score}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-ink-muted text-xs">
+                              {item.reasoning}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+              return (
+                <div className="text-amber-600">
+                  No structured metrics found.
+                </div>
+              );
+            } catch (err) {
+              return (
+                <div>
+                  <div className="text-amber-600 mb-4 text-sm">
+                    Failed to parse structured output. Raw response:
+                  </div>
+                  <Markdown>{analysisResult}</Markdown>
+                </div>
+              );
+            }
+          })()}
         </div>
       )}
 
@@ -7845,9 +7913,77 @@ function SummaryPage({
       {analysisResult && (
         <div className="bg-paper-card border border-ink-dark/20 rounded-xl p-6 shadow-xl prose prose-sm max-w-none">
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
-            <Sparkles size={18} /> AI Analysis
+            <Sparkles size={18} /> AI Extracted Metrics
           </h3>
-          <Markdown>{analysisResult}</Markdown>
+          {(() => {
+            try {
+              // Try to strip backticks if AI ignored instructions
+              const cleanJson = analysisResult
+                .replace(/```json\n?|\n?```/g, "")
+                .trim();
+              const parsed = JSON.parse(cleanJson);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return (
+                  <div className="overflow-hidden rounded-lg border border-ink-dark/20">
+                    <table className="w-full text-sm text-left m-0">
+                      <thead className="bg-paper-base/50">
+                        <tr>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Metric
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Value
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Confidence
+                          </th>
+                          <th className="px-4 py-3 text-[#8A8A8A] font-medium border-b border-ink-dark/20">
+                            Reasoning
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-ink-dark/30">
+                        {parsed.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-paper-base/30">
+                            <td className="px-4 py-3 text-ink-dark font-medium capitalize">
+                              {item.metric_name}
+                            </td>
+                            <td className="px-4 py-3 text-ink-dark">
+                              {item.value}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${item.ai_confidence_score >= 80 ? "bg-emerald-100 text-emerald-800" : item.ai_confidence_score >= 50 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}
+                              >
+                                {item.ai_confidence_score}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-ink-muted text-xs">
+                              {item.reasoning}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+              return (
+                <div className="text-amber-600">
+                  No structured metrics found.
+                </div>
+              );
+            } catch (err) {
+              return (
+                <div>
+                  <div className="text-amber-600 mb-4 text-sm">
+                    Failed to parse structured output. Raw response:
+                  </div>
+                  <Markdown>{analysisResult}</Markdown>
+                </div>
+              );
+            }
+          })()}
         </div>
       )}
 

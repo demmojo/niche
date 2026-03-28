@@ -62,7 +62,7 @@ describe("RawDataDetailModal", () => {
       { ...mockAsset, id: "asset_v0", blob_uri: "s3://old" },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: historyData,
       error: null,
     } as any);
@@ -88,7 +88,7 @@ describe("RawDataDetailModal", () => {
   });
 
   it("handles fallback to mock data on error", async () => {
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: null,
       error: new Error("Network error"),
     } as any);
@@ -107,7 +107,7 @@ describe("RawDataDetailModal", () => {
   });
 
   it("catches and logs exception during fetch", async () => {
-    vi.mocked(supabase!.order).mockRejectedValueOnce(
+    vi.mocked((supabase as any).order).mockRejectedValueOnce(
       new Error("Network error"),
     );
     const consoleErrorSpy = vi
@@ -135,7 +135,7 @@ describe("RawDataDetailModal", () => {
       { ...mockAsset, id: "asset_v0", blob_uri: "s3://old_blob" },
     ];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: historyData,
       error: null,
     } as any);
@@ -160,7 +160,7 @@ describe("RawDataDetailModal", () => {
 
     // Details should now be visible
     expect(screen.getByText("s3://old_blob")).toBeInTheDocument();
-    expect(screen.getByText("Historical Snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Snapshot Data")).toBeInTheDocument();
 
     // Click again to close
     fireEvent.click(screen.getByText("asset_v0"));
@@ -173,11 +173,11 @@ describe("RawDataDetailModal", () => {
   it("handles revert action", async () => {
     const historyData = [mockAsset, { ...mockAsset, id: "asset_v0" }];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: historyData,
       error: null,
     } as any);
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any) // for fetchHistory eq
       .mockResolvedValueOnce({ error: null } as any); // for update eq
 
@@ -190,15 +190,15 @@ describe("RawDataDetailModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Revert to this")).toBeInTheDocument();
+      expect(screen.getByText("Restore Snapshot")).toBeInTheDocument();
     });
 
     // Click revert
-    fireEvent.click(screen.getByText("Revert to this"));
+    fireEvent.click(screen.getByText("Restore Snapshot"));
 
     await waitFor(() => {
-      expect(supabase?.from).toHaveBeenCalledWith("raw_data_assets");
-      expect(supabase?.update).toHaveBeenCalledWith({
+      expect((supabase as any).from).toHaveBeenCalledWith("raw_data_assets");
+      expect((supabase as any).update).toHaveBeenCalledWith({
         current_version_id: "asset_v0",
       });
       expect(window.alert).toHaveBeenCalledWith(
@@ -211,11 +211,11 @@ describe("RawDataDetailModal", () => {
   it("handles revert error", async () => {
     const historyData = [mockAsset, { ...mockAsset, id: "asset_v0" }];
 
-    vi.mocked(supabase!.order).mockResolvedValueOnce({
+    vi.mocked((supabase as any).order).mockResolvedValueOnce({
       data: historyData,
       error: null,
     } as any);
-    vi.mocked(supabase!.eq)
+    vi.mocked((supabase as any).eq)
       .mockReturnValueOnce(supabase as any) // for fetchHistory eq
       .mockRejectedValueOnce(new Error("Update failed"));
 
@@ -228,11 +228,11 @@ describe("RawDataDetailModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Revert to this")).toBeInTheDocument();
+      expect(screen.getByText("Restore Snapshot")).toBeInTheDocument();
     });
 
     // Click revert
-    fireEvent.click(screen.getByText("Revert to this"));
+    fireEvent.click(screen.getByText("Restore Snapshot"));
 
     await waitFor(() => {
       expect(window.alert).toHaveBeenCalledWith(
@@ -268,6 +268,19 @@ describe("RawDataDetailModal", () => {
       />,
     );
     // The image icon SVG is rendered
+    expect(
+      screen.getByRole("heading", { name: /Asset Details/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("displays default icon for unknown data type", async () => {
+    render(
+      <RawDataDetailModal
+        isOpen={true}
+        onClose={mockOnClose}
+        asset={{ ...mockAsset, data_type: "unknown" as any }}
+      />,
+    );
     expect(
       screen.getByRole("heading", { name: /Asset Details/i }),
     ).toBeInTheDocument();

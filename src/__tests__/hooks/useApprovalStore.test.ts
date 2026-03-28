@@ -42,20 +42,20 @@ describe("useApprovalStore", () => {
   describe("fetchInbox", () => {
     it("fetches items from supabase successfully", async () => {
       const mockData = [{ id: "1", status: "pending" }];
-      vi.mocked(supabase!.order).mockResolvedValueOnce({
+      vi.mocked((supabase as any).order).mockResolvedValueOnce({
         data: mockData,
         error: null,
       } as any);
 
       await useApprovalStore.getState().fetchInbox();
 
-      expect(supabase?.from).toHaveBeenCalledWith("raw_data_inbox");
+      expect((supabase as any).from).toHaveBeenCalledWith("raw_data_inbox");
       expect(useApprovalStore.getState().loading).toBe(false);
       expect(useApprovalStore.getState().items).toEqual(mockData);
     });
 
     it("loads mock data when supabase returns an error", async () => {
-      vi.mocked(supabase!.order).mockResolvedValueOnce({
+      vi.mocked((supabase as any).order).mockResolvedValueOnce({
         data: null,
         error: new Error("DB Error"),
       } as any);
@@ -73,7 +73,7 @@ describe("useApprovalStore", () => {
       const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      vi.mocked(supabase!.order).mockRejectedValueOnce(
+      vi.mocked((supabase as any).order).mockRejectedValueOnce(
         new Error("Network error"),
       );
 

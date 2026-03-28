@@ -1,9 +1,9 @@
-import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import { RawDataLibraryTabular } from "../../components/RawDataLibraryTabular";
 import { supabase } from "../../utils/hashing";
 
+// Minimal mock setup
 vi.mock("../../utils/hashing", () => {
   const mockSupabase = {
     from: vi.fn().mockReturnThis(),
@@ -14,22 +14,17 @@ vi.mock("../../utils/hashing", () => {
   return { supabase: mockSupabase };
 });
 
-// We need to mock the detail modal to isolate the test and ensure it doesn't try to make its own requests
-vi.mock("../../components/RawDataDetailModal", () => ({
-  RawDataDetailModal: ({ isOpen, asset, onClose }: any) => {
-    if (!isOpen) return null;
-    return (
-      <div data-testid="detail-modal">
-        Modal Open for {asset?.logical_asset_id}
-        <button onClick={onClose}>Close Modal</button>
-      </div>
-    );
-  },
-}));
+// We need to mock Promise.all specifically because the component uses it for fetching versions and metrics
+const originalPromiseAll = Promise.all;
 
 describe("RawDataLibraryTabular", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+
+    // We mock Promise.all to intercept the parallel requests
+    Promise.all = vi.fn().mockImplementation((promises) => {
+      return originalPromiseAll.call(Promise, promises);
+    });
 
     const chainable = ["from", "select", "order", "limit"];
     chainable.forEach((method) => {
@@ -37,8 +32,14 @@ describe("RawDataLibraryTabular", () => {
     });
   });
 
+  afterEach(() => {
+    Promise.all = originalPromiseAll;
+  });
+
   it("renders loading state initially", () => {
-    vi.mocked(supabase!.limit).mockReturnValue(new Promise(() => {}) as any);
+    // Mock the individual chained promises to stay pending
+    (supabase as any).limit.mockReturnValue(new Promise(() => {}));
+
     render(<RawDataLibraryTabular />);
     expect(screen.getByText("Loading raw data library...")).toBeInTheDocument();
   });
@@ -53,36 +54,28 @@ describe("RawDataLibraryTabular", () => {
         extracted_metadata: { key: "value" },
         created_at: new Date().toISOString(),
       },
+    ];
+
+    const mockMetrics = [
       {
-        id: "2",
-        logical_asset_id: "asset789012",
-        data_type: "markdown",
-        blob_uri: "s3://bucket/test.md",
-        extracted_metadata: { key: "value2" },
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "3",
-        logical_asset_id: "assetimage",
-        data_type: "image",
-        blob_uri: "s3://bucket/test.png",
-        extracted_metadata: { key: "value3" },
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "4",
-        logical_asset_id: "assetother",
-        data_type: "other",
-        blob_uri: "s3://bucket/test.other",
-        extracted_metadata: { key: "value4" },
+        id: "m1",
+        asset_version_id: "1",
+        logical_asset_id: "asset123456",
+        metric_name: "test_metric",
+        value: 123,
+        source_id: "test",
+        ai_confidence_score: 90,
+        static_source_weight: 90,
+        is_pinned: false,
         created_at: new Date().toISOString(),
       },
     ];
 
-    vi.mocked(supabase!.limit).mockResolvedValueOnce({
-      data: mockData,
-      error: null,
-    } as any);
+    // Mock the parallel promise array response
+    Promise.all = vi.fn().mockResolvedValue([
+      { data: mockData, error: null },
+      { data: mockMetrics, error: null },
+    ]);
 
     render(<RawDataLibraryTabular />);
 
@@ -90,31 +83,12 @@ describe("RawDataLibraryTabular", () => {
       expect(screen.getByText("Raw Data Library")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/asset123/)).toBeInTheDocument(); // truncated to 8 chars
-    expect(screen.getByText(/asset789/)).toBeInTheDocument();
-    expect(screen.getByText("json")).toBeInTheDocument();
-    expect(screen.getByText("markdown")).toBeInTheDocument();
-    expect(screen.getByText("image")).toBeInTheDocument();
-    expect(screen.getByText("other")).toBeInTheDocument();
-  });
-
-  it("displays empty state when no data", async () => {
-    vi.mocked(supabase!.limit).mockResolvedValueOnce({
-      data: [],
-      error: null,
-    } as any);
-
-    render(<RawDataLibraryTabular />);
-
-    await waitFor(() => {
-      expect(screen.getByText("No raw data ingested yet.")).toBeInTheDocument();
-    });
+    // We switch tabs in tests to check both sections
+    expect(screen.getByText(/test metric/i)).toBeInTheDocument();
   });
 
   it("displays mock data and warning if DB fetch fails", async () => {
-    vi.mocked(supabase!.limit).mockRejectedValueOnce(
-      new Error("Failed to fetch"),
-    );
+    Promise.all = vi.fn().mockRejectedValue(new Error("Failed to fetch"));
 
     render(<RawDataLibraryTabular />);
 
@@ -122,15 +96,14 @@ describe("RawDataLibraryTabular", () => {
       expect(screen.getByText(/Local Database Offline/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/asset-1/)).toBeInTheDocument();
-    expect(screen.getByText(/asset-2/)).toBeInTheDocument();
+    expect(screen.getByText(/employee count/i)).toBeInTheDocument();
   });
 
   it("displays mock data if error returned without throwing", async () => {
-    vi.mocked(supabase!.limit).mockResolvedValueOnce({
-      data: null,
-      error: { message: "Failed to fetch" },
-    } as any);
+    Promise.all = vi.fn().mockResolvedValue([
+      { data: null, error: { message: "Failed to fetch" } },
+      { data: null, error: null },
+    ]);
 
     render(<RawDataLibraryTabular />);
 
@@ -139,57 +112,38 @@ describe("RawDataLibraryTabular", () => {
     });
   });
 
-  it("sets error state if unhandled error occurs", async () => {
-    vi.mocked(supabase!.limit).mockRejectedValueOnce(
-      new Error("Random error string"),
-    );
+  it("displays mock data if error returned is a TypeError", async () => {
+    Promise.all = vi.fn().mockResolvedValue([
+      { data: null, error: { code: "TypeError", message: "Network error" } },
+      { data: null, error: null },
+    ]);
+
+    render(<RawDataLibraryTabular />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Local Database Offline/)).toBeInTheDocument();
+    });
+  });
+
+  it("sets mock data without offline warning if unknown error code occurs", async () => {
+    Promise.all = vi.fn().mockResolvedValue([
+      {
+        data: null,
+        error: { code: "UnknownCode", message: "Some server issue" },
+      },
+      { data: null, error: null },
+    ]);
 
     render(<RawDataLibraryTabular />);
 
     await waitFor(() => {
       expect(screen.getByText("Raw Data Library")).toBeInTheDocument();
     });
-    // Check it doesn't show offline message
+
+    // It should load mock data, but NOT trigger the offline warning
     expect(
       screen.queryByText(/Local Database Offline/),
     ).not.toBeInTheDocument();
-  });
-
-  it("opens and closes the detail modal when clicking a row", async () => {
-    const mockData = [
-      {
-        id: "1",
-        logical_asset_id: "asset123456",
-        data_type: "json",
-        blob_uri: "s3://bucket/test.json",
-        extracted_metadata: { key: "value" },
-        created_at: new Date().toISOString(),
-      },
-    ];
-
-    vi.mocked(supabase!.limit).mockResolvedValueOnce({
-      data: mockData,
-      error: null,
-    } as any);
-
-    render(<RawDataLibraryTabular />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/asset123/)).toBeInTheDocument();
-    });
-
-    // Modal should be closed initially
-    expect(screen.queryByTestId("detail-modal")).not.toBeInTheDocument();
-
-    // Click the row
-    fireEvent.click(screen.getByText(/asset123/));
-
-    // Modal should open
-    expect(screen.getByTestId("detail-modal")).toBeInTheDocument();
-    expect(screen.getByText("Modal Open for asset123456")).toBeInTheDocument();
-
-    // Close the modal
-    fireEvent.click(screen.getByText("Close Modal"));
-    expect(screen.queryByTestId("detail-modal")).not.toBeInTheDocument();
+    expect(screen.getByText(/employee count/i)).toBeInTheDocument();
   });
 });

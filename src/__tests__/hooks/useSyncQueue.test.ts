@@ -1,5 +1,5 @@
 import { renderHook, act } from "../../test-utils/render";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useSyncQueue } from "../../hooks/useSyncQueue";
 import { SyncDiff } from "../../types";
 

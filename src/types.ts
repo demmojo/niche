@@ -150,3 +150,16 @@ export interface RawDataRecord {
   timestamp: string;
   competitorId?: string;
 }
+
+export interface RawDataMetric {
+  id: string;
+  asset_version_id: string;
+  logical_asset_id: string;
+  metric_name: string;
+  value: any;
+  source_id?: string;
+  ai_confidence_score?: number;
+  static_source_weight?: number;
+  is_pinned: boolean;
+  created_at: string;
+}

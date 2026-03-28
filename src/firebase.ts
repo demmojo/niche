@@ -10,9 +10,27 @@ import {
 import { getFirestore, setLogLevel, disableNetwork } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
+const getApiKey = () => {
+  if (
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_FIREBASE_API_KEY
+  ) {
+    return import.meta.env.VITE_FIREBASE_API_KEY;
+  }
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    process.env.VITE_FIREBASE_API_KEY
+  ) {
+    return process.env.VITE_FIREBASE_API_KEY;
+  }
+  return undefined;
+};
+
 const configToUse = {
   ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  apiKey: getApiKey() || firebaseConfig.apiKey,
 };
 
 const app = initializeApp(configToUse);
