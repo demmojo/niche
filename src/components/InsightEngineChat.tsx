@@ -66,7 +66,7 @@ export function InsightEngineChat({
           onMouseEnter={() => setChatState("hover")}
           className="fixed inset-y-0 right-0 w-8 z-40 cursor-pointer group"
         >
-          <div className="absolute top-1/2 right-2 -translate-y-1/2 bg-paper-base text-[#2C2C2C] p-2 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-2 shadow-lg backdrop-blur-sm border border-ink-dark/20">
+          <div className="absolute top-1/2 right-2 -translate-y-1/2 bg-paper-base text-[#2C2C2C] p-2 rounded-l-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity flex flex-col items-center gap-2 shadow-lg backdrop-blur-sm border border-ink-dark/20">
             <MessageSquare size={16} />
             <span
               className="text-[10px] font-bold uppercase"

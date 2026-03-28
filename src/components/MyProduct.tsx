@@ -473,13 +473,13 @@ export const MyProduct: React.FC<MyProductProps> = ({
                           </select>
                           <button
                             onClick={() => handleEditFeature(feature)}
-                            className="text-ink-dark/40 hover:text-sky opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="text-ink-dark/40 hover:text-sky opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleRemoveFeature(feature.id)}
-                            className="text-ink-dark/40 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="text-ink-dark/40 hover:text-rose-500 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -577,7 +577,7 @@ export const MyProduct: React.FC<MyProductProps> = ({
                         </select>
                         <button
                           onClick={() => handleRemoveStrategy(item.id)}
-                          className="text-ink-dark/40 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-ink-dark/40 hover:text-rose-500 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 size={16} />
                         </button>

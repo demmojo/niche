@@ -54,7 +54,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
   return (
     <div
-      className="relative flex items-center justify-center"
+      className="relative inline-flex items-center justify-center"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}

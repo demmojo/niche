@@ -824,7 +824,7 @@ function SyncNowButton({
   setShowSyncInfo,
 }: any) {
   return (
-    <div className="relative group flex items-center justify-center">
+    <div className="relative group inline-flex items-center justify-center">
       <button
         onClick={() => handleGlobalSync(1)}
         disabled={isSyncing}
@@ -837,7 +837,7 @@ function SyncNowButton({
       </button>
 
       {/* Tooltip */}
-      <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+      <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-paper-card rounded-2xl shadow-xl border border-ink-dark/20 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
         <p className="text-sm text-ink-dark mb-2">
           {isSyncing
             ? `Sync in progress. Please wait approximately ${syncTimeRemaining} seconds for background tasks to complete.`
@@ -4409,7 +4409,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               </p>
             </div>
             {hasQuestNotification && (
-              <div className="absolute right-2 text-[10px] uppercase tracking-wider text-terracotta font-bold bg-terracotta/10 px-2 py-0.5 rounded border border-terracotta/20 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute right-2 text-[10px] uppercase tracking-wider text-terracotta font-bold bg-terracotta/10 px-2 py-0.5 rounded border border-terracotta/20 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity">
                 Quest
               </div>
             )}
@@ -6143,7 +6143,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                                   {insight.source}
                                 </span>
                               </div>
-                              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-2 bg-paper-card pl-2">
+                              <div className="absolute top-4 right-4 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity duration-300 flex gap-2 bg-paper-card pl-2">
                                 <Tooltip
                                   content={tMessage(
                                     dictionary.tooltips.insight.edit,
@@ -6924,32 +6924,36 @@ function ScoutPage({
                     {competitor.fundingStage}
                   </div>
                 </div>
-                <div className="group relative">
-                  <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1 flex items-center gap-1 cursor-help">
-                    Estimated ARR
-                    <Info size={12} className="text-ink-dark/40" />
+                <div>
+                  <div className="group relative inline-flex items-center gap-1 cursor-help">
+                    <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1 flex items-center gap-1">
+                      Estimated ARR
+                      <Info size={12} className="text-ink-dark/40" />
+                    </div>
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-ink-dark text-paper-light text-xs rounded shadow-lg z-10">
+                      Estimated Annual Recurring Revenue (ARR) range with a 95%
+                      confidence interval, synthesized from public financial
+                      data, funding rounds, and market share analysis.
+                    </div>
                   </div>
                   <div className="font-semibold text-ink-dark ">
                     {competitor.estimatedARR}
                   </div>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-ink-dark text-paper-light text-xs rounded shadow-lg z-10">
-                    Estimated Annual Recurring Revenue (ARR) range with a 95%
-                    confidence interval, synthesized from public financial data,
-                    funding rounds, and market share analysis.
-                  </div>
                 </div>
-                <div className="group relative col-span-2">
-                  <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1 flex items-center gap-1 cursor-help">
-                    Estimated User Base
-                    <Info size={12} className="text-ink-dark/40" />
+                <div className="col-span-2">
+                  <div className="group relative inline-flex items-center gap-1 cursor-help">
+                    <div className="text-xs text-[#8A8A8A] uppercase tracking-wider font-medium mb-1 flex items-center gap-1">
+                      Estimated User Base
+                      <Info size={12} className="text-ink-dark/40" />
+                    </div>
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-ink-dark text-paper-light text-xs rounded shadow-lg z-10">
+                      Estimated active or registered user base range with a 95%
+                      confidence interval, derived from web traffic, app
+                      downloads, and public milestones.
+                    </div>
                   </div>
                   <div className="font-semibold text-ink-dark ">
                     {competitor.estimatedUserBase || "Unknown"}
-                  </div>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-ink-dark text-paper-light text-xs rounded shadow-lg z-10">
-                    Estimated active or registered user base range with a 95%
-                    confidence interval, derived from web traffic, app
-                    downloads, and public milestones.
                   </div>
                 </div>
               </div>

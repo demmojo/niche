@@ -145,4 +145,72 @@ describe("Tooltip Component", () => {
       "left-full ml-2",
     );
   });
+
+  it("shows tooltip on focus and hides on blur", () => {
+    render(
+      <Tooltip content={tMessage("Tooltip text")}>
+        <button>Focus me</button>
+      </Tooltip>,
+    );
+
+    const container = screen.getByText("Focus me").parentElement!;
+
+    // Focus
+    fireEvent.focus(container);
+    expect(screen.getByTestId("tooltip-content")).toBeInTheDocument();
+
+    // Blur
+    fireEvent.blur(container);
+    expect(screen.queryByTestId("tooltip-content")).not.toBeInTheDocument();
+  });
+
+  it("shows tooltip on touch start", () => {
+    render(
+      <Tooltip content={tMessage("Tooltip text")}>
+        <button>Touch me</button>
+      </Tooltip>,
+    );
+
+    const container = screen.getByText("Touch me").parentElement!;
+
+    // Touch
+    fireEvent.touchStart(container);
+    expect(screen.getByTestId("tooltip-content")).toBeInTheDocument();
+  });
+
+  it("hides tooltip on Escape keydown", () => {
+    render(
+      <Tooltip content={tMessage("Tooltip text")}>
+        <button>Key me</button>
+      </Tooltip>,
+    );
+
+    const container = screen.getByText("Key me").parentElement!;
+
+    // Show first
+    fireEvent.focus(container);
+    expect(screen.getByTestId("tooltip-content")).toBeInTheDocument();
+
+    // Press Escape
+    fireEvent.keyDown(container, { key: "Escape", code: "Escape" });
+    expect(screen.queryByTestId("tooltip-content")).not.toBeInTheDocument();
+  });
+
+  it("does not hide tooltip on other keydown", () => {
+    render(
+      <Tooltip content={tMessage("Tooltip text")}>
+        <button>Key me</button>
+      </Tooltip>,
+    );
+
+    const container = screen.getByText("Key me").parentElement!;
+
+    // Show first
+    fireEvent.focus(container);
+    expect(screen.getByTestId("tooltip-content")).toBeInTheDocument();
+
+    // Press A
+    fireEvent.keyDown(container, { key: "A", code: "KeyA" });
+    expect(screen.getByTestId("tooltip-content")).toBeInTheDocument();
+  });
 });

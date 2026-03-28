@@ -63,7 +63,7 @@ const TypewriterText = ({
             <span className="text-[#8B5A2B] font-bold border-b-2 border-[#8B5A2B] border-dashed pb-0.5">
               {part}
             </span>
-            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#FFF9E6] text-[#8B5A2B] text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded-lg border-2 border-[#8B5A2B] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#FFF9E6] text-[#8B5A2B] text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded-lg border-2 border-[#8B5A2B] opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
               Insight Engine
             </span>
           </span>

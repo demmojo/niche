@@ -93,7 +93,7 @@ export function CustomCardNode({ data }: CustomCardNodeProps) {
           onClick={() =>
             removeCardFromWhiteboard(data.whiteboardId, data.instanceId)
           }
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+          className="opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
           data-testid="remove-node-btn"
         >
           <X size={14} />
