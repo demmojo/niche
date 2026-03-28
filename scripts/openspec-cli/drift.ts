@@ -96,7 +96,7 @@ Git Diff:
 ${diffContent.substring(0, 10000)}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
