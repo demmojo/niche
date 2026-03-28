@@ -61,7 +61,8 @@ export const Settings: React.FC = () => {
   );
 
   // Determine daily limit based on model (fallback if no rate limit headers)
-  const primaryModel = mainModel === "auto" ? "gemini-1.5-pro" : mainModel;
+  const primaryModel =
+    mainModel === "auto" ? "gemini-3.1-pro-preview" : mainModel;
   const isProModel =
     primaryModel.includes("pro") ||
     primaryModel.includes("sonnet") ||

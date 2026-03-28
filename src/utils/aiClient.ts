@@ -11,13 +11,13 @@ export interface AIModel {
 }
 
 export const fastModels = [
-  "gemini-1.5-flash",
-  "claude-3-haiku-20240307",
+  "gemini-3-flash-preview",
+  "claude-3-5-haiku-20241022",
   "gpt-4o-mini",
 ];
 export const proModels = [
-  "gemini-1.5-pro",
-  "claude-3-5-sonnet-20240620",
+  "gemini-3.1-pro-preview",
+  "claude-3-7-sonnet-20250219",
   "gpt-4o",
 ];
 

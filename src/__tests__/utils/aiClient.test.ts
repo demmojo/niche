@@ -82,8 +82,8 @@ describe("aiClient utils", () => {
     });
 
     it("setMainModel and getMainModel work together", () => {
-      setMainModel("gemini-1.5-pro");
-      expect(getMainModel()).toEqual("gemini-1.5-pro");
+      setMainModel("gemini-3.1-pro-preview");
+      expect(getMainModel()).toEqual("gemini-3.1-pro-preview");
     });
   });
 
@@ -176,7 +176,7 @@ describe("aiClient utils", () => {
       expect(mockOperation).toHaveBeenNthCalledWith(
         1,
         expect.anything(),
-        "claude-3-5-sonnet-20240620",
+        "claude-3-7-sonnet-20250219",
       );
       expect(mockOperation).toHaveBeenNthCalledWith(
         2,
@@ -207,7 +207,7 @@ describe("aiClient utils", () => {
     it("throws custom RateLimit:GlobalKey error when all models fail and no custom key is used", async () => {
       process.env.GEMINI_API_KEY = "env-key";
       mockKeys["gemini"] = null;
-      setMainModel("gemini-1.5-pro");
+      setMainModel("gemini-3.1-pro-preview");
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -274,7 +274,7 @@ describe("aiClient utils", () => {
 
     beforeEach(async () => {
       mockKeys["gemini"] = "test-key";
-      setMainModel("gemini-1.5-pro");
+      setMainModel("gemini-3.1-pro-preview");
       await withModelFallback(async (ai) => {
         aiClient = ai;
         return true;

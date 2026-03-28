@@ -79,7 +79,7 @@ export async function extractFeaturesFromVisuals(
       async (ai, model) => {
         // In reality, you would pass the image part to the multimodal model
         return ai.generateContent(model, {
-          // Prefer gemini-1.5-pro for vision tasks
+          // Prefer gemini-3.1-pro-preview for vision tasks
           contents: prompt,
           config: { responseMimeType: "application/json" },
         });
