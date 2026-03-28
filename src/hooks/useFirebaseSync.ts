@@ -3,6 +3,32 @@ import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, safeDisableNetwork } from "../firebase";
 import { useAuth } from "../components/AuthProvider";
 
+/**
+ * Synchronizes local component state with a specific Firebase Firestore document.
+ *
+ * @description
+ * Returns a stateful value and a function to update it, exactly like `useState`.
+ * The local state is updated immediately (optimistic UI), while the heavy JSON
+ * serialization and network request are deferred to a 2000ms debounced timeout.
+ *
+ * This hook automatically disables the network via `safeDisableNetwork()` if the
+ * Firebase "resource-exhausted" quota is reached to prevent repeated failures.
+ *
+ * @param key - The unique string key for the data (used as the document ID in Firestore).
+ * @param initialValue - The initial state value if the document does not exist.
+ * @returns A tuple: `[currentState, setterFunction]`
+ *
+ * @throws Does not throw directly to the UI, but catches and logs Firestore errors.
+ * If the quota is exceeded, the network is disabled automatically.
+ *
+ * @example
+ * ```tsx
+ * const [notes, setNotes] = useFirebaseSync<string[]>('userNotes', []);
+ *
+ * // Updates UI instantly, syncs to Firebase after 2s of inactivity
+ * setNotes([...notes, 'New Note']);
+ * ```
+ */
 export function useFirebaseSync<T>(
   key: string,
   initialValue: T,

@@ -216,7 +216,7 @@ describe("SupportHelpPage", () => {
       expect.any(Error),
     );
     expect(window.alert).toHaveBeenCalledWith(
-      "Failed to submit feedback. Please try again.",
+      "Failed to submit feedback. Please try again or check your connection.",
     );
 
     // Should not show "Thank You!" screen on error

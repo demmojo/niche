@@ -941,6 +941,25 @@ const getWorkspaceId = () => {
 
 const WORKSPACE_ID = getWorkspaceId();
 
+/**
+ * Custom hook that manages state synchronization between React, \`localStorage\`, and Firestore.
+ *
+ * @description
+ * Returns a stateful value and an updater function. The UI updates optimistically.
+ * A debounced 2000ms timeout wraps both the \`localStorage\` write and the Firebase \`setDoc\`
+ * call to prevent main-thread blocking during rapid user input (e.g., typing in a chat).
+ *
+ * @param key - The unique string key used for both \`localStorage\` and the Firestore document ID.
+ * @param initialValue - The initial fallback value.
+ * @returns A tuple: \`[currentState, setterFunction]\`
+ *
+ * @throws Catches and logs \`localStorage\` quota exceeded errors, as well as Firebase network errors.
+ *
+ * @example
+ * \`\`\`tsx
+ * const [chatInput, setChatInput] = useLocalStorage<string>("chat_draft_1", "");
+ * \`\`\`
+ */
 export function useLocalStorage<T>(
   key: string,
   initialValue: T,

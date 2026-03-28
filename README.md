@@ -23,12 +23,25 @@ The platform includes:
 
 ## 🚀 Tech Stack
 
-- **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide Icons, Recharts, Framer Motion
-- **Backend**: Express.js (serving API endpoints and Vite middleware)
-- **Data & State**: Firebase Firestore (for syncing state across devices), React `useLocalStorage`
-- **Testing**: Vitest, React Testing Library, JSDOM
-- **AI Integration**: Google GenAI (Gemini)
-- **Data Enrichment**: Apollo.io REST API, Google Custom Search API
+- **Frontend**: React 19 (concurrent features), Vite 6 (with dynamic `manualChunks`), Tailwind CSS v4, Lucide Icons, Recharts, Framer Motion
+- **Backend**: Express.js (BFF pattern for API proxying)
+- **Data & State**: Zustand v5 (Context-Bound Vanilla Stores with `useShallow`), Firebase Firestore (real-time sync via custom queued hooks)
+- **Testing**: Vitest v3, React Testing Library, JSDOM, Playwright (E2E)
+- **AI Integration**: Google GenAI (Gemini), Anthropic (Claude), OpenAI
+- **Data Enrichment**: Apollo.io REST API, Exa-JS Semantic Search
+
+## 🏗 Architecture & Boundaries
+
+The application follows a modular Single Page Application (SPA) architecture utilizing a Backend-For-Frontend (BFF) pattern.
+
+**State Management Boundaries:**
+
+- **Local React State (`useState`)**: Used strictly for ephemeral, component-level UI state (e.g., dropdown open/close, form input before submission).
+- **Context-Bound Zustand**: Used for complex, deeply nested feature state (e.g., the Visual Whiteboard). We use `createStore` from `zustand/vanilla` injected via React Context. This isolates state per-provider (preventing test leakage) while allowing granular re-renders via `useShallow`.
+- **Server State / Sync**: Handled by custom hooks (`useFirebaseSync`, `useSyncQueue`). Heavy serialization operations are explicitly deferred off the main thread to prevent UI jank.
+
+**Component Boundaries:**
+The application favors Feature-Sliced Design principles. Heavy logic and volatile state are pushed down into specific child components (e.g., `InsightEngineChat`, `JsonViewer`) rather than bloating the root `App.tsx`.
 
 ## 💻 Local Development Setup (Quick Start)
 
@@ -83,6 +96,12 @@ npm run dev
 ```
 
 The application will be available at **[http://localhost:3000](http://localhost:3000)**.
+
+### Local Troubleshooting & Configuration
+
+- **API Rate Limits**: The AI clients (`aiClient.ts`, `geminiClient.ts`) handle `429` rate limits dynamically. Ensure you monitor the in-app Usage Tracker during extensive testing. If you exhaust a key, fallback mechanisms will attempt to use alternative models.
+- **Firebase Sync Conflicts**: `useFirebaseSync` includes debounced logic and error trapping. If testing offline scenarios, rely on `firebase.ts` built-in offline persistence. Check console logs for `resource-exhausted` quotas.
+- **Test State Leaks**: Tests are wrapped with `<VisualKnowledgeProvider>` in `src/test-utils/render.tsx` to isolate Zustand state. Ensure any new tests utilizing context-bound stores import `render` from `test-utils` rather than `@testing-library/react`.
 
 ---
 

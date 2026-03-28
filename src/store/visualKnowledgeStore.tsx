@@ -37,6 +37,19 @@ export interface Whiteboard {
   edges: WhiteboardEdge[];
 }
 
+/**
+ * Core interface for the Visual Knowledge Store.
+ *
+ * @description
+ * This store manages the state of the visual whiteboard ecosystem. It relies on a
+ * Context-Bound Vanilla Zustand architecture rather than a standard global singleton.
+ * This ensures that state does not leak between React sub-trees or Vitest test files.
+ *
+ * Note on Side Effects:
+ * The store actions are strictly synchronous and mutate local state. Persistence to
+ * external systems (like Firebase) should be orchestrated by the consuming components
+ * or side-effect listeners, not directly within these actions.
+ */
 interface VisualKnowledgeState {
   cards: Record<string, Card>;
   whiteboards: Record<string, Whiteboard>;
@@ -269,6 +282,21 @@ export const VisualKnowledgeContext = createContext<ReturnType<
   typeof createVisualKnowledgeStore
 > | null>(null);
 
+/**
+ * React Context Provider for the Visual Knowledge Store.
+ *
+ * @description
+ * Creates an isolated vanilla store instance for the React sub-tree. If running
+ * in a test environment (`process.env.NODE_ENV === "test"`), it automatically injects
+ * a shared `testVisualKnowledgeStore` to allow test utilities to pre-seed state.
+ *
+ * @example
+ * ```tsx
+ * <VisualKnowledgeProvider>
+ *   <App />
+ * </VisualKnowledgeProvider>
+ * ```
+ */
 export function VisualKnowledgeProvider({
   children,
 }: {
@@ -290,6 +318,22 @@ export function VisualKnowledgeProvider({
   );
 }
 
+/**
+ * Overloaded hook to consume the Context-Bound Visual Knowledge Store.
+ *
+ * @description
+ * This hook must be used within a `<VisualKnowledgeProvider>`. To prevent unnecessary
+ * re-renders, ALWAYS pass a selector and wrap it with `useShallow` from `zustand/react/shallow`.
+ *
+ * @throws {Error} If called outside of a `<VisualKnowledgeProvider>` tree.
+ *
+ * @example
+ * ```tsx
+ * const { cards, addCard } = useVisualKnowledgeStore(
+ *   useShallow((state) => ({ cards: state.cards, addCard: state.addCard }))
+ * );
+ * ```
+ */
 export function useVisualKnowledgeStore(): VisualKnowledgeState;
 export function useVisualKnowledgeStore<T>(
   selector: (state: VisualKnowledgeState) => T,
