@@ -3,8 +3,9 @@
 ## Phase 1: Architecture & Queue Consolidation
 
 - [ ] Remove Piscina threads and SharedArrayBuffer implementations in src/workers/kmeansWorker.ts.
-- [ ] Implement standard BullMQ workers with hardcoded concurrency (e.g., 5).
-- [ ] Replace setInterval polling loops in src/server/queues.ts with native BullMQ scheduled jobs.
+- [ ] Refactor inline BullMQ workers (e.g. `network-io-queue` in `queues.ts`) into dedicated sandboxed processors in `src/server/workers/`.
+- [ ] Enforce `useWorkerThreads: true` and hardcoded concurrency (e.g. 5) on all BullMQ workers to prevent zombie worker event loop starvation.
+- [ ] Replace setInterval polling loops in src/server/queues.ts with native BullMQ repeatable scheduled jobs.
 - [ ] Remove premature Supabase/Postgres references in distillationQueue.
 
 ## Phase 2: API & Controller De-fatting
@@ -21,8 +22,9 @@
 
 ## Phase 3: Framework Modernization
 
-- [ ] Remove express-async-handler, manual `.safeParse()` checks, and `try/catch` boilerplates across all routes (including `/discover-competitors`) for Express 5 native async bubbling.
-- [ ] Implement global Express error handler to catch Zod and 413 Entity Too Large errors.
+- [ ] Remove express-async-handler, manual `.safeParse()` checks, and `try/catch` boilerplates across all routes (including `/discover-competitors`) for Express 5 native async bubbling. Let `.parse()` throw `ZodError`s up to the global error handler.
+- [ ] Implement global Express error handler to catch `err instanceof z.ZodError` and map to 400.
+- [ ] Explicitly catch `err.type === 'entity.too.large'` (413) and `entity.parse.failed` (400) in the global error handler. Ensure an `if (res.headersSent) return next(err)` guard prevents crash loops.
 - [ ] Fix React 19 detached setTimeout inside startTransition in ValidationArena.tsx.
 - [ ] Implement nested startTransition for post-await React state updates.
 

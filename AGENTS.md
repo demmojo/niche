@@ -6,7 +6,7 @@
 - **Transparency & Logging**: In user-facing UI and logs, display the semantic action taken rather than the specific tool/API used. Make technical details (like API responses) collapsible.
 - **Development Standards**: Always lint and type-check code after edits. Mandate unit, integration, and intent-based testing for all new OpenSpecs (80-100% coverage).
 - **Security & Config**: Strictly avoid hardcoding API keys or secrets; manage via `.env` files. Ensure the primary Git author/committer email is set to `mo.hassaniv@gmail.com`.
-- **Response Framework**: Use the CO-STAR (Context, Objective, Style, Tone, Audience, Response) framework for all responses, appending a concise CO-STAR Prompt Summary at the end.
+- **Response Framework**: Use the CO-STAR (Context, Objective, Style, Tone, Audience, Response) framework for all responses, appending a concise CO-STAR Prompt Summary at the end. Use the "Anchor and Define" pattern to explain the mechanical 'why' before using architectural jargon.
 - **In-House Preference**: Prefer in-house implementations (e.g., Gemini Flash for web scraping/data extraction) over paid external APIs like Firecrawl to minimize costs.
 - **Dogfooding & Analytics**: Build internal MLP analytics and dashboards directly into the app (e.g., via a superadmin sidebar) to enable dogfooding rather than relying entirely on external BI tools.
 - **Documentation**: Maintain a comprehensive Master Document (e.g., `docs/nicheai-master-context.md`). Prioritize explaining automated AI steps alongside manual CLI scripts.
@@ -27,3 +27,4 @@
 - **Auth & State**: User impersonation uses a "Secondary Firebase App" with Custom JWT tokens (`{ isImpersonated: true }`).
 - **External Integrations**: Exa MCP requires official local SDK/Smithery. System supports Bring-Your-Own-Key (BYOK) for Exa/Crunchbase, storing data in the raw data library.
 - **Product Architecture**: Supports managing multiple concurrent product ideas and forking existing products to test variations.
+- **Agentic Communication**: Avoid 'banned words' blocklists. Maintain precise architectural density in `openspec/` files and commit messages (via a CI/CD Exemption) to ensure automated `ai-eval` parity. Scale first-principles explanations to task complexity (concise for typos, deep for architecture).
