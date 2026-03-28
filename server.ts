@@ -16,6 +16,30 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  const extractRateLimitHeaders = (response: any) => {
+    const rateLimitHeaders: Record<string, string> = {};
+    if (response?.headers?.entries) {
+      for (const [key, value] of response.headers.entries()) {
+        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+          rateLimitHeaders[key] = value;
+        }
+      }
+    } else if (response?.headers?.forEach) {
+      response.headers.forEach((value: string, key: string) => {
+        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+          rateLimitHeaders[key] = value;
+        }
+      });
+    } else if (response?.headers && typeof response.headers === 'object') {
+      for (const key in response.headers) {
+        if (key.toLowerCase().includes('rate-limit') || key.toLowerCase().includes('ratelimit')) {
+          rateLimitHeaders[key] = response.headers[key];
+        }
+      }
+    }
+    return rateLimitHeaders;
+  };
+
   // Apollo.io Enrichment API (Organization Search)
   app.post("/api/apollo/enrich", async (req, res) => {
     try {
@@ -24,7 +48,8 @@ async function startServer() {
         return res.status(400).json({ error: "Domain is required" });
       }
 
-      const apiKey = process.env.APOLLO_API_KEY;
+      const clientApiKey = req.headers['x-api-key'] as string;
+      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
         return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
       }
@@ -42,6 +67,10 @@ async function startServer() {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
+
+      // Forward rate limit headers
+      const rateLimits = extractRateLimitHeaders(response);
+      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -63,7 +92,8 @@ async function startServer() {
         return res.status(400).json({ error: "Keywords array is required" });
       }
 
-      const apiKey = process.env.APOLLO_API_KEY;
+      const clientApiKey = req.headers['x-api-key'] as string;
+      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
         return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
       }
@@ -81,6 +111,10 @@ async function startServer() {
           per_page: 5
         })
       });
+
+      // Forward rate limit headers
+      const rateLimits = extractRateLimitHeaders(response);
+      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -104,7 +138,8 @@ async function startServer() {
         return res.status(400).json({ error: "organization_ids is required" });
       }
 
-      const apiKey = process.env.APOLLO_API_KEY;
+      const clientApiKey = req.headers['x-api-key'] as string;
+      const apiKey = clientApiKey || process.env.APOLLO_API_KEY;
       if (!apiKey) {
         return res.status(500).json({ error: "APOLLO_API_KEY is not configured" });
       }
@@ -121,6 +156,10 @@ async function startServer() {
         }
       });
       
+      // Forward rate limit headers
+      const rateLimits = extractRateLimitHeaders(response);
+      Object.entries(rateLimits).forEach(([key, value]) => res.setHeader(key, value));
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Apollo news error: ${response.status} ${errorText}`);
