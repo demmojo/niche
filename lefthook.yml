@@ -11,7 +11,7 @@ pre-commit:
       glob: "openspec/**/*.{yaml,yml,md}"
       run: npx tsx scripts/openspec-cli/index.ts validate
     extract-roadmap:
-      glob: "openspec/changes/**/*.{md,yaml}"
+      glob: "{openspec/changes/**/*.{md,yaml},docs/plans/**/*.md}"
       run: npx tsx scripts/openspec-cli/roadmap-extractor.ts {staged_files} && git add docs/ROADMAP.yaml docs/ROADMAP.md
 
 pre-push:
