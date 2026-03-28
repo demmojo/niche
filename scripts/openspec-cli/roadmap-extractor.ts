@@ -77,14 +77,17 @@ async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
     for (const file of specFiles) {
       const fileContent = await fs.readFile(file, "utf-8");
 
+      // 1. Gather context from recent market trends/tools (via Exa, optional but simulated via prompt alignment)
+      // We instruct the model to ground its recommendations in 2026 market context.
       const prompt = `You are an elite ensemble of tech strategists: an Expert Product Manager, a Visionary UX Designer, a Staff Architect, and a Lead ML Engineer. 
 Your goal is not just to extract deferred tasks, but to strategically analyze the feature spec and propose high-leverage future evolutions for our living roadmap.
 
 Review the following feature specification file.
 
 1. Actively apply your domains of expertise to identify missing opportunities, architectural limits, UX friction, and product expansion possibilities.
-2. Read "Non-Goals", "Alternatives Considered", "Risks / Trade-offs", and the general design. Transform these technical compromises into 1-4 visionary "Wow" features, architectural evolutions, or ML enhancements.
-3. For each item, specify its primary domain and clearly articulate the strategic value it brings to the user or business.
+2. Ground your recommendations in actual 2026 product, user behavior, and market data trends. Ensure the "Wow" features you propose are not just technical debt disguised as features, but genuinely innovative market opportunities.
+3. Read "Non-Goals", "Alternatives Considered", "Risks / Trade-offs", and the general design. Transform these technical compromises into 1-4 visionary "Wow" features, architectural evolutions, or ML enhancements.
+4. For each item, specify its primary domain and clearly articulate the strategic value it brings to the user or business (e.g., how it aligns with modern AI user behavior or resolves widespread market friction).
 
 Please strategically analyze and extract features from this specification:
 ${fileContent}`;
@@ -122,12 +125,12 @@ ${fileContent}`;
                     description: {
                       type: "string",
                       description:
-                        "Detailed strategic description of the future feature or refactor.",
+                        "Detailed strategic description of the future feature or refactor, explicitly tied to current (2026) user behavior, market data, or AI interaction paradigms.",
                     },
                     strategic_value: {
                       type: "string",
                       description:
-                        "Why this matters (e.g., 'Unlocks viral growth', 'Reduces latency by 10x', 'Creates an AI data flywheel')",
+                        "Why this matters to the business or market (e.g., 'Captures emerging 2026 prompt-driven dev trend', 'Reduces cognitive load by 10x', 'Creates a defensible AI data moat')",
                     },
                   },
                   required: [
