@@ -31,19 +31,17 @@ vi.mock('../components/AuthProvider', () => ({
   }),
 }));
 
-// Mock geminiClient
-vi.mock('../utils/geminiClient', () => ({
-  withKeyRotation: vi.fn().mockImplementation(async (cb) => {
+// Mock aiClient
+vi.mock('../utils/aiClient', () => ({
+  withModelFallback: vi.fn().mockImplementation(async (cb) => {
     return cb(
       { 
-        models: { 
-          generateContent: vi.fn().mockResolvedValue({
-            text: JSON.stringify(['example.com']),
-            candidates: [{ groundingMetadata: { groundingChunks: [] } }]
-          }) 
-        } 
+        generateContent: vi.fn().mockResolvedValue({
+          text: JSON.stringify(['example.com']),
+          candidates: [{ groundingMetadata: { groundingChunks: [] } }]
+        }) 
       }, 
-      'gemini-2.5-flash'
+      'gemini-3.1-flash-preview'
     );
   })
 }));
@@ -64,6 +62,16 @@ describe('App System/Integration Tests', () => {
       features: [{ name: 'Test Feature 1' }],
       strategy: []
     }));
+    
+    // Seed some mock competitors so sync runs an enrichment cycle
+    window.localStorage.setItem('test-workspace_competitors_test-user-id_prod-kageform', JSON.stringify([{
+      id: 'mock-comp-1',
+      name: 'Mock Competitor',
+      website: 'mockcomp.com',
+      techStack: ['OldTech'],
+      fundingHistory: 'Unknown'
+    }]));
+    
     window.localStorage.setItem('test-workspace_active_product_id_test-user-id', '"prod-kageform"');
     
     vi.clearAllMocks();
@@ -114,13 +122,14 @@ describe('App System/Integration Tests', () => {
       return { ok: true, json: async () => ({}) };
     });
 
-    let getByText: any, getAllByText: any, queryByText: any;
+    let getByText: any, getAllByText: any, queryByText: any, findByText: any;
 
     await act(async () => {
       const result = render(<App />);
       getByText = result.getByText;
       getAllByText = result.getAllByText;
       queryByText = result.queryByText;
+      findByText = result.findByText;
     });
 
     // Check we are loaded
@@ -130,9 +139,6 @@ describe('App System/Integration Tests', () => {
     const syncButtons = getAllByText('Sync Now', { selector: 'button' });
     expect(syncButtons.length).toBeGreaterThan(0);
     
-    // We shouldn't actually run the full sync in JSDOM because it will take too long and involve real LLM calls 
-    // if the mock isn't perfect, but we can verify the button is clickable and sets 'Syncing' state.
-    
     await act(async () => {
       fireEvent.click(syncButtons[0]);
     });
@@ -141,6 +147,28 @@ describe('App System/Integration Tests', () => {
     await waitFor(() => {
       expect(getByText(/Syncing all data sources/i)).toBeInTheDocument();
     });
+
+    // Based on the data-sync-review feature, instead of overwriting "OldTech", 
+    // the system should queue the changes and present a "Review Changes" button.
+    // Let's wait for the sync queue banner to appear.
+    const reviewBtn = await findByText('Review Changes', {}, { timeout: 8000 });
+    expect(reviewBtn).toBeInTheDocument();
+
+    // The state updates might still be executing async inside the queue component/fetch 
+    // before we can immediately click again without race conditions. We'll verify the 
+    // queue caught the diffs directly by checking the modal.
+
+    // Open the Review Modal
+    await act(async () => {
+      fireEvent.click(reviewBtn);
+    });
+
+    // Verify the diff content is rendered
+    expect(await findByText(/Review Sync Changes/i)).toBeInTheDocument();
+    
+    // We can just verify the modal has some text related to the diffs since we mocked Apollo
+    // to return React and Series A.
+    expect(await findByText(/"React"/, {}, { timeout: 3000 })).toBeInTheDocument();
 
     console.error = originalConsoleError;
   });
