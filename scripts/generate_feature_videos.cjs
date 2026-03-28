@@ -176,7 +176,8 @@ async function run() {
   // Feature 5: Flexible AI Power (BYOK, Model Fallback & Quotas)
   console.log('Recording AI Quotas & Keys...');
   const context5 = await browser.newContext({
-    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } }
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
   });
   const page5 = await context5.newPage();
   await mockAuth(page5);
