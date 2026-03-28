@@ -1,6 +1,6 @@
 # Product Roadmap
 
-This is a living document, automatically populated by the AI Product Roadmap Extractor. It transforms deferred features, non-goals, and technical compromises discovered in our OpenSpec `design.md`, `proposal.md`, and `spec.md` files into strategic product, design, architecture, and machine learning evolutions.
+This is a living document, automatically populated by the AI Product Roadmap Extractor. It transforms deferred features, non-goals, and technical compromises discovered in our OpenSpec `design.md`, `proposal.md`, `spec.md`, and `docs/plans/` files into strategic product, design, architecture, and machine learning evolutions.
 
 ## Future Potential & Strategic Evolutions
 
@@ -140,3 +140,30 @@ The current `StrategyToCodeWizard` flow involves exporting a prompt and then req
 - **Source:** `openspec/changes/rapid-pdlc-prompt-exporter/specs/rapid-pdlc-prompt-exporter/spec.md`
 
 The existing 'Loop-Back Artifact Reviewer' in Step 3 of the `StrategyToCodeWizard` is a reactive, isolated validation step. This evolution transforms it into a proactive, omnipresent semantic code analysis and validation service. This service will offer a robust API for seamless integration with popular Integrated Development Environments (IDEs) (e.g., VS Code, JetBrains) and Continuous Integration/Continuous Delivery (CI/CD) pipelines. Leveraging advanced static analysis, abstract syntax tree (AST) comprehension, and a specialized, fine-tuned LLM (the 'AI Critic model'), it understands not just syntax but also adherence to `MyProductData`'s strategic constraints, established architectural patterns, performance implications, and security best practices. It actively flags issues in real-time (e.g., 'Violates `Strict Adherence` to chosen UI framework standards,' 'Introduces competitor anti-pattern XYZ based on negative prompts,' or 'Potential security vulnerability detected in AI-generated code') and offers precise, actionable refactoring suggestions or alternative code snippets. This ensures AI-generated code aligns with our `MyProductData`'s strategic intent and quality standards across the entire development lifecycle, moving beyond a one-off wizard validation to continuous, embedded quality assurance, essential for large-scale AI-assisted teams in 2026.
+
+### Interactive AI Doc-Fix Copilot
+
+- **Domain:** Design
+- **Strategic Value:** Reduces developer cognitive load and manual documentation effort by over 70%, transforming a passive blocking tool into an active, productivity-enhancing AI copilot. Boosts developer satisfaction and throughput by streamlining compliance with 'Docs-as-Code' principles.
+- **Status:** Unverified
+- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+
+When the ML Drift Detector identifies discrepancies, instead of merely blocking the commit, the system will present an interactive Terminal User Interface (TUI). This TUI will display the code diff, the identified stale documentation, and an AI-generated, context-aware proposed patch. Developers can then review, edit, accept, or reject specific suggestions directly within their commit workflow. This aligns with 2026 expectations for generative AI not just as a validator but as an active, intelligent assistant, dramatically reducing cognitive load and friction in the dev experience.
+
+### Real-time Predictive Architectural Guardrails
+
+- **Domain:** Architecture
+- **Strategic Value:** Prevents architectural decay and accumulation of technical debt by enforcing governance at the earliest possible stage. Reduces critical system vulnerabilities and enhances code quality, creating a more stable and maintainable codebase, crucial for scaling AI-driven applications.
+- **Status:** Unverified
+- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+
+Evolve the drift detection to proactively identify architectural inconsistencies within the pre-commit hook using a highly optimized Small Language Model (SLM) and a local, incremental vector store. This system will not only detect semantic documentation drift but also flag potential architectural violations (e.g., changes to core interfaces, unauthorized dependency introductions, deviations from defined patterns in Architectural Decision Records) based on code diffs and architectural definitions, all executing under 3 seconds. This aligns with 2026 'shift-left' security and architectural governance trends, where issues are caught and remediated at the earliest possible stage.
+
+### AI-Powered Strategic Product Vision Engine
+
+- **Domain:** Product
+- **Strategic Value:** Accelerates product innovation cycle by 50% by automatically identifying and validating market opportunities from internal technical discussions. Creates a defensible competitive advantage by rapidly translating technical debt and constraints into compelling, market-aligned 'Wow' features, positioning the company as a proactive innovator in the AI economy.
+- **Status:** Unverified
+- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+
+Transform the Roadmap Extractor into a strategic intelligence platform. This system will leverage advanced LLMs, integrate with external market trend APIs, and analyze competitor intelligence to not only extract deferred features from internal specs but also enrich them with market context. It will automatically generate comprehensive 'Product Briefs' for newly identified opportunities, including estimated market size, competitive analysis, potential user segments, and suggested MVP features. This capability reflects the 2026 shift towards AI-driven strategic planning, enabling rapid ideation and market validation from internal insights.

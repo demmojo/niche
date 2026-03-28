@@ -67,8 +67,11 @@ const featureSchema: Schema = {
 async function extractFeaturesFromDiff(stagedFiles: string[]): Promise<void> {
   const specFiles = stagedFiles.filter(
     (f) =>
-      f.includes("openspec/changes/") &&
-      (f.endsWith("design.md") || f.endsWith("proposal.md")),
+      (f.includes("openspec/changes/") &&
+        (f.endsWith("design.md") ||
+          f.endsWith("proposal.md") ||
+          f.endsWith("spec.md"))) ||
+      f.includes("docs/plans/"),
   );
 
   if (specFiles.length === 0) {
@@ -177,7 +180,7 @@ ${fileContent}`;
       await fs.writeFile(roadmapYamlPath, newYamlContent);
 
       // Re-compile MD
-      let mdContent = `# Product Roadmap\n\nThis is a living document, automatically populated by the AI Product Roadmap Extractor. It transforms deferred features, non-goals, and technical compromises discovered in our OpenSpec \`design.md\` and \`proposal.md\` files into strategic product, design, architecture, and machine learning evolutions.\n\n## Future Potential & Strategic Evolutions\n\n*(Run \`git commit\` on any updated OpenSpec to automatically see extracted features here)*\n\n`;
+      let mdContent = `# Product Roadmap\n\nThis is a living document, automatically populated by the AI Product Roadmap Extractor. It transforms deferred features, non-goals, and technical compromises discovered in our OpenSpec \`design.md\`, \`proposal.md\`, \`spec.md\`, and \`docs/plans/\` files into strategic product, design, architecture, and machine learning evolutions.\n\n## Future Potential & Strategic Evolutions\n\n*(Run \`git commit\` on any updated OpenSpec to automatically see extracted features here)*\n\n`;
 
       for (const f of existingRoadmap.features) {
         mdContent += `### ${f.title}\n\n`;
