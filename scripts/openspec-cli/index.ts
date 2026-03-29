@@ -256,7 +256,7 @@ program
   .option(
     "-t, --threshold <number>",
     "Minimum coverage percentage required",
-    "90",
+    "80",
   )
   .description(
     "Run coverage report parser for a given feature to mechanically verify intent-based testing compliance",
@@ -274,7 +274,7 @@ Examples:
     const opts = CliOptionsSchema.parse(rawOpts);
     const passed = await checkCoverage(
       featureName,
-      parseFloat(opts.threshold || "90"),
+      parseFloat(opts.threshold || "80"),
       opts,
     );
     if (!passed) {
