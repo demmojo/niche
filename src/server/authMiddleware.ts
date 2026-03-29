@@ -8,18 +8,12 @@ import * as path from "path";
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   try {
-    const configPath = path.resolve(
-      process.cwd(),
-      "firebase-applet-config.json",
-    );
-    let projectId;
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      projectId = config.projectId;
-    }
+    const base64Credentials = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+    let projectId = process.env.FIREBASE_PROJECT_ID;
 
     // Fallback to environment variable or mock project ID if missing credentials
     if (
+      !base64Credentials &&
       !process.env.GOOGLE_APPLICATION_CREDENTIALS &&
       !process.env.FIREBASE_CONFIG &&
       !projectId
@@ -29,7 +23,16 @@ if (!admin.apps.length) {
         process.env.FIRESTORE_EMULATOR_HOST || "localhost:8080";
     }
 
-    admin.initializeApp(projectId ? { projectId } : undefined);
+    if (base64Credentials) {
+      const serviceAccount = JSON.parse(
+        Buffer.from(base64Credentials, "base64").toString("utf-8"),
+      );
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      admin.initializeApp(projectId ? { projectId } : undefined);
+    }
     // #region agent log
     fetch("http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f", {
       method: "POST",

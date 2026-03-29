@@ -15,7 +15,6 @@ import {
   memoryLocalCache,
   initializeFirestore,
 } from "firebase/firestore";
-import firebaseConfig from "../firebase-applet-config.json";
 
 /**
  *
@@ -38,12 +37,50 @@ const getApiKey = () => {
   return undefined;
 };
 
+const getProjectId = () => {
+  if (
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID
+  ) {
+    return import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  }
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    process.env.VITE_FIREBASE_PROJECT_ID
+  ) {
+    return process.env.VITE_FIREBASE_PROJECT_ID;
+  }
+  // Default to the provided new project
+  return "gtmforge-45e57";
+};
+
+const getAuthDomain = () => {
+  if (
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
+  ) {
+    return import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+  }
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    process.env.VITE_FIREBASE_AUTH_DOMAIN
+  ) {
+    return process.env.VITE_FIREBASE_AUTH_DOMAIN;
+  }
+  return `${getProjectId()}.firebaseapp.com`;
+};
+
 const isTestEnv =
   typeof process !== "undefined" && process.env.NODE_ENV === "test";
 
 const configToUse = {
-  ...firebaseConfig,
-  apiKey: getApiKey() || firebaseConfig.apiKey,
+  apiKey: getApiKey(),
+  authDomain: getAuthDomain(),
+  projectId: getProjectId(),
   ...(isTestEnv
     ? {
         projectId: `demo-nicheai-test-${process.env.VITEST_POOL_ID || "default"}`,
@@ -54,12 +91,8 @@ const configToUse = {
 const defaultApp = initializeApp(configToUse);
 
 const defaultDb = isTestEnv
-  ? initializeFirestore(
-      defaultApp,
-      { localCache: memoryLocalCache() },
-      firebaseConfig.firestoreDatabaseId,
-    )
-  : getFirestore(defaultApp, firebaseConfig.firestoreDatabaseId);
+  ? initializeFirestore(defaultApp, { localCache: memoryLocalCache() })
+  : getFirestore(defaultApp);
 
 const defaultAuth = getAuth(defaultApp);
 
@@ -75,9 +108,7 @@ export const getDbInstance = () => defaultDb;
 // Proxy objects that forward to the impersonation app if it exists, otherwise default app
 export const db = new Proxy(defaultDb, {
   get(target, prop) {
-    const activeDb = impersonationApp
-      ? getFirestore(impersonationApp, firebaseConfig.firestoreDatabaseId)
-      : target;
+    const activeDb = impersonationApp ? getFirestore(impersonationApp) : target;
     const value = activeDb[prop as keyof typeof defaultDb];
     if (typeof value === "function") {
       return value.bind(activeDb);
