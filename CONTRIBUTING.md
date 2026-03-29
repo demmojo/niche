@@ -37,8 +37,8 @@ stateDiagram-v2
   - _Actor:_ Human & AI (`/create-openspec` or manual markdown in `openspec/plans/`).
   - _Pre-condition:_ Run `npm run openspec detect-collisions`.
 - **2. Propose:** Introduce the plan to the DAG.
-  - _Command:_ `npm run openspec propose openspec/plans/<plan>.md`
-  - _Output:_ Scaffolds `proposal.md`, `design.md`, `spec.md`, and `tasks.md`.
+  - _Command:_ `npm run openspec propose openspec/plans/<plan>.md` (use `--force` to overwrite existing target or `.tmp` staging directories)
+  - _Output:_ Scaffolds `proposal.md`, `design.md`, `spec.md`, and `tasks.md`. If validation fails, the `.tmp` staging directory is preserved for inspection.
 - **3. Validate:** Automated DAG verification and semantic checks.
   - _Command:_ `npm run openspec validate` and `npm run openspec ai-eval`
   - _Output:_ Semantic pass records.
