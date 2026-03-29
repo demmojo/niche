@@ -5,6 +5,7 @@ export const LLMExtractionSchema = z.object({
   exact_quote: z.string().optional(),
   exa_url: z.string().url().or(z.literal("")),
   wedge_metric: z.number().optional(),
+  suggestedNiches: z.array(z.string()).optional(),
 });
 
 /**

@@ -179,3 +179,38 @@ export const requireAuth = async (
     });
   }
 };
+
+export const requireAppCheck = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const appCheckToken = req.headers["x-firebase-appcheck"];
+
+  // Bypass App Check in local development or emulator environments
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+    process.env.FIRESTORE_EMULATOR_HOST
+  ) {
+    return next();
+  }
+
+  if (!appCheckToken || typeof appCheckToken !== "string") {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Missing or invalid App Check token.",
+    });
+  }
+
+  try {
+    const appCheckClaims = await admin.appCheck().verifyToken(appCheckToken);
+    return next();
+  } catch (err: any) {
+    console.error("App Check failed:", err);
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid App Check token.",
+    });
+  }
+};

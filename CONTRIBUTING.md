@@ -4,12 +4,66 @@ Welcome! This document outlines our standard development, testing, and release w
 
 ## 1. Feature Planning (The OpenSpec Workflow)
 
-Before writing _any_ code for new features, we use a structured documentation process called **OpenSpec**.
+Before writing _any_ code for new features, we use a structured documentation process called **OpenSpec**, acting as a State Machine designed for Human and AI collaboration.
 
-1. **Scaffold a Spec:** Ask the AI agent in your IDE to `/create-openspec [feature-name]`.
-2. **Review:** The agent will generate a proposal, design, tasks list, and specification inside the `openspec/changes/<feature-name>` directory.
-3. **Approval:** Wait for approval on the Spec before implementing.
-4. **Implement:** Do not submit Pull Requests for undocumented or unplanned features.
+### The 8-Step Lifecycle
+
+```mermaid
+stateDiagram-v2
+    state "Phase 1: Definition" as Definition {
+        Plan --> Propose : Propose to DAG
+        Propose --> Validate : Check DAG & Semantic
+    }
+
+    state "Phase 2: Execution" as Execution {
+        Validate --> Start : Lock Spec
+        Start --> Apply : Red-Green TDD
+        Apply --> Validate : Halt & Update (Constraint Change)
+    }
+
+    state "Phase 3: Closure" as Closure {
+        Apply --> Verify : TDD Complete
+        Verify --> Extract : Continual Learning
+        Extract --> Archive : Clean Workspace
+    }
+
+    [*] --> Plan
+    Archive --> [*]
+```
+
+### Phase 1: Definition
+
+- **1. Plan:** Ideation and collision detection.
+  - _Actor:_ Human & AI (`/create-openspec` or manual markdown in `openspec/plans/`).
+  - _Pre-condition:_ Run `npm run openspec detect-collisions`.
+- **2. Propose:** Introduce the plan to the DAG.
+  - _Command:_ `npm run openspec propose openspec/plans/<plan>.md`
+  - _Output:_ Scaffolds `proposal.md`, `design.md`, `spec.md`, and `tasks.md`.
+- **3. Validate:** Automated DAG verification and semantic checks.
+  - _Command:_ `npm run openspec validate` and `npm run openspec ai-eval`
+  - _Output:_ Semantic pass records.
+
+### Phase 2: Execution
+
+- **4. Start:** Lock spec & generate GraphRAG context.
+  - _Command:_ `npm run openspec start <feature-name>`
+- **5. Apply:** Red-Green TDD implementation.
+  - _Actor:_ AI Agent (using `@apply-openspec` skill) or Human.
+  - _Escape Hatch (Halt & Update):_ If constraints change mid-flight, update `design.md` and re-run `start --auto-fix` (which loops back to Validation).
+
+### Phase 3: Closure
+
+- **6. Verify:** Check coverage and intent-based tests.
+  - _Actor:_ AI Agent (`@verify-openspec`).
+  - _Command:_ `npm run openspec check-coverage <feature-name> --threshold=90`.
+- **7. Extract:** Continual learning.
+  - _Actor:_ AI Agent (`@extract-lessons`).
+  - _Output:_ Sets `learnings_extracted: true` in `.openspec.yaml` and updates `AGENTS.md`.
+- **8. Archive / Supersede:** Cleanup and state resolution.
+  - _Actor:_ AI Agent (`@archive-openspec`).
+  - _Output:_ Spec moved to `openspec/archive/changes/`.
+
+> **For AI Agents:** Always use the `--non-interactive`, `--json`, `--force`, and `--dry-run` flags when interacting with the CLI to prevent hangs and enable structured parsing.
 
 ## 2. Testing Standards (The Testing Trophy)
 

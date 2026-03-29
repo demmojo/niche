@@ -146,7 +146,7 @@ The existing 'Loop-Back Artifact Reviewer' in Step 3 of the `StrategyToCodeWizar
 - **Domain:** Design
 - **Strategic Value:** Reduces developer cognitive load and manual documentation effort by over 70%, transforming a passive blocking tool into an active, productivity-enhancing AI copilot. Boosts developer satisfaction and throughput by streamlining compliance with 'Docs-as-Code' principles.
 - **Status:** Unverified
-- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+- **Source:** `openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
 
 When the ML Drift Detector identifies discrepancies, instead of merely blocking the commit, the system will present an interactive Terminal User Interface (TUI). This TUI will display the code diff, the identified stale documentation, and an AI-generated, context-aware proposed patch. Developers can then review, edit, accept, or reject specific suggestions directly within their commit workflow. This aligns with 2026 expectations for generative AI not just as a validator but as an active, intelligent assistant, dramatically reducing cognitive load and friction in the dev experience.
 
@@ -155,7 +155,7 @@ When the ML Drift Detector identifies discrepancies, instead of merely blocking 
 - **Domain:** Architecture
 - **Strategic Value:** Prevents architectural decay and accumulation of technical debt by enforcing governance at the earliest possible stage. Reduces critical system vulnerabilities and enhances code quality, creating a more stable and maintainable codebase, crucial for scaling AI-driven applications.
 - **Status:** Unverified
-- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+- **Source:** `openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
 
 Evolve the drift detection to proactively identify architectural inconsistencies within the pre-commit hook using a highly optimized Small Language Model (SLM) and a local, incremental vector store. This system will not only detect semantic documentation drift but also flag potential architectural violations (e.g., changes to core interfaces, unauthorized dependency introductions, deviations from defined patterns in Architectural Decision Records) based on code diffs and architectural definitions, all executing under 3 seconds. This aligns with 2026 'shift-left' security and architectural governance trends, where issues are caught and remediated at the earliest possible stage.
 
@@ -164,7 +164,7 @@ Evolve the drift detection to proactively identify architectural inconsistencies
 - **Domain:** Product
 - **Strategic Value:** Accelerates product innovation cycle by 50% by automatically identifying and validating market opportunities from internal technical discussions. Creates a defensible competitive advantage by rapidly translating technical debt and constraints into compelling, market-aligned 'Wow' features, positioning the company as a proactive innovator in the AI economy.
 - **Status:** Unverified
-- **Source:** `docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
+- **Source:** `openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md`
 
 Transform the Roadmap Extractor into a strategic intelligence platform. This system will leverage advanced LLMs, integrate with external market trend APIs, and analyze competitor intelligence to not only extract deferred features from internal specs but also enrich them with market context. It will automatically generate comprehensive 'Product Briefs' for newly identified opportunities, including estimated market size, competitive analysis, potential user segments, and suggested MVP features. This capability reflects the 2026 shift towards AI-driven strategic planning, enabling rapid ideation and market validation from internal insights.
 

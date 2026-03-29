@@ -5,44 +5,35 @@ alwaysApply: true
 
 # OpenSpec Workflow
 
-> **Note**: `docs/plans/` and `docs/brainstorms/` have been moved to `openspec/plans/` and `openspec/brainstorms/` as of Mar 2026. Do not create new documents in `docs/`.
+> **Note**: `openspec/plans/` and `openspec/brainstorms/` are the active directories. Do not create new documents in `docs/`.
 
 This project relies on `openspec/changes/` directories containing `proposal.md`, `design.md`, `specs/`, and `tasks.md` files to document and guide feature implementation.
 
-## Pre-flight / Planning Phase (CRITICAL)
-Before you propose a new feature, run `/plan`, or create a new OpenSpec:
-1. **Discover Existing Specs:** You MUST run `npx tsx scripts/openspec-cli/index.ts detect-collisions` to detect overlaps or read `openspec/changes/` to see what is already planned.
-2. **Identify Overlaps:** If the new feature overlaps or conflicts with an existing spec (e.g. `product-evolution-engine`), determine if the new spec should *supersede* the old one or complement it.
-3. **Mandate Testing Scenarios**: The spec must clearly outline Gherkin `WHEN/THEN` testing scenarios mapping 1:1 to intent-based tests.
-3. **Propose to OpenSpec:** The output from `/plan` (in `openspec/plans/`) is an ephemeral staging area. You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `openspec/plans/` markdown file. You MUST propose it into the OpenSpec DAG first by running `npx tsx scripts/openspec-cli/index.ts propose openspec/plans/<plan_filename>.md`. For headless/agent environments, use the `--non-interactive` flag.
-4. **Supersede Specs:** If a spec is superseded or removed:
+## The 8-Step Lifecycle
+1. **Plan:** Ideation (`npm run openspec detect-collisions`).
+2. **Propose:** Introduce to DAG (`npm run openspec propose openspec/plans/<plan>.md --non-interactive --json`).
+3. **Validate:** Automated checks (`npm run openspec validate` and `npm run openspec ai-eval --non-interactive --json`).
+4. **Start:** Lock spec & generate context (`npm run openspec start <feature-name> --non-interactive --json`).
+5. **Apply:** Red-Green TDD implementation. Includes the "Halt & Update" escape hatch.
+6. **Verify:** Intent-based tests (`npm run openspec check-coverage <feature-name> --threshold=90`).
+7. **Extract:** Continual learning (`@extract-lessons`).
+8. **Archive / Supersede:** State resolution (Agent skill `@archive-openspec` using `git mv`).
+
+## AI Agent CLI Constraints
+When invoking the OpenSpec CLI:
+- **MUST** use `--non-interactive` to prevent terminal hangs.
+- **MUST** use `--json` to parse output programmatically (do not rely on plain text logs).
+- **MUST** use `--dry-run` to preview destructive scaffolding or archival commands before executing.
+- **MUST** use `--force` to bypass interactive prompts during the `start --auto-fix` Halt & Update loop.
+
+## CI/CD Boundary Constraints
+- **Dense Specs:** While AI conversational tone should be concise, generated files (`design.md`, `spec.md`, `proposal.md`) **MUST** remain architecturally dense with explicit trade-offs. `ai-eval` will fail terse or overly simplified spec files.
+- **Isolated CO-STAR:** CO-STAR prompt summaries are strictly restricted to the conversational chat UI. **NEVER** append CO-STAR summaries to generated files, `openspec/` markdown, or stdout payloads, as this will break JSON parsers and CI checks.
+
+## Phase Constraints
+- **Plan/Propose:** You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `openspec/plans/` markdown file. You MUST propose it into the DAG and pass validation first.
+- **Supersede Specs:** If a spec is superseded:
    - Update its `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
-   - Add a `> **NOTICE:** This spec has been **superseded** by [new-spec].` block to the very top of its `proposal.md`.
-   - Never implement tasks from a superseded spec.
-5. **Future Roadmap Extractor:** While creating plans or specs, make sure to explicitly populate a "Future Considerations" or "Architectural, Design and Future Potential To Dos" section at the end of `design.md` or the plan file. This feeds the living `docs/ROADMAP.md` document during the git commit lifecycle.
-6. **Validate Specs:** Run `npx tsx scripts/openspec-cli/index.ts validate` to ensure the DAG is acyclic and valid. Then run `npx tsx scripts/openspec-cli/index.ts ai-eval` to do a semantic pass.
-
-## Phase 2.5: Continual Learning & Extraction
-Before a verified spec is archived, you must extract key learnings and friction points:
-
-1. **Extract Lessons:** Check the `.openspec.yaml` file for `learnings_extracted: true`. If it is false or missing, you MUST run the `extract-lessons` skill. This will review `tasks.md`, `git diff origin/master...HEAD`, and chat/terminal history to synthesize new rules for `.cursor/rules/` and `AGENTS.md`.
-2. **Commit Knowledge:** Present the drafted rules to the user for approval. Once approved and saved, update `.openspec.yaml` to set `learnings_extracted: true`.
-
-## Post-Implementation / Archive Phase
-Once an OpenSpec is fully implemented, verified, and its learnings are extracted, it must be properly archived to keep the active workspace clean:
-
-1. **Verify Completion:** Ensure all tasks in `tasks.md` are marked as done (`- [x]`) and the code passes linting/tests.
-2. **Update Status:** Change the `status` field in `.openspec.yaml` to `implemented` (or `completed`).
-3. **Archive the Spec:** Move the entire feature directory from `openspec/changes/<feature-name>` to `openspec/archive/changes/<feature-name>`. Block archiving unless tests pass, coverage is >= 90%, and `learnings_extracted` is `true`.
-4. **Archive the Original Plan:** If a raw markdown plan exists in `openspec/plans/` that corresponds to this feature, move it to `openspec/archive/plans/`. Never leave implemented raw markdown plans in the active `openspec/plans/` directory.
-
-> **Tip:** You can use the `.cursor/skills/archive-openspec/SKILL.md` skill to automate moving a completed feature to the archive.
-
-## Implementation Phase
-When asked to implement a feature or fix a bug that has an associated OpenSpec in the `openspec/changes/` directory, you must follow this workflow:
-
-1. **Verify Readiness & Locate the Spec**: Run `npx tsx scripts/openspec-cli/index.ts start <feature-name>`. For agent environments, use the `--non-interactive` flag. If the spec is blocked, depends on uncompleted features, or does not have a passing `ai-eval` record, YOU MUST HALT and inform the user. Do not proceed until dependencies and validation checks pass. The `start` command will generate the required GraphRAG prompt that provides deep local context. Read it carefully.
-2. **Follow the Tasks**: Read `tasks.md`. Execute the tasks sequentially as defined. You must write failing intent-based tests *before* writing the feature logic (Red-Green TDD).
-3. **Update Progress**: As you complete each task in `tasks.md`, you MUST use the Write or Edit tool to update the file, marking the task as done by changing `- [ ]` to `- [x]`. Before marking a test/implementation task complete, run targeted test coverage via `npm run test -- <changed-files> --coverage`.
-4. **Strict Adherence & 'Halt and Update' Protocol**: Do not deviate from the architecture or decisions outlined in `design.md` and `spec.md` without explicit user permission. If you encounter a technical constraint or pivot that requires deviating from `tasks.md`, `design.md`, or `spec.md`, you **MUST HALT** coding. You must proactively ask the user about the roadblock and proposed new approach.
-5. **Agent Security Handoff**: Once the user agrees on the new approach, you must automatically use the Write or Edit tool to update `design.md` or `spec.md` to reflect the new reality. **You MUST present a concise markdown diff of the changes to the user**. Because modifying constraints alters the validation hash, you must then explicitly ask the user: *"I have updated the specs. Please run `npx tsx scripts/openspec-cli/index.ts start <feature> --auto-fix` yourself to re-validate so I can continue."* Do not bypass the evaluation yourself.
+   - Add `> **NOTICE:** This spec has been **superseded** by [new-spec].` to the top of its `proposal.md`.
+- **Apply (Halt and Update Protocol):** If you encounter a technical constraint requiring a deviation from `design.md` or `spec.md`, you **MUST HALT** coding. Update `design.md` or `spec.md` to reflect the new reality, present the diff, and run `npm run openspec start <feature> --auto-fix --force --non-interactive` to re-validate the DAG hash.
+- **Extract & Archive:** Archiving is blocked unless `learnings_extracted` is `true` in `.openspec.yaml`. Use the `@extract-lessons` skill to update `AGENTS.md` before attempting archival.

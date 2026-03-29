@@ -14,7 +14,7 @@
 
 ## Learned Workspace Facts
 
-- **OpenSpec Workflow**: Manage files under `openspec/`. List files with full extensions to prevent DAG hallucinations. Archival strictly requires `learnings_extracted: true`. For AI-native specs, frame validations as manual end-to-end simulations.
+- **OpenSpec Workflow**: Manage files under `openspec/`. Follow the 8-Step Lifecycle SSOT defined in `CONTRIBUTING.md`. List files with full extensions to prevent DAG hallucinations. Archival strictly requires `learnings_extracted: true`. For AI-native specs, frame validations as manual end-to-end simulations. Use `npm run openspec <command>`.
 - **OpenSpec Execution**: Respect task order, use GraphRAG. Automate 'Halt and Update' for re-validation. When parsing terminals, use `tail`/`grep` to avoid LLM context exhaustion.
 - **Frontend & UX**: Handle React 19 'Snapshot Beats the Fetch' race conditions. Implement Generative UI for dashboards. Use Explainable States (`aria-live="polite"`) for screen readers instead of generic spinners.
 - **Testing Standards**: Mandate RTL+MSW, Firebase Emulators, Playwright. Prove JSON stream parsers mathematically via `fast-check`. Mid-stream `AbortController` cancellations must gracefully degrade without fatal Error Boundaries.

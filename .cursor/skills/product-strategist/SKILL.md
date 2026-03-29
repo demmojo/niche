@@ -11,8 +11,8 @@ Use this skill when the user asks to validate an idea, brainstorm as a product e
 
 Before brainstorming, ensure you understand the current state of the product:
 
-1. **Review Existing Specs:** Run `npx tsx scripts/openspec-cli/index.ts detect-collisions` to see what is already planned or built.
-2. **Context Build:** Use `npx tsx scripts/openspec-cli/index.ts build-context <topic>` to understand the architectural neighborhood.
+1. **Review Existing Specs:** Run `npm run openspec detect-collisions --non-interactive --json` to see what is already planned or built.
+2. **Context Build:** Use `npm run openspec build-context <topic> --non-interactive --json` to understand the architectural neighborhood.
 3. **Analyze Roadmap:** Review `docs/ROADMAP.md` to align the idea with the long-term vision.
 
 ## 2. The Ideation & Validation Loop

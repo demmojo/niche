@@ -77,11 +77,11 @@ export async function proposePlan(planPath: string, options: CliOptions) {
       process.exit(1);
     }
   } else {
-    if (planPath.includes("docs/plans/")) {
+    if (planPath.includes("openspec/plans/")) {
       presenter.warn(
-        "⚠️ Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...",
+        "⚠️ Warning: openspec/plans/ is deprecated. Redirecting to openspec/plans/...",
       );
-      planPath = planPath.replace("docs/plans/", "openspec/plans/");
+      planPath = planPath.replace("openspec/plans/", "openspec/plans/");
     }
 
     if (!fs.existsSync(planPath)) {

@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
-import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
+import {
+  requireAuth,
+  requireAppCheck,
+  AuthenticatedRequest,
+} from "./authMiddleware";
 import * as adminNamespace from "firebase-admin";
 const admin = adminNamespace;
 import pMap from "p-map";
@@ -279,6 +283,7 @@ Return the result strictly adhering to the JSON schema.`;
 // Apply stateless API rate limiter for validation campaign (BFF Route)
 campaignRouter.post(
   "/start",
+  requireAppCheck,
   requireAuth,
   campaignLimiter,
   async (req: AuthenticatedRequest, res: any) => {

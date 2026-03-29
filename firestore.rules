@@ -241,9 +241,15 @@ service cloud.firestore {
           isAdmin() || 
           request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
         );
-        allow read, update: if isAuthenticated() && (
+        allow update: if isAuthenticated() && (
           isAdmin() || 
           request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members
+        );
+        allow read: if isAuthenticated() && (
+          isAdmin() || 
+          request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members ||
+          resource.data.value.visibility == 'shared' ||
+          resource.data.value.isPublic == true
         );
         allow delete: if isAuthenticated() && !isImpersonated() && (
           isAdmin() || 

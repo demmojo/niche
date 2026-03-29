@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthProvider, useAuth } from "../../components/AuthProvider";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { loginWithGoogle, loginWithEmail, logout } from "../../firebase";
 
 // 1. Mock Firebase module
@@ -12,6 +12,7 @@ vi.mock("firebase/auth", () => ({
   GoogleAuthProvider: vi.fn(),
   signInWithPopup: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
+  signInAnonymously: vi.fn().mockResolvedValue({ user: { isAnonymous: true } }),
   signOut: vi.fn(),
   auth: {},
 }));
@@ -91,7 +92,7 @@ describe("AuthProvider", () => {
     });
   });
 
-  it("updates state when no user is authenticated", async () => {
+  it("calls signInAnonymously when no user is authenticated", async () => {
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
       (callback as any)(null as any);
       return vi.fn();
@@ -104,13 +105,13 @@ describe("AuthProvider", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Not logged in")).toBeInTheDocument();
+      expect(signInAnonymously).toHaveBeenCalled();
     });
   });
 
   it("calls loginWithGoogle when login is triggered", async () => {
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      (callback as any)(null as any);
+      (callback as any)({ email: "test@example.com" } as any);
       return vi.fn();
     });
 
@@ -121,7 +122,9 @@ describe("AuthProvider", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Not logged in")).toBeInTheDocument();
+      expect(
+        screen.getByText("Logged in as test@example.com"),
+      ).toBeInTheDocument();
     });
 
     const user = userEvent.setup();
@@ -132,7 +135,7 @@ describe("AuthProvider", () => {
 
   it("calls loginWithEmail when loginEmail is triggered", async () => {
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      (callback as any)(null as any);
+      (callback as any)({ email: "test@example.com" } as any);
       return vi.fn();
     });
 
@@ -143,7 +146,9 @@ describe("AuthProvider", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Not logged in")).toBeInTheDocument();
+      expect(
+        screen.getByText("Logged in as test@example.com"),
+      ).toBeInTheDocument();
     });
 
     const user = userEvent.setup();

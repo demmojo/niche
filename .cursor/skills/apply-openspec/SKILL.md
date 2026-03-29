@@ -21,7 +21,7 @@ When the user asks to "apply" a change located at `openspec/changes/<feature-nam
    - Update `tasks.md` by changing the `- [ ]` to `- [x]` for that specific task.
    - If a task is blocked, complex, or ambiguous, ask the user for clarification before proceeding.
    - **Extended Halt and Update Protocol:**
-     1. If a test requires changing the `spec.md`'s `WHEN / THEN` logic, halt and propose the spec change first.
+     1. If a test requires changing the `spec.md`'s `WHEN / THEN` logic, halt and update the spec change first, then use `npm run openspec start <feature> --auto-fix --force --non-interactive --json` to re-validate.
      2. **Anti-Tautological Guardrail:** If intent-based tests yield < 90% coverage, do NOT write "vanity tests" just to inflate the score. Halt and ask the user if the uncovered code is dead boilerplate, or if it requires new `WHEN/THEN` scenarios to be added to `spec.md`.
 4. **Finalization & Documentation Sync**:
    - Once all tasks in `tasks.md` are checked off, you must synchronize the project's documentation.

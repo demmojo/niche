@@ -28,6 +28,8 @@ This rule formalizes the architectural standards for Product-Led Growth (PLG) wi
 - **BFF Enforcement:** The Express server reads `pqlState` to enforce the PQL gate *before* triggering any LLM or scraping routes.
 - **App Check Attestation:** To block malicious bot scripts from looping `signInAnonymously()` to bypass limits, the Express BFF MUST verify a **Firebase App Check (reCAPTCHA v3)** token via `firebase-admin/app-check` middleware before invoking AI routes.
 - **Ghost Session Management:** Configure a **Firestore TTL** policy (e.g., 72 hours) on the `pqlState` collection to automatically delete abandoned anonymous sessions and prevent billing bloat.
+- **Dual-Token Account Linking:** When upgrading an anonymous user, the client must capture the `anonToken` before `signInWithPopup`. The backend must verify both the `anonToken` and the `permToken` to prevent IDOR vulnerabilities before using `db.runTransaction` to safely reparent data and leave a tombstone.
+- **Race Condition Mitigation:** Use a mutable ref (`isMergingRef`) inside `AuthProvider.tsx` to pause `onAuthStateChanged` UI updates during the account linking process, preventing "Snapshot Beats the Fetch" visual flickering.
 
 ## 4. Time-to-Value (TTV) Telemetry
 **Architectural Principle:** NicheAI targets a Time-to-Value of **< 5 minutes** for new users.

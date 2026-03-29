@@ -1,4 +1,5 @@
 import { InsightEngineChat } from "./components/InsightEngineChat";
+import { ZeroFrictionEntry } from "./components/ZeroFrictionEntry";
 import { JsonViewer } from "./components/JsonViewer";
 import { DataSourceCard } from "./components/DataSourceCard";
 import { dictionary, tMessage } from "./content/dictionary";
@@ -29,7 +30,7 @@ import {
 } from "recharts";
 
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
-import { db, safeDisableNetwork } from "./firebase";
+import { db, auth, safeDisableNetwork } from "./firebase";
 import {
   LayoutDashboard,
   TableProperties,
@@ -600,236 +601,6 @@ const initialCompetitors: Competitor[] = [
 ];
 
 // --- Components ---
-
-function OnboardingWizard({
-  onComplete,
-}: {
-  onComplete: (product: MyProductData) => void;
-}) {
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [regions, setRegions] = useState("");
-  const [features, setFeatures] = useState("");
-
-  const handleFinish = () => {
-    onComplete({
-      name,
-      description,
-      targetRegions: regions
-        .split(",")
-        .map((r) => r.trim())
-        .filter(Boolean),
-      features: features
-        .split(",")
-        .map((f) => ({
-          id: Math.random().toString(36).substring(2, 9),
-          name: f.trim(),
-          description: "",
-          status: "planned" as const,
-        }))
-        .filter((f) => f.name),
-      strategy: [],
-    });
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F5F3ED] flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/20 max-w-2xl w-full">
-        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">
-          Welcome to NicheAI
-        </h2>
-        <p className="text-ink-dark/70 mb-8">
-          Let's set up your product intelligence workspace.
-        </p>
-
-        {step === 1 && (
-          <div className="space-y-4 animate-in fade-in">
-            <h3 className="text-xl font-bold">1. Company & Product Profile</h3>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Product Name
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-2 border rounded-lg"
-                placeholder="e.g. Acme Analytics"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                One-Liner / Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-2 border rounded-lg h-24"
-                placeholder="What does it do? Who is it for?"
-              />
-            </div>
-            <button
-              onClick={() => setStep(2)}
-              disabled={!name}
-              className="px-6 py-2 bg-ink-dark text-white rounded-lg disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-4 animate-in fade-in">
-            <h3 className="text-xl font-bold">2. Target Market & Features</h3>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Target Regions (comma separated)
-              </label>
-              <input
-                value={regions}
-                onChange={(e) => setRegions(e.target.value)}
-                className="w-full p-2 border rounded-lg"
-                placeholder="e.g. North America, EU"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Core Features (comma separated)
-              </label>
-              <input
-                value={features}
-                onChange={(e) => setFeatures(e.target.value)}
-                className="w-full p-2 border rounded-lg"
-                placeholder="e.g. API Access, Real-time dashboards"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStep(1)}
-                className="px-6 py-2 border rounded-lg"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleFinish}
-                className="px-6 py-2 bg-ink-dark text-white rounded-lg"
-              >
-                Complete Setup
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AuthScreen() {
-  const { login, loginEmail } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      await loginEmail(email, password);
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F5F3ED] flex flex-col items-center justify-center p-4 font-sans text-ink-dark">
-      <div className="max-w-md w-full bg-paper-light p-8 rounded-2xl shadow-storybook border border-ink-dark/20">
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 bg-ink-dark rounded-xl flex items-center justify-center shadow-inner">
-            <Target className="w-5 h-5 text-paper-light" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-ink-dark">
-            NicheAI
-          </span>
-        </div>
-        <h2 className="text-xl font-semibold mb-6 text-center">
-          Sign in to your account
-        </h2>
-
-        <form onSubmit={handleEmailLogin} className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl bg-paper-base border border-ink-dark/20 focus:outline-none focus:border-ink-dark transition-colors"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl bg-paper-base border border-ink-dark/20 focus:outline-none focus:border-ink-dark transition-colors"
-              required
-            />
-          </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 bg-ink-dark text-paper-light rounded-xl font-medium hover:bg-ink-dark/90 transition-colors disabled:opacity-50"
-          >
-            {loading ? "Authenticating..." : "Sign In / Sign Up"}
-          </button>
-        </form>
-
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-ink-dark/20"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-paper-light text-ink-dark/60">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <button
-          onClick={login}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-ink-dark/20 rounded-xl hover:bg-paper-base transition-colors font-medium"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              fill="#4285F4"
-            />
-            <path
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              fill="#34A853"
-            />
-            <path
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              fill="#FBBC05"
-            />
-            <path
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              fill="#EA4335"
-            />
-          </svg>
-          Google
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function DeepValidationButton({
   isSyncing,
   syncProgress,
@@ -1260,12 +1031,62 @@ export default function App() {
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
-  if (!user) return <AuthScreen />;
+
+  // Viral Loop Support
+  const pathname = window.location.pathname;
+  let sharedCampaignId = null;
+  if (pathname.startsWith("/strategy/")) {
+    sharedCampaignId = pathname.replace("/strategy/", "").split("/")[0];
+  }
+
+  // Check if user has an active product
+  const productsJSON = user
+    ? window.localStorage.getItem(`${WORKSPACE_ID}_user_products_${user.uid}`)
+    : null;
+  const products = productsJSON ? JSON.parse(productsJSON) : [];
+
+  if (sharedCampaignId) {
+    // If it's a shared campaign, mount WorkspaceApp with that campaign ID
+    return (
+      <WorkspaceApp
+        user={user || { isAnonymous: true, uid: "visitor" }}
+        logout={logout}
+        sharedCampaignId={sharedCampaignId}
+      />
+    );
+  }
+
+  if (!user || products.length === 0) {
+    return (
+      <ZeroFrictionEntry
+        onComplete={(product) => {
+          if (auth.currentUser) {
+            const uid = auth.currentUser.uid;
+            const newId = `prod-${Date.now()}`;
+            window.localStorage.setItem(
+              `${WORKSPACE_ID}_user_products_${uid}`,
+              JSON.stringify([{ id: newId, name: product.name }]),
+            );
+            window.localStorage.setItem(
+              `${WORKSPACE_ID}_active_product_id_${uid}`,
+              JSON.stringify(newId),
+            );
+            window.localStorage.setItem(
+              `${WORKSPACE_ID}_my_product_data_${uid}_${newId}`,
+              JSON.stringify(product),
+            );
+            // Force a reload to mount WorkspaceApp with the new state
+            window.location.reload();
+          }
+        }}
+      />
+    );
+  }
 
   return <WorkspaceApp user={user} logout={logout} />;
 }
 
-function WorkspaceApp({ user, logout }: any) {
+function WorkspaceApp({ user, logout, sharedCampaignId }: any) {
   const [products, setProducts] = useLocalStorage<
     { id: string; name: string }[]
   >(`user_products_${user.uid}`, []);
@@ -1325,22 +1146,11 @@ function WorkspaceApp({ user, logout }: any) {
     }
   }, [isSuperadmin, products.length]);
 
-  if (products.length === 0 || !activeProductId) {
-    return (
-      <OnboardingWizard
-        onComplete={(product) => {
-          const newId = `prod-${Date.now()}`;
-          setProducts((prev) => [...prev, { id: newId, name: product.name }]);
-          setActiveProductId(newId);
-          // Set the initial product data manually since ActiveApp isn't mounted yet
-          window.localStorage.setItem(
-            `${WORKSPACE_ID}_my_product_data_${user.uid}_${newId}`,
-            JSON.stringify(product),
-          );
-        }}
-      />
-    );
+  if (!sharedCampaignId && (products.length === 0 || !activeProductId)) {
+    return null; // Handled by App.tsx ZeroFrictionEntry now
   }
+
+  const effectiveProductId = sharedCampaignId || activeProductId;
 
   return (
     <div className="flex flex-col h-screen">
@@ -1352,27 +1162,29 @@ function WorkspaceApp({ user, logout }: any) {
           <div className="w-px h-6 bg-ink-dark/10"></div>
           <ProductSwitcher
             products={products as any}
-            activeProductId={activeProductId}
+            activeProductId={effectiveProductId}
             onSelectProduct={setActiveProductId}
             isSuperadmin={isSuperadmin}
             user={user}
           />
         </div>
         <div className="flex items-center gap-4 text-sm font-medium text-ink-dark/70">
-          <span>{user.email}</span>
-          <button
-            onClick={logout}
-            className="hover:text-ink-dark transition-colors"
-          >
-            Sign Out
-          </button>
+          <span>{user?.email || "Anonymous"}</span>
+          {user?.email ? (
+            <button
+              onClick={logout}
+              className="hover:text-ink-dark transition-colors"
+            >
+              Sign Out
+            </button>
+          ) : null}
         </div>
       </div>
       <div className="flex-1 overflow-hidden relative">
         <ActiveApp
-          key={activeProductId}
+          key={effectiveProductId}
           user={user}
-          productId={activeProductId}
+          productId={effectiveProductId}
           isSuperadmin={isSuperadmin}
         />
       </div>
@@ -1438,6 +1250,39 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
 
   const { displayTaxonomy, evaluationStatus, mergeFeatures } =
     useTaxonomySync();
+
+  const [jobStatus, setJobStatus] = useState<{
+    status: string;
+    progress: number;
+    message?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!myProductData.jobId) {
+      setJobStatus(null);
+      return;
+    }
+
+    const jobRef = doc(db, "campaign_jobs", myProductData.jobId);
+    const unsubscribe = onSnapshot(jobRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setJobStatus({
+          status: data.status,
+          progress: data.progress || 0,
+          message: data.message || "Generating your custom dashboard...",
+        });
+
+        // When completed, we might want to clear the jobId so it doesn't show loading forever
+        if (data.status === "completed" || data.status === "failed") {
+          setMyProductData((prev: any) => ({ ...prev, jobId: null }));
+          setJobStatus(null);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [myProductData.jobId]);
 
   const competitors = React.useMemo(() => {
     if (!displayTaxonomy || displayTaxonomy.length === 0) return rawCompetitors;
@@ -3236,6 +3081,24 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
   return (
     <div className="flex h-screen bg-[#F5F3ED] text-[#2C2C2C] font-sans overflow-hidden selection:bg-[#2C2C2C]/10 relative">
+      {jobStatus && (
+        <div
+          className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#F5F3ED]"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <h2 className="text-2xl font-bold animate-pulse text-ink-dark">
+            {jobStatus.message}
+          </h2>
+          <div className="mt-6 w-64 h-2 bg-ink-dark/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-ink-dark transition-all duration-1000 ease-in-out"
+              style={{ width: `${Math.max(10, jobStatus.progress * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <GlobalProgressBanner isSyncing={isSyncing} activeTasks={activeTasks} />
       <SyncReviewModal
         isOpen={isSyncReviewOpen}

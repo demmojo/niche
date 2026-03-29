@@ -80,6 +80,13 @@ These features are to be prominently displayed on the landing page and detailed 
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/strategy-to-code-exporter.webm" autoplay loop muted playsinline></video>`
 
+### 10. Reverse Demo Hook (Product-Led Growth)
+
+- **Value Prop:** "Experience the 'Aha!' moment before ever signing up."
+- **Description:** Escape the hard authentication wall. With our Zero-Friction Entry, simply type what you want to build and watch as our ML orchestration engine instantly builds a full, shareable strategy dashboard. Discover lucrative sub-niches, assess market saturation, and experience true value—only creating an account when you're ready to save, edit, or deploy.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/reverse-demo-hook.webm" autoplay loop muted playsinline></video>`
+
 ---
 
 ## Maintenance Guidelines

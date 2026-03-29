@@ -1,5 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
+import { User, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth, loginWithGoogle, loginWithEmail, logout } from "../firebase";
 
 interface AuthContextType {
@@ -8,6 +14,7 @@ interface AuthContextType {
   login: () => Promise<void>;
   loginEmail: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
+  isMergingRef: React.MutableRefObject<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -25,10 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMergingRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      if (!user) {
+        await signInAnonymously(auth);
+        return;
+      }
+
+      if (user && !user.isAnonymous) {
         // Implement polling loop for Firebase JWT custom claims
         // to prevent race condition on new user signup before Supabase calls
         let claimsFound = false;
@@ -64,8 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      setUser(user);
-      setLoading(false);
+      if (!isMergingRef.current) {
+        setUser(user);
+        setLoading(false);
+      }
     });
     return unsubscribe;
   }, []);
@@ -97,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login: loginWithGoogleFn,
         loginEmail: loginWithEmailFn,
         logout: logoutUserFn,
+        isMergingRef,
       }}
     >
       {children}

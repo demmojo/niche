@@ -20,6 +20,8 @@ import { withModelFallback } from "../utils/aiClient";
 import Markdown from "react-markdown";
 import { Tooltip } from "./Tooltip";
 import ExportButton from "./ExportButton";
+import { PQLGateModal } from "./PQLGateModal";
+import { useAuth } from "./AuthProvider";
 import { DocumentationWizardModal } from "./DocumentationWizardModal";
 import { StrategyToCodeWizard } from "./StrategyToCodeWizard";
 import { BrandIdentityWidget } from "./brand-wizard/BrandIdentityWidget";
@@ -72,6 +74,8 @@ export interface MyProductData {
   generatedPrompts?: GeneratedPromptMeta[];
   verifiedFields?: Record<string, boolean>;
   allowAiWriteAccess?: boolean;
+  jobId?: string | null;
+  visibility?: "shared" | "private";
 }
 
 interface MyProductProps {
@@ -100,6 +104,17 @@ export const MyProduct: React.FC<MyProductProps> = ({
         "--brand-primary-fg": brand.primary_fg,
       } as React.CSSProperties)
     : {};
+
+  const { user } = useAuth();
+  const [showPQLGate, setShowPQLGate] = useState(false);
+
+  const requireAuthForAction = (action: () => void) => {
+    if (!user || user.isAnonymous) {
+      setShowPQLGate(true);
+    } else {
+      action();
+    }
+  };
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isStrategyWizardOpen, setIsStrategyWizardOpen] = useState(false);
@@ -272,18 +287,20 @@ export const MyProduct: React.FC<MyProductProps> = ({
    */
   const handleAddStrategy = () => {
     if (!newStrategyContent.trim()) return;
-    setProductData((prev) => ({
-      ...prev,
-      strategy: [
-        ...prev.strategy,
-        {
-          id: Math.random().toString(36).substring(2, 9),
-          content: newStrategyContent.trim(),
-          status: "todo",
-        },
-      ],
-    }));
-    setNewStrategyContent("");
+    requireAuthForAction(() => {
+      setProductData((prev) => ({
+        ...prev,
+        strategy: [
+          ...prev.strategy,
+          {
+            id: Math.random().toString(36).substring(2, 9),
+            content: newStrategyContent.trim(),
+            status: "todo",
+          },
+        ],
+      }));
+      setNewStrategyContent("");
+    });
   };
 
   /**
@@ -415,14 +432,16 @@ ${context}
               Manage your product details, features, and strategy.
             </p>
             <ExportButton
-              onExport={() => setIsStrategyWizardOpen(true)}
+              onExport={() =>
+                requireAuthForAction(() => setIsStrategyWizardOpen(true))
+              }
               label="Generate UI Code"
               tooltipText="Export system prompts to generate code using AI visual editors"
               actionName="generate_ui_code"
             />
           </div>
           <ExportButton
-            onExport={() => setIsWizardOpen(true)}
+            onExport={() => requireAuthForAction(() => setIsWizardOpen(true))}
             label="Generate Docs"
             tooltipText="Export product documentation or OpenSpec files"
             actionName="generate_docs"
@@ -444,7 +463,9 @@ ${context}
             </div>
             {!isEditingDetails ? (
               <button
-                onClick={() => setIsEditingDetails(true)}
+                onClick={() =>
+                  requireAuthForAction(() => setIsEditingDetails(true))
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-paper-base border border-ink-dark/20 text-ink-dark rounded-lg hover:bg-ink-dark/5 transition-colors text-sm font-medium"
               >
                 <Edit2 size={16} />
@@ -842,6 +863,10 @@ ${context}
         myProductData={productData}
         setProductData={setProductData}
         projectId={projectId}
+      />
+      <PQLGateModal
+        isOpen={showPQLGate}
+        onClose={() => setShowPQLGate(false)}
       />
     </div>
   );

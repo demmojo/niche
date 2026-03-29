@@ -1,5 +1,9 @@
 import { Router, Request } from "express";
-import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
+import {
+  requireAuth,
+  requireAppCheck,
+  AuthenticatedRequest,
+} from "./authMiddleware";
 import {
   calculateTarpitScore,
   LLMExtractionSchema,
@@ -17,6 +21,7 @@ export const scoringRouter = Router();
 
 scoringRouter.post(
   "/tarpit-analyze",
+  requireAppCheck,
   requireAuth,
   async (req: any, res: any) => {
     try {
@@ -66,7 +71,7 @@ Competitors:
 ${competitorContext}
 
 Determine if this product idea is a defensible niche or a highly saturated horizontal tarpit.
-Extract the reasoning, a verbatim exact quote from the competitor context that proves saturation or niche viability, the corresponding URL, and a wedge metric (0 to 1, where 1 is highly saturated, 0 is highly unique).
+Extract the reasoning, a verbatim exact quote from the competitor context that proves saturation or niche viability, the corresponding URL, and a wedge metric (0 to 1, where 1 is highly saturated, 0 is highly unique). If the idea is a tarpit, provide an array of 3 hyper-niche pivot suggestions (suggestedNiches) that are much more defensible.
     `;
 
       const jsonSchema = zodToJsonSchema(
@@ -169,6 +174,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         exa_url: llmParsed.exa_url,
         uniqueness: scoreResult.uniqueness,
         saturationFactor: scoreResult.saturationFactor,
+        suggestedNiches: llmParsed.suggestedNiches || [],
         vector: Array.from(vector), // return vector to be saved in DB if needed
       });
     } catch (error: any) {

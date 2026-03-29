@@ -383,7 +383,7 @@ features:
       productivity-enhancing AI copilot. Boosts developer satisfaction and
       throughput by streamlining compliance with 'Docs-as-Code' principles.
     status: Unverified
-    source_file: docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
+    source_file: openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
   - id: predictive-architectural-guardrails
     title: Real-time Predictive Architectural Guardrails
     domain: Architecture
@@ -404,7 +404,7 @@ features:
       system vulnerabilities and enhances code quality, creating a more stable
       and maintainable codebase, crucial for scaling AI-driven applications.
     status: Unverified
-    source_file: docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
+    source_file: openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
   - id: strategic-product-vision-engine
     title: AI-Powered Strategic Product Vision Engine
     domain: Product
@@ -427,7 +427,7 @@ features:
       features, positioning the company as a proactive innovator in the AI
       economy.
     status: Unverified
-    source_file: docs/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
+    source_file: openspec/plans/2026-03-27-feat-ml-powered-doc-drift-detector-plan.md
   - id: autonomous-edge-revenue-routing
     title: Autonomous Edge Revenue Routing & Canary Deployments
     domain: Product Management
