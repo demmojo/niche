@@ -58,7 +58,10 @@ scoringRouter.post(
           .json({ error: "GEMINI_API_KEY is not configured" });
       }
 
-      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+      const ai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        apiVersion: "v1alpha",
+      });
 
       // 2. Strict LLM JSON Parsing with _reasoning
       // We use LLMExtractionSchema
@@ -74,13 +77,10 @@ Determine if this product idea is a defensible niche or a highly saturated horiz
 Extract the reasoning, a verbatim exact quote from the competitor context that proves saturation or niche viability, the corresponding URL, and a wedge metric (0 to 1, where 1 is highly saturated, 0 is highly unique). If the idea is a tarpit, provide an array of 3 hyper-niche pivot suggestions (suggestedNiches) that are much more defensible.
     `;
 
-      const jsonSchema = zodToJsonSchema(
-        LLMExtractionSchema as any,
-        "LLMExtraction",
-      );
+      const jsonSchema = zodToJsonSchema(LLMExtractionSchema);
 
-      const geminiRes = await ai.models.generateContent({
-        model: "gemini-3.1-pro",
+      const callOptions = {
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -88,13 +88,20 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
           systemInstruction:
             "You are an expert M&A due diligence AI. Analyze the competitor saturation.",
         },
-      });
+      };
+
+      const geminiRes = await ai.models.generateContent(callOptions);
 
       const llmOutputRaw = geminiRes.text;
       if (!llmOutputRaw) throw new Error("Empty response from LLM");
 
       // Zod validation
-      const llmParsed = LLMExtractionSchema.parse(JSON.parse(llmOutputRaw));
+      let llmParsed;
+      try {
+        llmParsed = LLMExtractionSchema.parse(JSON.parse(llmOutputRaw));
+      } catch (parseError: any) {
+        throw parseError;
+      }
 
       // 3. Implement Gemini text-embedding-004 integration
       // We embed the user's product description

@@ -332,7 +332,7 @@ export async function reviewArtifactHandler(req: ByokRequest, res: Response) {
     // The spec explicitly says "Uses Gemini 2.5 Flash to determine microcopy tone alignment." in inject-brand-identity-prompt/spec.md
     // BUT AGENTS.md explicitly says "Strictly avoid Gemini 1.5 and 2.5 models; use gemini-3.1-pro". Workspace rule AGENTS.md overrides.
     // I will use `gemini-3.1-pro`.
-    const model = "gemini-3.1-pro";
+    const model = "gemini-3.1-pro-preview";
 
     const ArtifactSemanticSchema = z.object({
       isToneCompliant: z

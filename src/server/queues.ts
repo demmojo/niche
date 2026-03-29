@@ -349,7 +349,7 @@ export const startVisionMlWorker = () => {
       const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
       const geminiRes = await ai.models.generateContent({
-        model: "gemini-3.1-pro",
+        model: "gemini-3.1-pro-preview",
         contents: [
           prompt,
           {

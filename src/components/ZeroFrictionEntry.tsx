@@ -46,6 +46,32 @@ export function ZeroFrictionEntry({
         }),
       });
 
+      const resText = await res
+        .clone()
+        .text()
+        .catch(() => "");
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "2190e2",
+          },
+          body: JSON.stringify({
+            sessionId: "2190e2",
+            runId: "post-fix",
+            hypothesisId: "H1",
+            location: "ZeroFrictionEntry.tsx:fetch",
+            message: "fetch response",
+            data: { status: res.status, ok: res.ok, bodyText: resText },
+            timestamp: Date.now(),
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+
       if (!res.ok) {
         throw new Error("Failed to analyze idea.");
       }

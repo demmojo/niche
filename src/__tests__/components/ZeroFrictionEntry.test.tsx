@@ -21,10 +21,22 @@ vi.mock("../../firebase", () => ({
 describe("ZeroFrictionEntry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Return a mocked Promise response with ok, status, and correct JSON for the tests
     global.fetch = vi.fn((url: string) => {
       if (url === "/api/scoring/tarpit-analyze") {
         return Promise.resolve({
           ok: true,
+          status: 200,
+          clone: function () {
+            return this;
+          },
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                isTarpit: true,
+                suggestedNiches: ["A better niche CRM"],
+              }),
+            ),
           json: () =>
             Promise.resolve({
               isTarpit: true,
@@ -35,6 +47,7 @@ describe("ZeroFrictionEntry", () => {
       if (url === "/api/campaign/start") {
         return Promise.resolve({
           ok: true,
+          status: 200,
           json: () => Promise.resolve({ jobId: "job-123" }),
         });
       }

@@ -308,7 +308,7 @@ async function startServer() {
     60 * 60 * 1000,
   ); // Hourly
 
-  app.use("/api", scoringRouter);
+  app.use("/api/scoring", scoringRouter);
 
   // Visual Intelligence & BYOK Proxy
   app.post("/api/visual/analyze", requireAuth, async (req, res) => {
@@ -344,7 +344,7 @@ async function startServer() {
       const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
       const geminiRes = await ai.models.generateContent({
-        model: "gemini-3.1-pro",
+        model: "gemini-3.1-pro-preview",
         contents: [
           prompt,
           {

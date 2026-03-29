@@ -75,7 +75,7 @@ export const startMarketIntelligenceWorker = () => {
               DerivedInsightExtractionSchema.options[0] as any,
               "Insight",
             );
-            model = "gemini-3.1-pro"; // Use Pro for complex insights
+            model = "gemini-3.1-pro-preview"; // Use Pro for complex insights
             break;
           case "jtbd":
             prompt = PROMPTS.EXTRACT_JTBD;
@@ -83,7 +83,7 @@ export const startMarketIntelligenceWorker = () => {
               JobToBeDoneExtractionSchema.options[0] as any,
               "JTBD",
             );
-            model = "gemini-3.1-pro"; // Use Pro for JTBD
+            model = "gemini-3.1-pro-preview"; // Use Pro for JTBD
             break;
           default:
             throw new Error(`Unknown extraction type: ${extractionType}`);

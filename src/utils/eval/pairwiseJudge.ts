@@ -48,7 +48,7 @@ export async function evaluatePairwise(
   const ai = new GoogleGenAI({ apiKey: geminiKey });
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro",
+    model: "gemini-3.1-pro-preview",
     contents: userPrompt,
     config: {
       systemInstruction: systemPrompt,

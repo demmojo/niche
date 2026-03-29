@@ -11,7 +11,7 @@ const redisClient = process.env.REDIS_URL
 /**
  *
  */
-const createStore = () => {
+export const createStore = () => {
   if (redisClient) {
     return new RedisStore({
       sendCommand: (...args: string[]) => {
