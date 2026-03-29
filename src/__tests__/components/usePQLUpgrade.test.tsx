@@ -1,7 +1,16 @@
 import { renderHook, act } from "@testing-library/react";
 import { usePQLUpgrade } from "../../hooks/usePQLUpgrade";
 import { AuthProvider, useAuth } from "../../components/AuthProvider";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from "vitest";
 import * as firebaseAuth from "firebase/auth";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";

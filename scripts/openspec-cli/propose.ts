@@ -6,7 +6,7 @@ import * as yaml from "js-yaml";
 import * as dotenv from "dotenv";
 import { z } from "zod";
 import { getAllSpecs, generateWithSelfHealing, hashString } from "./utils.js";
-import { checkCollisions } from "./collision.js";
+import { checkCollisions, promptUserConfirm } from "./collision.js";
 import { checkCycles } from "./validate.js";
 import { runEvalForFeature } from "./eval.js";
 import { clearEvalState } from "./db.js";
@@ -149,22 +149,52 @@ Output requirements:
   );
   if (fs.existsSync(finalTargetDir)) {
     if (!options.force) {
-      presenter.fail(
-        `Feature directory already exists at ${finalTargetDir}. Use --force to overwrite.`,
-        "directory_exists",
-        `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
+      if (options.nonInteractive || isHeadless()) {
+        presenter.fail(
+          `Feature directory already exists at ${finalTargetDir}. Use --force to overwrite.`,
+          "directory_exists",
+          `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
+        );
+        process.exit(1);
+      } else {
+        const proceed = await promptUserConfirm(
+          `⚠️ WARNING: The feature directory '${finalTargetDir}' already exists.\nAre you sure you want to completely overwrite it?`,
+        );
+        if (!proceed) {
+          presenter.fail("Aborted by user.", "aborted");
+          process.exit(1);
+        }
+      }
+    } else {
+      presenter.warn(
+        `Overwriting existing directory ${finalTargetDir} due to --force flag.`,
       );
-      process.exit(1);
     }
-    presenter.warn(
-      `Overwriting existing directory ${finalTargetDir} due to --force flag.`,
-    );
   }
 
   const tmpDir = path.resolve(process.cwd(), ".openspec", ".tmp", featureName);
   const specsTmpDir = path.join(tmpDir, "specs", featureName);
 
   if (fs.existsSync(tmpDir)) {
+    if (!options.force) {
+      if (options.nonInteractive || isHeadless()) {
+        presenter.fail(
+          `Temporary staging directory ${tmpDir} already exists and may contain unsaved work. Use --force to wipe it.`,
+          "tmp_dir_exists",
+          `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
+        );
+        process.exit(1);
+      } else {
+        const proceed = await promptUserConfirm(
+          `⚠️ WARNING: The temporary staging directory '${tmpDir}' already exists.\nIt may contain unsaved work from a previous failed run or manual atomic staging.\nAre you sure you want to wipe it out and continue?`,
+        );
+        if (!proceed) {
+          presenter.fail("Aborted by user.", "aborted");
+          process.exit(1);
+        }
+      }
+    }
+    presenter.warn(`Wiping existing temporary directory ${tmpDir}...`);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 
@@ -235,11 +265,10 @@ Output requirements:
   presenter.log("Validating DAG...");
   const isValid = checkCycles(existingSpecs);
   if (!isValid) {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    presenter.fail(
-      "DAG validation failed (circular dependency detected).",
-      "dag_cycle",
+    presenter.warn(
+      `DAG validation failed (circular dependency detected). Temporary files left at ${tmpDir} for inspection.`,
     );
+    presenter.fail("DAG validation failed.", "dag_cycle");
     process.exit(1);
   }
 
@@ -252,7 +281,7 @@ Output requirements:
     options,
   );
   if (hasCollision === "abort") {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    presenter.warn(`Temporary files left at ${tmpDir} for inspection.`);
     process.exit(1);
   }
 
@@ -261,9 +290,8 @@ Output requirements:
   const evalPassed = await runEvalForFeature(tmpDir, featureName, options);
 
   if (!evalPassed) {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
     presenter.fail(
-      "ai-eval failed or aborted. Rolling back temporary files.",
+      `ai-eval failed or aborted. Temporary files left at ${tmpDir} for inspection.`,
       "eval_failed",
     );
     process.exit(1);
@@ -283,16 +311,27 @@ Output requirements:
 
   // Archive plan (unless stdin)
   if (planPath !== "-" && !options.stdin) {
-    const archiveDir = path.join(process.cwd(), "openspec", "archive", "plans");
-    finalizeIntents.push(
-      { kind: "mkdir", absolutePath: archiveDir },
-      {
-        kind: "createFile",
-        absolutePath: path.join(archiveDir, path.basename(planPath)),
-        content: planContent,
-      },
-      { kind: "deleteFile", absolutePath: planPath },
-    );
+    if (planPath.includes(path.join("openspec", "plans"))) {
+      const archiveDir = path.join(
+        process.cwd(),
+        "openspec",
+        "archive",
+        "plans",
+      );
+      finalizeIntents.push(
+        { kind: "mkdir", absolutePath: archiveDir },
+        {
+          kind: "createFile",
+          absolutePath: path.join(archiveDir, path.basename(planPath)),
+          content: planContent,
+        },
+        { kind: "deleteFile", absolutePath: planPath },
+      );
+    } else {
+      presenter.warn(
+        `Skipping archival of ${planPath} because it is not located in the openspec/plans directory.`,
+      );
+    }
   }
 
   executor.execute(finalizeIntents);
