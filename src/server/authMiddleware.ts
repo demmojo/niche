@@ -93,14 +93,6 @@ export const requireAuth = async (
   }).catch(() => {});
   // #endregion
 
-  if (idToken === "MOCK_TOKEN" && process.env.NODE_ENV !== "production") {
-    req.user = {
-      uid: "test-user-123",
-      email: "mo@nicheai.com",
-    } as adminNamespace.auth.DecodedIdToken;
-    return next();
-  }
-
   // Handle Playwright tests specifically
   if (idToken === "MOCK_TOKEN") {
     req.user = {
@@ -112,18 +104,19 @@ export const requireAuth = async (
 
   // In development, decode the token payload without strict verification
   // to support local testing without full Firebase Admin credentials.
-  if (process.env.NODE_ENV !== "production") {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    idToken.split(".").length === 3
+  ) {
     try {
       const parts = idToken.split(".");
-      if (parts.length === 3) {
-        const payloadStr = Buffer.from(parts[1], "base64").toString("utf8");
-        const payload = JSON.parse(payloadStr);
-        req.user = {
-          ...payload,
-          uid: payload.user_id || payload.sub,
-        } as adminNamespace.auth.DecodedIdToken;
-        return next();
-      }
+      const payloadStr = Buffer.from(parts[1], "base64").toString("utf8");
+      const payload = JSON.parse(payloadStr);
+      req.user = {
+        ...payload,
+        uid: payload.user_id || payload.sub,
+      } as adminNamespace.auth.DecodedIdToken;
+      return next();
     } catch (e) {
       console.warn("Dev mode token decode warning:", e);
     }
@@ -191,7 +184,8 @@ export const requireAppCheck = async (
   if (
     process.env.NODE_ENV !== "production" ||
     process.env.FIREBASE_AUTH_EMULATOR_HOST ||
-    process.env.FIRESTORE_EMULATOR_HOST
+    process.env.FIRESTORE_EMULATOR_HOST ||
+    process.env.VITEST
   ) {
     return next();
   }

@@ -69,7 +69,7 @@ test.describe("API Usage Limits and Settings Flow", () => {
 
     // Verify the key persists
     await expect(page.getByLabel("Gemini API Key")).toHaveValue(
-      "custom-gemini-key-123",
+      "********-configured-********",
     );
   });
 });

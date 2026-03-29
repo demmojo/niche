@@ -26,9 +26,9 @@ This rule formalizes the architectural standards for Product-Led Growth (PLG) wi
 **Architectural Principle:** The client drives the PQL scoring UX, but the Express BFF **must independently cryptographically verify** the state to prevent API abuse.
 - **Firebase Anonymous Auth:** Assign UIDs to unauthenticated visitors. Store their interaction state and limits in a locked Firestore document (`users/{uid}/pqlState`).
 - **BFF Enforcement:** The Express server reads `pqlState` to enforce the PQL gate *before* triggering any LLM or scraping routes.
-- **App Check Attestation:** To block malicious bot scripts from looping `signInAnonymously()` to bypass limits, the Express BFF MUST verify a **Firebase App Check (reCAPTCHA v3)** token via `firebase-admin/app-check` middleware before invoking AI routes.
+- **App Check Attestation:** To block malicious bot scripts from looping `signInAnonymously()` to bypass limits, the Express BFF MUST verify a **Firebase App Check (reCAPTCHA v3)** token via `firebase-admin/app-check` middleware before invoking AI routes. The frontend must explicitly attach this token using a utility like `fetchWithAppCheck` to pass the `X-Firebase-AppCheck` header.
 - **Ghost Session Management:** Configure a **Firestore TTL** policy (e.g., 72 hours) on the `pqlState` collection to automatically delete abandoned anonymous sessions and prevent billing bloat.
-- **Dual-Token Account Linking:** When upgrading an anonymous user, the client must capture the `anonToken` before `signInWithPopup`. The backend must verify both the `anonToken` and the `permToken` to prevent IDOR vulnerabilities before using `db.runTransaction` to safely reparent data and leave a tombstone.
+- **Dual-Token Account Linking:** When upgrading an anonymous user, the client must capture the `anonToken` before `signInWithPopup`. The backend must verify both the `anonToken` and the `permToken` to prevent IDOR vulnerabilities before using iterative `.limit(500)` batching to safely reparent data and leave a tombstone (avoiding monolithic transaction limits).
 - **Race Condition Mitigation:** Use a mutable ref (`isMergingRef`) inside `AuthProvider.tsx` to pause `onAuthStateChanged` UI updates during the account linking process, preventing "Snapshot Beats the Fetch" visual flickering.
 
 ## 4. Time-to-Value (TTV) Telemetry

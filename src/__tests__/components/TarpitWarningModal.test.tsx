@@ -65,9 +65,9 @@ describe("TarpitWarningModal", () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it("implements the Reverse Demo Hook and presents a PQL gate for deep report", async () => {
+  it("implements the Reverse Demo Hook by showing the deep report even for anonymous users", async () => {
     // 1. GIVEN the unauthenticated user views the immediate Tarpit Warning (Reverse Demo Hook)
-    vi.mocked(useAuth).mockReturnValue({ user: null } as any);
+    vi.mocked(useAuth).mockReturnValue({ user: { isAnonymous: true } } as any);
     const user = userEvent.setup();
     render(<TarpitWarningModal {...defaultProps} />);
 
@@ -81,14 +81,9 @@ describe("TarpitWarningModal", () => {
     });
     await user.click(viewNichesBtn);
 
-    // 3. THEN the UI should present a PQL sign-up gate instead of immediately showing the data
-    const pqlDialog = await screen.findByRole("dialog", {
-      name: /unlock deep report/i,
-    });
-    expect(pqlDialog).toBeInTheDocument();
-
+    // 3. THEN the UI should present the diff view directly without a PQL gate
     expect(
-      screen.getByRole("button", { name: /create account to view/i }),
+      screen.getByRole("heading", { name: "Evolution Diff" }),
     ).toBeInTheDocument();
   });
 

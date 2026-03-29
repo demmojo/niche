@@ -15,6 +15,7 @@ vi.mock("../../src/server/authMiddleware", () => ({
    *
    */
   requireAuth: (req: any, res: any, next: any) => next(),
+  requireAppCheck: (req: any, res: any, next: any) => next(),
 }));
 
 // Import appPromise AFTER mocking

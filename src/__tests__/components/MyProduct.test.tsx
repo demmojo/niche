@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
+import { AuthProvider } from "../../../src/components/AuthProvider";
 import { MyProduct, MyProductData } from "../../../src/components/MyProduct";
 import { withModelFallback } from "../../../src/utils/aiClient";
 
@@ -115,6 +116,19 @@ vi.mock("@google/genai", () => ({
 }));
 
 // Mock react-markdown
+vi.mock("../../../src/components/AuthProvider", () => ({
+  useAuth: vi.fn(() => ({
+    user: { uid: "test-uid", isAnonymous: false },
+    loading: false,
+    login: vi.fn(),
+    loginEmail: vi.fn(),
+    logout: vi.fn(),
+  })),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
 vi.mock("react-markdown", () => ({
   /**
    *
@@ -162,13 +176,15 @@ const mockInsights: any[] = [];
 const MyProductWrapper = ({ initialData = mockInitialData }) => {
   const [data, setData] = useState(initialData);
   return (
-    <MyProduct
-      projectId="test-project"
-      productData={data}
-      setProductData={setData}
-      competitors={mockCompetitors}
-      insights={mockInsights}
-    />
+    <AuthProvider>
+      <MyProduct
+        projectId="test-project"
+        productData={data}
+        setProductData={setData}
+        competitors={mockCompetitors}
+        insights={mockInsights}
+      />
+    </AuthProvider>
   );
 };
 

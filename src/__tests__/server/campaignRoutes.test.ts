@@ -109,6 +109,7 @@ vi.mock("../../server/authMiddleware", () => ({
       res.status(401).json({ error: "Unauthorized" });
     }
   },
+  requireAppCheck: (req: any, res: any, next: any) => next(),
 }));
 
 vi.mock("../../server/rateLimit", () => ({
