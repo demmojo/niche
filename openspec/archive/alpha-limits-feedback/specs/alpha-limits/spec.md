@@ -7,14 +7,14 @@ This specification details the implementation of a daily usage limiter, clear li
 ### 1. Alpha Usage Tracking
 
 - **Daily Limit:** Users are restricted to exactly 1 manual search, discovery, or global sync per day.
-- **Limit Exemptions:** Users with the email `mo@nicheai.com` or marked as `isSuperadmin` must bypass all limits and usage checks.
+- **Limit Exemptions:** Users with the email `mo.hassaniv@gmail.com` or marked as `isSuperadmin` must bypass all limits and usage checks.
 - **Client-Side Persistence:** Usage counts and timestamps should be persisted in the browser's `localStorage` (`nicheai_alpha_usage`).
 - **Trigger Actions:** The limit applies when triggering `runDiscovery`, `runSystemCheck` (if it includes heavy AI), `runNewsDiscovery`, or `handleGlobalSync`.
 
 ### 2. Limit Reached Communication
 
 - **Limit Reached UI:** When a user attempts to execute a restricted action after hitting their limit, display a clear, well-designed `LimitReachedModal`.
-- **Content:** The modal must explain *why* the limit exists: "We're currently in an Early Alpha phase. To manage the high costs of our AI providers (like Gemini and Exa), we limit accounts to 1 deep discovery or sync per day."
+- **Content:** The modal must explain _why_ the limit exists: "We're currently in an Early Alpha phase. To manage the high costs of our AI providers (like Gemini and Exa), we limit accounts to 1 deep discovery or sync per day."
 - **Call to Action:** The modal must include a primary button to "Request Limit Increase" or "Contact Us," which redirects the user to the Support/Feedback Portal (or opens a feedback form directly).
 
 ### 3. Support & Feedback Portal

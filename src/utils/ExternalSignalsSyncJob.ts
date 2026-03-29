@@ -3,7 +3,6 @@ import { MyProductData } from "../components/MyProduct";
 import { getCustomApiKey } from "./apiKeys";
 import { withModelFallback } from "./aiClient";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 const sentimentExtractionSchema = z.object({
   results: z.array(
@@ -157,9 +156,9 @@ ${JSON.stringify(data.results.map((r: any) => r.text || r.title).slice(0, 3))}
               config: {
                 temperature: 0.1,
                 responseMimeType: "application/json",
-                responseSchema: zodToJsonSchema(
-                  sentimentExtractionSchema as any,
-                ) as any,
+                responseSchema: (
+                  sentimentExtractionSchema as any
+                ).toJSONSchema() as any,
               },
             });
           },
@@ -259,9 +258,9 @@ ${JSON.stringify(data.results.map((r: any) => r.text || r.title).slice(0, 5))}
             config: {
               temperature: 0.1,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(
-                jtbdExtractionSchema as any,
-              ) as any,
+              responseSchema: (
+                jtbdExtractionSchema as any
+              ).toJSONSchema() as any,
             },
           });
         },

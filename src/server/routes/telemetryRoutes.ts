@@ -7,7 +7,6 @@ import { requireAuth } from "../authMiddleware";
 import { requireSuperadmin } from "../superadminRoutes";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 export const telemetryRouter = Router();
 
@@ -131,10 +130,7 @@ ${telemetryDataXml}`;
         contents: prompt,
         config: {
           responseMimeType: "application/json",
-          responseSchema: zodToJsonSchema(
-            StrategicSummarySchema as any,
-            "StrategicSummarySchema",
-          ) as any,
+          responseSchema: (StrategicSummarySchema as any).toJSONSchema() as any,
           systemInstruction:
             "You are a data-driven product analyst. Output strict JSON matching the requested schema.",
         },

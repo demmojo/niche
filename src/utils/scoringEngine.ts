@@ -3,7 +3,7 @@ import { z } from "zod";
 export const LLMExtractionSchema = z.object({
   _reasoning: z.string().optional(),
   exact_quote: z.string().optional(),
-  exa_url: z.string().url().or(z.literal("")),
+  exa_url: z.string().optional(),
   wedge_metric: z.number().optional(),
   suggestedNiches: z.array(z.string()).optional(),
 });
@@ -32,7 +32,7 @@ export const TAXONOMY_THRESHOLDS: Record<
   string,
   { objective: number; subjective: number }
 > = {
-  "text-embedding-004": { objective: 0.85, subjective: 0.6 },
+  "gemini-embedding-001": { objective: 0.85, subjective: 0.6 },
   "text-embedding-3-small": { objective: 0.82, subjective: 0.58 },
   default: { objective: 0.85, subjective: 0.6 },
 };
@@ -91,49 +91,46 @@ export function fastL2NormalizeInPlace(vec: Float32Array): void {
   }
 }
 
+/**
+ * Calculates cosine similarity using manual loop unrolling
+ * for V8 performance optimization on 768D Float32Arrays.
+ */
 export function calculateCosineSimilarity(
-  v1: Float32Array,
-  v2: Float32Array,
+  vecA: Float32Array,
+  vecB: Float32Array,
 ): number {
-  if (v1.length !== v2.length) {
-    throw new Error("Vectors must have the same dimensionality");
+  if (vecA.length !== vecB.length) {
+    throw new Error(
+      `Vector mismatch: vecA(${vecA.length}) != vecB(${vecB.length})`,
+    );
   }
-
   let dotProduct = 0;
-  let magA = 0;
-  let magB = 0;
+  const len = vecA.length;
+  let i = 0;
 
-  for (let i = 0; i < v1.length; i++) {
-    dotProduct += v1[i] * v2[i];
-    magA += v1[i] * v1[i];
-    magB += v2[i] * v2[i];
+  // Unroll by 4 to reduce branch prediction overhead
+  for (; i <= len - 4; i += 4) {
+    dotProduct +=
+      vecA[i] * vecB[i] +
+      vecA[i + 1] * vecB[i + 1] +
+      vecA[i + 2] * vecB[i + 2] +
+      vecA[i + 3] * vecB[i + 3];
+  }
+  // Handle remaining elements
+  for (; i < len; i++) {
+    dotProduct += vecA[i] * vecB[i];
   }
 
-  if (magA === 0 || magB === 0) {
-    return 0;
-  }
-
-  return dotProduct / (Math.sqrt(magA) * Math.sqrt(magB));
+  return Math.max(-1, Math.min(1, dotProduct));
 }
 
-export function calculateOrthogonalDistance(
-  v1: Float32Array,
-  v2: Float32Array,
-  scratchpad: Float32Array,
+// Check squared distance to avoid Math.sqrt in hot paths
+export function calculateSquaredOrthogonalDistance(
+  vecA: Float32Array,
+  vecB: Float32Array,
 ): number {
-  // v2 must be normalized
-  let dotProduct = 0;
-  for (let i = 0; i < v1.length; i++) {
-    dotProduct += v1[i] * v2[i];
-  }
-
-  let orthogonalNormSq = 0;
-  for (let i = 0; i < v1.length; i++) {
-    scratchpad[i] = v1[i] - dotProduct * v2[i];
-    orthogonalNormSq += scratchpad[i] * scratchpad[i];
-  }
-
-  return Math.sqrt(orthogonalNormSq);
+  const cosSim = calculateCosineSimilarity(vecA, vecB);
+  return 1 - cosSim * cosSim;
 }
 
 export function mergeVectors(vectors: Float32Array[]): Float32Array {

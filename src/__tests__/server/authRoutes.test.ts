@@ -18,6 +18,13 @@ vi.mock("firebase-admin", () => {
     doc: vi.fn().mockReturnThis(),
     get: vi.fn().mockResolvedValue({ empty: true, size: 0, docs: [] }),
     set: vi.fn().mockResolvedValue(true),
+    runTransaction: vi.fn(async (callback) => {
+      const mockTransaction = {
+        get: vi.fn().mockResolvedValue({ exists: false }),
+        set: vi.fn(),
+      };
+      return callback(mockTransaction);
+    }),
   };
 
   const authMock = {
@@ -85,7 +92,7 @@ describe("authRoutes merge-anonymous-data", () => {
         oldUid: "anon-123",
       });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(adminInstance.firestore().batch).toHaveBeenCalled();
     expect(adminInstance.firestore().collection).toHaveBeenCalledWith(
       "merged_accounts",
@@ -204,7 +211,7 @@ describe("authRoutes merge-anonymous-data", () => {
         oldUid: "anon-123",
       });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
   });
 
   it("handles mismatched anonymous token uid", async () => {
@@ -277,7 +284,7 @@ describe("authRoutes merge-anonymous-data", () => {
         oldUid: "anon-123",
       });
 
-    expect(res.status).toBe(200); // Should still succeed
+    expect(res.status).toBe(202); // Should still succeed
   });
 
   it("handles missing inputs or headers", async () => {

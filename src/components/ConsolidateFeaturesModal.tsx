@@ -6,7 +6,6 @@ import { Tooltip } from "./Tooltip";
 import { GoogleGenAI } from "@google/genai";
 import { withModelFallback } from "../utils/aiClient";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Props for the ConsolidateFeaturesModal component.
@@ -91,9 +90,9 @@ ${JSON.stringify(allFeatures, null, 2)}
             config: {
               temperature: 0.1,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(
-                consolidationSchema as any,
-              ) as any,
+              responseSchema: (
+                consolidationSchema as any
+              ).toJSONSchema() as any,
             },
           });
         },

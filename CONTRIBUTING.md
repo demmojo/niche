@@ -74,6 +74,8 @@ We follow the [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-an
    - Global MSW setup is in `src/setupTests.ts`.
 2. **E2E Tests (Playwright):** For end-to-end testing, we use API Seeding to provision the required state before the test executes, bypassing slow UI setup steps.
    - Reusable network/API seeding functions are located in `e2e/utils/db-seed.ts`. Use these inside `test.beforeEach` to prepare your test environment.
+   - **Playwright E2E Test Mode:** If you specifically want to browse the application fully authenticated as the `mo.hassaniv@gmail.com` superadmin user without going through the UI, the application has a built-in test mode that mocks the authentication layer completely. You can trigger it by appending a query parameter to your URL. Navigate to `http://localhost:5173/?mock_auth=true` and the application will instantly bypass the Firebase Authentication listeners and hardcode your session to `Email: mo.hassaniv@gmail.com` and `Role: Superadmin`.
+   - _(If you ever need to test what a regular user sees instead of the superadmin, you can use: `http://localhost:5173/?mock_auth=true&role=user`)_
 3. **Flaky Test Quarantine Policy:** If a Playwright test becomes flaky (fails intermittently in CI), it must be immediately moved to a `e2e/quarantine/` directory or skipped with `test.skip()`. Flaky tests erode trust in the CI suite and are not permitted in the active run. They must be fixed or rewritten before being reintroduced.
 
 ## 3. Commit Standards (Conventional Commits & Atomic Commits)

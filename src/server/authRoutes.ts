@@ -54,87 +54,104 @@ authRouter.post(
           .json({ error: "Source account is not anonymous" });
       }
 
-      // 2. Execute Document Reparenting via iterative batching
-      const db = admin.firestore();
+      // Return 202 Accepted and a jobId immediately
+      const jobId = `merge_${oldUid}_${newUid}`;
+      res.status(202).json({ status: "processing", jobId });
 
-      // C. Leave a tombstone to prevent replay attacks and mark merge initiated
-      const tombstoneRef = db.collection("merged_accounts").doc(oldUid);
-      await tombstoneRef.set({
-        mergedInto: newUid,
-        mergedAt: admin.firestore.FieldValue.serverTimestamp(),
-        originalAnonTokenIat: decodedAnonToken.iat,
+      // Run reparenting asynchronously (Floating Promise)
+      Promise.resolve().then(async () => {
+        try {
+          const db = admin.firestore();
+
+          // C. Leave a tombstone to prevent replay attacks and mark merge initiated
+          const tombstoneRef = db.collection("merged_accounts").doc(oldUid);
+
+          await db.runTransaction(async (transaction) => {
+            const tombstoneSnap = await transaction.get(tombstoneRef);
+            if (tombstoneSnap.exists) {
+              throw new Error("Merge already processed or in progress");
+            }
+            transaction.set(tombstoneRef, {
+              mergedInto: newUid,
+              mergedAt: admin.firestore.FieldValue.serverTimestamp(),
+              originalAnonTokenIat: decodedAnonToken.iat,
+            });
+          });
+
+          // A. Campaign Jobs (Iterative chunked reparenting)
+          let hasMoreJobs = true;
+          while (hasMoreJobs) {
+            const snapshot = await db
+              .collection("campaign_jobs")
+              .where("userId", "==", oldUid)
+              .limit(500)
+              .get();
+
+            if (snapshot.empty) {
+              hasMoreJobs = false;
+              break;
+            }
+
+            const batch = db.batch();
+            snapshot.docs.forEach((docSnap) => {
+              batch.update(docSnap.ref, { userId: newUid });
+            });
+            await batch.commit();
+
+            if (snapshot.size < 500) {
+              hasMoreJobs = false;
+            }
+          }
+
+          // B. Workspaces (Iterative chunked reparenting)
+          let hasMoreWorkspaces = true;
+          while (hasMoreWorkspaces) {
+            const snapshot = await db
+              .collection("workspaces")
+              .where("members", "array-contains", oldUid)
+              .limit(500)
+              .get();
+
+            if (snapshot.empty) {
+              hasMoreWorkspaces = false;
+              break;
+            }
+
+            const batch = db.batch();
+            snapshot.docs.forEach((docSnap) => {
+              const data = docSnap.data();
+              const members = data.members || [];
+              const newMembers = members.map((m: string) =>
+                m === oldUid ? newUid : m,
+              );
+              batch.update(docSnap.ref, { members: newMembers });
+            });
+            await batch.commit();
+
+            if (snapshot.size < 500) {
+              hasMoreWorkspaces = false;
+            }
+          }
+
+          // 3. Delete the old anonymous user record
+          try {
+            await admin.auth().deleteUser(oldUid);
+          } catch (delErr) {
+            console.error(
+              `Failed to delete anon user ${oldUid} after successful merge:`,
+              delErr,
+            );
+            // We do not fail the request because the data is already merged safely.
+          }
+        } catch (backgroundError) {
+          console.error("Background Merge Error:", backgroundError);
+        }
       });
-
-      // A. Campaign Jobs (Iterative chunked reparenting)
-      let hasMoreJobs = true;
-      while (hasMoreJobs) {
-        const snapshot = await db
-          .collection("campaign_jobs")
-          .where("userId", "==", oldUid)
-          .limit(500)
-          .get();
-
-        if (snapshot.empty) {
-          hasMoreJobs = false;
-          break;
-        }
-
-        const batch = db.batch();
-        snapshot.docs.forEach((docSnap) => {
-          batch.update(docSnap.ref, { userId: newUid });
-        });
-        await batch.commit();
-
-        if (snapshot.size < 500) {
-          hasMoreJobs = false;
-        }
-      }
-
-      // B. Workspaces (Iterative chunked reparenting)
-      let hasMoreWorkspaces = true;
-      while (hasMoreWorkspaces) {
-        const snapshot = await db
-          .collection("workspaces")
-          .where("members", "array-contains", oldUid)
-          .limit(500)
-          .get();
-
-        if (snapshot.empty) {
-          hasMoreWorkspaces = false;
-          break;
-        }
-
-        const batch = db.batch();
-        snapshot.docs.forEach((docSnap) => {
-          const data = docSnap.data();
-          const members = data.members || [];
-          const newMembers = members.map((m: string) =>
-            m === oldUid ? newUid : m,
-          );
-          batch.update(docSnap.ref, { members: newMembers });
-        });
-        await batch.commit();
-
-        if (snapshot.size < 500) {
-          hasMoreWorkspaces = false;
-        }
-      }
-
-      // 3. Delete the old anonymous user record
-      try {
-        await admin.auth().deleteUser(oldUid);
-      } catch (delErr) {
-        console.error(
-          `Failed to delete anon user ${oldUid} after successful merge:`,
-          delErr,
-        );
-        // We do not fail the request because the data is already merged safely.
-      }
-
-      return res.status(200).json({ success: true });
     } catch (error: any) {
       console.error("Data Merge Error:", error);
-      return res.status(500).json({ error: error.message });
+      if (!res.headersSent) {
+        return res.status(500).json({ error: error.message });
+      }
     }
   },
 );

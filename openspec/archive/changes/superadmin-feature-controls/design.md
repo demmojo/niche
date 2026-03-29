@@ -1,6 +1,6 @@
 ## Context
 
-The application checks `isSuperadmin` explicitly via email (`mo@nicheai.com`). We need a way to override this state for the frontend. For feature flags, we need a globally synced state that the app listens to.
+The application checks `isSuperadmin` explicitly via email (`mo.hassaniv@gmail.com`). We need a way to override this state for the frontend. For feature flags, we need a globally synced state that the app listens to.
 
 ## Goals / Non-Goals
 

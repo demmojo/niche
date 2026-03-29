@@ -247,7 +247,7 @@ describe("Settings Component", () => {
 
   describe("Team Tab", () => {
     it("shows upsell modal for normal users", async () => {
-      // Default mockUser from AuthProvider might not be superadmin if email is not mo@nicheai.com
+      // Default mockUser from AuthProvider might not be superadmin if email is not mo.hassaniv@gmail.com
       await act(async () => {
         window.history.pushState({}, "Test", "?tab=team");
         view = render(<Settings />);
@@ -270,7 +270,7 @@ describe("Settings Component", () => {
 
     it("shows invite member modal for superadmin", async () => {
       (useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
-        user: { email: "mo@nicheai.com" },
+        user: { email: "mo.hassaniv@gmail.com" },
       });
 
       await act(async () => {

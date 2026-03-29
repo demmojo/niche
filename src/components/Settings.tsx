@@ -35,7 +35,7 @@ const OUTPUT_PRICE_PER_M = 5.0;
  */
 export const Settings: React.FC = () => {
   const { user } = useAuth();
-  const isSuperadmin = user?.email === "mo@nicheai.com";
+  const isSuperadmin = user?.email === "mo.hassaniv@gmail.com";
 
   const [activeTab, setActiveTab] = useUrlSearchParam("tab", "general");
   const [isUpsellOpen, setIsUpsellOpen] = useState(false);
@@ -683,7 +683,7 @@ export const Settings: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-ink-dark">
-                              mo@nicheai.com
+                              mo.hassaniv@gmail.com
                             </p>
                             <p className="text-xs text-ink-dark/50">
                               Superadmin

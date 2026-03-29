@@ -6,7 +6,6 @@ import { withModelFallback } from "../utils/aiClient";
 import { getErrorMessage } from "../utils/errorHandler";
 import Markdown from "react-markdown";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Props for the InsightGeneratorModal component.
@@ -124,9 +123,9 @@ Ask a multiple-choice question to understand what area the user wants to focus o
             config: {
               temperature: 0.4,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(
-                startConversationSchema as any,
-              ) as any,
+              responseSchema: (
+                startConversationSchema as any
+              ).toJSONSchema() as any,
             },
           });
         },
@@ -220,9 +219,9 @@ ${JSON.stringify(rawContextData).substring(0, 15000)}
             config: {
               temperature: 0.2,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(
-                insightResponseSchema as any,
-              ) as any,
+              responseSchema: (
+                insightResponseSchema as any
+              ).toJSONSchema() as any,
             },
           });
         },

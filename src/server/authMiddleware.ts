@@ -100,7 +100,7 @@ export const requireAuth = async (
   if (idToken === "MOCK_TOKEN") {
     req.user = {
       uid: "test-user-123",
-      email: "mo@nicheai.com",
+      email: "mo.hassaniv@gmail.com",
     } as adminNamespace.auth.DecodedIdToken;
     return next();
   }

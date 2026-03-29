@@ -35,9 +35,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isMergingRef = useRef(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Safety timeout: if auth takes longer than 5 seconds, stop loading
+    const safetyTimeout = setTimeout(() => {
+      console.warn(
+        "Auth state took too long to resolve. Forcing load completion.",
+      );
+      if (isMounted && loading) {
+        setLoading(false);
+      }
+    }, 5000);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Auth state changed! User:", user?.uid || "null");
+      clearTimeout(safetyTimeout);
+
       if (!user) {
-        await signInAnonymously(auth);
+        try {
+          console.log("Attempting to sign in anonymously...");
+          // Ensure we don't block the UI forever on this
+          await signInAnonymously(auth);
+          console.log("Signed in anonymously!");
+        } catch (error) {
+          console.error("Failed to sign in anonymously:", error);
+          if (!isMergingRef.current && isMounted) {
+            setUser(null);
+            setLoading(false);
+          }
+        }
+        // Whether anonymous auth succeeds or fails, we should stop loading
+        // so the UI can be interactive instead of getting stuck on a blank screen.
+        if (!isMergingRef.current && isMounted) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -61,6 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               console.log(
                 `Waiting for custom claims... attempt ${attempts + 1}/${maxAttempts}`,
               );
+              // Check if component unmounted while waiting
+              if (!isMounted) return;
               await new Promise((resolve) => setTimeout(resolve, 500));
               attempts++;
             }
@@ -77,12 +110,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      if (!isMergingRef.current) {
+      if (!isMergingRef.current && isMounted) {
         setUser(user);
         setLoading(false);
       }
     });
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
+      unsubscribe();
+    };
   }, []);
 
   /**

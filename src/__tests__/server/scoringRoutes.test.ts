@@ -25,7 +25,7 @@ vi.mock("../../utils/scoringEngine", async (importOriginal) => {
         saturationFactor: 0.5,
       };
     }),
-    calculateOrthogonalDistance: vi.fn().mockReturnValue(0.8), // Always high to trigger override if tarpit
+    calculateSquaredOrthogonalDistance: vi.fn().mockReturnValue(0.8), // Always high to trigger override if tarpit
   };
 });
 
@@ -148,8 +148,8 @@ describe("scoringRoutes", () => {
   it("should return false positive override if tarpit but high orth distance", async () => {
     // Note: The original module is already mocked globally in this file, but to test
     // the dynamic behavior, we are overriding the Gemini mock locally above. However,
-    // the route imports `calculateOrthogonalDistance` dynamically:
-    // `const { calculateOrthogonalDistance } = await import("../utils/scoringEngine");`
+    // the route imports `calculateSquaredOrthogonalDistance` dynamically:
+    // `const { calculateSquaredOrthogonalDistance } = await import("../utils/scoringEngine");`
     // Since we mocked `../../utils/scoringEngine` globally, that import will get the global mock
     // that returns 0.8. We also need to make sure the vectorUniqueness triggers `isTarpit = true`.
     // Let's re-mock the global Gemini GenAI mock specifically for this test block.

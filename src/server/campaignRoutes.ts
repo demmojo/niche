@@ -12,7 +12,7 @@ import { getActionCredits, deductActionCredit } from "./credits";
 import {
   calculateTarpitScore,
   calculateCosineSimilarity,
-  calculateOrthogonalDistance,
+  calculateSquaredOrthogonalDistance,
   getTaxonomyThresholds,
   fastL2NormalizeInPlace,
   LLMExtractionSchema,
@@ -20,7 +20,6 @@ import {
 } from "../utils/scoringEngine";
 import { campaignLimiter, fakeDoorSignalLimiter } from "./rateLimit";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { networkIoQueue } from "./queues";
 import express from "express";
 import Exa from "exa-js";
@@ -242,7 +241,7 @@ Return the result strictly adhering to the JSON schema.`;
             config: {
               temperature: 0.1,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(ListSchema as any) as any,
+              responseSchema: (ListSchema as any).toJSONSchema() as any,
             },
           });
           return res.text;
@@ -551,9 +550,6 @@ export async function runDeepValidationCampaign(
   );
   fastL2NormalizeInPlace(baseVector);
 
-  // Allocate a single Float32Array scratchpad for Orthogonal Distance calculation to avoid GC pauses
-  const orthogonalScratchpad = new Float32Array(DIMENSIONS);
-
   let totalUniqueness = 0;
   let maxWedge = 0;
 
@@ -568,11 +564,11 @@ export async function runDeepValidationCampaign(
     totalUniqueness += uniqueness;
 
     // Wedge metric (Orthogonal distance)
-    const orthogonalDistance = calculateOrthogonalDistance(
+    const orthogonalDistanceSq = calculateSquaredOrthogonalDistance(
       baseVector,
       comp.vector,
-      orthogonalScratchpad,
     );
+    const orthogonalDistance = Math.sqrt(orthogonalDistanceSq); // Take sqrt here since downstream expects the actual distance
     maxWedge = Math.max(maxWedge, orthogonalDistance);
 
     const jaccard = 0.5; // Mock jaccard
@@ -1113,7 +1109,7 @@ campaignRouter.post(
 
       // 1. Generate embeddings
       const embeddings: Float32Array[] = [];
-      const modelName = "text-embedding-004";
+      const modelName = "gemini-embedding-001";
       for (const feature of featuresToMerge) {
         const embedRes = await ai.models.embedContent({
           model: modelName,

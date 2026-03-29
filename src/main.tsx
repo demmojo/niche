@@ -5,6 +5,7 @@ import "./index.css";
 import { AuthProvider } from "./components/AuthProvider";
 import { VisualKnowledgeProvider } from "./store/visualKnowledgeStore";
 import { CitationMapProvider } from "./store/citationMapStore";
+import { Provider as TooltipProvider } from "@radix-ui/react-tooltip";
 
 // Suppress MetaMask connection errors caused by browser extensions
 window.addEventListener("unhandledrejection", (event) => {
@@ -22,7 +23,9 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <VisualKnowledgeProvider>
         <CitationMapProvider>
-          <App />
+          <TooltipProvider delayDuration={300}>
+            <App />
+          </TooltipProvider>
         </CitationMapProvider>
       </VisualKnowledgeProvider>
     </AuthProvider>

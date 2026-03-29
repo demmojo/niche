@@ -12,7 +12,7 @@ if (!admin.apps.length) {
 }
 
 /**
- * 768 Dimensions for Gemini text-embedding-004
+ * 768 Dimensions for Gemini gemini-embedding-001
  */
 const VECTOR_DIMS = 768;
 const vectorPool = new Float32ArrayPool(VECTOR_DIMS);

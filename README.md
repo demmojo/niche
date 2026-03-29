@@ -227,6 +227,13 @@ The application will be available at **[http://localhost:3000](http://localhost:
 
 ### Local Troubleshooting & Configuration
 
+- **Local Authentication & E2E Testing:** If you specifically want to browse the application fully authenticated as the `mo.hassaniv@gmail.com` superadmin user without going through the UI:
+  - The application has a built-in "Playwright E2E Test Mode" that mocks the authentication layer completely. You can trigger it by appending a query parameter to your URL.
+  - Navigate to: `http://localhost:5173/?mock_auth=true` (or whichever port your local server is running on).
+  - The application will instantly bypass the Firebase Authentication listeners and hardcode your session to:
+    - **Email:** `mo.hassaniv@gmail.com`
+    - **Role:** Superadmin
+  - _(If you ever need to test what a regular user sees instead of the superadmin, you can use: `http://localhost:5173/?mock_auth=true&role=user`)_
 - **API Rate Limits**: The AI clients (`aiClient.ts`, `geminiClient.ts`) handle `429` rate limits dynamically. Ensure you monitor the in-app Usage Tracker during extensive testing. If you exhaust a key, fallback mechanisms will attempt to use alternative models.
 - **Firebase Sync Conflicts**: `useFirebaseSync` includes debounced logic and error trapping. If testing offline scenarios, rely on `firebase.ts` built-in offline persistence. Check console logs for `resource-exhausted` quotas.
 - **Test State Leaks**: Tests are wrapped with `<VisualKnowledgeProvider>` in `src/test-utils/render.tsx` to isolate Zustand state. Ensure any new tests utilizing context-bound stores import `render` from `test-utils` rather than `@testing-library/react`.

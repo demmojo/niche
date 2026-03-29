@@ -648,8 +648,11 @@ describe("campaignRoutes", () => {
       });
 
       const scoringEngine = await import("../../utils/scoringEngine");
-      vi.spyOn(scoringEngine, "calculateOrthogonalDistance").mockReturnValue(
-        0.9,
+      vi.spyOn(
+        scoringEngine,
+        "calculateSquaredOrthogonalDistance",
+      ).mockReturnValue(
+        0.81, // 0.9^2 = 0.81
       );
       vi.spyOn(scoringEngine, "calculateTarpitScore").mockReturnValue({
         status: "success",

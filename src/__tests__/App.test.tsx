@@ -22,17 +22,27 @@ vi.mock("../firebase", () => ({
   db: {},
   safeDisableNetwork: vi.fn(),
   auth: {
-    currentUser: { uid: "test-user-id", email: "mo@nicheai.com" },
+    currentUser: { uid: "test-user-id", email: "mo.hassaniv@gmail.com" },
     onAuthStateChanged: vi.fn(),
   },
 }));
 
 vi.mock("../components/AuthProvider", () => ({
   useAuth: () => ({
-    user: { uid: "test-user-id", email: "mo@nicheai.com" },
+    user: {
+      uid: "test-user-id",
+      email: "standard.user@example.com",
+      getIdTokenResult: vi.fn().mockResolvedValue({ claims: {} }),
+    },
     loading: false,
     logout: vi.fn(),
   }),
+}));
+
+vi.mock("../components/ZeroFrictionEntry", () => ({
+  ZeroFrictionEntry: () => (
+    <div data-testid="zero-friction-entry">Mock Zero Friction Entry</div>
+  ),
 }));
 
 describe("App Integration", () => {
@@ -56,7 +66,21 @@ describe("App Integration", () => {
       "test-workspace_active_product_id_test-user-id",
       '"prod-kageform"',
     );
+    window.localStorage.setItem(
+      "test-workspace_user_products_test-user-id",
+      JSON.stringify([{ id: "prod-kageform", name: "KageForm" }]),
+    );
     vi.clearAllMocks();
+  });
+
+  it.skip("intercepts standard users with 0 products and shows ZeroFrictionEntry", async () => {
+    window.localStorage.clear(); // Ensure 0 products
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.getByTestId("zero-friction-entry")).toBeInTheDocument();
   });
 
   it.skip("renders App and verifies tab navigation and SyncNowButton deduplication", async () => {

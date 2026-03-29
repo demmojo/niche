@@ -77,7 +77,7 @@ describe("ZeroFrictionEntry", () => {
 
     // Should optimistically show analyzing state
     expect(
-      screen.getByText("Analyzing market saturation..."),
+      screen.getByText("Evaluating market viability..."),
     ).toBeInTheDocument();
 
     await waitFor(() => {

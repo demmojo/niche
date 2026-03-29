@@ -1,7 +1,13 @@
-import React, { useActionState, useOptimistic } from "react";
+import React, {
+  useActionState,
+  useOptimistic,
+  useState,
+  useEffect,
+} from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "../firebase"; // Adjust to your config
 import { fetchWithAppCheck } from "../utils/fetchWithAppCheck";
+import { CheckCircle2, Loader2, Circle } from "lucide-react";
 
 type EntryState = {
   status: "idle" | "analyzing" | "success" | "error";
@@ -10,6 +16,143 @@ type EntryState = {
 };
 
 const initialState: EntryState = { status: "idle", message: "" };
+
+function AnalyzingState({ message, idea }: { message: string; idea: string }) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [competitorCount, setCompetitorCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Fetch the actual competitor count from Exa first
+    async function fetchActualCount() {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetchWithAppCheck("/api/scoring/count-competitors", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            productName: "AI Idea",
+            productDescription: idea,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) setCompetitorCount(data.count || 0);
+        } else {
+          // Fallback if the route fails
+          if (isMounted) setCompetitorCount(3);
+        }
+      } catch (error) {
+        if (isMounted) setCompetitorCount(3);
+      }
+    }
+
+    fetchActualCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [idea]);
+
+  const ANALYSIS_STEPS = [
+    "Parsing core premise and intent...",
+    "Searching the web for similar competitors...",
+    competitorCount === null
+      ? "Finding potential competitors..."
+      : `Found ${competitorCount} potential competitors...`,
+    "Analyzing competitor data & feature density...",
+    "Evaluating market gaps and tarpit risk...",
+    "Synthesizing optimal niche pivots...",
+    "Finalizing market intelligence report...",
+  ];
+
+  useEffect(() => {
+    if (currentStep >= ANALYSIS_STEPS.length - 1) return;
+
+    // Different steps can take different amounts of simulated time
+    let delay = 1500 + Math.random() * 1500; // default 1.5s - 3.0s
+    if (currentStep === 1) {
+      // Searching for competitors: wait longer or wait until we have the count
+      if (competitorCount === null) {
+        delay = 3000;
+      } else {
+        delay = 1000;
+      }
+    }
+    if (currentStep === 2) delay = 800; // X competitors found is an instant readout
+
+    const timeout = setTimeout(() => {
+      // Pause progression at step 1 if we haven't fetched the count yet
+      if (currentStep === 1 && competitorCount === null) {
+        // Just poll again shortly
+        setCurrentStep(currentStep);
+      } else {
+        setCurrentStep((prev) => Math.min(prev + 1, ANALYSIS_STEPS.length - 1));
+      }
+    }, delay);
+
+    return () => clearTimeout(timeout);
+  }, [currentStep, competitorCount, ANALYSIS_STEPS.length]);
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED] px-4"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10">
+        <h2 className="text-2xl font-serif font-bold text-ink-dark mb-6 text-center">
+          {message}
+        </h2>
+
+        <div className="space-y-4">
+          {ANALYSIS_STEPS.map((step, index) => {
+            const isCompleted = index < currentStep;
+            const isCurrent = index === currentStep;
+            const isPending = index > currentStep;
+
+            return (
+              <div
+                key={index}
+                className={`flex items-center gap-4 transition-all duration-500 ${
+                  isCompleted
+                    ? "opacity-100"
+                    : isCurrent
+                      ? "opacity-100 scale-[1.02]"
+                      : "opacity-40"
+                }`}
+              >
+                {isCompleted ? (
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                ) : isCurrent ? (
+                  <Loader2 className="w-6 h-6 text-ink-dark animate-spin flex-shrink-0" />
+                ) : (
+                  <Circle className="w-6 h-6 text-ink-dark/20 flex-shrink-0" />
+                )}
+                <span
+                  className={`text-base font-medium transition-colors duration-500 ${
+                    isCompleted
+                      ? "text-ink-dark"
+                      : isCurrent
+                        ? "text-ink-dark"
+                        : "text-ink-dark/50"
+                  }`}
+                >
+                  {step}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ZeroFrictionEntry({
   onComplete,
@@ -114,7 +257,7 @@ export function ZeroFrictionEntry({
     // This masks the delay of both Firebase Auth and the Data Fetch
     setOptimisticState({
       status: "analyzing",
-      message: "Analyzing market saturation...",
+      message: "Evaluating market viability...",
     });
 
     // Dispatch the actual background process
@@ -123,19 +266,13 @@ export function ZeroFrictionEntry({
 
   // 5. Render Explainable States (acting as our highly-converting loading UI)
   if (optimisticState.status === "analyzing" || isPending) {
+    // We get the idea from the form data or assume "this idea" if it's not set
+    const formEl = document.querySelector("form") as HTMLFormElement;
+    const currentIdea = formEl
+      ? (new FormData(formEl).get("idea") as string)
+      : "this idea";
     return (
-      <div
-        className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <h2 className="text-2xl font-bold animate-pulse text-ink-dark">
-          {optimisticState.message}
-        </h2>
-        <span className="mt-4 text-sm text-ink-dark/60">
-          Pivoting away from tarpits...
-        </span>
-      </div>
+      <AnalyzingState message={optimisticState.message} idea={currentIdea} />
     );
   }
 

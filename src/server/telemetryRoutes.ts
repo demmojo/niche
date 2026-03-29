@@ -6,7 +6,6 @@ import { z } from "zod";
 import * as admin from "firebase-admin";
 import { requireSuperadmin } from "./superadminRoutes";
 import { GoogleGenAI } from "@google/genai";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 export const telemetryRouter = Router();
 
@@ -103,10 +102,7 @@ telemetryRouter.post(
 
       // 3. Call Gemini with Structured Output
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const schemaForGemini = zodToJsonSchema(
-        StrategySummarySchema as any,
-        "Summary",
-      );
+      const schemaForGemini = (StrategySummarySchema as any).toJSONSchema();
 
       const result = await genAI.models.generateContent({
         model: "gemini-3.1-pro-preview",

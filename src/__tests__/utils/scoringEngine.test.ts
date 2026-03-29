@@ -1,7 +1,7 @@
 import { describe, it, expect, bench } from "vitest";
 import {
   calculateTarpitScore,
-  calculateOrthogonalDistance,
+  calculateSquaredOrthogonalDistance,
   fastL2NormalizeInPlace,
   validateExaUrl,
   mergeVectors,
@@ -69,16 +69,15 @@ describe("scoringEngine", () => {
     });
   });
 
-  describe("calculateOrthogonalDistance", () => {
-    it("calculates the correct orthogonal distance", () => {
+  describe("calculateSquaredOrthogonalDistance", () => {
+    it("calculates the correct squared orthogonal distance", () => {
       const v1 = new Float32Array([1, 0, 0]);
       const v2 = new Float32Array([0, 1, 0]);
-      const scratchpad = new Float32Array(3);
 
-      const distance = calculateOrthogonalDistance(v1, v2, scratchpad);
-      // v1 and v2 are orthogonal, so projecting v1 onto v2 yields 0 vector.
-      // Orthogonal part is v1. Norm is 1.
-      expect(distance).toBeCloseTo(1);
+      const distanceSq = calculateSquaredOrthogonalDistance(v1, v2);
+      // v1 and v2 are orthogonal, so cosine similarity is 0.
+      // Squared orthogonal distance is 1 - 0 = 1.
+      expect(distanceSq).toBeCloseTo(1);
     });
   });
 
@@ -180,7 +179,7 @@ describe("scoringEngine", () => {
     it("returns correct thresholds for known model", async () => {
       const { getTaxonomyThresholds } =
         await import("../../utils/scoringEngine");
-      const t = getTaxonomyThresholds("text-embedding-004");
+      const t = getTaxonomyThresholds("gemini-embedding-001");
       expect(t.objective).toBe(0.85);
       expect(t.subjective).toBe(0.6);
     });
@@ -217,9 +216,7 @@ describe("scoringEngine", () => {
     it("gracefully rejects arrays with asymmetric lengths (TC-VEC-03)", () => {
       const v1 = new Float32Array([1, 0, 0]);
       const v2 = new Float32Array([1, 0]);
-      expect(() => calculateCosineSimilarity(v1, v2)).toThrow(
-        /dimensionality/i,
-      );
+      expect(() => calculateCosineSimilarity(v1, v2)).toThrow(/mismatch/i);
     });
   });
 });

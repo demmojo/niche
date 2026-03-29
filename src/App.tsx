@@ -135,6 +135,15 @@ import { Tooltip } from "./components/Tooltip";
 import ExportButton from "./components/ExportButton";
 import { ProductSwitcher } from "./components/ProductSwitcher";
 import {
+  WorkspaceProvider,
+  useWorkspace,
+  useWorkspaceDispatch,
+  useProducts,
+  useProductsDispatch,
+  useWorkspaceLoading,
+} from "./components/WorkspaceProvider";
+import { useSuperadminBootstrap } from "./components/useSuperadminBootstrap";
+import {
   Toast,
   DerivedInsight,
   SourceType,
@@ -1016,12 +1025,14 @@ export default function App() {
     window.location.search.includes("mock_auth=true")
   ) {
     const isUserRole = window.location.search.includes("role=user");
-    const mockEmail = isUserRole ? "user@example.com" : "mo@nicheai.com";
+    const mockEmail = isUserRole ? "user@example.com" : "mo.hassaniv@gmail.com";
     return (
-      <WorkspaceApp
-        user={{ email: mockEmail, uid: "test-user-123" }}
-        logout={() => {}}
-      />
+      <WorkspaceProvider>
+        <WorkspaceRouter
+          user={{ email: mockEmail, uid: "test-user-123" }}
+          logout={() => {}}
+        />
+      </WorkspaceProvider>
     );
   }
 
@@ -1039,64 +1050,38 @@ export default function App() {
     sharedCampaignId = pathname.replace("/strategy/", "").split("/")[0];
   }
 
-  // Check if user has an active product
-  const productsJSON = user
-    ? window.localStorage.getItem(`${WORKSPACE_ID}_user_products_${user.uid}`)
-    : null;
-  const products = productsJSON ? JSON.parse(productsJSON) : [];
-
   if (sharedCampaignId) {
-    // If it's a shared campaign, mount WorkspaceApp with that campaign ID
+    // If it's a shared campaign, mount WorkspaceRouter with that campaign ID
     return (
-      <WorkspaceApp
-        user={user || { isAnonymous: true, uid: "visitor" }}
-        logout={logout}
-        sharedCampaignId={sharedCampaignId}
-      />
+      <WorkspaceProvider>
+        <WorkspaceRouter
+          user={user || { isAnonymous: true, uid: "visitor" }}
+          logout={logout}
+          sharedCampaignId={sharedCampaignId}
+        />
+      </WorkspaceProvider>
     );
   }
 
-  if (!user || products.length === 0) {
-    return (
-      <ZeroFrictionEntry
-        onComplete={(product) => {
-          if (auth.currentUser) {
-            const uid = auth.currentUser.uid;
-            const newId = `prod-${Date.now()}`;
-            window.localStorage.setItem(
-              `${WORKSPACE_ID}_user_products_${uid}`,
-              JSON.stringify([{ id: newId, name: product.name }]),
-            );
-            window.localStorage.setItem(
-              `${WORKSPACE_ID}_active_product_id_${uid}`,
-              JSON.stringify(newId),
-            );
-            window.localStorage.setItem(
-              `${WORKSPACE_ID}_my_product_data_${uid}_${newId}`,
-              JSON.stringify(product),
-            );
-            // Force a reload to mount WorkspaceApp with the new state
-            window.location.reload();
-          }
-        }}
-      />
-    );
-  }
-
-  return <WorkspaceApp user={user} logout={logout} />;
+  return (
+    <WorkspaceProvider>
+      <WorkspaceRouter user={user} logout={logout} />
+    </WorkspaceProvider>
+  );
 }
 
-function WorkspaceApp({ user, logout, sharedCampaignId }: any) {
-  const [products, setProducts] = useLocalStorage<
-    { id: string; name: string }[]
-  >(`user_products_${user.uid}`, []);
-  const [activeProductId, setActiveProductId] = useLocalStorage<string | null>(
-    `active_product_id_${user.uid}`,
-    null,
-  );
+function WorkspaceRouter({ user, logout, sharedCampaignId }: any) {
+  useSuperadminBootstrap();
+  const products = useProducts();
+  const setProducts = useProductsDispatch();
+  const activeProductId = useWorkspace();
+  const setActiveProductId = useWorkspaceDispatch();
+  const isLoadingWorkspace = useWorkspaceLoading();
+
   const [isRedeeming, setIsRedeeming] = useState(false);
 
-  const isSuperadmin = user.email === "mo@nicheai.com";
+  const isSuperadmin =
+    user?.email === "mo.hassaniv@gmail.com" || user?.email === "admin@test.com";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1138,19 +1123,40 @@ function WorkspaceApp({ user, logout, sharedCampaignId }: any) {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (isSuperadmin && products.length === 0) {
-      const defaultId = "prod-kageform";
-      setProducts([{ id: defaultId, name: "KageForm" }]);
-      setActiveProductId(defaultId);
-    }
-  }, [isSuperadmin, products.length]);
+  if (isLoadingWorkspace && !sharedCampaignId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
-  if (!sharedCampaignId && (products.length === 0 || !activeProductId)) {
-    return null; // Handled by App.tsx ZeroFrictionEntry now
+  if (!sharedCampaignId && (!user || products.length === 0)) {
+    return (
+      <ZeroFrictionEntry
+        onComplete={(product) => {
+          if (auth.currentUser) {
+            const uid = auth.currentUser.uid;
+            const newId = `prod-${Date.now()}`;
+            setProducts([{ id: newId, name: product.name }]);
+            setActiveProductId(newId);
+            try {
+              window.localStorage.setItem(
+                `${WORKSPACE_ID}_my_product_data_${uid}_${newId}`,
+                JSON.stringify(product),
+              );
+            } catch (e) {}
+          }
+        }}
+      />
+    );
   }
 
   const effectiveProductId = sharedCampaignId || activeProductId;
+
+  if (!effectiveProductId) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -1662,7 +1668,13 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${await user?.getIdToken()}`,
         },
-        body: JSON.stringify({ competitors, baseIdea: myProductData }),
+        body: JSON.stringify({
+          competitors,
+          baseIdea: {
+            name: myProductData.name,
+            description: myProductData.description,
+          },
+        }),
         signal,
       });
 

@@ -55,7 +55,7 @@ describe("useTaxonomySync Hook", () => {
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    window.location = originalLocation as any;
     vi.restoreAllMocks();
   });
 

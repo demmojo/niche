@@ -10,7 +10,6 @@ import {
   PROMPTS,
   sanitizeForXml,
 } from "../../utils/aiSchemas";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { calculateHeuristicScores } from "../scoringHeuristics";
 
 // Initialize Firebase Admin if not already initialized
@@ -64,25 +63,22 @@ export const startMarketIntelligenceWorker = () => {
         switch (extractionType) {
           case "competitor":
             prompt = PROMPTS.EXTRACT_COMPETITOR_METADATA;
-            schema = zodToJsonSchema(
-              CompetitorExtractionSchema.options[0] as any,
-              "Competitor",
-            );
+            schema = (
+              CompetitorExtractionSchema.options[0] as any
+            ).toJSONSchema();
             break;
           case "insight":
             prompt = PROMPTS.EXTRACT_DERIVED_INSIGHTS;
-            schema = zodToJsonSchema(
-              DerivedInsightExtractionSchema.options[0] as any,
-              "Insight",
-            );
+            schema = (
+              DerivedInsightExtractionSchema.options[0] as any
+            ).toJSONSchema();
             model = "gemini-3.1-pro-preview"; // Use Pro for complex insights
             break;
           case "jtbd":
             prompt = PROMPTS.EXTRACT_JTBD;
-            schema = zodToJsonSchema(
-              JobToBeDoneExtractionSchema.options[0] as any,
-              "JTBD",
-            );
+            schema = (
+              JobToBeDoneExtractionSchema.options[0] as any
+            ).toJSONSchema();
             model = "gemini-3.1-pro-preview"; // Use Pro for JTBD
             break;
           default:

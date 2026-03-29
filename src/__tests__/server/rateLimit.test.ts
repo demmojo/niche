@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 describe("rateLimit", () => {
   const originalEnv = process.env;
@@ -48,7 +48,7 @@ describe("rateLimit", () => {
     expect(store).toBeDefined();
 
     // Test the sendCommand callback
-    const result = store.sendCommand("PING", "arg1");
+    const result = (store as any).sendCommand("PING", "arg1");
     expect(result).toBe("mocked-call");
   });
 

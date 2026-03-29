@@ -1,6 +1,5 @@
 import { withModelFallback } from "./aiClient";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 export interface TarpitAnalysisResult {
   isTarpit: boolean;
@@ -69,7 +68,7 @@ Return a strictly formatted JSON object analyzing the idea. (Response)
             temperature: 0.2,
             responseMimeType: "application/json",
             // @ts-ignore
-            responseSchema: zodToJsonSchema(tarpitSchema as any as any) as any,
+            responseSchema: (tarpitSchema as any as any).toJSONSchema() as any,
           },
         });
       },

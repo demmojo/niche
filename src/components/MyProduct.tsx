@@ -27,7 +27,6 @@ import { StrategyToCodeWizard } from "./StrategyToCodeWizard";
 import { BrandIdentityWidget } from "./brand-wizard/BrandIdentityWidget";
 import { DerivedInsight } from "../types";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { useProjectBrandIdentity } from "../hooks/useProjectBrandIdentity";
 
 const strategySchema = z.object({
@@ -377,7 +376,7 @@ ${context}
             config: {
               temperature: 0.2,
               responseMimeType: "application/json",
-              responseSchema: zodToJsonSchema(strategySchema as any) as any,
+              responseSchema: (strategySchema as any).toJSONSchema() as any,
             },
           });
         },

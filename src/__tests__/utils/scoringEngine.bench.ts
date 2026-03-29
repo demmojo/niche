@@ -2,7 +2,7 @@ import { bench, describe } from "vitest";
 import {
   calculateCosineSimilarity,
   fastL2NormalizeInPlace,
-  calculateOrthogonalDistance,
+  calculateSquaredOrthogonalDistance,
 } from "../../utils/scoringEngine";
 
 describe("scoringEngine performance", () => {
@@ -30,10 +30,9 @@ describe("scoringEngine performance", () => {
   );
 
   bench(
-    "calculateOrthogonalDistance",
+    "calculateSquaredOrthogonalDistance",
     () => {
-      const scratchpad = new Float32Array(768);
-      calculateOrthogonalDistance(vec1, vec2, scratchpad);
+      calculateSquaredOrthogonalDistance(vec1, vec2);
     },
     { time: 100 },
   );

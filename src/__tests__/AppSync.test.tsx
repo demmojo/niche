@@ -33,14 +33,14 @@ vi.mock("../firebase", () => ({
   db: {},
   safeDisableNetwork: vi.fn(),
   auth: {
-    currentUser: { uid: "test-user-id", email: "mo@nicheai.com" },
+    currentUser: { uid: "test-user-id", email: "mo.hassaniv@gmail.com" },
     onAuthStateChanged: vi.fn(),
   },
 }));
 
 vi.mock("../components/AuthProvider", () => ({
   useAuth: () => ({
-    user: { uid: "test-user-id", email: "mo@nicheai.com" },
+    user: { uid: "test-user-id", email: "mo.hassaniv@gmail.com" },
     loading: false,
     logout: vi.fn(),
   }),

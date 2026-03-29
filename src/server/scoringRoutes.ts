@@ -14,10 +14,45 @@ import { GoogleGenAI, Type } from "@google/genai";
 import * as adminNamespace from "firebase-admin";
 const admin: typeof adminNamespace =
   (adminNamespace as any).default || adminNamespace;
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod";
 
 export const scoringRouter = Router();
+
+scoringRouter.post(
+  "/count-competitors",
+  requireAppCheck,
+  requireAuth,
+  async (req: any, res: any) => {
+    try {
+      const { productName, productDescription } = req.body;
+      if (!productName || !productDescription) {
+        return res
+          .status(400)
+          .json({ error: "Missing product name or description" });
+      }
+
+      const exaApiKey = process.env.EXA_API_KEY;
+      if (!exaApiKey) {
+        return res.status(500).json({ error: "EXA_API_KEY is not configured" });
+      }
+
+      const exa = new Exa(exaApiKey);
+      const exaQuery = `Competitors to ${productName}: ${productDescription}`;
+
+      // Just do a search to get the number of results, no contents needed (faster)
+      const exaResponse = await exa.search(exaQuery, {
+        type: "neural",
+        useAutoprompt: true,
+        numResults: 15, // Get a realistic number of potential competitors
+      });
+
+      return res.json({ count: exaResponse.results?.length || 0 });
+    } catch (error: any) {
+      console.error("Count Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 scoringRouter.post(
   "/tarpit-analyze",
@@ -58,10 +93,7 @@ scoringRouter.post(
           .json({ error: "GEMINI_API_KEY is not configured" });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey: geminiApiKey,
-        apiVersion: "v1alpha",
-      });
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
       // 2. Strict LLM JSON Parsing with _reasoning
       // We use LLMExtractionSchema
@@ -77,14 +109,12 @@ Determine if this product idea is a defensible niche or a highly saturated horiz
 Extract the reasoning, a verbatim exact quote from the competitor context that proves saturation or niche viability, the corresponding URL, and a wedge metric (0 to 1, where 1 is highly saturated, 0 is highly unique). If the idea is a tarpit, provide an array of 3 hyper-niche pivot suggestions (suggestedNiches) that are much more defensible.
     `;
 
-      const jsonSchema = zodToJsonSchema(LLMExtractionSchema);
-
       const callOptions = {
         model: "gemini-3.1-pro-preview",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
-          responseSchema: jsonSchema as any,
+          responseSchema: LLMExtractionSchema.toJSONSchema() as any,
           systemInstruction:
             "You are an expert M&A due diligence AI. Analyze the competitor saturation.",
         },
@@ -93,6 +123,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       const geminiRes = await ai.models.generateContent(callOptions);
 
       const llmOutputRaw = geminiRes.text;
+      console.log("Raw LLM output:", llmOutputRaw);
       if (!llmOutputRaw) throw new Error("Empty response from LLM");
 
       // Zod validation
@@ -103,10 +134,10 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         throw parseError;
       }
 
-      // 3. Implement Gemini text-embedding-004 integration
+      // 3. Implement Gemini gemini-embedding-001 integration
       // We embed the user's product description
       const embedRes = await ai.models.embedContent({
-        model: "text-embedding-004",
+        model: "gemini-embedding-001",
         contents: productDescription,
         config: { outputDimensionality: 768 },
       });
@@ -151,19 +182,19 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         const mockCentroid = new Float32Array(768).fill(0.01);
         fastL2NormalizeInPlace(mockCentroid);
 
-        const scratchpad = new Float32Array(768);
-        const { calculateOrthogonalDistance } =
+        const { calculateSquaredOrthogonalDistance } =
           await import("../utils/scoringEngine");
-        const orthDist = calculateOrthogonalDistance(
+        const orthDistSq = calculateSquaredOrthogonalDistance(
           vector,
           mockCentroid,
-          scratchpad,
         );
 
         const localDensity = 0.1; // Mock sub-market HHI
         const globalDensity = 0.9;
 
-        if (orthDist > 0.7 || localDensity < 0.2) {
+        // If orthDistSq is high, the vector is very orthogonal (novel)
+        // A distance of 0.7 corresponds to a squared distance of 0.49
+        if (orthDistSq > 0.49 || localDensity < 0.2) {
           isFalsePositiveOverride = true;
           isTarpit = false;
           finalScore = Math.max(0, finalScore - 40); // Penalty lifted

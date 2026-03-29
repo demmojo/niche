@@ -42,6 +42,15 @@ const CONSOLE_ERROR_ALLOW_LIST = [
   /ioredis/,
 ];
 
+if (typeof window !== "undefined") {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
+}
+
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 

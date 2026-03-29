@@ -91,7 +91,7 @@ describe("authMiddleware", () => {
     expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({
       uid: "test-user-123",
-      email: "mo@nicheai.com",
+      email: "mo.hassaniv@gmail.com",
     });
   });
 
