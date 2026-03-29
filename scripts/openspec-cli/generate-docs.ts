@@ -3,13 +3,20 @@ import * as path from "path";
 import { execSync } from "child_process";
 import { getAllSpecs } from "./utils.js";
 import * as dotenv from "dotenv";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 /**
  *
  */
-export async function generateDocs() {
+export async function generateDocs(options?: CliOptions) {
+  const presenter = new TerminalPresenter(
+    options?.nonInteractive || isHeadless(),
+    options?.json || false,
+  );
+
   const templatePath = path.join(
     process.cwd(),
     "docs",
@@ -19,7 +26,7 @@ export async function generateDocs() {
   const readmePath = path.join(process.cwd(), "README.md");
 
   if (!fs.existsSync(templatePath)) {
-    console.error(`Template not found at ${templatePath}`);
+    presenter.fail(`Template not found at ${templatePath}`, "missing_template");
     throw new Error(`Template not found at ${templatePath}`);
   }
 
@@ -58,10 +65,10 @@ export async function generateDocs() {
       'git log -n 15 --pretty=format:"* %s (%h) - %ad" --date=short',
     ).toString();
   } catch (err) {
-    console.warn("Could not fetch git history. Defaulting to empty.");
+    presenter.warn("Could not fetch git history. Defaulting to empty.");
   }
 
-  console.log("Compiling live project documentation...");
+  presenter.log("Compiling live project documentation...");
 
   let gitSummaryText = gitHistory;
   let specTableText = `| Feature | Summary | Status | Link |\n|---|---|---|---|\n`;
@@ -74,7 +81,7 @@ export async function generateDocs() {
 
   // 3. Use Machine Learning to ensure documentation is up-to-date and accurate
   if (process.env.GEMINI_API_KEY) {
-    console.log(
+    presenter.log(
       "Applying ML best practices for semantic validation and aggregation...",
     );
     const { GoogleGenAI } = await import("@google/genai");
@@ -120,13 +127,12 @@ Your task is to take raw project data and format it perfectly for a README file 
       specTableText = result.specTable;
       techDebtText = result.techDebtSummary;
     } catch (error) {
-      console.warn(
-        "ML aggregation failed, falling back to raw formatting.",
-        error,
+      presenter.warn(
+        `ML aggregation failed, falling back to raw formatting. Error: ${error}`,
       );
     }
   } else {
-    console.warn(
+    presenter.warn(
       "No GEMINI_API_KEY found. Skipping ML aggregation step, using raw formats.",
     );
   }
@@ -159,13 +165,18 @@ Your task is to take raw project data and format it perfectly for a README file 
 
   // 5. Write final README
   fs.writeFileSync(readmePath, finalReadme);
-  console.log(`✅ Successfully updated ${readmePath}`);
+  presenter.log(`✅ Successfully updated ${readmePath}`);
 
   // Try to stage it so a pre-push hook captures it easily
   try {
     execSync("git add README.md");
-    console.log(`✅ Staged README.md`);
+    presenter.log(`✅ Staged README.md`);
   } catch (e) {
     // ignore
   }
+
+  presenter.success(
+    { generated: true },
+    "Documentation generated successfully",
+  );
 }

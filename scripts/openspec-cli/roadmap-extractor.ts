@@ -17,7 +17,7 @@ import * as yaml from "js-yaml";
 import * as dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 type RoadmapFeature = {
   id: string;

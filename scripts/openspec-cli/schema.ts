@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+export const CliOptionsSchema = z.object({
+  nonInteractive: z.boolean().default(false),
+  json: z.boolean().default(false),
+  force: z.boolean().default(false),
+  dryRun: z.boolean().default(false),
+  stdin: z.boolean().default(false),
+  // Additional flags that specific commands might use:
+  autoFix: z.boolean().optional(),
+  clearState: z.boolean().optional(),
+  onCollision: z.string().optional(),
+  threshold: z.string().optional(),
+});
+
+export type CliOptions = z.infer<typeof CliOptionsSchema>;
+
 export const OpenSpecSchema = z.object({
   schema: z.literal("spec-driven").optional(),
   status: z

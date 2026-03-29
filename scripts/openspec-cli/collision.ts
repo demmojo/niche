@@ -1,5 +1,7 @@
 import * as fs from "fs";
 import * as readline from "readline";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
 export async function promptUser(
   question: string,
@@ -36,7 +38,7 @@ import { ParsedSpec } from "./utils.js";
 import * as dotenv from "dotenv";
 import * as crypto from "crypto";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const CACHE_FILE = path.join(process.cwd(), ".openspec-gemini-embeddings.json");
 
@@ -95,18 +97,23 @@ export async function checkCollisions(
   specs: ParsedSpec[],
   interactive: boolean = false,
   targetFeature?: string,
-  options?: { nonInteractive?: boolean; onCollision?: string },
+  options?: CliOptions,
 ): Promise<string> {
+  const presenter = new TerminalPresenter(
+    options?.nonInteractive || isHeadless(),
+    options?.json || false,
+  );
+
   if (!process.env.GEMINI_API_KEY) {
-    console.warn("Skipping collision detection: GEMINI_API_KEY is not set.");
-    return;
+    presenter.warn("Skipping collision detection: GEMINI_API_KEY is not set.");
+    return "ok";
   }
 
   const ai = new GoogleGenAI({});
   const cache = getCache();
   let cacheUpdated = false;
 
-  console.log("Generating embeddings for collision detection...");
+  presenter.log("Generating embeddings for collision detection...");
 
   const embeddings = new Map<string, number[]>();
 
@@ -136,7 +143,7 @@ export async function checkCollisions(
         cache[spec.id] = { hash, vector };
         cacheUpdated = true;
       } catch (error) {
-        console.error(`Failed to generate embedding for ${spec.id}`, error);
+        presenter.warn(`Failed to generate embedding for ${spec.id}: ${error}`);
       }
     }
   }
@@ -145,7 +152,7 @@ export async function checkCollisions(
     saveCache(cache);
   }
 
-  console.log("Checking for collisions...");
+  presenter.log("Checking for collisions...");
   const threshold = 0.85; // Configurable threshold
   let collisionFound = false;
 
@@ -159,15 +166,13 @@ export async function checkCollisions(
 
       const sim = cosineSimilarity(vecA, vecB);
       if (sim >= threshold) {
-        if (!options?.nonInteractive) {
-          console.warn(`\n⚠️ COLLISION WARNING:`);
-          console.warn(
-            `Specs '${idA}' and '${idB}' have a high semantic similarity of ${(sim * 100).toFixed(1)}%.`,
-          );
-          console.warn(
-            `Consider merging them or using 'superseded_by' if they represent the same feature.`,
-          );
-        }
+        presenter.warn(`\n⚠️ COLLISION WARNING:`);
+        presenter.warn(
+          `Specs '${idA}' and '${idB}' have a high semantic similarity of ${(sim * 100).toFixed(1)}%.`,
+        );
+        presenter.warn(
+          `Consider merging them or using 'superseded_by' if they represent the same feature.`,
+        );
         collisionFound = true;
 
         if (
@@ -175,18 +180,19 @@ export async function checkCollisions(
           targetFeature &&
           (idA === targetFeature || idB === targetFeature)
         ) {
-          if (options?.nonInteractive) {
-            const action = options.onCollision;
+          const isHeadlessEnv = options?.nonInteractive || isHeadless();
+          const action = options?.onCollision;
+
+          if (isHeadlessEnv || action) {
             if (action === "abort") return "abort";
             if (action === "supersede" || action === "merge") {
               // Not actually implementing supersede/merge file mutations right now for simplicity
               return action;
             }
-            console.log(
-              JSON.stringify({
-                error: "collision_detected",
-                next_action: "Provide --on-collision=supersede|merge|abort",
-              }),
+            presenter.fail(
+              "Collision detected.",
+              "collision_detected",
+              `openspec propose <plan> --on-collision=abort|merge|supersede`,
             );
             return "abort";
           }
@@ -203,8 +209,17 @@ export async function checkCollisions(
     }
   }
 
-  if (!collisionFound && !options?.nonInteractive) {
-    console.log("No significant semantic collisions detected.");
+  if (!collisionFound) {
+    presenter.log("No significant semantic collisions detected.");
+    // If running in json mode explicitly for detect-collisions
+    if (options && !interactive) {
+      presenter.success({ collisions: false }, "No collisions found.");
+    }
+  } else {
+    // If running in json mode explicitly for detect-collisions
+    if (options && !interactive) {
+      presenter.success({ collisions: true }, "Collisions were detected.");
+    }
   }
   return "ok";
 }

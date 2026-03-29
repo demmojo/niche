@@ -28,3 +28,8 @@
 - **External Integrations**: Exa MCP requires official local SDK/Smithery. System supports Bring-Your-Own-Key (BYOK) for Exa/Crunchbase, storing data in the raw data library.
 - **Product Architecture**: Supports managing multiple concurrent product ideas and forking existing products to test variations.
 - **Agentic Communication**: Avoid 'banned words' blocklists. Maintain precise architectural density in `openspec/` files and commit messages (via a CI/CD Exemption) to ensure automated `ai-eval` parity. Scale first-principles explanations to task complexity (concise for typos, deep for architecture).
+- **CLI Development Standards**:
+  - **Type Safety**: Never rely on raw Commander `.opts()`; strictly parse, validate, and type all CLI flags using Zod schemas at the application boundary.
+  - **Intent-Based Execution**: Decouple filesystem side-effects from business logic using the `FsIntent` / `FsExecutor` pattern to inherently support safe `--dry-run` operations.
+  - **Atomic Staging**: For multi-step file generation (especially AI-driven scaffolding), build artifacts in a `.tmp` directory first. Run validations (e.g., DAG, `ai-eval`) against the temporary state, and execute a final atomic directory rename only upon full success.
+  - **Presenter Pattern**: Route CLI output through a `TerminalPresenter`. When executing in `--json` mode, strictly enforce that human-readable logs go to `stderr` and only valid JSON payloads are emitted to `stdout`.

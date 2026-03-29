@@ -14,7 +14,7 @@ import * as path from "path";
 import { z } from "zod";
 import { getStagedASTDiff, formatDiffForLLM } from "./ast-scanner";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const TIMEOUT_MS = 3000;
 

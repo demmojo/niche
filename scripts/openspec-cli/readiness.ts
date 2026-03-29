@@ -1,4 +1,5 @@
 import { ParsedSpec } from "./utils.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
 /**
  *
@@ -7,10 +8,13 @@ export function checkReadiness(
   specs: ParsedSpec[],
   targetSpecId: string,
   silent: boolean = false,
+  presenter?: TerminalPresenter,
 ): boolean {
+  const p = presenter || new TerminalPresenter(isHeadless() || silent, false);
+
   const targetSpec = specs.find((s) => s.id === targetSpecId);
   if (!targetSpec) {
-    if (!silent) console.error(`❌ Spec '${targetSpecId}' not found.`);
+    if (!silent) p.fail(`Spec '${targetSpecId}' not found.`, "spec_not_found");
     return false;
   }
 
@@ -19,8 +23,9 @@ export function checkReadiness(
     targetSpec.data.status === "archived"
   ) {
     if (!silent)
-      console.error(
-        `❌ Spec '${targetSpecId}' is ${targetSpec.data.status} and should not be implemented.`,
+      p.fail(
+        `Spec '${targetSpecId}' is ${targetSpec.data.status} and should not be implemented.`,
+        "invalid_status",
       );
     return false;
   }
@@ -38,8 +43,7 @@ export function checkReadiness(
   for (const depId of Array.from(deps)) {
     const depSpec = specs.find((s) => s.id === depId);
     if (!depSpec) {
-      if (!silent)
-        console.warn(`⚠️ Warning: Dependency '${depId}' not found in specs.`);
+      if (!silent) p.warn(`Warning: Dependency '${depId}' not found in specs.`);
       isReady = false;
       unfulfilledDeps.push(`${depId} (Status: Not Found)`);
       continue;
@@ -57,18 +61,15 @@ export function checkReadiness(
 
   if (!isReady) {
     if (!silent) {
-      console.error(
-        `\n❌ Spec '${targetSpecId}' is NOT READY for implementation.`,
+      p.fail(
+        `Spec '${targetSpecId}' is NOT READY for implementation. The following dependencies must be completed first:\n  - ${unfulfilledDeps.join("\n  - ")}`,
+        "dependencies_not_met",
+        `openspec start <dependency>`,
       );
-      console.error(`The following dependencies must be completed first:`);
-      for (const dep of unfulfilledDeps) {
-        console.error(`  - ${dep}`);
-      }
     }
     return false;
   }
 
-  if (!silent)
-    console.log(`✅ Spec '${targetSpecId}' is ready for implementation.`);
+  if (!silent) p.log(`✅ Spec '${targetSpecId}' is ready for implementation.`);
   return true;
 }

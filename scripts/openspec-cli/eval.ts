@@ -2,8 +2,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { ParsedSpec } from "./utils.js";
 import * as dotenv from "dotenv";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 /**
  *
@@ -29,7 +31,6 @@ function getSpecContent(dirPath: string, featureName?: string): string {
 
     return `Proposal:\n${proposal}\n\nDesign:\n${design}\n\nSpec:\n${specMd}\n\nTasks:\n${tasks}`;
   } catch (err) {
-    console.warn(err);
     return "Missing one or more spec markdown files.";
   }
 }
@@ -65,18 +66,23 @@ export function getSpecContentHash(
 export async function runEvalForFeature(
   dirPath: string,
   featureName: string,
-  options?: { nonInteractive?: boolean; autoFix?: boolean },
+  options: CliOptions,
 ): Promise<boolean> {
+  const presenter = new TerminalPresenter(
+    options.nonInteractive || isHeadless(),
+    options.json,
+  );
+
   if (!process.env.GEMINI_API_KEY) {
-    if (!options?.nonInteractive)
-      console.warn("Skipping eval: GEMINI_API_KEY is not set.");
+    presenter.warn("Skipping eval: GEMINI_API_KEY is not set.");
     return false; // Actually, if we skip eval we can't start. So we should fail.
   }
 
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const { generateWithSelfHealing, hashString } = await import("./utils.js");
-  const { saveEval, getLastFailedEval } = await import("./db.js");
+  const { saveEval, getLastFailedEval, getLastSuccessfulEval } =
+    await import("./db.js");
   const { z } = await import("zod");
   const { promptUserConfirm } = await import("./collision.js");
 
@@ -133,18 +139,16 @@ Do not change the intent or core feature, just improve the specification quality
       systemInstruction,
     );
 
-    if (!options?.nonInteractive) {
-      console.log(
-        `- Ambiguity Score: ${evalResult.implementationAmbiguity.score}/5`,
-      );
-      console.log(
-        `- Architecture Score: ${evalResult.architectureConstraints.score}/5`,
-      );
-      console.log(
-        `- Compatibility Score: ${evalResult.backwardCompatibility.score}/5`,
-      );
-      console.log(`\nFeedback: ${evalResult.overallFeedback}`);
-    }
+    presenter.log(
+      `- Ambiguity Score: ${evalResult.implementationAmbiguity.score}/5`,
+    );
+    presenter.log(
+      `- Architecture Score: ${evalResult.architectureConstraints.score}/5`,
+    );
+    presenter.log(
+      `- Compatibility Score: ${evalResult.backwardCompatibility.score}/5`,
+    );
+    presenter.log(`\nFeedback: ${evalResult.overallFeedback}`);
 
     saveEval(
       Date.now().toString(),
@@ -155,31 +159,27 @@ Do not change the intent or core feature, just improve the specification quality
     );
 
     if (evalResult.pass) {
-      if (!options?.nonInteractive)
-        console.log(`✅ ${featureName} PASSED the semantic pass.`);
+      presenter.log(`✅ ${featureName} PASSED the semantic pass.`);
       return true;
     }
 
-    if (!options?.nonInteractive)
-      console.error(`❌ ${featureName} FAILED the semantic pass.`);
+    presenter.warn(`❌ ${featureName} FAILED the semantic pass.`);
 
     if (attempt > maxRetries) {
-      if (!options?.nonInteractive)
-        console.error("Max retries reached for ai-eval auto-fix.");
+      presenter.warn("Max retries reached for ai-eval auto-fix.");
       return false;
     }
 
     // Handle auto-fix loop
     let doAutoFix = false;
-    if (options?.nonInteractive) {
-      doAutoFix = !!options?.autoFix;
+    const isHeadlessEnv = options.nonInteractive || isHeadless();
+    if (isHeadlessEnv) {
+      doAutoFix = !!options.autoFix;
       if (!doAutoFix) {
-        console.log(
-          JSON.stringify({
-            error: "ai_eval_failed",
-            next_action:
-              "Provide --auto-fix=true or rewrite the plan manually.",
-          }),
+        presenter.fail(
+          "AI Eval failed.",
+          "ai_eval_failed",
+          `openspec start ${featureName} --auto-fix`,
         );
         return false;
       }
@@ -190,8 +190,7 @@ Do not change the intent or core feature, just improve the specification quality
     }
 
     if (doAutoFix) {
-      if (!options?.nonInteractive)
-        console.log(`Attempting auto-fix ${attempt}/${maxRetries}...`);
+      presenter.log(`Attempting auto-fix ${attempt}/${maxRetries}...`);
       const fixPrompt = `The evaluator provided the following feedback:\n\n${evalResult.overallFeedback}\n\nPlease rewrite the specification files to address this feedback.\n\nOriginal Specification:\n${content}`;
       const fixResult = await generateWithSelfHealing(
         ai,
@@ -208,8 +207,7 @@ Do not change the intent or core feature, just improve the specification quality
       if (!fs.existsSync(specsDir)) fs.mkdirSync(specsDir, { recursive: true });
       fs.writeFileSync(path.join(specsDir, "spec.md"), fixResult.spec);
 
-      if (!options?.nonInteractive)
-        console.log("Files rewritten. Re-running evaluation...");
+      presenter.log("Files rewritten. Re-running evaluation...");
     } else {
       return false;
     }
@@ -218,16 +216,22 @@ Do not change the intent or core feature, just improve the specification quality
   return false;
 }
 
-export async function runEval(specs: ParsedSpec[]) {
+export async function runEval(specs: ParsedSpec[], options: CliOptions) {
+  const presenter = new TerminalPresenter(
+    options.nonInteractive || isHeadless(),
+    options.json,
+  );
+
   if (!process.env.GEMINI_API_KEY) {
-    console.warn("Skipping eval: GEMINI_API_KEY is not set.");
+    presenter.warn("Skipping eval: GEMINI_API_KEY is not set.");
     return;
   }
 
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const { generateWithSelfHealing, hashString } = await import("./utils.js");
-  const { saveEval, getLastFailedEval } = await import("./db.js");
+  const { saveEval, getLastFailedEval, getLastSuccessfulEval } =
+    await import("./db.js");
   const { z } = await import("zod");
 
   const evalZodSchema = z.object({
@@ -253,7 +257,9 @@ export async function runEval(specs: ParsedSpec[]) {
     overallFeedback: z.string(),
   });
 
-  console.log("Running Semantic Pass (LLM-as-a-Judge Eval) on recent specs...");
+  presenter.log(
+    "Running Semantic Pass (LLM-as-a-Judge Eval) on recent specs...",
+  );
 
   // Let's test the most recently modified or draft specs
   const draftSpecs = specs.filter(
@@ -261,18 +267,32 @@ export async function runEval(specs: ParsedSpec[]) {
   );
 
   if (draftSpecs.length === 0) {
-    console.log("No specs in 'draft' or 'proposed' state to evaluate.");
+    presenter.log("No specs in 'draft' or 'proposed' state to evaluate.");
+    if (options.json)
+      presenter.success({ evaluated: 0 }, "No specs to evaluate");
     return;
   }
 
   let failedSpecs = 0;
+  let skippedSpecs = 0;
+  let passedSpecs = 0;
 
   for (const spec of draftSpecs) {
-    console.log(`\nEvaluating OpenSpec: ${spec.id} ...`);
-
     try {
       const content = getSpecContent(spec.dirPath, spec.id);
       const contentHash = getSpecContentHash(spec.dirPath, spec.id);
+      const lastSuccess = getLastSuccessfulEval(spec.id);
+
+      // Idempotency: Skip if hash matches last successful eval
+      if (lastSuccess && lastSuccess.content_hash === contentHash) {
+        presenter.log(
+          `\nSkipping ${spec.id} - unchanged since last successful eval.`,
+        );
+        skippedSpecs++;
+        continue;
+      }
+
+      presenter.log(`\nEvaluating OpenSpec: ${spec.id} ...`);
       const lastFailedFeedback = getLastFailedEval(spec.id);
 
       let prompt = `Please evaluate the following specification:\n\n<specification>\n${content}\n</specification>\n\n<example_good_response>\n{\n  "implementationAmbiguity": { "score": 5, "feedback": "Tasks are extremely clear with exact file paths and code snippets provided." },\n  "architectureConstraints": { "score": 4, "feedback": "Trade-offs between local vs remote execution are well-documented." },\n  "backwardCompatibility": { "score": 5, "feedback": "No existing systems are modified, purely additive feature." },\n  "pass": true,\n  "overallFeedback": "Excellent spec, ready for implementation."\n}\n</example_good_response>\n\n<example_bad_response>\n{\n  "implementationAmbiguity": { "score": 2, "feedback": "Tasks just say 'implement the UI' without mentioning which components or state management to use." },\n  "architectureConstraints": { "score": 1, "feedback": "Does not address how the new database tables will perform under load." },\n  "backwardCompatibility": { "score": 3, "feedback": "Mentions updating the API but doesn't specify if v1 endpoints will break." },\n  "pass": false,\n  "overallFeedback": "Spec is too ambiguous and risky. Needs more detail on database performance and exact task breakdown."\n}\n</example_bad_response>`;
@@ -295,16 +315,16 @@ Your goal is to evaluate the specification based on three dimensions:
 To pass, all dimensions must score at least 3 out of 5.`,
       );
 
-      console.log(
+      presenter.log(
         `- Ambiguity Score: ${evalResult.implementationAmbiguity.score}/5`,
       );
-      console.log(
+      presenter.log(
         `- Architecture Score: ${evalResult.architectureConstraints.score}/5`,
       );
-      console.log(
+      presenter.log(
         `- Compatibility Score: ${evalResult.backwardCompatibility.score}/5`,
       );
-      console.log(`\nFeedback: ${evalResult.overallFeedback}`);
+      presenter.log(`\nFeedback: ${evalResult.overallFeedback}`);
 
       saveEval(
         Date.now().toString(),
@@ -315,22 +335,29 @@ To pass, all dimensions must score at least 3 out of 5.`,
       );
 
       if (!evalResult.pass) {
-        console.error(`❌ ${spec.id} FAILED the semantic pass.`);
+        presenter.warn(`❌ ${spec.id} FAILED the semantic pass.`);
         failedSpecs++;
       } else {
-        console.log(`✅ ${spec.id} PASSED the semantic pass.`);
+        presenter.log(`✅ ${spec.id} PASSED the semantic pass.`);
+        passedSpecs++;
       }
     } catch (error) {
-      console.error(`Error evaluating ${spec.id}:`, error);
+      presenter.warn(`Error evaluating ${spec.id}: ${error}`);
+      failedSpecs++;
     }
   }
 
   if (failedSpecs > 0) {
-    console.error(
-      `\n${failedSpecs} specs failed evaluation. Fix them before merging.`,
+    presenter.fail(
+      `${failedSpecs} specs failed evaluation. Fix them before merging.`,
+      "eval_failed",
+      `openspec ai-eval`,
     );
-    throw new Error(`${failedSpecs} specs failed evaluation.`);
+    process.exit(1);
   } else {
-    console.log("\nAll specs passed semantic evaluation.");
+    presenter.success(
+      { passed: passedSpecs, skipped: skippedSpecs },
+      "All specs passed semantic evaluation.",
+    );
   }
 }

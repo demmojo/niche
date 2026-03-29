@@ -15,6 +15,7 @@ import { runEval } from "./eval.js";
 import { checkReadiness } from "./readiness.js";
 import { generateDocs } from "./generate-docs.js";
 import { checkCoverage } from "./coverage.js";
+import { CliOptionsSchema } from "./schema.js";
 
 import { proposePlan } from "./propose.js";
 import { startFeature } from "./start.js";
@@ -26,12 +27,28 @@ program
   .description(
     "OpenSpec DAG Engine: Manage, validate, and compile spec-driven development feature graphs.",
   )
-  .version("1.0.0");
+  .version("1.0.0")
+  .option(
+    "--non-interactive",
+    "Disable interactive prompts and routing human-readable logs to stderr",
+    false,
+  )
+  .option("--json", "Emit pure JSON output on stdout", false)
+  .option("--force", "Overwrite existing resources safely", false)
+  .option(
+    "--dry-run",
+    "Preview scaffolding or file writes without modifying filesystem",
+    false,
+  )
+  .showHelpAfterError("(Run with --help for examples)");
 
 program
   .command("propose")
-  .argument("<path-to-plan.md>", "The path to the plan markdown file")
-  .option("--non-interactive", "Run in headless mode with JSON output")
+  .argument(
+    "<path-to-plan.md>",
+    'The path to the plan markdown file. Use "-" to read from stdin.',
+  )
+  .option("--stdin", "Read from stdin instead of a file")
   .option(
     "--on-collision <action>",
     "Action to take on collision (supersede|merge|abort)",
@@ -44,14 +61,24 @@ program
   .description(
     "Parse a plan, check collisions, scaffold safely, and run evaluations",
   )
-  .action(async (planPath, options) => {
-    await proposePlan(planPath, options);
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec propose openspec/plans/my-plan.md
+  $ openspec propose openspec/plans/my-plan.md --force
+  $ cat my-plan.md | openspec propose -
+  $ openspec propose --stdin < my-plan.md`,
+  )
+  .action(async (planPath, options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await proposePlan(planPath, opts);
   });
 
 program
   .command("start")
   .argument("<feature-name>", "The exact folder name of the feature")
-  .option("--non-interactive", "Run in headless mode with JSON output")
   .option(
     "--auto-fix",
     "Automatically run LLM to fix ai-eval failures if needed",
@@ -59,8 +86,18 @@ program
   .description(
     "Validate dependencies and evaluation history, then generate implementation context",
   )
-  .action(async (featureName, options) => {
-    await startFeature(featureName, options);
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec start my-feature
+  $ openspec start my-feature --auto-fix
+  $ openspec start my-feature --non-interactive --json`,
+  )
+  .action(async (featureName, options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await startFeature(featureName, opts);
   });
 
 program
@@ -68,13 +105,30 @@ program
   .description(
     "Verify YAML schema and ensure the dependency graph (DAG) has no circular loops",
   )
-  .action(() => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec validate
+  $ openspec validate --json`,
+  )
+  .action(async (_, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    const { TerminalPresenter, isHeadless } = await import("./presenter.js");
+    const presenter = new TerminalPresenter(
+      opts.nonInteractive || isHeadless(),
+      opts.json,
+    );
     const specs = getAllSpecs();
-    const isValid = checkCycles(specs);
+    const isValid = checkCycles(specs, presenter);
     if (!isValid) {
       process.exit(1);
     }
-    console.log(`Validated ${specs.length} specs successfully.`);
+    presenter.success(
+      { message: `Validated ${specs.length} specs successfully.` },
+      `Validated ${specs.length} specs successfully.`,
+    );
   });
 
 program
@@ -82,9 +136,18 @@ program
   .description(
     "Scan specs using embeddings to find duplicates or feature bloat",
   )
-  .action(async () => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec detect-collisions
+  $ openspec detect-collisions --json`,
+  )
+  .action(async (_, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
     const specs = getAllSpecs();
-    await checkCollisions(specs);
+    await checkCollisions(specs, false, undefined, opts);
   });
 
 program
@@ -96,10 +159,24 @@ program
   .description(
     "Generate an optimized markdown context block (GraphRAG) for AI coding agents",
   )
-  .action(async (featureName) => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec build-context user-auth
+  $ openspec build-context user-auth --json`,
+  )
+  .action(async (featureName, _, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
     const specs = getAllSpecs();
-    const context = await buildContext(featureName, specs);
-    console.log(context);
+    const context = await buildContext(featureName, specs, opts);
+    const { TerminalPresenter, isHeadless } = await import("./presenter.js");
+    const presenter = new TerminalPresenter(
+      opts.nonInteractive || isHeadless(),
+      opts.json,
+    );
+    presenter.success({ context }, context);
   });
 
 program
@@ -107,9 +184,18 @@ program
   .description(
     "Run an LLM-as-a-Judge semantic review to evaluate spec clarity and architecture",
   )
-  .action(async () => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec ai-eval
+  $ openspec ai-eval --json`,
+  )
+  .action(async (_, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
     const specs = getAllSpecs();
-    await runEval(specs);
+    await runEval(specs, opts);
   });
 
 program
@@ -118,12 +204,32 @@ program
   .description(
     "Check if a spec is ready to be implemented (all dependencies are complete)",
   )
-  .action((featureName) => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec check-ready my-feature
+  $ openspec check-ready my-feature --json`,
+  )
+  .action(async (featureName, _, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    const { TerminalPresenter, isHeadless } = await import("./presenter.js");
+    const presenter = new TerminalPresenter(
+      opts.nonInteractive || isHeadless(),
+      opts.json,
+    );
     const specs = getAllSpecs();
-    const isReady = checkReadiness(specs, featureName);
+    const isReady = checkReadiness(
+      specs,
+      featureName,
+      opts.nonInteractive,
+      presenter,
+    );
     if (!isReady) {
       process.exit(1);
     }
+    presenter.success({ ready: true }, `Feature ${featureName} is ready.`);
   });
 
 program
@@ -131,8 +237,17 @@ program
   .description(
     "Compile a self-healing central project README from templates, OpenSpecs, and git history",
   )
-  .action(async () => {
-    await generateDocs();
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec generate-docs
+  $ openspec generate-docs --json`,
+  )
+  .action(async (_, command) => {
+    const rawOpts = { ...command.optsWithGlobals() };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await generateDocs(opts);
   });
 
 program
@@ -146,10 +261,21 @@ program
   .description(
     "Run coverage report parser for a given feature to mechanically verify intent-based testing compliance",
   )
-  .action(async (featureName, options) => {
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ openspec check-coverage my-feature
+  $ openspec check-coverage my-feature --threshold 95
+  $ openspec check-coverage my-feature --json`,
+  )
+  .action(async (featureName, options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
     const passed = await checkCoverage(
       featureName,
-      parseFloat(options.threshold),
+      parseFloat(opts.threshold || "90"),
+      opts,
     );
     if (!passed) {
       process.exit(1);

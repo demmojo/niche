@@ -7,37 +7,35 @@ import { getLastSuccessfulEval } from "./db.js";
 import { getSpecContentHash, runEvalForFeature } from "./eval.js";
 import { promptUserConfirm } from "./collision.js";
 import { buildContext } from "./context.js";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
-export async function startFeature(
-  featureName: string,
-  options: { nonInteractive?: boolean; autoFix?: boolean },
-) {
+export async function startFeature(featureName: string, options: CliOptions) {
+  const presenter = new TerminalPresenter(
+    options.nonInteractive || isHeadless(),
+    options.json,
+  );
+
   const specs = getAllSpecs();
   const targetSpec = specs.find((s) => s.id === featureName);
 
   if (!targetSpec) {
-    const err = `Error: Feature '${featureName}' not found.`;
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: err,
-          next_action: "Provide a valid feature name.",
-        }),
-      );
-    else console.error(err);
+    presenter.fail(
+      `Feature '${featureName}' not found.`,
+      "feature_not_found",
+      `openspec start <valid-feature-name>`,
+    );
     process.exit(1);
   }
 
   // 1. Check DAG readiness
   const isReady = checkReadiness(specs, featureName, options.nonInteractive);
   if (!isReady) {
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: "not_ready",
-          next_action: "Complete dependencies first.",
-        }),
-      );
+    presenter.fail(
+      `Feature '${featureName}' is not ready. Complete dependencies first.`,
+      "not_ready",
+      `openspec check-ready ${featureName}`,
+    );
     process.exit(1);
   }
 
@@ -47,31 +45,29 @@ export async function startFeature(
 
   let requiresEval = false;
   if (!lastSuccess) {
-    if (!options.nonInteractive)
-      console.error(
-        `❌ Spec '${featureName}' does not have a successful ai-eval record.`,
-      );
+    presenter.warn(
+      `❌ Spec '${featureName}' does not have a successful ai-eval record.`,
+    );
     requiresEval = true;
   } else if (lastSuccess.content_hash !== currentHash) {
-    if (!options.nonInteractive)
-      console.error(
-        `❌ Spec '${featureName}' has been modified since its last successful evaluation (hash mismatch).`,
-      );
+    presenter.warn(
+      `❌ Spec '${featureName}' has been modified since its last successful evaluation (hash mismatch).`,
+    );
     requiresEval = true;
   }
 
   if (requiresEval) {
-    if (options.nonInteractive) {
+    const isHeadlessEnv = options.nonInteractive || isHeadless();
+
+    if (isHeadlessEnv || options.autoFix !== undefined) {
       if (options.autoFix) {
         // Just run eval
-        if (!options.nonInteractive) console.log("Running ai-eval...");
+        presenter.log("Running ai-eval...");
       } else {
-        console.log(
-          JSON.stringify({
-            error: "eval_missing_or_stale",
-            next_action:
-              "Run 'openspec ai-eval <feature>' or use --auto-fix=true.",
-          }),
+        presenter.fail(
+          "Spec requires evaluation, but autoFix is disabled in headless mode.",
+          "eval_missing_or_stale",
+          `openspec start ${featureName} --auto-fix`,
         );
         process.exit(1);
       }
@@ -88,27 +84,19 @@ export async function startFeature(
       options,
     );
     if (!evalPassed) {
-      const err = "ai-eval failed. Fix the spec before starting.";
-      if (options.nonInteractive)
-        console.log(
-          JSON.stringify({
-            error: err,
-            next_action: "Fix spec manually or use auto-fix.",
-          }),
-        );
-      else console.error(err);
+      presenter.fail(
+        "ai-eval failed. Fix the spec before starting.",
+        "eval_failed",
+        `openspec start ${featureName} --auto-fix`,
+      );
       process.exit(1);
     }
   }
 
   // Generate context and dump it
   const context = await buildContext(featureName, specs);
-  if (!options.nonInteractive) {
-    console.log(
-      `\n✅ Ready to start! Provide the following context to your AI agent:\n`,
-    );
-    console.log(context);
-  } else {
-    console.log(JSON.stringify({ success: true, context }));
-  }
+  presenter.success(
+    { context },
+    `\n✅ Ready to start! Provide the following context to your AI agent:\n\n${context}`,
+  );
 }

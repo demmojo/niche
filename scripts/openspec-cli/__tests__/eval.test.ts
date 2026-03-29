@@ -32,7 +32,13 @@ describe("runEval", () => {
       .spyOn(console, "warn")
       .mockImplementation(() => {});
 
-    await runEval([]);
+    await runEval([], {
+      nonInteractive: true,
+      json: false,
+      force: false,
+      dryRun: false,
+      stdin: false,
+    });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "Skipping eval: GEMINI_API_KEY is not set.",
@@ -43,14 +49,23 @@ describe("runEval", () => {
   it("should skip if no specs are in draft or proposed state", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runEval([
+    await runEval(
+      [
+        {
+          id: "test",
+          dirPath: "",
+          yamlPath: "",
+          data: { status: "implemented" },
+        },
+      ] as any,
       {
-        id: "test",
-        dirPath: "",
-        yamlPath: "",
-        data: { status: "implemented" },
+        nonInteractive: true,
+        json: false,
+        force: false,
+        dryRun: false,
+        stdin: false,
       },
-    ] as any);
+    );
 
     expect(consoleLogSpy).toHaveBeenCalledWith(
       "No specs in 'draft' or 'proposed' state to evaluate.",
@@ -83,7 +98,13 @@ describe("runEval", () => {
 
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await runEval(specs);
+    await runEval(specs, {
+      nonInteractive: true,
+      json: false,
+      force: false,
+      dryRun: false,
+      stdin: false,
+    });
 
     expect(utils.generateWithSelfHealing).toHaveBeenCalled();
     expect(db.saveEval).toHaveBeenCalled();
@@ -118,9 +139,25 @@ describe("runEval", () => {
     });
 
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const processExitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit(1)");
+    }) as any);
 
-    await expect(runEval(specs)).rejects.toThrow("1 specs failed evaluation");
+    await expect(
+      runEval(specs, {
+        nonInteractive: true,
+        json: false,
+        force: false,
+        dryRun: false,
+        stdin: false,
+      }),
+    ).rejects.toThrow("process.exit(1)");
 
     consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
   });
 });

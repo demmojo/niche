@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
 /**
  * Validates local test coverage for an OpenSpec feature against a strict threshold.
@@ -8,18 +10,26 @@ import path from "path";
 export async function checkCoverage(
   featureName: string,
   threshold: number,
+  options?: CliOptions,
 ): Promise<boolean> {
+  const presenter = new TerminalPresenter(
+    options?.nonInteractive || isHeadless(),
+    options?.json || false,
+  );
+
   const coveragePath = path.resolve(
     process.cwd(),
     "coverage",
     "coverage-summary.json",
   );
 
-  console.log(`Checking coverage against >= ${threshold}% threshold...`);
+  presenter.log(`Checking coverage against >= ${threshold}% threshold...`);
 
   if (!fs.existsSync(coveragePath)) {
-    console.error(
-      `❌ Coverage summary not found at ${coveragePath}. Please run 'npm run test -- --coverage' first.`,
+    presenter.fail(
+      `Coverage summary not found at ${coveragePath}.`,
+      "missing_coverage",
+      `npm run test -- --coverage`,
     );
     return false;
   }
@@ -32,17 +42,19 @@ export async function checkCoverage(
     const totals = report.total;
 
     if (!totals) {
-      console.error(
-        "❌ Coverage summary format unrecognized. Expected 'total' root object.",
+      presenter.fail(
+        "Coverage summary format unrecognized. Expected 'total' root object.",
+        "invalid_coverage_format",
       );
       return false;
     }
 
     const { lines, statements, functions, branches } = totals;
     let passed = true;
+    const metrics: Record<string, number> = {};
 
-    console.log(`\nCoverage Report (Required: ${threshold}%):`);
-    console.log("-----------------------------------------");
+    presenter.log(`\nCoverage Report (Required: ${threshold}%):`);
+    presenter.log("-----------------------------------------");
 
     const checkMetric = (name: string, metric: any) => {
       // In json-summary, the structure is usually { total, covered, skipped, pct }
@@ -52,8 +64,9 @@ export async function checkCoverage(
           : metric && metric.pct !== undefined
             ? metric.pct
             : 0;
+      metrics[name.toLowerCase()] = pct;
       const isPassing = pct >= threshold;
-      console.log(`${name.padEnd(12)}: ${pct}% ${isPassing ? "✅" : "❌"}`);
+      presenter.log(`${name.padEnd(12)}: ${pct}% ${isPassing ? "✅" : "❌"}`);
       if (!isPassing) passed = false;
     };
 
@@ -62,19 +75,27 @@ export async function checkCoverage(
     checkMetric("Functions", functions.pct);
     checkMetric("Lines", lines.pct);
 
-    console.log("-----------------------------------------");
+    presenter.log("-----------------------------------------");
 
     if (passed) {
-      console.log(`✅ ${featureName} passes the mechanical coverage check.`);
+      presenter.success(
+        { metrics, passed: true },
+        `${featureName} passes the mechanical coverage check.`,
+      );
       return true;
     } else {
-      console.error(
-        `\n❌ Mechanical Check Failed. Intent-Based Testing mandates ${threshold}% coverage across all metrics.`,
+      presenter.fail(
+        `Mechanical Check Failed. Intent-Based Testing mandates ${threshold}% coverage across all metrics.`,
+        "coverage_failed",
+        `npm run test -- --coverage`,
       );
       return false;
     }
   } catch (error) {
-    console.error("❌ Failed to parse coverage report:", error);
+    presenter.fail(
+      `Failed to parse coverage report: ${error instanceof Error ? error.message : String(error)}`,
+      "parse_error",
+    );
     return false;
   }
 }

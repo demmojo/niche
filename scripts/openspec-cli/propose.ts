@@ -10,8 +10,12 @@ import { checkCollisions } from "./collision.js";
 import { checkCycles } from "./validate.js";
 import { runEvalForFeature } from "./eval.js";
 import { clearEvalState } from "./db.js";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
+import { FsIntent, FsExecutor } from "./fs-intents.js";
+import { FsExecutor as BaseFsExecutor } from "./fs-intents.js";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const IngestSchema = z.object({
   featureName: z
@@ -43,53 +47,66 @@ const IngestSchema = z.object({
     .describe("List of feature-names this depends on"),
 });
 
-export async function proposePlan(
-  planPath: string,
-  options: {
-    nonInteractive?: boolean;
-    onCollision?: string;
-    autoFix?: boolean;
-    clearState?: boolean;
-  },
-) {
-  if (planPath.includes("docs/plans/")) {
-    console.warn(
-      "⚠️ Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...",
-    );
-    planPath = planPath.replace("docs/plans/", "openspec/plans/");
-  }
+export async function proposePlan(planPath: string, options: CliOptions) {
+  const presenter = new TerminalPresenter(
+    options.nonInteractive || isHeadless(),
+    options.json,
+  );
 
-  if (!fs.existsSync(planPath)) {
-    const err = `Error: Plan file not found at ${planPath}`;
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: err,
-          next_action: "Provide a valid plan file.",
-        }),
+  let planContent = "";
+
+  if (planPath === "-" || options.stdin) {
+    try {
+      if (process.stdin.isTTY) {
+        presenter.fail(
+          "Cannot read from stdin in interactive mode. Pipe a file.",
+          "missing_stdin",
+        );
+        process.exit(1);
+      }
+      planContent = fs.readFileSync(0, "utf-8");
+    } catch (e) {
+      presenter.fail(
+        "Failed to read from stdin. Ensure data is being piped correctly.",
+        "stdin_error",
       );
-    else console.error(err);
-    process.exit(1);
+      process.exit(1);
+    }
+    if (!planContent) {
+      presenter.fail("No data received on stdin.", "empty_stdin");
+      process.exit(1);
+    }
+  } else {
+    if (planPath.includes("docs/plans/")) {
+      presenter.warn(
+        "⚠️ Warning: docs/plans/ is deprecated. Redirecting to openspec/plans/...",
+      );
+      planPath = planPath.replace("docs/plans/", "openspec/plans/");
+    }
+
+    if (!fs.existsSync(planPath)) {
+      presenter.fail(
+        `Plan file not found at ${planPath}`,
+        "missing_file",
+        `openspec propose openspec/plans/<valid-plan>.md`,
+      );
+      process.exit(1);
+    }
+    planContent = fs.readFileSync(planPath, "utf-8");
   }
 
   if (!process.env.GEMINI_API_KEY) {
-    const err = "Error: GEMINI_API_KEY is not set.";
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: err,
-          next_action: "Set GEMINI_API_KEY in .env",
-        }),
-      );
-    else console.error(err);
+    presenter.fail("GEMINI_API_KEY is not set.", "missing_env");
     process.exit(1);
   }
 
-  const planContent = fs.readFileSync(planPath, "utf-8");
   const ai = new GoogleGenAI({});
 
-  if (!options.nonInteractive)
-    console.log(`Ingesting plan from ${planPath}...`);
+  presenter.log(
+    planPath === "-" || options.stdin
+      ? "Ingesting plan from stdin..."
+      : `Ingesting plan from ${planPath}...`,
+  );
 
   const systemInstruction = `You are an elite Staff Software Engineer. Your task is to extract a brainstorm/plan markdown document and transform it into the strict 5-file OpenSpec format.
 Output requirements:
@@ -112,19 +129,16 @@ Output requirements:
   // Security: strict regex validation to prevent path traversal
   featureName = featureName.replace(/[^a-z0-9-]/g, "");
   if (!/^[a-z0-9-]+$/.test(featureName)) {
-    const err = "Invalid featureName generated. Must be kebab-case.";
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({ error: err, next_action: "Check LLM output" }),
-      );
-    else console.error(err);
+    presenter.fail(
+      "Invalid featureName generated. Must be kebab-case.",
+      "invalid_feature_name",
+    );
     process.exit(1);
   }
 
   if (options.clearState) {
     clearEvalState(featureName);
-    if (!options.nonInteractive)
-      console.log(`Cleared eval state for ${featureName}`);
+    presenter.log(`Cleared eval state for ${featureName}`);
   }
 
   const finalTargetDir = path.resolve(
@@ -134,17 +148,17 @@ Output requirements:
     featureName,
   );
   if (fs.existsSync(finalTargetDir)) {
-    const err = `Error: Feature directory already exists at ${finalTargetDir}`;
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: err,
-          next_action:
-            "Choose a different feature name or delete the existing directory.",
-        }),
+    if (!options.force) {
+      presenter.fail(
+        `Feature directory already exists at ${finalTargetDir}. Use --force to overwrite.`,
+        "directory_exists",
+        `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
       );
-    else console.error(err);
-    process.exit(1);
+      process.exit(1);
+    }
+    presenter.warn(
+      `Overwriting existing directory ${finalTargetDir} due to --force flag.`,
+    );
   }
 
   const tmpDir = path.resolve(process.cwd(), ".openspec", ".tmp", featureName);
@@ -154,10 +168,6 @@ Output requirements:
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 
-  // Scaffold directories in .tmp
-  fs.mkdirSync(specsTmpDir, { recursive: true });
-
-  // Write YAML
   const yamlData: any = {
     schema: "spec-driven",
     status: "draft",
@@ -168,14 +178,50 @@ Output requirements:
     yamlData.depends_on = result.depends_on;
   }
 
-  fs.writeFileSync(path.join(tmpDir, ".openspec.yaml"), yaml.dump(yamlData));
-  fs.writeFileSync(path.join(tmpDir, "proposal.md"), result.proposal);
-  fs.writeFileSync(path.join(tmpDir, "design.md"), result.design);
-  fs.writeFileSync(path.join(specsTmpDir, "spec.md"), result.spec);
-  fs.writeFileSync(path.join(tmpDir, "tasks.md"), result.tasks);
+  // Accumulate intents for scaffold creation
+  const intents: FsIntent[] = [
+    { kind: "mkdir", absolutePath: tmpDir },
+    { kind: "mkdir", absolutePath: specsTmpDir },
+    {
+      kind: "createFile",
+      absolutePath: path.join(tmpDir, ".openspec.yaml"),
+      content: yaml.dump(yamlData),
+    },
+    {
+      kind: "createFile",
+      absolutePath: path.join(tmpDir, "proposal.md"),
+      content: result.proposal,
+    },
+    {
+      kind: "createFile",
+      absolutePath: path.join(tmpDir, "design.md"),
+      content: result.design,
+    },
+    {
+      kind: "createFile",
+      absolutePath: path.join(specsTmpDir, "spec.md"),
+      content: result.spec,
+    },
+    {
+      kind: "createFile",
+      absolutePath: path.join(tmpDir, "tasks.md"),
+      content: result.tasks,
+    },
+  ];
+
+  const executor = new BaseFsExecutor(options.dryRun, presenter);
+  executor.execute(intents);
+
+  if (options.dryRun) {
+    // End early since the next steps depend on the files existing
+    presenter.success(
+      { featureName, path: `openspec/changes/${featureName}`, dryRun: true },
+      `Dry-run complete. Scaffolding intents logged.`,
+    );
+    return;
+  }
 
   // In-memory collision checks
-  // We can load existing specs and add this tmp one
   const existingSpecs = getAllSpecs();
   const tmpSpec = {
     id: featureName,
@@ -186,23 +232,19 @@ Output requirements:
   existingSpecs.push(tmpSpec);
 
   // Validate DAG
-  if (!options.nonInteractive) console.log("Validating DAG...");
+  presenter.log("Validating DAG...");
   const isValid = checkCycles(existingSpecs);
   if (!isValid) {
-    const err =
-      "DAG validation failed (circular dependency detected). Rolling back temporary files.";
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({ error: err, next_action: "Fix dependencies in plan" }),
-      );
-    else console.error(err);
+    presenter.fail(
+      "DAG validation failed (circular dependency detected).",
+      "dag_cycle",
+    );
     process.exit(1);
   }
 
   // Collision detection
-  if (!options.nonInteractive) console.log("Running collision detection...");
-  // ... we need to check collisions and handle interactive resolution
+  presenter.log("Running collision detection...");
   const hasCollision = await checkCollisions(
     existingSpecs,
     true,
@@ -215,49 +257,48 @@ Output requirements:
   }
 
   // ai-eval loop
-  if (!options.nonInteractive) console.log("Running ai-eval on draft spec...");
+  presenter.log("Running ai-eval on draft spec...");
   const evalPassed = await runEvalForFeature(tmpDir, featureName, options);
 
   if (!evalPassed) {
-    const err = "ai-eval failed or aborted. Rolling back temporary files.";
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    if (options.nonInteractive)
-      console.log(
-        JSON.stringify({
-          error: err,
-          next_action: "Review ai-eval feedback, or use --auto-fix=true",
-        }),
-      );
-    else console.error(err);
+    presenter.fail(
+      "ai-eval failed or aborted. Rolling back temporary files.",
+      "eval_failed",
+    );
     process.exit(1);
   }
 
   // All checks passed! Move atomic
-  fs.mkdirSync(path.resolve(process.cwd(), "openspec", "changes"), {
-    recursive: true,
-  });
-  fs.renameSync(tmpDir, finalTargetDir);
+  const finalizeIntents: FsIntent[] = [
+    {
+      kind: "mkdir",
+      absolutePath: path.resolve(process.cwd(), "openspec", "changes"),
+    },
+    ...(fs.existsSync(finalTargetDir)
+      ? [{ kind: "deleteDir" as const, absolutePath: finalTargetDir }]
+      : []),
+    { kind: "renameDir", oldPath: tmpDir, newPath: finalTargetDir },
+  ];
 
-  // Archive plan
-  const archiveDir = path.join(process.cwd(), "openspec", "archive", "plans");
-  if (!fs.existsSync(archiveDir)) {
-    fs.mkdirSync(archiveDir, { recursive: true });
-  }
-  const archivePath = path.join(archiveDir, path.basename(planPath));
-  fs.renameSync(planPath, archivePath);
-
-  if (!options.nonInteractive) {
-    console.log(
-      `✅ Successfully scaffolded OpenSpec at openspec/changes/${featureName}`,
-    );
-    console.log(`📦 Archived original plan to ${archivePath}`);
-  } else {
-    console.log(
-      JSON.stringify({
-        success: true,
-        featureName,
-        path: `openspec/changes/${featureName}`,
-      }),
+  // Archive plan (unless stdin)
+  if (planPath !== "-" && !options.stdin) {
+    const archiveDir = path.join(process.cwd(), "openspec", "archive", "plans");
+    finalizeIntents.push(
+      { kind: "mkdir", absolutePath: archiveDir },
+      {
+        kind: "createFile",
+        absolutePath: path.join(archiveDir, path.basename(planPath)),
+        content: planContent,
+      },
+      { kind: "deleteFile", absolutePath: planPath },
     );
   }
+
+  executor.execute(finalizeIntents);
+
+  presenter.success(
+    { success: true, featureName, path: `openspec/changes/${featureName}` },
+    `Successfully scaffolded OpenSpec at openspec/changes/${featureName}`,
+  );
 }

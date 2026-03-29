@@ -2,6 +2,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { ParsedSpec } from "./utils.js";
+import { CliOptions } from "./schema.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 import {
   getCache,
   saveCache,
@@ -89,7 +91,13 @@ function calculateBM25(queryTokens: string[], docTokens: string[]): number {
 export async function buildContext(
   featureName: string,
   specs: ParsedSpec[],
+  options?: CliOptions,
 ): Promise<string> {
+  const presenter = new TerminalPresenter(
+    options?.nonInteractive || isHeadless(),
+    options?.json || false,
+  );
+
   const targetSpec = specs.find((s) => s.id === featureName);
 
   if (!targetSpec) {
@@ -164,7 +172,7 @@ export async function buildContext(
             cacheUpdated = true;
           }
         } catch (e) {
-          console.warn("Failed to embed target spec for retrieval:", e);
+          presenter.warn(`Failed to embed target spec for retrieval: ${e}`);
         }
       }
 

@@ -1,9 +1,15 @@
 import { ParsedSpec } from "./utils.js";
+import { TerminalPresenter, isHeadless } from "./presenter.js";
 
 /**
  *
  */
-export function checkCycles(specs: ParsedSpec[]) {
+export function checkCycles(
+  specs: ParsedSpec[],
+  presenter?: TerminalPresenter,
+) {
+  const p = presenter || new TerminalPresenter(isHeadless(), false);
+
   // Build adjacency list for "depends_on" relationships
   const adj = new Map<string, string[]>();
   const nodes = new Set<string>();
@@ -22,7 +28,7 @@ export function checkCycles(specs: ParsedSpec[]) {
     const edges = adj.get(spec.id) || [];
     for (const dep of deps) {
       if (!validSpecIds.has(dep)) {
-        console.error(
+        p.error(
           `Dangling reference: ${spec.id} depends_on ${dep}, but ${dep} does not exist.`,
         );
         hasDangling = true;
@@ -34,7 +40,7 @@ export function checkCycles(specs: ParsedSpec[]) {
 
     for (const blocked of blocks) {
       if (!validSpecIds.has(blocked)) {
-        console.error(
+        p.error(
           `Dangling reference: ${spec.id} blocks ${blocked}, but ${blocked} does not exist.`,
         );
         hasDangling = true;
@@ -48,6 +54,10 @@ export function checkCycles(specs: ParsedSpec[]) {
   }
 
   if (hasDangling) {
+    p.fail(
+      "DAG validation failed: Dangling references detected.",
+      "dangling_ref",
+    );
     return false;
   }
 
@@ -59,7 +69,7 @@ export function checkCycles(specs: ParsedSpec[]) {
    */
   function dfs(node: string, path: string[]): boolean {
     if (recStack.has(node)) {
-      console.error(`Cycle detected! Path: ${path.join(" -> ")} -> ${node}`);
+      p.error(`Cycle detected! Path: ${path.join(" -> ")} -> ${node}`);
       return true;
     }
     if (visited.has(node)) {
@@ -92,9 +102,13 @@ export function checkCycles(specs: ParsedSpec[]) {
   }
 
   if (hasCycle) {
+    p.fail(
+      "DAG validation failed: Circular dependency detected.",
+      "circular_dep",
+    );
     return false;
   } else {
-    console.log("DAG validation passed: No cycles detected.");
+    p.log("DAG validation passed: No cycles detected.");
     return true;
   }
 }
