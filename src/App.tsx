@@ -1536,7 +1536,7 @@ function ActiveApp({ user, productId, isSuperadmin }: any) {
       return;
     if (activeTab === "mindmap") return; // Handled internally by VisualWhiteboard
 
-    const lastSeen = seenGuides[activeTab] || 0;
+    const lastSeen = (seenGuides || {})[activeTab] || 0;
 
     if (lastSeen === -1) return;
 
@@ -3825,7 +3825,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             </span>
             <span className="text-ink-faint">/</span>
             <span className="text-ink-muted capitalize">
-              {activeTab.replace("-", " ")}
+              {activeTab ? activeTab.replace("-", " ") : "dashboard"}
             </span>
           </div>
           <div className="flex items-center gap-4">

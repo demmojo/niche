@@ -441,6 +441,35 @@ describe("campaignRoutes", () => {
         "Unrecognized keys",
       );
     });
+
+    it("should reject payload with full myProductData fields to prevent validation failures", async () => {
+      const response = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({
+          competitors: [],
+          baseIdea: {
+            name: "New Startup",
+            description: "A cool idea",
+            targetRegions: ["US", "UK"], // Extraneous field from myProductData
+            features: [], // Extraneous field
+            strategy: [], // Extraneous field
+            allowAiWriteAccess: true, // Extraneous field
+          },
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid request payload");
+      expect(JSON.stringify(response.body.details)).toContain(
+        "Unrecognized keys",
+      );
+      expect(JSON.stringify(response.body.details)).toContain("targetRegions");
+      expect(JSON.stringify(response.body.details)).toContain("features");
+      expect(JSON.stringify(response.body.details)).toContain("strategy");
+      expect(JSON.stringify(response.body.details)).toContain(
+        "allowAiWriteAccess",
+      );
+    });
   });
 
   describe("POST /api/campaign/pivot", () => {
