@@ -1,6 +1,8 @@
 import React from "react";
 import { render, screen, act, fireEvent, waitFor } from "../test-utils/render";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { server } from "../test-utils/server";
+import { http, HttpResponse } from "msw";
 import App from "../App";
 
 // Mock dependencies
@@ -12,10 +14,43 @@ vi.mock("firebase/firestore", () => ({
   }),
   setDoc: vi.fn(() => Promise.resolve()),
   onSnapshot: vi.fn((_doc, cb) => {
-    // Return unsubscribe function
+    if (typeof cb !== "function") return () => {};
+    setTimeout(() => {
+      cb({
+        exists: () => true,
+        data: () => ({
+          status: "completed",
+          progress: 100,
+          total: 100,
+          results: [
+            {
+              id: "mock-comp-result",
+              name: "Competitor",
+              trueCompetitorScore: 0.1,
+              website: "comp.com",
+              techStack: ["Tech"],
+              fundingHistory: "Unknown",
+              coreFeatures: ["Feature A", "Feature B"],
+              targetAudience: ["Audience"],
+              marketSegments: ["Segment"],
+              vulnerabilities: [],
+              contentStrategy: [],
+            },
+          ],
+        }),
+        metadata: { hasPendingWrites: false },
+        docs: [],
+      });
+    }, 10);
     return () => {};
   }),
   getFirestore: vi.fn(),
+  query: vi.fn(),
+  collection: vi.fn(),
+  where: vi.fn(),
+  limit: vi.fn(),
+  orderBy: vi.fn(),
+  addDoc: vi.fn(),
 }));
 
 vi.mock("../firebase", () => ({
@@ -30,6 +65,7 @@ vi.mock("../firebase", () => ({
 vi.mock("../components/AuthProvider", () => ({
   useAuth: () => ({
     user: {
+      getIdToken: vi.fn().mockResolvedValue("test-token"),
       uid: "test-user-id",
       email: "standard.user@example.com",
       getIdTokenResult: vi.fn().mockResolvedValue({ claims: {} }),
@@ -45,9 +81,41 @@ vi.mock("../components/ZeroFrictionEntry", () => ({
   ),
 }));
 
+const { mockUseProducts, mockUseWorkspace } = vi.hoisted(() => ({
+  mockUseProducts: vi
+    .fn()
+    .mockReturnValue([{ id: "prod-kageform", name: "KageForm" }]),
+  mockUseWorkspace: vi.fn().mockReturnValue("prod-kageform"),
+}));
+
+vi.mock("../components/WorkspaceProvider", async (importOriginal) => {
+  const mod =
+    await importOriginal<typeof import("../components/WorkspaceProvider")>();
+  return {
+    ...mod,
+    useWorkspace: () => mockUseWorkspace(),
+    useProducts: () => mockUseProducts(),
+    useWorkspaceLoading: () => false,
+    useProductsDispatch: () => vi.fn(),
+    useWorkspaceDispatch: () => vi.fn(),
+  };
+});
+
 describe("App Integration", () => {
   beforeEach(() => {
+    server.use(
+      http.post("http://localhost/api/campaign/start", () =>
+        HttpResponse.json({ jobId: "mock-job-123" }, { status: 202 }),
+      ),
+      http.post("/api/campaign/start", () =>
+        HttpResponse.json({ jobId: "mock-job-123" }, { status: 202 }),
+      ),
+    );
     window.localStorage.clear();
+    mockUseProducts.mockReturnValue([
+      { id: "prod-kageform", name: "KageForm" },
+    ]);
+    mockUseWorkspace.mockReturnValue("prod-kageform");
     // Set URL so WORKSPACE_ID is predictable
     delete (window as any).location;
     window.location = new URL("http://localhost/?w=test-workspace") as any;
@@ -73,7 +141,9 @@ describe("App Integration", () => {
     vi.clearAllMocks();
   });
 
-  it.skip("intercepts standard users with 0 products and shows ZeroFrictionEntry", async () => {
+  it("intercepts standard users with 0 products and shows ZeroFrictionEntry", async () => {
+    mockUseProducts.mockReturnValue([]);
+    mockUseWorkspace.mockReturnValue(null);
     window.localStorage.clear(); // Ensure 0 products
 
     await act(async () => {
@@ -83,7 +153,7 @@ describe("App Integration", () => {
     expect(screen.getByTestId("zero-friction-entry")).toBeInTheDocument();
   });
 
-  it.skip("renders App and verifies tab navigation and SyncNowButton deduplication", async () => {
+  it("renders App and verifies tab navigation and SyncNowButton deduplication", async () => {
     let getByText: any, getAllByText: any;
 
     await act(async () => {

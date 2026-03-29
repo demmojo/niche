@@ -72,6 +72,17 @@ vi.mock("@google/genai", async (importOriginal) => {
             exa_url: "https://exa.ai",
             wedge_metric: 0.5,
             suggestedNiches: ["niche1"],
+            jtbd: {
+              job_statement: "Some job",
+              importance: 8,
+              satisfaction: 4,
+            },
+            market_gaps: [
+              {
+                feature: "missing feature",
+                competitor_deficit: "they lack it",
+              },
+            ],
           }),
         }),
         embedContent: vi.fn().mockResolvedValue({
@@ -178,5 +189,62 @@ describe("scoringRoutes", () => {
       .send({ productName: "Test", productDescription: "Desc" });
 
     expect(res.status).toBe(500);
+  });
+
+  it("should stream analysis progressively", async () => {
+    // Reset to successful mock
+    const { GoogleGenAI } = await import("@google/genai");
+    (GoogleGenAI as any).mockImplementationOnce(() => ({
+      models: {
+        generateContent: vi.fn().mockResolvedValue({
+          text: JSON.stringify({
+            _reasoning: "Test reasoning",
+            exact_quote: "A quote",
+            exa_url: "https://exa.ai",
+            wedge_metric: 0.5,
+            suggestedNiches: ["niche1"],
+            jtbd: {
+              job_statement: "Some job",
+              importance: 8,
+              satisfaction: 4,
+            },
+            market_gaps: [
+              {
+                feature: "missing feature",
+                competitor_deficit: "they lack it",
+              },
+            ],
+          }),
+        }),
+        embedContent: vi.fn().mockResolvedValue({
+          embeddings: [{ values: new Array(768).fill(0.1) }],
+        }),
+      },
+    }));
+
+    const res = await request(app)
+      .post("/api/scoring/stream")
+      .send({ productName: "Test", productDescription: "Desc" });
+
+    expect(res.status).toBe(200);
+    expect(res.header["content-type"]).toContain("text/event-stream");
+
+    const chunks = res.text.split("\n\n").filter(Boolean);
+    expect(chunks.length).toBeGreaterThanOrEqual(5);
+
+    const firstData = JSON.parse(chunks[0].replace("data: ", ""));
+    expect(firstData.type).toBe("competitor_count");
+
+    const secondData = JSON.parse(chunks[1].replace("data: ", ""));
+    expect(secondData.type).toBe("jtbd_analysis");
+
+    const thirdData = JSON.parse(chunks[2].replace("data: ", ""));
+    expect(thirdData.type).toBe("gap_analysis");
+
+    const fourthData = JSON.parse(chunks[3].replace("data: ", ""));
+    expect(fourthData.type).toBe("tarpit_score");
+
+    const fifthData = JSON.parse(chunks[4].replace("data: ", ""));
+    expect(fifthData.type).toBe("final");
   });
 });

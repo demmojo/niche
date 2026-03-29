@@ -1,12 +1,39 @@
 import { z } from "zod";
 
 export const LLMExtractionSchema = z.object({
+  jtbd: z.object({
+    job_statement: z
+      .string()
+      .describe("The core functional job the user is trying to get done."),
+    importance: z
+      .number()
+      .min(1)
+      .max(10)
+      .describe("How important the job is to the customer (1-10)"),
+    satisfaction: z
+      .number()
+      .min(1)
+      .max(10)
+      .describe("How satisfied the customer is with current solutions (1-10)"),
+  }),
+  market_gaps: z.array(
+    z.object({
+      feature: z.string(),
+      competitor_deficit: z.string(),
+    }),
+  ),
   _reasoning: z.string().optional(),
   exact_quote: z.string().optional(),
   exa_url: z.string().optional(),
-  wedge_metric: z.number().optional(),
   suggestedNiches: z.array(z.string()).optional(),
 });
+
+export function calculateOpportunityScore(
+  importance: number,
+  satisfaction: number,
+): number {
+  return importance + Math.max(importance - satisfaction, 0);
+}
 
 /**
  * Hybrid Scoring Engine
@@ -16,6 +43,7 @@ export const LLMExtractionSchema = z.object({
 export interface TarpitScoreInput {
   vectorUniqueness: number;
   apolloCount: number | null | undefined;
+  opportunityScore?: number;
 }
 
 export interface TarpitScoreResult {
@@ -30,11 +58,19 @@ export interface TarpitScoreResult {
 
 export const TAXONOMY_THRESHOLDS: Record<
   string,
-  { objective: number; subjective: number }
+  { objective: number; subjective: number; orthogonalBypass: number }
 > = {
-  "gemini-embedding-001": { objective: 0.85, subjective: 0.6 },
-  "text-embedding-3-small": { objective: 0.82, subjective: 0.58 },
-  default: { objective: 0.85, subjective: 0.6 },
+  "gemini-embedding-001": {
+    objective: 0.85,
+    subjective: 0.6,
+    orthogonalBypass: 0.65,
+  },
+  "text-embedding-3-small": {
+    objective: 0.82,
+    subjective: 0.58,
+    orthogonalBypass: 0.65,
+  },
+  default: { objective: 0.85, subjective: 0.6, orthogonalBypass: 0.65 },
 };
 
 export function getTaxonomyThresholds(modelName: string) {
@@ -67,7 +103,14 @@ export function calculateTarpitScore(
   const cappedSaturation = Math.min(saturationFactor, 1.0);
 
   // 3. Apply Weights
-  const tarpitScore = (cloneFactor * 0.6 + cappedSaturation * 0.4) * 100;
+  let tarpitScore = (cloneFactor * 0.6 + cappedSaturation * 0.4) * 100;
+
+  // 4. Adjust based on JTBD Opportunity Score
+  if (input.opportunityScore !== undefined) {
+    const oppFactor = (input.opportunityScore - 10) / 10;
+    tarpitScore -= oppFactor * 20;
+    tarpitScore = Math.max(0, Math.min(100, tarpitScore));
+  }
 
   return {
     status: "success",

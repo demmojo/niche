@@ -6,9 +6,21 @@ import {
   validateExaUrl,
   mergeVectors,
   calculateCosineSimilarity,
+  calculateOpportunityScore,
 } from "../../utils/scoringEngine";
 
 describe("scoringEngine", () => {
+  describe("calculateOpportunityScore", () => {
+    it("calculates opportunity score correctly", () => {
+      // High importance, low satisfaction -> high opportunity
+      expect(calculateOpportunityScore(10, 2)).toBe(18);
+      // High importance, high satisfaction -> average opportunity
+      expect(calculateOpportunityScore(10, 10)).toBe(10);
+      // Low importance, high satisfaction -> low opportunity
+      expect(calculateOpportunityScore(2, 8)).toBe(2);
+    });
+  });
+
   describe("calculateTarpitScore", () => {
     it("returns 0 score (blue ocean) for 0 competitors and 1.0 uniqueness", () => {
       const result = calculateTarpitScore({
@@ -66,6 +78,30 @@ describe("scoringEngine", () => {
       });
       expect(result.status).toBe("success");
       expect(result.uniqueness).toBe(1.0);
+    });
+
+    it("adjusts score based on high opportunityScore", () => {
+      // Base score would be 100 for 0 uniqueness, 10000 count
+      const result = calculateTarpitScore({
+        apolloCount: 10000,
+        vectorUniqueness: 0.0,
+        opportunityScore: 20, // (20 - 10) / 10 = 1 -> reduces score by 20
+      });
+      expect(result.status).toBe("success");
+      expect(result.score).toBeCloseTo(80);
+      expect(result.isTarpit).toBe(true);
+    });
+
+    it("adjusts score based on low opportunityScore", () => {
+      // Base score would be 0 for 1.0 uniqueness, 0 count
+      const result = calculateTarpitScore({
+        apolloCount: 0,
+        vectorUniqueness: 1.0,
+        opportunityScore: 1, // (1 - 10) / 10 = -0.9 -> increases score by 18
+      });
+      expect(result.status).toBe("success");
+      expect(result.score).toBeCloseTo(18);
+      expect(result.isTarpit).toBe(false);
     });
   });
 
@@ -182,6 +218,7 @@ describe("scoringEngine", () => {
       const t = getTaxonomyThresholds("gemini-embedding-001");
       expect(t.objective).toBe(0.85);
       expect(t.subjective).toBe(0.6);
+      expect(t.orthogonalBypass).toBe(0.65);
     });
 
     it("returns default thresholds for unknown model", async () => {
@@ -190,6 +227,7 @@ describe("scoringEngine", () => {
       const t = getTaxonomyThresholds("unknown-model");
       expect(t.objective).toBe(0.85);
       expect(t.subjective).toBe(0.6);
+      expect(t.orthogonalBypass).toBe(0.65);
     });
   });
 

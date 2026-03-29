@@ -482,6 +482,12 @@ export async function runDeepValidationCampaign(
 
         // Mock LLM Extraction output using strict Zod boundary parsing and Grammar-Constrained Decoding format
         const mockLlmExtraction = {
+          jtbd: {
+            job_statement: "test",
+            importance: 10,
+            satisfaction: 2,
+          },
+          market_gaps: [],
           _reasoning: "Competitor focuses on general CRM features.",
           exact_quote: "The all-in-one CRM for businesses.",
           exa_url: "https://example.com/crm",

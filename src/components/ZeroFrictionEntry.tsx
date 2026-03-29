@@ -1,282 +1,81 @@
-import React, {
-  useActionState,
-  useOptimistic,
-  useState,
-  useEffect,
-} from "react";
+import React, { useState } from "react";
 import { signInAnonymously } from "firebase/auth";
-import { auth } from "../firebase"; // Adjust to your config
-import { fetchWithAppCheck } from "../utils/fetchWithAppCheck";
-import { CheckCircle2, Loader2, Circle } from "lucide-react";
+import { auth } from "../firebase";
+import { TrustBuilderScreen } from "./TrustBuilderScreen";
 
-type EntryState = {
-  status: "idle" | "analyzing" | "success" | "error";
-  message: string;
-  pivotedIdea?: string;
-};
-
-const initialState: EntryState = { status: "idle", message: "" };
-
-function AnalyzingState({ message, idea }: { message: string; idea: string }) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [competitorCount, setCompetitorCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    // Fetch the actual competitor count from Exa first
-    async function fetchActualCount() {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetchWithAppCheck("/api/scoring/count-competitors", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            productName: "AI Idea",
-            productDescription: idea,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) setCompetitorCount(data.count || 0);
-        } else {
-          // Fallback if the route fails
-          if (isMounted) setCompetitorCount(3);
-        }
-      } catch (error) {
-        if (isMounted) setCompetitorCount(3);
-      }
-    }
-
-    fetchActualCount();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [idea]);
-
-  const ANALYSIS_STEPS = [
-    "Parsing core premise and intent...",
-    "Searching the web for similar competitors...",
-    competitorCount === null
-      ? "Finding potential competitors..."
-      : `Found ${competitorCount} potential competitors...`,
-    "Analyzing competitor data & feature density...",
-    "Evaluating market gaps and tarpit risk...",
-    "Synthesizing optimal niche pivots...",
-    "Finalizing market intelligence report...",
-  ];
-
-  useEffect(() => {
-    if (currentStep >= ANALYSIS_STEPS.length - 1) return;
-
-    // Different steps can take different amounts of simulated time
-    let delay = 1500 + Math.random() * 1500; // default 1.5s - 3.0s
-    if (currentStep === 1) {
-      // Searching for competitors: wait longer or wait until we have the count
-      if (competitorCount === null) {
-        delay = 3000;
-      } else {
-        delay = 1000;
-      }
-    }
-    if (currentStep === 2) delay = 800; // X competitors found is an instant readout
-
-    const timeout = setTimeout(() => {
-      // Pause progression at step 1 if we haven't fetched the count yet
-      if (currentStep === 1 && competitorCount === null) {
-        // Just poll again shortly
-        setCurrentStep(currentStep);
-      } else {
-        setCurrentStep((prev) => Math.min(prev + 1, ANALYSIS_STEPS.length - 1));
-      }
-    }, delay);
-
-    return () => clearTimeout(timeout);
-  }, [currentStep, competitorCount, ANALYSIS_STEPS.length]);
-
-  return (
-    <div
-      className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED] px-4"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10">
-        <h2 className="text-2xl font-serif font-bold text-ink-dark mb-6 text-center">
-          {message}
-        </h2>
-
-        <div className="space-y-4">
-          {ANALYSIS_STEPS.map((step, index) => {
-            const isCompleted = index < currentStep;
-            const isCurrent = index === currentStep;
-            const isPending = index > currentStep;
-
-            return (
-              <div
-                key={index}
-                className={`flex items-center gap-4 transition-all duration-500 ${
-                  isCompleted
-                    ? "opacity-100"
-                    : isCurrent
-                      ? "opacity-100 scale-[1.02]"
-                      : "opacity-40"
-                }`}
-              >
-                {isCompleted ? (
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
-                ) : isCurrent ? (
-                  <Loader2 className="w-6 h-6 text-ink-dark animate-spin flex-shrink-0" />
-                ) : (
-                  <Circle className="w-6 h-6 text-ink-dark/20 flex-shrink-0" />
-                )}
-                <span
-                  className={`text-base font-medium transition-colors duration-500 ${
-                    isCompleted
-                      ? "text-ink-dark"
-                      : isCurrent
-                        ? "text-ink-dark"
-                        : "text-ink-dark/50"
-                  }`}
-                >
-                  {step}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
+type IntentType = "validate" | "discover" | "analyze" | null;
 
 export function ZeroFrictionEntry({
   onComplete,
 }: {
   onComplete: (product: any) => void;
 }) {
-  // 1. The Server/Async Action
-  // This executes in the background while the UI shows the optimistic state
-  async function processIdeaAction(
-    prevState: EntryState,
-    formData: FormData,
-  ): Promise<EntryState> {
-    const idea = formData.get("idea") as string;
-    if (!idea) return { status: "error", message: "Please enter an idea." };
+  const [step, setStep] = useState<EntryStep>("intent");
+  const [intent, setIntent] = useState<IntentType>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [ideaPayload, setIdeaPayload] = useState<any>(null);
+  const [pivotedIdea, setPivotedIdea] = useState<string | null>(null);
+
+  const handleIntentSelection = (selectedIntent: IntentType) => {
+    setIntent(selectedIntent);
+    setStep("input");
+  };
+
+  const handleAction = async (formData: FormData) => {
+    const inputValue = formData.get("idea") as string;
+    if (!inputValue) {
+      setStep("error");
+      setErrorMessage("Please enter some text.");
+      return;
+    }
+
+    setStep("analyzing");
+
+    // Adjust payload based on intent
+    let finalIdea = inputValue;
+    if (intent === "discover") {
+      finalIdea = `I want to discover a niche in the ${inputValue} industry.`;
+    } else if (intent === "analyze") {
+      finalIdea = `I want to analyze gaps left by ${inputValue}.`;
+    }
+
+    setIdeaPayload({ productName: "AI Idea", productDescription: finalIdea });
 
     try {
-      // Step A: Authenticate the user if not already
       if (!auth.currentUser) {
         await signInAnonymously(auth);
       }
-
-      // Step B: Hit the backend/LLM to process the idea
-      const token = await auth.currentUser?.getIdToken();
-
-      const res = await fetchWithAppCheck("/api/scoring/tarpit-analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          productName: "AI Idea",
-          productDescription: idea,
-        }),
-      });
-
-      const resText = await res
-        .clone()
-        .text()
-        .catch(() => "");
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "2190e2",
-          },
-          body: JSON.stringify({
-            sessionId: "2190e2",
-            runId: "post-fix",
-            hypothesisId: "H1",
-            location: "ZeroFrictionEntry.tsx:fetch",
-            message: "fetch response",
-            data: { status: res.status, ok: res.ok, bodyText: resText },
-            timestamp: Date.now(),
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
-
-      if (!res.ok) {
-        throw new Error("Failed to analyze idea.");
-      }
-
-      const data = await res.json();
-      let pivotedIdea = idea;
-      if (
-        data.isTarpit &&
-        data.suggestedNiches &&
-        data.suggestedNiches.length > 0
-      ) {
-        pivotedIdea = data.suggestedNiches[0];
-      }
-
-      return { status: "success", message: "Analysis complete!", pivotedIdea };
-    } catch (error: any) {
-      console.error(error);
-      return {
-        status: "error",
-        message: error.message || "Failed to process idea. Please try again.",
-      };
+    } catch (e: any) {
+      console.error(e);
+      setStep("error");
+      setErrorMessage(e.message || "Failed to sign in.");
     }
-  }
-
-  // 2. Manage the async lifecycle natively
-  const [state, dispatchAction, isPending] = useActionState(
-    processIdeaAction,
-    initialState,
-  );
-
-  // 3. Manage the instant UI feedback
-  const [optimisticState, setOptimisticState] = useOptimistic<
-    EntryState,
-    EntryState
-  >(state, (currentState, optimisticValue) => optimisticValue);
-
-  // 4. Form Action Wrapper
-  const handleAction = (formData: FormData) => {
-    // Instantly transition the UI to the Explainable State
-    // This masks the delay of both Firebase Auth and the Data Fetch
-    setOptimisticState({
-      status: "analyzing",
-      message: "Evaluating market viability...",
-    });
-
-    // Dispatch the actual background process
-    dispatchAction(formData);
   };
 
-  // 5. Render Explainable States (acting as our highly-converting loading UI)
-  if (optimisticState.status === "analyzing" || isPending) {
-    // We get the idea from the form data or assume "this idea" if it's not set
-    const formEl = document.querySelector("form") as HTMLFormElement;
-    const currentIdea = formEl
-      ? (new FormData(formEl).get("idea") as string)
-      : "this idea";
+  const handleValidationComplete = (data: any) => {
+    let finalIdea = ideaPayload.productDescription;
+    if (
+      data.isTarpit &&
+      data.suggestedNiches &&
+      data.suggestedNiches.length > 0
+    ) {
+      finalIdea = data.suggestedNiches[0];
+    }
+    setPivotedIdea(finalIdea);
+    setStep("success");
+  };
+
+  if (step === "analyzing" && ideaPayload) {
     return (
-      <AnalyzingState message={optimisticState.message} idea={currentIdea} />
+      <TrustBuilderScreen
+        ideaPayload={ideaPayload}
+        onComplete={handleValidationComplete}
+      />
     );
   }
 
-  if (state.status === "success" && state.pivotedIdea) {
+  if (step === "success" && pivotedIdea) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]">
         <div className="w-full max-w-2xl px-4 text-center">
@@ -285,14 +84,14 @@ export function ZeroFrictionEntry({
           </h2>
           <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10 mb-8 text-left">
             <p className="text-xl text-ink-dark leading-relaxed">
-              {state.pivotedIdea}
+              {pivotedIdea}
             </p>
           </div>
           <button
             onClick={() => {
               onComplete({
                 name: "My AI Idea",
-                description: state.pivotedIdea,
+                description: pivotedIdea,
                 targetRegions: ["Global"],
                 features: [],
                 strategy: [],
@@ -309,32 +108,75 @@ export function ZeroFrictionEntry({
     );
   }
 
-  // 6. Render the single, high-converting text input
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]">
       <div className="w-full max-w-2xl px-4 text-center">
         <h1 className="text-4xl font-serif font-bold text-ink-dark mb-12">
           NicheAI
         </h1>
-        <form action={handleAction} className="w-full relative">
-          <input
-            type="text"
-            name="idea"
-            placeholder="What are you thinking of building?"
-            className="w-full text-2xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
-            disabled={isPending}
-            autoFocus
-            required
-          />
-          {optimisticState.status === "error" && (
-            <p className="text-rose-500 mt-4 font-medium" role="alert">
-              {optimisticState.message}
-            </p>
-          )}
-          <button type="submit" className="hidden">
-            Submit
-          </button>
-        </form>
+
+        {step === "intent" && (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-2xl font-serif font-bold text-ink-dark/80 mb-6">
+              What is your primary goal today?
+            </h2>
+            <button
+              onClick={() => handleIntentSelection("validate")}
+              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
+            >
+              <span>Validate an existing idea</span>
+              <span className="text-ink-dark/40">→</span>
+            </button>
+            <button
+              onClick={() => handleIntentSelection("discover")}
+              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
+            >
+              <span>Discover a new niche</span>
+              <span className="text-ink-dark/40">→</span>
+            </button>
+            <button
+              onClick={() => handleIntentSelection("analyze")}
+              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
+            >
+              <span>Analyze a market gap</span>
+              <span className="text-ink-dark/40">→</span>
+            </button>
+          </div>
+        )}
+
+        {(step === "input" || step === "error") && (
+          <form
+            action={handleAction}
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAction(new FormData(e.currentTarget));
+            }}
+            className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            <input
+              type="text"
+              name="idea"
+              placeholder={
+                intent === "validate"
+                  ? "What are you thinking of building?"
+                  : intent === "discover"
+                    ? "What industry or topic interests you?"
+                    : "Which competitor do you want to analyze?"
+              }
+              className="w-full text-2xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
+              autoFocus
+              required
+            />
+            {step === "error" && (
+              <p className="text-rose-500 mt-4 font-medium" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            <button type="submit" className="hidden">
+              Submit
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

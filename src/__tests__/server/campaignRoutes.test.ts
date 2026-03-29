@@ -681,7 +681,7 @@ describe("campaignRoutes", () => {
         scoringEngine,
         "calculateSquaredOrthogonalDistance",
       ).mockReturnValue(
-        0.81, // 0.9^2 = 0.81
+        0.8101, // 0.90005^2 = 0.81009
       );
       vi.spyOn(scoringEngine, "calculateTarpitScore").mockReturnValue({
         status: "success",

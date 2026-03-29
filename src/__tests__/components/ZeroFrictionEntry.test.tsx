@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ZeroFrictionEntry } from "../../components/ZeroFrictionEntry";
+import * as fetchUtils from "../../utils/fetchWithAppCheck";
 import * as firebaseAuth from "firebase/auth";
 
 vi.mock("firebase/auth", async () => {
@@ -21,42 +22,47 @@ vi.mock("../../firebase", () => ({
 describe("ZeroFrictionEntry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Return a mocked Promise response with ok, status, and correct JSON for the tests
-    global.fetch = vi.fn((url: string) => {
-      if (url === "/api/scoring/tarpit-analyze") {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          clone: function () {
-            return this;
-          },
-          text: () =>
-            Promise.resolve(
-              JSON.stringify({
-                isTarpit: true,
-                suggestedNiches: ["A better niche CRM"],
-              }),
-            ),
-          json: () =>
-            Promise.resolve({
-              isTarpit: true,
-              suggestedNiches: ["A better niche CRM"],
-            }),
-        });
-      }
-      if (url === "/api/campaign/start") {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ jobId: "job-123" }),
-        });
-      }
-      return Promise.reject(new Error("Unknown route"));
-    }) as any;
+    vi.spyOn(fetchUtils, "fetchWithAppCheck").mockImplementation(
+      (url: string) => {
+        if (url === "/api/scoring/stream") {
+          const encoder = new TextEncoder();
+          const mockStream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  'data: {"type": "final", "value": {"reasoning": "Test", "suggestedNiches": ["A better niche CRM"], "isTarpit": true}}\n\n',
+                ),
+              );
+              controller.close();
+            },
+          });
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            clone: function () {
+              return this;
+            },
+            body: {
+              getReader: () => mockStream.getReader(),
+            },
+          } as any);
+        }
+        return Promise.reject(new Error("Unknown route"));
+      },
+    );
   });
 
-  it("renders the initial input form", () => {
+  it("renders the initial input form", async () => {
+    const user = userEvent.setup();
     render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    expect(
+      screen.getByText("What is your primary goal today?"),
+    ).toBeInTheDocument();
+
+    const validateBtn = screen.getByText("Validate an existing idea");
+    await user.click(validateBtn);
+
     expect(
       screen.getByPlaceholderText("What are you thinking of building?"),
     ).toBeInTheDocument();
@@ -67,6 +73,11 @@ describe("ZeroFrictionEntry", () => {
     render(<ZeroFrictionEntry onComplete={onCompleteMock} />);
 
     const user = userEvent.setup();
+
+    // Select intent first
+    const validateBtn = screen.getByText("Validate an existing idea");
+    await user.click(validateBtn);
+
     const input = screen.getByPlaceholderText(
       "What are you thinking of building?",
     );
@@ -75,19 +86,28 @@ describe("ZeroFrictionEntry", () => {
     const form = input.closest("form")!;
     fireEvent.submit(form);
 
-    // Should optimistically show analyzing state
-    expect(
-      screen.getByText("Evaluating market viability..."),
-    ).toBeInTheDocument();
+    // Should show analyzing state
+    await waitFor(() => {
+      expect(
+        screen.getByText("Evaluating Market Viability..."),
+      ).toBeInTheDocument();
+    });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/scoring/tarpit-analyze",
+      expect(fetchUtils.fetchWithAppCheck).toHaveBeenCalledWith(
+        "/api/scoring/stream",
         expect.any(Object),
       );
-      expect(screen.getByText("Your Validated Idea")).toBeInTheDocument();
-      expect(screen.getByText("A better niche CRM")).toBeInTheDocument();
     });
+
+    await waitFor(
+      () => {
+        expect(screen.getByText("Your Validated Idea")).toBeInTheDocument();
+      },
+      { timeout: 4000 },
+    ); // timeout is long due to setTimeout in TrustBuilderScreen
+
+    expect(screen.getByText("A better niche CRM")).toBeInTheDocument();
 
     const generateBtn = screen.getByRole("button", {
       name: "Generate Full Campaign",
