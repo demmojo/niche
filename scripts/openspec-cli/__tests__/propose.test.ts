@@ -87,7 +87,13 @@ describe("proposePlan", () => {
     vi.spyOn(collision, "promptUserConfirm").mockResolvedValueOnce(false);
 
     await expect(
-      proposePlan("openspec/plans/test-plan.md", { nonInteractive: false }),
+      proposePlan("openspec/plans/test-plan.md", {
+        nonInteractive: false,
+        json: false,
+        force: false,
+        dryRun: false,
+        stdin: false,
+      }),
     ).rejects.toThrow("Process exited with code 1");
 
     expect(collision.promptUserConfirm).toHaveBeenCalledWith(
@@ -108,6 +114,9 @@ describe("proposePlan", () => {
       proposePlan("openspec/plans/test-plan.md", {
         nonInteractive: true,
         force: false,
+        json: false,
+        dryRun: false,
+        stdin: false,
       }),
     ).rejects.toThrow("Process exited with code 1");
 
@@ -125,6 +134,9 @@ describe("proposePlan", () => {
     await proposePlan("openspec/plans/test-plan.md", {
       nonInteractive: true,
       force: true,
+      json: false,
+      dryRun: false,
+      stdin: false,
     });
 
     // Assuming fs.rmSync is called to wipe the dir
@@ -141,7 +153,13 @@ describe("proposePlan", () => {
     vi.spyOn(collision, "promptUserConfirm").mockResolvedValueOnce(false);
 
     await expect(
-      proposePlan("openspec/plans/test-plan.md", { nonInteractive: false }),
+      proposePlan("openspec/plans/test-plan.md", {
+        nonInteractive: false,
+        json: false,
+        force: false,
+        dryRun: false,
+        stdin: false,
+      }),
     ).rejects.toThrow("Process exited with code 1");
 
     expect(collision.promptUserConfirm).toHaveBeenCalledWith(
@@ -162,7 +180,13 @@ describe("proposePlan", () => {
     });
 
     await expect(
-      proposePlan("openspec/plans/test-plan.md", { nonInteractive: true }),
+      proposePlan("openspec/plans/test-plan.md", {
+        nonInteractive: true,
+        json: false,
+        force: false,
+        dryRun: false,
+        stdin: false,
+      }),
     ).rejects.toThrow("Process exited with code 1");
 
     // Should not call rmSync when eval fails
@@ -177,6 +201,9 @@ describe("proposePlan", () => {
     await proposePlan("openspec/changes/test-feature/proposal.md", {
       nonInteractive: true,
       force: true,
+      json: false,
+      dryRun: false,
+      stdin: false,
     });
 
     // FsExecutor executes intents. We can't easily mock the internal array,

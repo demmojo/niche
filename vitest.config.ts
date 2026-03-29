@@ -1,13 +1,14 @@
 import { defineConfig, coverageConfigDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { getSafePoolOptions } from "./scripts/test-utils/vitest-scaling";
 
 export default defineConfig({
   plugins: [react()],
   test: {
+    ...getSafePoolOptions(),
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/setupTests.ts"],
-    pool: "forks",
     testTimeout: 15000,
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {

@@ -102,4 +102,9 @@ afterEach(() => {
 afterAll(async () => {
   server.close();
   await teardownFirebase();
+
+  // Expose GC hook allows us to clear up V8 memory limits caused by JsDOM
+  if (typeof global.gc === "function") {
+    global.gc();
+  }
 });

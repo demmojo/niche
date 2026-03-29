@@ -1,7 +1,9 @@
 import { defineConfig, coverageConfigDefaults } from "vitest/config";
+import { getSafePoolOptions } from "./scripts/test-utils/vitest-scaling";
 
 export default defineConfig({
   test: {
+    ...getSafePoolOptions(),
     environment: "node",
     globals: true,
     include: ["scripts/openspec-cli/__tests__/**/*.test.{ts,tsx}"],
