@@ -35,3 +35,4 @@
 - **Atomic Staging Preservation**: Never silently delete `.tmp` staging directories on validation failures (e.g., DAG/ai-eval). Preserve them for inspection to prevent silent data loss.
 - **Destructive Operation Prompts**: For any destructive file operation (e.g., wiping targets), implement interactive terminal prompts by default, and strictly require `--force` in headless environments.
 - **Presenter Pattern**: Route CLI output through a `TerminalPresenter`. When executing in `--json` mode, strictly enforce that human-readable logs go to `stderr` and only valid JSON payloads are emitted to `stdout`.
+- **UI Tooltips**: Avoid custom absolute positioning for tooltips inside restrictive stacking contexts (`overflow: hidden`). Use `@radix-ui/react-tooltip` with `<Tooltip.Portal>` to render tooltips at the document body level, preventing z-index clipping.
