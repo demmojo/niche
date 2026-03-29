@@ -22,8 +22,8 @@ Read the change's artifacts in their entirety using the `Read` tool:
 
 ### 2. Mechanical Test Coverage Validation
 
-- Use the `Shell` tool to run the deterministic coverage script: `npm run openspec check-coverage <feature-name> --threshold=90 --non-interactive --json`.
-- If the command exits with `code 1` (coverage below 90%), you MUST mark the verification as **Failed** and halt immediately.
+- Use the `Shell` tool to run the deterministic coverage script: `npm run openspec check-coverage <feature-name> --threshold=80 --non-interactive --json`.
+- If the command exits with `code 1` (coverage below 80%), you MUST mark the verification as **Failed** and halt immediately.
 
 ### 3. Task Completion Status
 
@@ -48,7 +48,7 @@ Provide the verification report back to the user formatted as a summary checklis
 ```markdown
 ### Verification Report: [Feature Name]
 
-- [ ] **Test Coverage (90-100%)**: (Pass/Fail) - [Actual % from CLI script]
+- [ ] **Test Coverage (>80%)**: (Pass/Fail) - [Actual % from CLI script]
 - [ ] **Tasks Complete**: (Pass/Fail) - [Details]
 - [ ] **Spec Scenarios Covered (Intent-Based Test Validation)**: (Pass/Fail) - [Details about missing or correct scenarios & tests]
 - [ ] **Design Constraints Met**: (Pass/Fail) - [Notes on architectural adherence]

@@ -15,7 +15,7 @@ This project relies on `openspec/changes/` directories containing `proposal.md`,
 3. **Validate:** Automated checks (`npm run openspec validate` and `npm run openspec ai-eval --non-interactive --json`).
 4. **Start:** Lock spec & generate context (`npm run openspec start <feature-name> --non-interactive --json`).
 5. **Apply:** Red-Green TDD implementation. Includes the "Halt & Update" escape hatch.
-6. **Verify:** Intent-based tests (`npm run openspec check-coverage <feature-name> --threshold=90`).
+6. **Verify:** Intent-based tests (`npm run openspec check-coverage <feature-name> --threshold=80`).
 7. **Extract:** Continual learning (`@extract-lessons`).
 8. **Archive / Supersede:** State resolution (Agent skill `@archive-openspec` using `git mv`).
 

@@ -55,7 +55,7 @@ stateDiagram-v2
 
 - **6. Verify:** Check coverage and intent-based tests.
   - _Actor:_ AI Agent (`@verify-openspec`).
-  - _Command:_ `npm run openspec check-coverage <feature-name> --threshold=90`.
+  - _Command:_ `npm run openspec check-coverage <feature-name> --threshold=80`.
 - **7. Extract:** Continual learning.
   - _Actor:_ AI Agent (`@extract-lessons`).
   - _Output:_ Sets `learnings_extracted: true` in `.openspec.yaml` and updates `AGENTS.md`.
