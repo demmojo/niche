@@ -20,3 +20,18 @@ aider-system-prompt.txt
 public/videos/????????????????????????????????.webm
 .openspec/.tmp/
 firebase-applet-config.json
+
+# Server build output
+dist-server/
+
+# Playwright artifacts
+blob-report/
+test-dump*.html
+
+# Temporary scripts and agent scratchpads
+fix_*.js
+fix_*.cjs
+test-schema.ts
+test_output*.txt
+*.diff
+review.md

@@ -1,0 +1,18 @@
+---
+description: Critical guardrail to prevent premature code implementation without a verified OpenSpec plan.
+globs: **/*
+alwaysApply: true
+---
+
+# 🛑 STRICT OPENSPEC GATE 🛑
+
+**NEVER IMPLEMENT NEW FEATURES, INFRASTRUCTURE, OR ARCHITECTURE DIRECTLY WITHOUT AN APPROVED OPENSPEC PLAN.**
+
+Before modifying any source code (`src/`, `server.ts`, `Dockerfile`, `terraform/`, `README.md`, etc.) for a new feature or infrastructure change, you MUST:
+
+1. **Verify Context**: Check if you are currently executing an active OpenSpec workflow (e.g., inside an `openspec/changes/` directory applying tasks).
+2. **Ask for Confirmation**: If the user asks for new code, infrastructure, or a feature, and it is NOT part of an active OpenSpec workflow, you MUST STOP.
+3. **Draft a Plan First**: Inform the user that you need to follow the OpenSpec workflow. Offer to draft a plan in `openspec/plans/YYYY-MM-DD-feature-name-plan.md` first.
+4. **Do Not Write Code**: Never write actual implementation files until the user explicitly approves the plan and runs the `npm run openspec propose` and `start` commands to scaffold the feature.
+
+**Exception**: You may write code directly ONLY IF the user explicitly says "bypass openspec" or confirms it's a minor bug fix/typo that doesn't warrant a full spec. Even then, ask for confirmation if unsure.
