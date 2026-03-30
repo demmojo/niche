@@ -33,9 +33,10 @@
 - **Product Architecture**: Supports managing multiple concurrent product ideas and forking existing products to test variations.
 - **Agentic Communication**: Avoid 'banned words' blocklists. Maintain precise architectural density in `openspec/` files and commit messages (via a CI/CD Exemption) to ensure automated `ai-eval` parity. Scale first-principles explanations to task complexity (concise for typos, deep for architecture).
 - **CLI Development Standards**:
-  - **Type Safety**: Never rely on raw Commander `.opts()`; strictly parse, validate, and type all CLI flags using Zod schemas at the application boundary.
-  - **Intent-Based Execution**: Decouple filesystem side-effects from business logic using the `FsIntent` / `FsExecutor` pattern to inherently support safe `--dry-run` operations.
-  - **Atomic Staging**: For multi-step file generation (especially AI-driven scaffolding), build artifacts in a `.tmp` directory first. Run validations (e.g., DAG, `ai-eval`) against the temporary state, and execute a final atomic directory rename only upon full success.
+- **Type Safety**: Never rely on raw Commander `.opts()`; strictly parse, validate, and type all CLI flags using Zod schemas at the application boundary.
+- **Intent-Based Execution**: Decouple filesystem side-effects from business logic using the `FsIntent` / `FsExecutor` pattern to inherently support safe `--dry-run` operations.
+- **Atomic Staging**: For multi-step file generation (especially AI-driven scaffolding), build artifacts in a `.tmp` directory first. Run validations (e.g., DAG, `ai-eval`) against the temporary state, and execute a final atomic directory rename only upon full success.
+- **Cloud Run Containerization**: Always build Docker images using `docker buildx build --platform linux/amd64` to prevent `exec format error` crashes when building on M-Series Macs. Securely inject multiline JSON credentials (e.g. Firebase Admin keys) into Terraform and Docker by base64-encoding them first.
 - **Atomic Staging Preservation**: Never silently delete `.tmp` staging directories on validation failures (e.g., DAG/ai-eval). Preserve them for inspection to prevent silent data loss.
 - **Destructive Operation Prompts**: For any destructive file operation (e.g., wiping targets), implement interactive terminal prompts by default, and strictly require `--force` in headless environments.
 - **Presenter Pattern**: Route CLI output through a `TerminalPresenter`. When executing in `--json` mode, strictly enforce that human-readable logs go to `stderr` and only valid JSON payloads are emitted to `stdout`.
