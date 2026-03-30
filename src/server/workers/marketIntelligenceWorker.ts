@@ -1,6 +1,8 @@
 import Exa from "exa-js";
 import { GoogleGenAI } from "@google/genai";
-import * as admin from "firebase-admin";
+import * as adminNamespace from "firebase-admin";
+const admin: typeof adminNamespace =
+  (adminNamespace as any).default || adminNamespace;
 import {
   CompetitorExtractionSchema,
   DerivedInsightExtractionSchema,
@@ -11,7 +13,7 @@ import {
 import { calculateHeuristicScores } from "../scoringHeuristics";
 
 // Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();

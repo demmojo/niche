@@ -6,8 +6,9 @@ import FirecrawlApp from "@mendable/firecrawl-js";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 
 // Initialize external APIs
-const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAi = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getFirecrawl = () =>
+  new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY || "mock-key" });
 
 // Strict Zod schema enforcing Chain of Thought and bounds
 const CompetitorBrandSchema = z.object({
@@ -113,7 +114,7 @@ export const processBrandWizardJob = async (jobData: any) => {
 
         try {
           // 1. Scrape with Firecrawl
-          firecrawlResult = await firecrawl.scrape(url, {
+          firecrawlResult = await getFirecrawl().scrape(url, {
             formats: ["markdown", "branding"], // Fallback if supported
           });
 
@@ -148,7 +149,7 @@ export const processBrandWizardJob = async (jobData: any) => {
         while (attempts < maxAttempts && !parsedData) {
           attempts++;
           try {
-            const response = await ai.models.generateContent({
+            const response = await getAi().models.generateContent({
               model: "gemini-3.1-flash",
               contents: `Extract the brand identity and positioning from the following competitor markdown data. 
                   ${errorFeedback ? `\nPREVIOUS ERROR: ${errorFeedback}\nFix the JSON format to match constraints.` : ""}

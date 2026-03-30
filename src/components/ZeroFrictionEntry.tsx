@@ -53,8 +53,8 @@ export function ZeroFrictionEntry({
     }
   };
 
-  const handleValidationComplete = (data: any) => {
-    let finalIdea = ideaPayload.productDescription;
+  const handleValidationComplete = (data: any, currentPayload: any) => {
+    let finalIdea = currentPayload.productDescription;
     if (
       data.isTarpit &&
       data.suggestedNiches &&
@@ -70,7 +70,7 @@ export function ZeroFrictionEntry({
     return (
       <TrustBuilderScreen
         ideaPayload={ideaPayload}
-        onComplete={handleValidationComplete}
+        onComplete={(data) => handleValidationComplete(data, ideaPayload)}
       />
     );
   }
