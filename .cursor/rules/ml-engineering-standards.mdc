@@ -7,23 +7,22 @@ globs: src/server/**/*.ts, src/services/**/*.ts, src/server/workers/**/*.ts
 
 As an architectural mandate for NicheAI, all asynchronous ML orchestration, LLM output handling, and V8 performance execution must strictly adhere to the following standards. These rules ensure system resilience, zero data loss, and optimal execution without memory leaks.
 
-## 1. Async ML Orchestration (MLP Focus)
-Do not block the main Node.js thread for heavy ML processing or LLM network calls.
-- **The Pipeline**: Use the `HTTP 202 Accepted` pattern. When a client requests a heavy ML task, you MUST insert the job into Firestore (`status: 'pending'`) *before* returning `202 Accepted` with a `jobId`.
-- **Concurrency**: Use an In-Memory Queue (`p-queue`) to manage bounded concurrency (e.g., `concurrency: 5`, `queue.size` max 100). If the queue is full, Express must return `HTTP 429` (Load Shedding) to prevent V8 OOM crashes.
+## 1. Async ML Orchestration (Cloud Run Scale-to-Zero)
+Background workers must be designed for Cloud Run's scale-to-zero environment, where CPU is instantly throttled to 0 when no HTTP requests are active.
+- **The Pipeline**: The client-facing API MUST insert the job into Firestore (`status: 'pending'`), dispatch a Google Cloud Task to an internal `/api/internal/worker/*` route, and then return `202 Accepted` with a `jobId`.
+- **CPU Allocation Guarantee**: Internal worker routes invoked by Cloud Tasks MUST `await` the entire background process and hold the HTTP request open. Do NOT return `202 Accepted` early from the worker route, or Cloud Run will kill the container. Return `200 OK` only upon completion.
+- **Claim Check Pattern**: Cloud Tasks enforces a strict 100KB payload limit. For heavy payloads (e.g., base64 images), offload the data to a `cloud_tasks_payloads` Firestore collection and pass only `{ jobId, isHeavyPayload: true }` in the task.
 - **Client Subscription**: The frontend must subscribe to the job's progress via Firestore `onSnapshot` listeners hooked to the `jobId`.
 
-## 2. Zero Data Loss (The 3 Pillars)
-To survive multi-instance cluster scale-downs or OOM crashes without dropping jobs, all ML workers must guarantee zero data loss through:
-- **Heartbeats & Worker ID Leasing**: Active workers must update an `updatedAt` timestamp with `FieldValue.serverTimestamp()` on the job document every 30 seconds. Instances MUST assign a unique `workerId` to active jobs. Every subsequent heartbeat must include a precondition check ensuring the `workerId` hasn't changed to prevent zombie processes.
-- **Transactional Recovery Sweeps**: On server boot, implement a recovery sweep that identifies orphaned jobs (`status === 'processing'` and `updatedAt < NOW() - 2 minutes`). This MUST use `runTransaction` to lock the job before claiming it, preventing split-brain thundering herds when multiple instances boot.
-- **Graceful Shutdown**: Workers must intercept `SIGTERM` / `SIGINT`. Upon receiving a shutdown signal, call `queue.pause()` to stop accepting new jobs, wait for active jobs to finish (up to the host's 30s timeout), and update any remaining active jobs in Firestore to `interrupted` before calling `process.exit(0)`.
+## 2. Zero Data Loss & Concurrency
+- **Queue Concurrency**: Rely on Cloud Tasks queue configuration (`max_concurrent_dispatches`) and Cloud Run instance limits (`max_instance_count`) to manage concurrency, rather than in-memory tools like `p-queue`.
+- **Automatic Retries**: Ensure worker routes are idempotent. Cloud Tasks handles exponential backoff retries automatically on non-2xx responses.
+- **Graceful Shutdown**: Workers must intercept `SIGTERM` (Cloud Run scaling down). Upon receiving a shutdown signal, finish the active request (Cloud Run gives a 10s grace period) or explicitly fail the task so it can be retried by another instance.
 
 ## 3. V8 Execution & Performance
-Avoid thread-hopping overhead and garbage collection (GC) pauses during intensive scoring or data processing.
-- **Synchronous Math**: Keep math operations taking `<10ms` (e.g., small array scoring) **synchronous on the main thread**. Do not use `worker_threads` for micro-tasks (zero-copy overhead).
+- **Synchronous Math**: Keep math operations taking `<10ms` (e.g., small array scoring) **synchronous on the main thread**.
+- **No Worker Threads**: Do NOT use `worker_threads` or `Piscina` to process background jobs. Cloud Run natively scales containers out; relying on thread pools inside a single container defeats serverless scaling and risks OOM crashes.
 - **Pre-allocation**: For ML scoring loops, use pre-allocated `Float32Array` scratchpads. Reject `SharedArrayBuffer` for sync logic.
-- **Round-Trip Transfers**: When `worker_threads` are necessary, you MUST transfer memory ownership using `postMessage(data, [data.buffer])`. Because this detaches the buffer from the main thread (causing "lost scratchpads" and GC pressure), workers MUST implement a **Round-Trip Transfer**, passing the exact same `ArrayBuffer` back to the main thread pool upon completion.
 
 ## 4. Schema Drift Fallback & Output Sanitization
 LLM outputs are inherently volatile. Defend against schema drift and injection strictly at the parsing boundary.

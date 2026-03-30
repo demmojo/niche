@@ -1,26 +1,13 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { MemoryStore } from "express-rate-limit";
 import { AuthenticatedRequest } from "./authMiddleware";
-import RedisStore from "rate-limit-redis";
-import Redis from "ioredis";
 
-// Use environment variable for Redis connection
-const redisClient = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL)
-  : null;
+const store = new MemoryStore();
 
 /**
  *
  */
 export const createStore = () => {
-  if (redisClient) {
-    return new RedisStore({
-      sendCommand: (...args: string[]) => {
-        const [command, ...rest] = args;
-        return redisClient.call(command, ...rest) as any;
-      },
-    });
-  }
-  return undefined; // Default memory store fallback
+  return undefined; // Default memory store fallback for Cloud Run scale-to-zero
 };
 
 // App-level rate limiter mapping

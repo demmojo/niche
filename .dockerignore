@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.git
+.github
+playwright-report
+test-results
+coverage
+blob-report
+.cursor
+*.log

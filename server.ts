@@ -299,17 +299,12 @@ async function startServer() {
 
   // Tarpit Analyzer Endpoint
   const { scoringRouter } = await import("./src/server/scoringRoutes");
-  const { runTarpitClustering } = await import("./src/services/tarpitFlywheel");
-
-  // Start periodic clustering for the Data Flywheel
-  setInterval(
-    () => {
-      runTarpitClustering().catch(console.error);
-    },
-    60 * 60 * 1000,
-  ); // Hourly
+  const { workerRouter } = await import("./src/server/routes/workerRoutes");
+  const { cronRouter } = await import("./src/server/routes/cronRoutes");
 
   app.use("/api/scoring", scoringRouter);
+  app.use("/api/internal/worker", workerRouter);
+  app.use("/api/internal/cron", cronRouter);
 
   // Visual Intelligence & BYOK Proxy
   app.post("/api/visual/analyze", requireAuth, async (req, res) => {

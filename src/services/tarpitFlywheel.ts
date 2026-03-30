@@ -1,16 +1,10 @@
-import { Piscina } from "piscina";
 import { fileURLToPath } from "url";
 import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { supabase } from "../utils/hashing";
-
-// Note: Piscina filename must end in .js or .mjs after TypeScript compilation,
-// or use ts-node for development. We assume Vite/tsx handles the extension here.
-const piscina = new Piscina({
-  filename: path.resolve(__dirname, "../workers/kmeansWorker.ts"),
-});
+import streamingSphericalKMeans from "../workers/kmeansWorker";
 
 export async function runTarpitClustering() {
   const K = 5;
@@ -29,9 +23,9 @@ export async function runTarpitClustering() {
 
   const numVectors = data.length;
 
-  // 2. Prepare SharedArrayBuffer
+  // 2. Prepare ArrayBuffer
   // DIM * 4 bytes per float32
-  const sharedBuffer = new SharedArrayBuffer(numVectors * DIM * 4);
+  const sharedBuffer = new ArrayBuffer(numVectors * DIM * 4);
   const view = new Float32Array(sharedBuffer);
 
   for (let i = 0; i < numVectors; i++) {
@@ -40,7 +34,7 @@ export async function runTarpitClustering() {
     try {
       vecArray =
         typeof data[i].query_vector === "string"
-          ? JSON.parse(data[i].query_vector)
+          ? JSON.parse(data[i].query_vector as string)
           : data[i].query_vector;
     } catch {
       continue;
@@ -51,9 +45,9 @@ export async function runTarpitClustering() {
     }
   }
 
-  // 3. Dispatch to worker pool
-  const result = await piscina.run({
-    buffer: sharedBuffer,
+  // 3. Dispatch directly (Cloud Tasks guarantees CPU allocation)
+  const result = await streamingSphericalKMeans({
+    buffer: sharedBuffer as SharedArrayBuffer,
     numVectors,
     k: K,
     dim: DIM,

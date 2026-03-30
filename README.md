@@ -240,6 +240,56 @@ The application will be available at **[http://localhost:3000](http://localhost:
 
 ---
 
+## ☁️ Deployment (Cloud Run & Serverless)
+
+The application is fully containerized and includes Terraform IaC files configured for Google Cloud Run with a strict **scale-to-zero** (`min_instance_count = 0`) architecture to ensure costs remain $0 when there is no traffic.
+
+### Prerequisites for Deployment
+
+- [Docker](https://docs.docker.com/get-docker/) installed locally
+- [Google Cloud CLI (`gcloud`)](https://cloud.google.com/sdk/docs/install) installed and configured
+- [Terraform](https://developer.hashicorp.com/terraform/downloads) installed
+
+### 1. Build & Run Docker Image Locally
+
+Test the production Docker image locally before deploying:
+
+```bash
+# Build the multi-stage Docker image
+docker build -t nicheai-app .
+
+# Run the container locally (passing required env vars)
+docker run -p 8080:8080 -e GEMINI_API_KEY=your_key -e NODE_ENV=production nicheai-app
+```
+
+### 2. Deploy to Google Cloud Run with Terraform
+
+Make sure you have authenticated your gcloud CLI:
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID
+```
+
+Navigate to the `terraform` directory and apply the configuration:
+
+```bash
+cd terraform
+
+# Initialize Terraform (downloads the GCP provider)
+terraform init
+
+# Review the planned infrastructure changes
+terraform plan -var="project_id=YOUR_PROJECT_ID" -var="gemini_api_key=YOUR_API_KEY"
+
+# Apply the deployment
+terraform apply -var="project_id=YOUR_PROJECT_ID" -var="gemini_api_key=YOUR_API_KEY"
+```
+
+> **Note on Background Workers (BullMQ):**
+> If you are using BullMQ with an external Redis instance, remember that Cloud Run scales CPU to 0 when there are no active HTTP requests. This means background tasks will freeze until a new request wakes the container. To prevent this, either configure Cloud Run with "CPU always allocated" (which breaks the $0 cost rule) or migrate background tasks to Google Cloud Tasks.
+
 ## 🛠 Available Scripts
 
 | Command                    | Description                                                                                                 |
@@ -357,3 +407,15 @@ For customers requiring support or wishing to report bugs, please contact us dir
 **Copyright (c) 2026 NicheAI. All Rights Reserved.**
 
 This software and associated documentation files are the proprietary and confidential property of NicheAI. Use, copying, modification, merging, publishing, distribution, sublicensing, and/or selling copies of the Software is strictly prohibited without express written permission. See the [LICENSE](LICENSE) file for complete details.
+
+### Terraform Variables Configuration
+
+The Terraform scripts located in the `terraform/` directory require the following variables to be defined in a `terraform.tfvars` file or passed via the `-var` flag:
+
+- `project_id`: Your Google Cloud Project ID.
+- `region`: The GCP region to deploy your infrastructure (e.g., `us-central1`).
+- `gemini_api_key`: Your active Google GenAI API Key (will be stored in Secret Manager).
+- `firebase_service_account_base64`: Base64 encoded string of your Firebase Service Account JSON.
+- `firebase_project_id`: Your active Firebase Project ID.
+
+Ensure you do not commit your `terraform.tfvars` file to source control.

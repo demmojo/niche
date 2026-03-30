@@ -1,7 +1,6 @@
-import { Worker, Job } from "bullmq";
 import * as admin from "firebase-admin";
 import pLimit from "p-limit";
-import { connection } from "../queues";
+
 import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
@@ -95,66 +94,63 @@ const GeminiCompetitorSchema: Schema = {
 /**
  *
  */
-export const startBrandWizardWorker = () => {
+export const processBrandWizardJob = async (jobData: any) => {
   const limit = pLimit(3); // Protect memory, limit concurrency for scrapes
 
-  const worker = new Worker(
-    "brand-wizard-queue",
-    async (job: Job) => {
-      const { jobId, urls } = job.data;
-      const db = admin.firestore();
-      const jobRef = db.collection("brand_wizard_jobs").doc(jobId);
+  const { jobId, urls } = jobData;
+  const db = admin.firestore();
+  const jobRef = db.collection("brand_wizard_jobs").doc(jobId);
 
-      await jobRef.update({ status: "processing" });
+  await jobRef.update({ status: "processing" });
 
-      const results: any[] = [];
+  const results: any[] = [];
 
-      await Promise.all(
-        urls.map((url: string) =>
-          limit(async () => {
-            let markdown = "";
-            let firecrawlResult: any = null;
+  await Promise.all(
+    urls.map((url: string) =>
+      limit(async () => {
+        let markdown = "";
+        let firecrawlResult: any = null;
 
-            try {
-              // 1. Scrape with Firecrawl
-              firecrawlResult = await firecrawl.scrape(url, {
-                formats: ["markdown", "branding"], // Fallback if supported
-              });
+        try {
+          // 1. Scrape with Firecrawl
+          firecrawlResult = await firecrawl.scrape(url, {
+            formats: ["markdown", "branding"], // Fallback if supported
+          });
 
-              if (!firecrawlResult.success) {
-                throw new Error(`Firecrawl failed for ${url}`);
-              }
+          if (!firecrawlResult.success) {
+            throw new Error(`Firecrawl failed for ${url}`);
+          }
 
-              markdown = firecrawlResult.markdown || "";
-            } catch (err: any) {
-              console.warn(
-                `Scraping failed for ${url}, fallback to Exa API needed:`,
-                err,
-              );
-              // Graceful degradation (Skipping Exa Fallback logic for simplicity/YAGNI, per plan)
-              await jobRef.update({
-                "progress.failed": admin.firestore.FieldValue.increment(1),
-              });
-              return; // Skip this competitor
-            }
+          markdown = firecrawlResult.markdown || "";
+        } catch (err: any) {
+          console.warn(
+            `Scraping failed for ${url}, fallback to Exa API needed:`,
+            err,
+          );
+          // Graceful degradation (Skipping Exa Fallback logic for simplicity/YAGNI, per plan)
+          await jobRef.update({
+            "progress.failed": admin.firestore.FieldValue.increment(1),
+          });
+          return; // Skip this competitor
+        }
 
-            // Payload bloat mitigation
-            if (markdown.length > 50000) {
-              markdown = markdown.substring(0, 50000);
-            }
+        // Payload bloat mitigation
+        if (markdown.length > 50000) {
+          markdown = markdown.substring(0, 50000);
+        }
 
-            // 2. Gemini Extraction with Retry Loop
-            let parsedData = null;
-            let attempts = 0;
-            const maxAttempts = 3;
-            let errorFeedback = "";
+        // 2. Gemini Extraction with Retry Loop
+        let parsedData = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+        let errorFeedback = "";
 
-            while (attempts < maxAttempts && !parsedData) {
-              attempts++;
-              try {
-                const response = await ai.models.generateContent({
-                  model: "gemini-3.1-flash",
-                  contents: `Extract the brand identity and positioning from the following competitor markdown data. 
+        while (attempts < maxAttempts && !parsedData) {
+          attempts++;
+          try {
+            const response = await ai.models.generateContent({
+              model: "gemini-3.1-flash",
+              contents: `Extract the brand identity and positioning from the following competitor markdown data. 
                   ${errorFeedback ? `\nPREVIOUS ERROR: ${errorFeedback}\nFix the JSON format to match constraints.` : ""}
                   
                   URL: ${url}
@@ -163,96 +159,59 @@ export const startBrandWizardWorker = () => {
                   ${markdown}
                   
                   ${firecrawlResult?.branding ? `Branding JSON: ${JSON.stringify(firecrawlResult.branding)}` : ""}`,
-                  config: {
-                    responseMimeType: "application/json",
-                    responseSchema: GeminiCompetitorSchema,
-                    temperature: 0.1,
-                  },
-                });
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: GeminiCompetitorSchema,
+                temperature: 0.1,
+              },
+            });
 
-                const rawJson = JSON.parse(response.text || "{}");
+            const rawJson = JSON.parse(response.text || "{}");
 
-                // Zod Validation enforcement
-                const validation = CompetitorBrandSchema.safeParse(rawJson);
-                if (!validation.success) {
-                  errorFeedback = JSON.stringify(validation.error.issues);
-                  continue; // Try again
-                }
-
-                parsedData = validation.data;
-              } catch (llmError: any) {
-                console.error(
-                  `Gemini extraction failed for ${url} (Attempt ${attempts}):`,
-                  llmError,
-                );
-                errorFeedback = llmError.message;
-              }
+            // Zod Validation enforcement
+            const validation = CompetitorBrandSchema.safeParse(rawJson);
+            if (!validation.success) {
+              errorFeedback = JSON.stringify(validation.error.issues);
+              continue; // Try again
             }
 
-            // Explicitly discard raw markdown to prevent memory exhaustion
-            markdown = "";
+            parsedData = validation.data;
+          } catch (llmError: any) {
+            console.error(
+              `Gemini extraction failed for ${url} (Attempt ${attempts}):`,
+              llmError,
+            );
+            errorFeedback = llmError.message;
+          }
+        }
 
-            if (parsedData) {
-              results.push({
-                id: Math.random().toString(36).substring(7),
-                url,
-                ...parsedData,
-              });
+        // Explicitly discard raw markdown to prevent memory exhaustion
+        markdown = "";
 
-              await jobRef.update({
-                "progress.completed": admin.firestore.FieldValue.increment(1),
-              });
-            } else {
-              await jobRef.update({
-                "progress.failed": admin.firestore.FieldValue.increment(1),
-              });
-            }
-          }),
-        ),
-      );
+        if (parsedData) {
+          results.push({
+            id: Math.random().toString(36).substring(7),
+            url,
+            ...parsedData,
+          });
 
-      // Save final results
-      await jobRef.update({
-        status: "completed",
-        results,
-      });
-
-      return { success: true, resultsCount: results.length };
-    },
-    {
-      connection,
-      // Same full-jitter backoff as other workers
-      settings: {
-        /**
-         *
-         */
-        backoffStrategy: (attemptsMade) => {
-          return (
-            Math.min(1000 * Math.pow(2, attemptsMade), 30000) +
-            Math.random() * 1000
-          );
-        },
-      },
-    },
+          await jobRef.update({
+            "progress.completed": admin.firestore.FieldValue.increment(1),
+          });
+        } else {
+          await jobRef.update({
+            "progress.failed": admin.firestore.FieldValue.increment(1),
+          });
+        }
+      }),
+    ),
   );
 
-  worker.on("failed", async (job, err) => {
-    console.error(`Job ${job?.id} failed:`, err);
-    if (job?.data?.jobId) {
-      try {
-        await admin
-          .firestore()
-          .collection("brand_wizard_jobs")
-          .doc(job.data.jobId)
-          .update({
-            status: "failed",
-            error: err.message,
-          });
-      } catch (dbErr) {
-        console.error("Failed to update job status to failed:", dbErr);
-      }
-    }
+  // Save final results
+  await jobRef.update({
+    status: "completed",
+    results,
   });
 
-  return worker;
+  return { success: true, resultsCount: results.length };
 };
