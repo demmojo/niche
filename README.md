@@ -242,53 +242,80 @@ The application will be available at **[http://localhost:3000](http://localhost:
 
 ## ☁️ Deployment (Cloud Run & Serverless)
 
-The application is fully containerized and includes Terraform IaC files configured for Google Cloud Run with a strict **scale-to-zero** (`min_instance_count = 0`) architecture to ensure costs remain $0 when there is no traffic.
+The application is fully containerized and uses Terraform (Infrastructure as Code) for a strict **Scale-to-Zero** ($0 idle cost) architecture on Google Cloud Run. Background ML tasks use Google Cloud Tasks and a dedicated worker service.
 
-### Prerequisites for Deployment
+### Phase 1: Local Prerequisites & GCP Bootstrapping
 
-- [Docker](https://docs.docker.com/get-docker/) installed locally
-- [Google Cloud CLI (`gcloud`)](https://cloud.google.com/sdk/docs/install) installed and configured
-- [Terraform](https://developer.hashicorp.com/terraform/downloads) installed
+1. **Install Dependencies**: Ensure [Docker](https://docs.docker.com/get-docker/), [Google Cloud CLI (`gcloud`)](https://cloud.google.com/sdk/docs/install), and [Terraform](https://developer.hashicorp.com/terraform/downloads) are installed.
+2. **Create a GCP Project**: Go to the Google Cloud Console and create a new project.
+3. **Enable Billing**: **CRITICAL:** You must attach an active billing account to the GCP project. Scale-to-zero is virtually free, but the APIs require a billing method.
+4. **Firebase Configuration**: Create a Firebase project and enable **Firestore in Native Mode** (Warning: This choice is permanent).
+5. **Enable APIs**:
+   ```bash
+   gcloud services enable run.googleapis.com \
+     artifactregistry.googleapis.com \
+     cloudtasks.googleapis.com \
+     cloudscheduler.googleapis.com \
+     secretmanager.googleapis.com \
+     cloudbuild.googleapis.com
+   ```
 
-### 1. Build & Run Docker Image Locally
+### Phase 2: Authentication & Local Config
 
-Test the production Docker image locally before deploying:
+1. **Authenticate gcloud**:
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+2. **Environment Variables**: Create your local `.env` and `terraform/terraform.tfvars`:
+   - Obtain your Firebase Admin SDK service account JSON. **Encode it in base64** to prevent Terraform parsing errors: `cat service-account.json | base64`
+   - Set `terraform.tfvars`:
+     ```hcl
+     project_id                      = "YOUR_PROJECT_ID"
+     region                          = "us-central1"
+     gemini_api_key                  = "YOUR_GEMINI_API_KEY"
+     firebase_project_id             = "YOUR_FIREBASE_PROJECT_ID"
+     firebase_service_account_base64 = "YOUR_BASE64_ENCODED_JSON"
+     ```
 
-```bash
-# Build the multi-stage Docker image
-docker build -t nicheai-app .
+### Phase 3: Containerization
 
-# Run the container locally (passing required env vars)
-docker run -p 8080:8080 -e GEMINI_API_KEY=your_key -e NODE_ENV=production nicheai-app
-```
+1. **Create Artifact Registry Repo**:
+   ```bash
+   gcloud artifacts repositories create nicheai-repo --repository-format=docker --location=us-central1
+   ```
+2. **Authenticate Docker**:
+   ```bash
+   gcloud auth configure-docker us-central1-docker.pkg.dev
+   ```
+3. **Build & Push**:
+   > **🛑 APPLE SILICON WARNING:** If you are on an M-series Mac, you _must_ include `--platform linux/amd64` or Cloud Run will crash with an `exec format error`.
+   ```bash
+   docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/nicheai-repo/nicheai-app:latest .
+   docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/nicheai-repo/nicheai-app:latest
+   ```
 
-### 2. Deploy to Google Cloud Run with Terraform
+### Phase 4: Infrastructure as Code (Terraform)
 
-Make sure you have authenticated your gcloud CLI:
-
-```bash
-gcloud auth login
-gcloud auth application-default login
-gcloud config set project YOUR_PROJECT_ID
-```
-
-Navigate to the `terraform` directory and apply the configuration:
+Navigate to the `terraform/` directory and deploy:
+_(Note: We strongly recommend configuring a GCS bucket for Terraform remote state for production.)_
 
 ```bash
 cd terraform
-
-# Initialize Terraform (downloads the GCP provider)
 terraform init
-
-# Review the planned infrastructure changes
-terraform plan -var="project_id=YOUR_PROJECT_ID" -var="gemini_api_key=YOUR_API_KEY"
-
-# Apply the deployment
-terraform apply -var="project_id=YOUR_PROJECT_ID" -var="gemini_api_key=YOUR_API_KEY"
+terraform plan
+terraform apply
 ```
 
-> **Note on Background Workers (BullMQ):**
-> If you are using BullMQ with an external Redis instance, remember that Cloud Run scales CPU to 0 when there are no active HTTP requests. This means background tasks will freeze until a new request wakes the container. To prevent this, either configure Cloud Run with "CPU always allocated" (which breaks the $0 cost rule) or migrate background tasks to Google Cloud Tasks.
+### Appendix: Security & Architecture Patterns
+
+To maintain a zero-friction, highly secure serverless architecture, NicheAI enforces the following rules:
+
+- **OIDC Internal Routes**: The `worker` Cloud Run service is NOT public. Cloud Tasks attaches an OIDC token matching the `nicheai-cloudrun-sa` service account, which the worker verifies before executing any background job.
+- **CPU Allocation Guarantee**: Cloud Run throttles CPU to 0 immediately upon returning a response. Internal worker endpoints **MUST `await` the entire background process and hold the HTTP request open**. Do not return `202 Accepted` early from a worker route.
+- **The Claim Check Pattern**: Cloud Tasks enforces a strict 100KB payload limit. For heavy ML payloads (e.g., base64 images), the system offloads data to the `cloud_tasks_payloads` Firestore collection and passes `{ jobId, isHeavyPayload: true }` through the queue.
+- **IAM Least Privilege**: The custom `nicheai-cloudrun-sa` service account acts strictly as an invoker and secret accessor.
 
 ## 🛠 Available Scripts
 
@@ -407,15 +434,3 @@ For customers requiring support or wishing to report bugs, please contact us dir
 **Copyright (c) 2026 NicheAI. All Rights Reserved.**
 
 This software and associated documentation files are the proprietary and confidential property of NicheAI. Use, copying, modification, merging, publishing, distribution, sublicensing, and/or selling copies of the Software is strictly prohibited without express written permission. See the [LICENSE](LICENSE) file for complete details.
-
-### Terraform Variables Configuration
-
-The Terraform scripts located in the `terraform/` directory require the following variables to be defined in a `terraform.tfvars` file or passed via the `-var` flag:
-
-- `project_id`: Your Google Cloud Project ID.
-- `region`: The GCP region to deploy your infrastructure (e.g., `us-central1`).
-- `gemini_api_key`: Your active Google GenAI API Key (will be stored in Secret Manager).
-- `firebase_service_account_base64`: Base64 encoded string of your Firebase Service Account JSON.
-- `firebase_project_id`: Your active Firebase Project ID.
-
-Ensure you do not commit your `terraform.tfvars` file to source control.
