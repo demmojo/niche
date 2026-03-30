@@ -35,3 +35,7 @@ test-schema.ts
 test_output*.txt
 *.diff
 review.md
+
+# OpenSpec CLI Cache and History
+.cursor/eval-history.sqlite
+.openspec-gemini-embeddings.json
