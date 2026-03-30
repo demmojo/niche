@@ -11,12 +11,154 @@ import {
 } from "../utils/scoringEngine";
 import Exa from "exa-js";
 import { GoogleGenAI, Type } from "@google/genai";
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 import { z } from "zod";
 
+// Zod schema for URL Teaser
+const URLTeaserSchema = z.object({
+  jtbd: z.object({
+    job_statement: z
+      .string()
+      .describe("The core job to be done identified from the URL"),
+  }),
+  orthogonal_pivots: z
+    .array(z.string())
+    .describe(
+      "2 orthogonal pivot directions that are hyper-niche and defensible",
+    ),
+});
+
 export const scoringRouter = Router();
+
+scoringRouter.post(
+  "/url-teaser",
+  requireAppCheck,
+  requireAuth,
+  async (req: any, res: any) => {
+    // We must intercept before setting headers if we want to return 429
+    const isAnonymous = req.user?.firebase?.sign_in_provider === "anonymous";
+
+    if (isAnonymous) {
+      const { generateAnonymousFingerprint } =
+        await import("./utils/fingerprintUtils");
+      const { checkAndIncrementAnonymousLimit } =
+        await import("./utils/anonymousUsage");
+
+      const fingerprint = generateAnonymousFingerprint(req);
+      const isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+
+      if (!isAllowed) {
+        return res
+          .status(429)
+          .json({
+            error: "PQL limit exceeded. Please create an account to continue.",
+          });
+      }
+    }
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+
+    const abortController = new AbortController();
+    req.on("close", () => {
+      abortController.abort();
+    });
+
+    const sendData = (type: string, value: any) => {
+      res.write(`data: ${JSON.stringify({ type, value })}\n\n`);
+    };
+
+    try {
+      const { url } = req.body;
+      if (!url) {
+        sendData("error", "Missing URL");
+        return res.end();
+      }
+
+      if (abortController.signal.aborted) throw new Error("AbortError");
+
+      // 2. Fetch the URL
+      sendData("status", "Fetching page...");
+      const fetchRes = await fetch(url, { signal: abortController.signal });
+      if (!fetchRes.ok) {
+        sendData("error", `Failed to fetch URL: ${fetchRes.status}`);
+        return res.end();
+      }
+
+      const html = await fetchRes.text();
+
+      // Basic title extraction
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].trim() : url;
+
+      sendData("metadata", { title });
+      sendData("status", "Analyzing copy...");
+
+      // Strip injection vectors
+      const strippedHtml = html.replace(/[<>]/g, "");
+      // Truncate to save tokens (e.g. first 5000 chars)
+      const truncatedText = strippedHtml.slice(0, 5000);
+
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        sendData("error", "GEMINI_API_KEY is not configured");
+        return res.end();
+      }
+
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+      const prompt = `
+Analyze the following text extracted from a website.
+URL: ${url}
+Text:
+${truncatedText}
+
+Extract the primary "Job to Be Done" that this product solves.
+Then, suggest 2 orthogonal pivot directions that are hyper-niche and highly defensible, avoiding horizontal tarpits.
+      `;
+
+      if (abortController.signal.aborted) throw new Error("AbortError");
+
+      const callOptions = {
+        model: "gemini-3.1-flash-lite-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: URLTeaserSchema.toJSONSchema() as any,
+          systemInstruction: "You are an expert product strategist.",
+        },
+      };
+
+      const geminiRes = await ai.models.generateContent(callOptions);
+      const llmOutputRaw = geminiRes.text;
+      if (!llmOutputRaw) throw new Error("Empty response from LLM");
+
+      let llmParsed;
+      try {
+        llmParsed = URLTeaserSchema.parse(JSON.parse(llmOutputRaw));
+      } catch (parseError: any) {
+        throw parseError;
+      }
+
+      if (abortController.signal.aborted) throw new Error("AbortError");
+
+      sendData("teaser", llmParsed);
+
+      // 3. (Count already incremented in limit check)
+    } catch (error: any) {
+      if (error.name === "AbortError" || error.message === "AbortError") {
+        console.log("Client aborted stream");
+      } else {
+        console.error("URL Teaser Error:", error);
+        sendData("error", error.message);
+      }
+    } finally {
+      res.end();
+    }
+  },
+);
 
 scoringRouter.post(
   "/count-competitors",
@@ -24,6 +166,12 @@ scoringRouter.post(
   requireAuth,
   async (req: any, res: any) => {
     try {
+      if (req.user?.firebase?.sign_in_provider === "anonymous") {
+        return res
+          .status(403)
+          .json({ error: "Premium feature requires account creation" });
+      }
+
       const { productName, productDescription } = req.body;
       if (!productName || !productDescription) {
         return res
@@ -60,6 +208,12 @@ scoringRouter.post(
   requireAuth,
   async (req: any, res: any) => {
     try {
+      if (req.user?.firebase?.sign_in_provider === "anonymous") {
+        return res
+          .status(403)
+          .json({ error: "Premium feature requires account creation" });
+      }
+
       const { productName, productDescription } = req.body;
       if (!productName || !productDescription) {
         return res
@@ -235,9 +389,36 @@ scoringRouter.post(
   requireAppCheck,
   requireAuth,
   async (req: any, res: any) => {
+    const isAnonymous = req.user?.firebase?.sign_in_provider === "anonymous";
+
+    if (isAnonymous) {
+      const { generateAnonymousFingerprint } =
+        await import("./utils/fingerprintUtils");
+      const { checkAndIncrementAnonymousLimit } =
+        await import("./utils/anonymousUsage");
+
+      const fingerprint = generateAnonymousFingerprint(req);
+      const isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+
+      if (!isAllowed) {
+        return res
+          .status(429)
+          .json({
+            error: "PQL limit exceeded. Please create an account to continue.",
+          });
+      }
+    }
+
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+
+    const abortController = new AbortController();
+    req.on("close", () => {
+      abortController.abort();
+    });
+
+    const floatingPromises: Promise<any>[] = [];
 
     // Helper to send SSE data
     const sendData = (type: string, value: any) => {
@@ -260,18 +441,33 @@ scoringRouter.post(
       const exa = new Exa(exaApiKey);
       const exaQuery = `Competitors to ${productName}: ${productDescription}`;
 
-      // 1. Fetch from Exa
+      if (abortController.signal.aborted) throw new Error("AbortError");
+      // Exa fetch
+      let exaTextLimit = 1000;
+      let selectedModel = "gemini-3.1-pro-preview";
+
+      if (isAnonymous) {
+        exaTextLimit = 500;
+        const { checkAndIncrementGlobalAnonymousLimit } =
+          await import("./utils/anonymousUsage");
+        const hasGlobalQuota = await checkAndIncrementGlobalAnonymousLimit(30);
+        if (!hasGlobalQuota) {
+          selectedModel = "gemini-3.1-flash";
+        }
+      }
+
       const exaResponse = await exa.searchAndContents(exaQuery, {
         type: "neural",
-        numResults: 3,
-        text: { maxCharacters: 1000 },
+        numResults: isAnonymous ? 3 : 15,
+        text: { maxCharacters: exaTextLimit },
       });
 
       // Send competitor count immediately
       sendData("competitor_count", exaResponse.results?.length || 0);
 
       const competitorContext = exaResponse.results
-        .map((r) => `URL: ${r.url}\nContent: ${r.text}`)
+        .slice(0, 3)
+        .map((r: any) => `URL: ${r.url}\nContent: ${r.text || r.title || ""}`)
         .join("\n\n");
 
       const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -296,7 +492,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
     `;
 
       const callOptions = {
-        model: "gemini-3.1-pro-preview",
+        model: selectedModel,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -306,6 +502,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         },
       };
 
+      if (abortController.signal.aborted) throw new Error("AbortError");
       const geminiRes = await ai.models.generateContent(callOptions);
       const llmOutputRaw = geminiRes.text;
       if (!llmOutputRaw) throw new Error("Empty response from LLM");
@@ -333,7 +530,12 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       // Emit Gaps State
       sendData("gap_analysis", llmParsed.market_gaps);
 
-      // 3. Send initial Tarpit Score
+      if (isAnonymous) {
+        sendData("pql_gate", true);
+        return;
+      }
+
+      // 3. Prepare initial Tarpit Score
       const vectorUniqueness = 1.0 - (llmParsed.wedge_metric ?? 0.5);
       const apolloCount = 120; // Defaulting for synchronous check
 
@@ -343,7 +545,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         opportunityScore: oppScore,
       });
 
-      sendData("tarpit_score", scoreResult);
+      if (abortController.signal.aborted) throw new Error("AbortError");
 
       // 4. Implement Gemini embedding integration
       const embedRes = await ai.models.embedContent({
@@ -359,12 +561,17 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       fastL2NormalizeInPlace(vector);
 
       // Flywheel
-      import("../services/tarpitFlywheel").then(({ storeTarpitQuery }) => {
-        const userId = req.user?.uid || "anonymous-user-id";
-        storeTarpitQuery(userId, productDescription, Array.from(vector)).catch(
-          console.error,
-        );
-      });
+      const flywheelPromise = import("../services/tarpitFlywheel").then(
+        ({ storeTarpitQuery }) => {
+          const userId = req.user?.uid || "anonymous-user-id";
+          return storeTarpitQuery(
+            userId,
+            productDescription,
+            Array.from(vector),
+          ).catch(console.error);
+        },
+      );
+      floatingPromises.push(flywheelPromise);
 
       // 5. Orthogonal Vector Distance & System Override check
       let isFalsePositiveOverride = false;
@@ -393,6 +600,14 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         }
       }
 
+      // Send the final tarpit score after the override check
+      sendData("tarpit_score", {
+        score: finalScore,
+        isTarpit,
+        uniqueness: scoreResult.uniqueness,
+        saturationFactor: scoreResult.saturationFactor,
+      });
+
       // 6. Send Final Object
       sendData("final", {
         status: "success",
@@ -407,9 +622,14 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         vector: Array.from(vector),
       });
     } catch (error: any) {
-      console.error("Streaming Scoring Error:", error);
-      sendData("error", error.message);
+      if (error.message === "AbortError") {
+        console.log("Client aborted stream");
+      } else {
+        console.error("Streaming Scoring Error:", error);
+        sendData("error", error.message);
+      }
     } finally {
+      await Promise.allSettled(floatingPromises);
       res.end();
     }
   },
