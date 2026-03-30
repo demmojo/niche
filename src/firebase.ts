@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithCustomToken,
+  connectAuthEmulator,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -14,6 +15,7 @@ import {
   disableNetwork,
   memoryLocalCache,
   initializeFirestore,
+  connectFirestoreEmulator,
 } from "firebase/firestore";
 
 /**
@@ -95,6 +97,17 @@ const defaultDb = isTestEnv
   : getFirestore(defaultApp);
 
 const defaultAuth = getAuth(defaultApp);
+
+if (
+  typeof import.meta !== "undefined" &&
+  import.meta.env &&
+  import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true"
+) {
+  connectFirestoreEmulator(defaultDb, "127.0.0.1", 8080);
+  connectAuthEmulator(defaultAuth, "http://127.0.0.1:9099", {
+    disableWarnings: true,
+  });
+}
 
 // Suppress internal Firestore logs, especially for quota exceeded errors
 setLogLevel("silent");

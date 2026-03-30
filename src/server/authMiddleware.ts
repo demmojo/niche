@@ -20,7 +20,9 @@ if (!admin.apps.length) {
     ) {
       projectId = "demo-nicheai";
       process.env.FIRESTORE_EMULATOR_HOST =
-        process.env.FIRESTORE_EMULATOR_HOST || "localhost:8080";
+        process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
+      process.env.FIREBASE_AUTH_EMULATOR_HOST =
+        process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9099";
     }
 
     if (base64Credentials) {
@@ -103,26 +105,6 @@ export const requireAuth = async (
       email: "mo.hassaniv@gmail.com",
     } as adminNamespace.auth.DecodedIdToken;
     return next();
-  }
-
-  // In development, decode the token payload without strict verification
-  // to support local testing without full Firebase Admin credentials.
-  if (
-    process.env.NODE_ENV !== "production" &&
-    idToken.split(".").length === 3
-  ) {
-    try {
-      const parts = idToken.split(".");
-      const payloadStr = Buffer.from(parts[1], "base64").toString("utf8");
-      const payload = JSON.parse(payloadStr);
-      req.user = {
-        ...payload,
-        uid: payload.user_id || payload.sub,
-      } as adminNamespace.auth.DecodedIdToken;
-      return next();
-    } catch (e) {
-      console.warn("Dev mode token decode warning:", e);
-    }
   }
 
   try {

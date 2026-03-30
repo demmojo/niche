@@ -95,28 +95,6 @@ describe("authMiddleware", () => {
     });
   });
 
-  it("succeeds with dev mode token", async () => {
-    const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
-
-    const payload = Buffer.from(
-      JSON.stringify({ user_id: "dev-user", email: "dev@example.com" }),
-    ).toString("base64");
-    const fakeToken = `header.${payload}.signature`;
-
-    const res = await request(app)
-      .get("/test")
-      .set("Authorization", `Bearer ${fakeToken}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.user).toMatchObject({
-      uid: "dev-user",
-      email: "dev@example.com",
-    });
-
-    process.env.NODE_ENV = originalEnv;
-  });
-
   it("succeeds if verifyIdToken resolves", async () => {
     mockVerifyIdToken.mockResolvedValueOnce({
       uid: "real-user",

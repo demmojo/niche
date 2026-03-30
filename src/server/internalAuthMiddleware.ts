@@ -10,8 +10,8 @@ export const requireInternalOidc = async (
 ) => {
   // Allow local mock execution during tests
   if (
-    process.env.NODE_ENV !== "production" ||
-    process.env.SIMULATE_CLOUD_TASKS
+    process.env.NODE_ENV !== "production" &&
+    process.env.SIMULATE_CLOUD_TASKS === "true"
   ) {
     const token = req.headers.authorization?.split(" ")[1];
     if (token === "MOCK_INTERNAL_TOKEN") {

@@ -12,6 +12,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test": "vitest run --exclude 'e2e/**'",
+    "emulators:start": "firebase emulators:start",
     "openspec": "tsx scripts/openspec-cli/index.ts",
     "test:e2e": "playwright test",
     "swe-bench-runner": "./swe-bench-runner.sh",

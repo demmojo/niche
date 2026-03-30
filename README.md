@@ -198,6 +198,8 @@ npm install
 cp .env.example .env
 ```
 
+> **Note on Local Simulation:** By default, `.env.example` sets `SIMULATE_CLOUD_TASKS=true` and `VITE_USE_FIREBASE_EMULATOR=true`. This ensures your local environment runs completely sandboxed against local Firebase emulators and a mocked Cloud Tasks queue.
+
 3. Configure your API keys in the `.env` file:
 
 ```env
@@ -217,13 +219,24 @@ GOOGLE_SEARCH_ENGINE_ID="your_google_search_engine_id_here"
 
 _(Note: The app will boot with dummy keys, but data enrichment and AI features require valid API keys.)_
 
-4. Start the development server:
+4. Start the local Firebase emulators (in a separate terminal):
+
+```bash
+npm run emulators:start
+```
+
+5. Start the development server:
 
 ```bash
 npm run dev
 ```
 
 The application will be available at **[http://localhost:3000](http://localhost:3000)**.
+
+### Hybrid vs. Full Local Development
+
+- **Full Local Mode (Default):** With `VITE_USE_FIREBASE_EMULATOR=true` and `SIMULATE_CLOUD_TASKS=true`, no data is written to the production cloud. The backend task dispatcher hits `http://127.0.0.1:3000` to simulate Google Cloud Tasks.
+- **Hybrid Mode (Live DB + Local Express):** If you need to test against live production or staging data, set `VITE_USE_FIREBASE_EMULATOR=false` and `SIMULATE_CLOUD_TASKS=false`, and provide a valid `FIREBASE_SERVICE_ACCOUNT_BASE64` in your `.env`. You will need to use `ngrok` to expose your local port `3000` to the internet and set `CLOUD_RUN_URL=https://your-ngrok-url.app` so the real Google Cloud Tasks can ping your local machine.
 
 ### Local Troubleshooting & Configuration
 

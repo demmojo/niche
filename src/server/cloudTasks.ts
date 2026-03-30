@@ -31,14 +31,17 @@ export const enqueueTask = async (
   // If we are in local development or testing, we might want to skip actual Cloud Tasks
   // or simulate it. For local tests, we could just execute the task synchronously,
   // but to match the async nature, we can just make an HTTP request directly.
-  if (process.env.NODE_ENV === "test" || process.env.SIMULATE_CLOUD_TASKS) {
+  if (
+    process.env.NODE_ENV === "test" ||
+    process.env.SIMULATE_CLOUD_TASKS === "true"
+  ) {
     console.log(
       `[Cloud Tasks Mock] Enqueuing ${queueName} -> ${targetUrlPath}`,
     );
     // Simulate async execution
     setTimeout(
       () => {
-        fetch(`http://127.0.0.1:${process.env.PORT || 8080}${targetUrlPath}`, {
+        fetch(`http://127.0.0.1:${process.env.PORT || 3000}${targetUrlPath}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
