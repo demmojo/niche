@@ -2,6 +2,32 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import * as genai from "@google/genai";
+import Exa from "exa-js";
+
+vi.mock("exa-js", () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      searchAndContents: vi.fn().mockResolvedValue({
+        results: [{ url: "exa.com", title: "Exa", text: "Exa description" }],
+      }),
+    })),
+  };
+});
+
+vi.mock("../../utils/aiClient", () => ({
+  withModelFallback: vi.fn().mockImplementation(async (cb) => {
+    return await cb(
+      {
+        models: {
+          generateContent: vi
+            .fn()
+            .mockResolvedValue({ text: '{"competitors":[]}' }),
+        },
+      },
+      "gemini-3.1-flash",
+    );
+  }),
+}));
 
 vi.mock("@google/genai", () => {
   const generateContentMock = vi.fn().mockResolvedValue({
@@ -93,6 +119,11 @@ vi.mock("firebase-admin", () => {
   });
 
   return {
+    default: {
+      firestore: firestoreMock,
+      auth: authMock,
+      apps: [{ name: "[DEFAULT]" }],
+    },
     firestore: firestoreMock,
     auth: authMock,
     apps: [{ name: "[DEFAULT]" }],
@@ -123,13 +154,55 @@ vi.mock("../../server/queues", () => ({
   },
 }));
 
+vi.mock("exa-js", () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      searchAndContents: vi.fn().mockResolvedValue({
+        results: [
+          {
+            url: "https://g2.com/test",
+            title: "Test Comp",
+            text: "Test description",
+          },
+        ],
+      }),
+    })),
+    __esModule: true,
+  };
+});
+
+vi.mock("../../utils/aiClient", () => ({
+  withModelFallback: vi.fn().mockImplementation(async (cb) => {
+    // We just return what cb returns
+    const aiMock = {
+      models: {
+        generateContent: vi.fn().mockResolvedValue({
+          text: JSON.stringify({
+            competitors: [
+              {
+                name: "Test Comp",
+                domain: "https://g2.com/test",
+                description: "Test description",
+                similarityScore: 85,
+                matchTier: "Direct",
+                matchRationale: "Same jtbd",
+              },
+            ],
+          }),
+        }),
+      },
+    };
+    return await cb(aiMock, "gemini-3.1-flash");
+  }),
+}));
+
 // Import after mocking
 import {
   campaignRouter,
   runDeepValidationCampaign,
   runTaxonomyEvaluation,
 } from "../../server/campaignRoutes";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import * as credits from "../../server/credits";
 
 // Set up an ephemeral Express app for testing
@@ -202,6 +275,20 @@ describe("campaignRoutes", () => {
         .send({ competitors: [], baseIdea: {} });
 
       expect(response2.status).toBe(400);
+
+      const response3 = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ competitors: [], baseIdea: "just a string" });
+
+      expect(response3.status).toBe(400);
+
+      const response4 = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ competitors: [] });
+
+      expect(response4.status).toBe(400);
     });
 
     it("returns 500 if an unexpected error occurs", async () => {
@@ -372,6 +459,21 @@ describe("campaignRoutes", () => {
       expect(response.body.message).toBe("Campaign queued successfully.");
     });
 
+    it("returns 202 when competitors is empty but baseIdea is a valid object with a name", async () => {
+      vi.mocked(credits.getActionCredits).mockResolvedValueOnce(10);
+
+      const response = await request(app)
+        .post("/api/campaign/start")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({
+          competitors: [],
+          baseIdea: { name: "test idea" },
+        });
+
+      expect(response.status).toBe(202);
+      expect(response.body.jobId).toBe("mock-job-id");
+    });
+
     it("handles TOCTOU correctly with 50 concurrent requests (TC-CREDIT-01)", async () => {
       let availableCredits = 1;
       let inFlightDeductions = 0;
@@ -472,6 +574,119 @@ describe("campaignRoutes", () => {
     });
   });
 
+  describe("POST /api/campaign/discover-competitors", () => {
+    it("returns 400 if payload is invalid", async () => {
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "x".repeat(10001) }); // > 10000 max
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid request payload");
+    });
+
+    it("returns empty competitors if baseIdea is missing", async () => {
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+    });
+
+    it("returns empty competitors if EXA_API_KEY is missing", async () => {
+      const prevKey = process.env.EXA_API_KEY;
+      delete process.env.EXA_API_KEY;
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "crm for plumbers" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+
+      process.env.EXA_API_KEY = prevKey;
+    });
+
+    it("returns competitors using aiClient withModelFallback", async () => {
+      process.env.EXA_API_KEY = "test_exa_key";
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "crm for plumbers" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toHaveLength(1);
+      expect(response.body.competitors[0].name).toBe("Test Comp");
+    });
+
+    it("handles aiClient parsing error and degrades gracefully", async () => {
+      process.env.EXA_API_KEY = "test_exa_key";
+
+      const { withModelFallback } = await import("../../utils/aiClient");
+      vi.mocked(withModelFallback).mockResolvedValueOnce("invalid json string");
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: { name: "test idea", description: "testing" } });
+
+      // Should degrade gracefully and return Exa result directly
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toHaveLength(1);
+      expect(response.body.competitors[0].name).toBe("Test Comp");
+      expect(response.body.competitors[0].domain).toBe("https://g2.com/test");
+    });
+
+    it("handles Exa search error", async () => {
+      process.env.EXA_API_KEY = "test_exa_key";
+
+      const exaModule = await import("exa-js");
+      vi.mocked(exaModule.default).mockImplementationOnce(
+        () =>
+          ({
+            searchAndContents: vi
+              .fn()
+              .mockRejectedValue(new Error("Exa rate limit")),
+          }) as any,
+      );
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "crm for plumbers" });
+
+      // Exa failure logs error and returns empty array, which discover-competitors then returns early
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+    });
+
+    it("returns 500 on unexpected internal server error", async () => {
+      process.env.EXA_API_KEY = "test_exa_key";
+
+      // Force an error inside the route by making the aiClient import fail or throw a non-graceful error
+      // Actually withModelFallback error is caught and degraded.
+      // Let's mock Exa constructor to throw?
+      const exaModule = await import("exa-js");
+      vi.mocked(exaModule.default).mockImplementationOnce(() => {
+        throw new Error("Constructor Failed");
+      });
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "crm for plumbers" });
+
+      // fetchExaCompetitors catches constructor error? No, it only catches searchAndContents
+      expect(response.status).toBe(500);
+      expect(response.body.error).toBe(
+        "Internal server error during discovery",
+      );
+    });
+  });
+
   describe("POST /api/campaign/pivot", () => {
     it("returns 401 if unauthorized", async () => {
       const response = await request(app)
@@ -567,6 +782,221 @@ describe("campaignRoutes", () => {
       // Because the GenAI mock returns valid JSON stringified in the wrapper or we can mock it here directly
       expect(response.status).toBe(200);
       expect(credits.deductActionCredit).toHaveBeenCalledWith("test-uid");
+    });
+  });
+
+  describe("POST /api/campaign/discover-competitors", () => {
+    let mockExaSearch: ReturnType<typeof vi.fn>;
+    let withModelFallbackMock: any;
+
+    beforeEach(async () => {
+      const exaModule = await import("exa-js");
+      mockExaSearch = vi.fn().mockResolvedValue({
+        results: [
+          { url: "https://example.com", title: "Example", text: "Desc" },
+        ],
+      });
+      (exaModule as any).default.mockImplementation(() => ({
+        searchAndContents: mockExaSearch,
+      }));
+
+      const aiClient = await import("../../utils/aiClient");
+      withModelFallbackMock = vi.fn().mockImplementation(async (cb: any) => {
+        return await cb(
+          {
+            models: {
+              generateContent: vi.fn().mockResolvedValue({
+                text: JSON.stringify({
+                  competitors: [
+                    {
+                      name: "Test",
+                      domain: "test.com",
+                      description: "Desc",
+                      similarityScore: 90,
+                      matchTier: "Direct",
+                      matchRationale: "Rationale",
+                    },
+                  ],
+                }),
+              }),
+            },
+          },
+          "gemini-3.1-flash",
+        );
+      });
+      vi.mocked(aiClient.withModelFallback).mockImplementation(
+        withModelFallbackMock,
+      );
+      process.env.EXA_API_KEY = "dummy-key";
+    });
+
+    afterEach(() => {
+      delete process.env.EXA_API_KEY;
+    });
+
+    it("returns 400 if payload is invalid", async () => {
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: 123 }); // invalid type
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid request payload");
+    });
+
+    it("returns empty competitors if baseIdea is empty string or empty object", async () => {
+      const res1 = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "" });
+      expect(res1.status).toBe(200);
+      expect(res1.body.competitors).toEqual([]);
+
+      const res2 = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: {} });
+      expect(res2.status).toBe(200);
+      expect(res2.body.competitors).toEqual([]);
+    });
+
+    it("returns empty competitors if EXA_API_KEY is missing", async () => {
+      delete process.env.EXA_API_KEY;
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "crm for plumbers" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+    });
+
+    it("returns empty competitors if exa search fails", async () => {
+      mockExaSearch.mockRejectedValue(new Error("Exa failed"));
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: { name: "Idea", description: "Desc" } });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+    });
+
+    it("returns empty competitors if exa returns 0 results", async () => {
+      mockExaSearch.mockResolvedValue({ results: [] });
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors).toEqual([]);
+    });
+
+    it("returns valid competitors parsed from LLM", async () => {
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors[0].name).toBe("Test");
+    });
+
+    it("handles array response from LLM wrapped manually", async () => {
+      withModelFallbackMock.mockImplementation(async (cb: any) => {
+        return await cb(
+          {
+            models: {
+              generateContent: vi.fn().mockResolvedValue({
+                text: JSON.stringify([
+                  {
+                    name: "Test2",
+                    domain: "test2.com",
+                    description: "Desc",
+                    similarityScore: 90,
+                    matchTier: "Direct",
+                    matchRationale: "Rationale",
+                  },
+                ]),
+              }),
+            },
+          },
+          "gemini-3.1-flash",
+        );
+      });
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors[0].name).toBe("Test2");
+    });
+
+    it("falls back to exa results gracefully if LLM output fails to parse", async () => {
+      withModelFallbackMock.mockImplementation(async (cb: any) => {
+        return await cb(
+          {
+            models: {
+              generateContent: vi.fn().mockResolvedValue({
+                text: "INVALID JSON",
+              }),
+            },
+          },
+          "gemini-3.1-flash",
+        );
+      });
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors[0].domain).toBe("https://example.com");
+      expect(response.body.competitors[0].name).toBe("Example"); // title was "Example"
+    });
+
+    it("returns 500 if unhandled error occurs in the route", async () => {
+      const aiClient = await import("../../utils/aiClient");
+      vi.mocked(aiClient.withModelFallback).mockRejectedValueOnce(
+        new Error("Unexpected"),
+      );
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toBe(
+        "Internal server error during discovery",
+      );
+    });
+
+    it("instantiates its own GoogleGenAI if models are missing in the ai callback", async () => {
+      const genai = await import("@google/genai");
+      (genai as any).__generateContentMock.mockResolvedValueOnce({
+        text: JSON.stringify({
+          competitors: [{ name: "Example Fallback" }],
+        }),
+      });
+
+      withModelFallbackMock.mockImplementation(async (cb: any) => {
+        return await cb({}, "gemini-3.1-flash");
+      });
+
+      const response = await request(app)
+        .post("/api/campaign/discover-competitors")
+        .set("Authorization", "Bearer VALID_TOKEN")
+        .send({ baseIdea: "Idea" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.competitors[0].name).toBe("Example Fallback");
     });
   });
 
