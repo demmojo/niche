@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -48,6 +49,43 @@ function IntentButton({
       </div>
       <span className="text-ink-dark/40">→</span>
     </button>
+  );
+}
+
+function EntryActionButtons({
+  onBack,
+  isAuthenticating,
+  submitLabel,
+}: {
+  onBack: () => void;
+  isAuthenticating: boolean;
+  submitLabel: string;
+}) {
+  const { pending } = useFormStatus();
+  const isDisabled = isAuthenticating || pending;
+
+  return (
+    <div className="mt-8 flex justify-between w-full">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={isDisabled}
+        className="px-6 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50"
+      >
+        ← Back
+      </button>
+      <button
+        type="submit"
+        disabled={isDisabled}
+        className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isAuthenticating
+          ? "Initializing engine..."
+          : pending
+            ? "Processing..."
+            : submitLabel}
+      </button>
+    </div>
   );
 }
 
@@ -161,6 +199,7 @@ export function ZeroFrictionEntry({
 
     try {
       await ensureAnonymousUser();
+      if (!isMounted.current) return;
 
       if (intent === "url") {
         setIdeaPayload({
@@ -180,6 +219,7 @@ export function ZeroFrictionEntry({
       setStep("analyzing");
     } catch (e: any) {
       console.error(e);
+      if (!isMounted.current) return;
       setStep("error");
 
       let errorMsg = e.message || "Failed to sign in.";
@@ -298,6 +338,16 @@ export function ZeroFrictionEntry({
               description="Extract and pivot from a URL"
               onClick={() => handleIntentSelection("url")}
             />
+
+            <div className="mt-6 text-sm text-ink-dark/60">
+              Already have an account?{" "}
+              <a
+                href="/login"
+                className="font-bold underline hover:text-ink-dark transition-colors"
+              >
+                Log in
+              </a>
+            </div>
           </div>
         )}
 
@@ -350,23 +400,11 @@ export function ZeroFrictionEntry({
               </p>
             )}
 
-            <div className="mt-8 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep("intent")}
-                disabled={isAuthenticating}
-                className="px-6 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50"
-              >
-                ← Back
-              </button>
-              <button
-                type="submit"
-                disabled={isAuthenticating}
-                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isAuthenticating ? "Initializing engine..." : "Validate Niche"}
-              </button>
-            </div>
+            <EntryActionButtons
+              onBack={() => setStep("intent")}
+              isAuthenticating={isAuthenticating}
+              submitLabel="Validate Niche"
+            />
           </form>
         )}
 
@@ -401,27 +439,11 @@ export function ZeroFrictionEntry({
                 {errorMessage}
               </p>
             )}
-            <div className="mt-4 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep("intent")}
-                disabled={isAuthenticating}
-                className="px-6 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50"
-              >
-                ← Back
-              </button>
-              <button
-                type="submit"
-                disabled={isAuthenticating}
-                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isAuthenticating
-                  ? "Initializing engine..."
-                  : intent === "analyze"
-                    ? "Analyze"
-                    : "Extract URL"}
-              </button>
-            </div>
+            <EntryActionButtons
+              onBack={() => setStep("intent")}
+              isAuthenticating={isAuthenticating}
+              submitLabel={intent === "analyze" ? "Analyze" : "Extract URL"}
+            />
           </form>
         )}
       </div>

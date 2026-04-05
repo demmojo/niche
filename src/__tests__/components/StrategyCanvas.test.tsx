@@ -34,8 +34,8 @@ describe("StrategyCanvas", () => {
     expect(screen.getByText("Strategy Locked")).toBeInTheDocument();
 
     const contentContainer = screen.getByTestId("canvas-content");
-    expect(contentContainer.className).toMatch(/blur-\[4px\]/);
-    expect(contentContainer.className).toMatch(/grayscale-\[50%\]/);
+    expect(contentContainer.className).toMatch(/opacity-50/);
+    expect(contentContainer.className).toMatch(/mask-gradient-to-b/);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Unlock Canvas" }));

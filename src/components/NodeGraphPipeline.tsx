@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { Lock, Check, X, RefreshCw, GitCommit, GitMerge } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Lock,
+  Check,
+  X,
+  RefreshCw,
+  GitCommit,
+  GitMerge,
+  Code,
+  LayoutList,
+  ArrowRight,
+} from "lucide-react";
+import { cn } from "../lib/utils";
 
 enum PipelineState {
   NOVICE,
@@ -40,6 +51,15 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
   const [revisionText, setRevisionText] = useState("");
   const [isRevising, setIsRevising] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
+  const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Phase 01: Versioning and Diff state
   const [schemaVersion, setSchemaVersion] = useState(0);
@@ -64,6 +84,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
     setIsRevising(true);
     // Simulate AI generation
     setTimeout(() => {
+      if (!isMounted.current) return;
       setIsRevising(false);
       setSchemaVersion(1);
       setShowDiff(true);
@@ -78,6 +99,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
     // Simulate drafting Phase 2
     setTimeout(() => {
+      if (!isMounted.current) return;
       setIsDrafting(false);
       setPipelineState(PipelineState.COMPLETED);
     }, 2500);
@@ -157,15 +179,42 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
         {/* Phase 01 */}
         <div
-          className={`border-2 p-6 rounded-xl shadow-sm transition-all duration-300 ${
+          className={cn(
+            "border-2 p-6 rounded-xl shadow-sm transition-all duration-300",
             activePhase === Phase.SCHEMA &&
-            pipelineState !== PipelineState.REJECTED
+              pipelineState !== PipelineState.REJECTED
               ? "border-ink-dark bg-white"
-              : "border-slate-200 bg-white/50 opacity-60"
-          }`}
+              : "border-slate-200 bg-white/50 opacity-60",
+          )}
         >
           <h3 className="font-serif font-bold text-xl mb-4 text-ink-dark flex items-center justify-between">
-            Phase 01: Database Schema
+            <span className="flex items-center gap-3">
+              Phase 01: Data Model
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-sans">
+                <button
+                  onClick={() => setIsDeveloperMode(false)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1",
+                    !isDeveloperMode
+                      ? "bg-white text-ink-dark shadow-sm"
+                      : "text-ink-dark/50 hover:text-ink-dark",
+                  )}
+                >
+                  <LayoutList className="w-3 h-3" /> Visual
+                </button>
+                <button
+                  onClick={() => setIsDeveloperMode(true)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1",
+                    isDeveloperMode
+                      ? "bg-white text-ink-dark shadow-sm"
+                      : "text-ink-dark/50 hover:text-ink-dark",
+                  )}
+                >
+                  <Code className="w-3 h-3" /> Code
+                </button>
+              </div>
+            </span>
             {activePhase > Phase.SCHEMA && (
               <span className="text-sm font-sans bg-green-100 text-green-800 px-2 py-1 rounded-full">
                 <Check className="w-4 h-4 inline mr-1" />
@@ -176,19 +225,59 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
           <div className="relative mb-2">
             <div
-              className={`text-xs text-ink-dark/80 bg-slate-50 p-4 rounded overflow-x-auto border border-slate-200 font-mono transition-all duration-500 ${
-                isRevising ? "opacity-30 blur-[2px]" : ""
-              }`}
+              className={cn(
+                "text-xs text-ink-dark/80 bg-slate-50 p-4 rounded overflow-x-auto border border-slate-200 transition-all duration-500",
+                isDeveloperMode ? "font-mono" : "font-sans",
+                isRevising && "opacity-30 blur-[2px]",
+              )}
             >
-              {showDiff ? renderDiff() : currentSchema}
+              {isDeveloperMode ? (
+                showDiff ? (
+                  renderDiff()
+                ) : (
+                  currentSchema
+                )
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="font-bold text-sm mb-1">
+                    User Profile Entity
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-white border border-slate-200 rounded shadow-sm">
+                      id (Auto-generated)
+                    </span>
+                    <span className="px-2 py-1 bg-white border border-slate-200 rounded shadow-sm">
+                      email (Unique)
+                    </span>
+                    {(schemaVersion > 0 || showDiff) && (
+                      <>
+                        <span className="px-2 py-1 bg-green-50 text-green-800 border border-green-200 rounded shadow-sm">
+                          role (Default: "USER")
+                        </span>
+                        <span className="px-2 py-1 bg-green-50 text-green-800 border border-green-200 rounded shadow-sm">
+                          stripeId (Optional, Unique)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Contextualize AI Generation - Shimmer overlay */}
             {isRevising && (
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded bg-slate-100/30">
+              <div
+                className="absolute inset-0 flex items-center justify-center overflow-hidden rounded bg-slate-100/30"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-busy="true"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent w-[200%] animate-[shimmer_1.5s_infinite] -translate-x-full"></div>
                 <div className="bg-ink-dark text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 relative z-10 animate-pulse">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <RefreshCw
+                    className="w-3 h-3 animate-spin"
+                    aria-hidden="true"
+                  />
                   Streaming AI revisions...
                 </div>
               </div>
@@ -259,12 +348,13 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
         {/* Phase 02 */}
         <div
-          className={`border p-6 rounded-xl relative overflow-hidden transition-all duration-300 flex-1 ${
+          className={cn(
+            "border p-6 rounded-xl relative overflow-hidden transition-all duration-300 flex-1",
             activePhase === Phase.API &&
-            pipelineState !== PipelineState.REJECTED
+              pipelineState !== PipelineState.REJECTED
               ? "border-ink-dark bg-white shadow-sm"
-              : "border-slate-200 bg-white/50"
-          }`}
+              : "border-slate-200 bg-white/50",
+          )}
         >
           {activePhase === Phase.SCHEMA &&
             pipelineState !== PipelineState.REJECTED && (
@@ -273,13 +363,13 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                   <Lock className="w-6 h-6 mb-2" />
                   <span className="text-xs text-center px-8 font-medium">
                     Locked. The AI will draft these routes after you approve the
-                    Database Schema in Phase 01.
+                    Data Model in Phase 01.
                   </span>
                 </div>
               </div>
             )}
           <h3 className="font-serif font-bold text-xl mb-4 text-ink-dark/80 flex items-center justify-between">
-            Phase 02: API Routes
+            Phase 02: Execution Logic
             {pipelineState === PipelineState.COMPLETED && (
               <span className="text-sm font-sans bg-green-100 text-green-800 px-2 py-1 rounded-full">
                 <Check className="w-4 h-4 inline mr-1" />
@@ -310,8 +400,9 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
               )}
             </div>
           ) : (
-            <pre className="text-xs text-ink-dark/80 bg-slate-50 p-4 rounded overflow-x-auto border border-slate-200 font-mono h-40">
-              {`// Generated API Routes
+            <div className="flex flex-col gap-4">
+              <pre className="text-xs text-ink-dark/80 bg-slate-50 p-4 rounded overflow-x-auto border border-slate-200 font-mono h-40">
+                {`// Generated Execution Logic
 export const GET = async (req: Request) => {
   const users = await db.user.findMany();
   return Response.json(users);
@@ -320,7 +411,13 @@ export const GET = async (req: Request) => {
 export const POST = async (req: Request) => {
   // AI scaffolding...
 }`}
-            </pre>
+              </pre>
+              {pipelineState === PipelineState.COMPLETED && (
+                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors w-full mt-2">
+                  Proceed to Workspace <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
