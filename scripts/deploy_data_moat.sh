@@ -61,8 +61,8 @@ gcloud run deploy static-crawler-worker \
   --region $REGION \
   --command "node" \
   --args "dist/server/workers/staticCrawlerWorker.js" \
-  --network core-vpc \
-  --subnet cloud-run-subnet \
+  --network crawler-vpc \
+  --subnet crawler-subnet \
   --vpc-egress all-traffic \
   --set-env-vars LAKE_BUCKET_NAME=$LAKE_BUCKET_NAME,GEMINI_API_KEY=${GEMINI_API_KEY} \
   --allow-unauthenticated
