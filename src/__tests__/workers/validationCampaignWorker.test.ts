@@ -42,11 +42,15 @@ const {
   };
 });
 
-vi.mock("firebase-admin", () => {
-  const actual = vi.importActual("firebase-admin");
+vi.mock("firebase-admin", async (importOriginal) => {
+  const actual: any = await importOriginal();
   return {
     ...actual,
     firestore: mockFirestore,
+    default: {
+      ...(actual.default || {}),
+      firestore: mockFirestore,
+    },
   };
 });
 
