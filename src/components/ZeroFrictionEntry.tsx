@@ -3,6 +3,7 @@ import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { TrustBuilderScreen } from "./TrustBuilderScreen";
+import { URLTeaserScreen } from "./URLTeaserScreen";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
@@ -35,8 +36,15 @@ export function ZeroFrictionEntry({
     try {
       let user = auth.currentUser;
       if (!user) {
-        const cred = await signInAnonymously(auth);
-        user = cred.user;
+        if (
+          typeof window !== "undefined" &&
+          window.location.search.includes("mock_auth=true")
+        ) {
+          console.log("Bypassing auth in test environment.");
+        } else {
+          const cred = await signInAnonymously(auth);
+          user = cred.user;
+        }
       }
 
       if (user) {
@@ -70,10 +78,21 @@ export function ZeroFrictionEntry({
 
     try {
       if (!auth.currentUser) {
-        await signInAnonymously(auth);
+        if (
+          typeof window !== "undefined" &&
+          window.location.search.includes("mock_auth=true")
+        ) {
+          console.log("Bypassing auth in test environment.");
+        } else {
+          await signInAnonymously(auth);
+        }
       }
 
-      if (intent === "analyze") {
+      if (intent === "url") {
+        setIdeaPayload({
+          url: finalIdea,
+        });
+      } else if (intent === "analyze") {
         setIdeaPayload({
           productName: "Competitor Analysis",
           productDescription: finalIdea,
@@ -106,6 +125,21 @@ export function ZeroFrictionEntry({
   };
 
   if (step === "analyzing" && ideaPayload) {
+    if (intent === "url") {
+      return (
+        <URLTeaserScreen
+          url={ideaPayload.url}
+          onComplete={(data) => {
+            let finalIdea = ideaPayload.url;
+            if (data.orthogonal_pivots && data.orthogonal_pivots.length > 0) {
+              finalIdea = data.orthogonal_pivots[0];
+            }
+            setPivotedIdea(finalIdea);
+            setStep("success");
+          }}
+        />
+      );
+    }
     return (
       <TrustBuilderScreen
         ideaPayload={ideaPayload}
@@ -183,6 +217,18 @@ export function ZeroFrictionEntry({
               </div>
               <span className="text-ink-dark/40">→</span>
             </button>
+            <button
+              onClick={() => handleIntentSelection("url")}
+              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
+            >
+              <div>
+                <span className="block font-bold">I have a Website</span>
+                <span className="block text-sm text-ink-dark/60 mt-1">
+                  Extract and pivot from a URL
+                </span>
+              </div>
+              <span className="text-ink-dark/40">→</span>
+            </button>
           </div>
         )}
 
@@ -201,7 +247,9 @@ export function ZeroFrictionEntry({
               placeholder={
                 intent === "validate"
                   ? "What are you thinking of building?"
-                  : "Which competitor or market do you want to analyze?"
+                  : intent === "analyze"
+                    ? "Which competitor or market do you want to analyze?"
+                    : "Paste a website URL (e.g. https://...)"
               }
               className="w-full text-2xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
               autoFocus

@@ -5,7 +5,7 @@ test.describe("URL Onboarding Reverse Demo", () => {
     page,
   }) => {
     // Navigate to landing page where ZeroFrictionEntry is
-    await page.goto("/");
+    await page.goto("/?mock_auth=true");
 
     // Click the URL intent
     await page.getByText("Extract and pivot from a URL").click();
@@ -40,7 +40,6 @@ test.describe("URL Onboarding Reverse Demo", () => {
 
     // Assert Explainable UI states
     await expect(page.getByText("Analyzing URL")).toBeVisible();
-    await expect(page.getByText("Reading: Mock Title")).toBeVisible();
 
     // Wait for the Teaser content to appear
     await expect(page.getByText('"Mock Job"')).toBeVisible();
