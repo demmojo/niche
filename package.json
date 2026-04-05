@@ -113,6 +113,7 @@
     "commander": "^14.0.3",
     "eslint": "^9.39.4",
     "eslint-plugin-jsdoc": "^61.7.1",
+    "eslint-plugin-playwright": "^2.10.1",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "fast-check": "^4.6.0",
     "js-yaml": "^4.1.1",

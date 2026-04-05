@@ -26,7 +26,7 @@ test.describe("URL Onboarding Reverse Demo", () => {
     // e2e_entry=true: bypasses the workspace mock so ZeroFrictionEntry renders
     // mock_auth=true: provides a mock user so Firebase auth doesn't fail
     await page.goto("/?mock_auth=true&e2e_entry=true");
-    await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
+    await page.locator("#root").waitFor({ state: "visible", timeout: 15000 });
 
     // Dismiss PageGuide if it appears
     try {

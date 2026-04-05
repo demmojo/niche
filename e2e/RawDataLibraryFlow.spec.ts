@@ -8,7 +8,6 @@ test.describe("Raw Data Library and Upload Flow", () => {
   let tempFilePath: string;
 
   test.beforeAll(() => {
-    // Create a deterministic temporary mock file to test the actual file upload dropzone behavior
     tempFilePath = path.join(os.tmpdir(), "nicheai-test-data.txt");
     fs.writeFileSync(
       tempFilePath,
@@ -16,19 +15,10 @@ test.describe("Raw Data Library and Upload Flow", () => {
     );
   });
 
-  test.afterAll(() => {
-    // Clean up temporary files
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
-  });
-
   test.beforeEach(async ({ page }) => {
-    // Attempt to bypass firebase auth calls entirely
     await page.route(
       "https://identitytoolkit.googleapis.com/**",
       async (route) => {
-        // Mock successful auth response
         await route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -45,40 +35,68 @@ test.describe("Raw Data Library and Upload Flow", () => {
       },
     );
 
-    // Intercept LLM calls in case they are triggered automatically
+    // Intercept LLM calls — format must match UploadDataModal's expected schema
     await page.route("**/api/llm/generate", async (route) => {
+      console.log("MOCK LLM INTERCEPTED");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           text: JSON.stringify({
-            summary: "Mock summary",
-            insights: [{ title: "Mock Insight", category: "opportunity" }],
+            newSources: [
+              {
+                type: "text",
+                sourceUrl: "file://nicheai-test-data.txt",
+                excerpt: "Mock content for testing the file upload in e2e.",
+                tags: ["testing"],
+                confidenceLevel: "High Confidence",
+              },
+            ],
+            newInsights: [
+              {
+                title: "Mock Insight",
+                description: "A mock insight from analyzed data.",
+                category: "opportunity",
+                impact: "high",
+              },
+            ],
           }),
         }),
       });
     });
 
-    // Navigate with mock_auth parameters bypassing Firebase entirely
+    // Also mock image hash check endpoint
+    await page.route("**/api/images/check", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ isDuplicate: false }),
+      });
+    });
+
     await page.goto(
       `http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder&demo_data=true`,
     );
-    await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
+    await page.locator("#root").waitFor({ state: "visible", timeout: 15000 });
 
-    // Handle any global onboarding guides or popups that might overlay the viewport early in the load cycle
     try {
       const getStarted = page.getByRole("button", { name: "Get Started" });
       await getStarted.waitFor({ state: "visible", timeout: 3000 });
       await getStarted.click();
     } catch {
-      // Guide didn't appear (likely dismissed in previous tests or state), safe to continue
+      // Guide didn't appear
+    }
+  });
+
+  test.afterAll(() => {
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
     }
   });
 
   test("user can upload data, view in library, and see details", async ({
     page,
   }) => {
-    // Catch console logs to diagnose test failures quickly in CI environments
     page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
 
     // 1. Navigate to Raw Data Library
@@ -91,42 +109,34 @@ test.describe("Raw Data Library and Upload Flow", () => {
       page.getByRole("heading", { name: "Raw Data Library" }),
     ).toBeVisible();
 
-    await page.screenshot({ path: "raw-data-debug.png" });
-
-    // Verify Grid view is loaded
     // 2. Open 'Import Raw Data' modal
     const importButton = page.getByText("Upload Data").first();
-    await importButton.click({ force: true });
+    await importButton.click();
 
-    // Verify the Upload modal has correctly animated into view
     await expect(
       page.getByRole("heading", { name: "Import Raw Data" }),
     ).toBeVisible({ timeout: 15000 });
 
-    // 3. Select and Upload a file into the dropzone (input type=file is an exception to locator rules as it's often hidden)
-    // Modal heading already verified above — wait for the file input to be available
-    await page.waitForTimeout(500);
-
-    // The file input is hidden — use the locator directly
+    // 3. Upload a file
+    await page
+      .locator("input[type='file']")
+      .waitFor({ state: "attached", timeout: 5000 });
     await page.locator("input[type='file']").setInputFiles(tempFilePath);
 
-    // Verify file is staged correctly in the UI
+    // Verify file is staged correctly
     await expect(page.getByText("nicheai-test-data.txt")).toBeVisible();
 
     // 4. Trigger Analysis
     await page.getByRole("button", { name: "Analyze Data" }).click();
 
-    // Wait for the AI analysis process to conclude and the modal to automatically close
-    await page.waitForTimeout(5000);
-    await page.screenshot({ path: "raw-data-after-analyze.png" });
+    // Wait for the modal to close (analysis complete + onDataAnalyzed called)
     await expect(
       page.getByRole("heading", { name: "Import Raw Data" }),
-    ).not.toBeVisible({ timeout: 15000 });
+    ).not.toBeVisible({ timeout: 20000 });
 
-    // 5. Interact with RawDataDetailModal via the Library Grid
-    // Since grid cards are often not semantic buttons, we target them by their content (the file name we just uploaded)
-    const card = page.getByText("nicheai-test-data.txt").first();
-    await card.waitFor({ state: "visible" });
+    // 5. Find the uploaded source in the grid (by sourceUrl from our mock)
+    const card = page.getByText("file://nicheai-test-data.txt").first();
+    await card.waitFor({ state: "visible", timeout: 10000 });
     await card.click();
 
     // Verify Source Page opens
@@ -135,10 +145,10 @@ test.describe("Raw Data Library and Upload Flow", () => {
     ).toBeVisible();
     await expect(page.getByText("Back to Library")).toBeVisible();
 
-    // 6. Close the detail view by clicking Back to Library
+    // 6. Close the detail view
     await page.getByText("Back to Library").click();
     await expect(
       page.getByRole("heading", { name: "Raw Data Source" }),
-    ).not.toBeVisible();
+    ).toBeHidden();
   });
 });
