@@ -8,7 +8,13 @@ export function MarketShiftBanner() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (
+      !auth.currentUser ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
+      return;
+    }
     const q = query(
       collection(db, "notifications"),
       where("type", "==", "MARKET_SHIFT"),

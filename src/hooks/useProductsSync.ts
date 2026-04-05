@@ -12,7 +12,11 @@ export function useProductsSync() {
   );
 
   useEffect(() => {
-    if (!user) {
+    if (
+      !user ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
       setProducts([]);
       setStatus("STATE_IDLE");
       return;

@@ -8,7 +8,13 @@ export function useActionCredits() {
   const [credits, setCredits] = useState<number>(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (
+      !user ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
+      return;
+    }
 
     const controller = new AbortController();
     const userRef = doc(db, "users", user.uid);

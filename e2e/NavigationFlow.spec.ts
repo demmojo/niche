@@ -77,13 +77,10 @@ test.describe("Dashboard and Main Navigation Flow", () => {
       page.getByRole("heading", { name: "Insight Library" }),
     ).toBeVisible();
 
-    // 5. Navigate to Market Intelligence
-    await page
-      .getByRole("button", { name: "Market Intelligence" })
-      .first()
-      .click();
+    // 5. Navigate to Market Analysis
+    await page.getByRole("button", { name: "Market Analysis" }).first().click();
     await expect(
-      page.getByRole("heading", { name: /Strategy Console/i }),
+      page.getByRole("heading", { name: /Lens Strategy Console/i }),
     ).toBeVisible();
 
     // 6. Navigate to Settings

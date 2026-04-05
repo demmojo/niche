@@ -30,6 +30,12 @@ function getContrastForeground(hexcolor: string): string {
  *
  */
 const fetchBrandIdentity = async (projectId: string) => {
+  if (
+    typeof window !== "undefined" &&
+    window.location.search.includes("mock_auth=true")
+  ) {
+    return null;
+  }
   // Query for the active version
   const q = query(
     collection(

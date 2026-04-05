@@ -71,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               uid: "test-user-123",
               email: mockEmail,
               isAnonymous: false,
+              getIdToken: async () => "MOCK_TOKEN",
             } as any);
             setLoading(false);
           }

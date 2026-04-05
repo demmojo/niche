@@ -940,7 +940,10 @@ export function useFirestoreDoc<T>(
 
   useEffect(() => {
     // Skip remote sync if demo mode is active
-    if (window.location.search.includes("demo_data=true")) {
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.location.search.includes("mock_auth=true")
+    ) {
       return;
     }
 
@@ -992,6 +995,13 @@ export function useFirestoreDoc<T>(
     setData(newValue);
     dataRef.current = newValue;
 
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.location.search.includes("mock_auth=true")
+    ) {
+      return;
+    }
+
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
@@ -1024,18 +1034,37 @@ export default function App() {
       </div>
     );
 
-  // E2E testing mock logic
+  // E2E testing mock logic — skip when e2e_entry=true so ZeroFrictionEntry renders
   if (
     typeof window !== "undefined" &&
     (window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true"))
+      window.location.search.includes("mock_auth=true")) &&
+    !window.location.search.includes("e2e_entry=true")
   ) {
+    const isUserRole = window.location.search.includes("role=user");
+    const mockEmail = isUserRole ? "user@example.com" : "mo.hassaniv@gmail.com";
+
     const mockProfilePersona = window.location.search.includes(
       "persona=enterprise",
     )
       ? "enterprise_pm"
       : "solo_founder";
     (window as any).__mock_profile_persona = mockProfilePersona;
+
+    return (
+      <WorkspaceProvider>
+        <WorkspaceRouter
+          user={
+            {
+              email: mockEmail,
+              uid: "test-user-123",
+              getIdToken: async () => "MOCK_TOKEN",
+            } as any
+          }
+          logout={() => {}}
+        />
+      </WorkspaceProvider>
+    );
   }
 
   // Viral Loop Support

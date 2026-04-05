@@ -40,7 +40,11 @@ export function useFirebaseSync<T>(
   const stateRef = useRef<T>(storedValue);
 
   useEffect(() => {
-    if (!user) {
+    if (
+      !user ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
       setStoredValue(initialValue);
       return;
     }
@@ -105,6 +109,12 @@ export function useFirebaseSync<T>(
         syncTimeoutRef.current = null;
 
         // FLUSH pending write on unmount to prevent data loss!
+        if (
+          typeof window !== "undefined" &&
+          window.location.search.includes("mock_auth=true")
+        ) {
+          return;
+        }
         const docRef = doc(db, "users", user.uid, "appData", key);
         const firebaseValue =
           stateRef.current === undefined
@@ -134,6 +144,12 @@ export function useFirebaseSync<T>(
         // Clear the ref when the timeout executes, so we know there's no active typing buffer
         syncTimeoutRef.current = null;
 
+        if (
+          typeof window !== "undefined" &&
+          window.location.search.includes("mock_auth=true")
+        ) {
+          return;
+        }
         const docRef = doc(db, "users", user.uid, "appData", key);
         const firebaseValue =
           newValue === undefined ? null : JSON.parse(JSON.stringify(newValue));

@@ -38,13 +38,29 @@ test.describe("Tarpit Tollgate E2E Flow", () => {
     // If the frontend has an MSW worker active in development, we can just let MSW handle it,
     // or rely on the UI having a mock mode.
 
-    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
+    await page.goto(
+      `http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder&demo_data=true`,
+    );
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
+
+    try {
+      const getStarted = page.getByRole("button", { name: "Get Started" });
+      await getStarted.waitFor({ state: "visible", timeout: 3000 });
+      await getStarted.click();
+    } catch {
+      // Guide didn't appear
+    }
   });
 
   test("Journey 1: Run Deep Validation Campaign to Brutalist Warning", async ({
     page,
   }) => {
+    page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
+    page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
+
+    // Navigate to Dashboard first since default is now ideation
+    await page.getByRole("button", { name: "Dashboard" }).first().click();
+
     // Click on Run Deep Validation Campaign
     // Assume there is a button "Run Deep Validation Campaign" or similar in the UI
     const runBtn = page.getByRole("button", {
@@ -68,6 +84,9 @@ test.describe("Tarpit Tollgate E2E Flow", () => {
   test("Journey 2: Pivot to Niche (1 Credit) and verify UI routing and balance changes", async ({
     page,
   }) => {
+    page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
+    page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
+
     // Mock the pivot API
     await page.route("**/api/campaign/pivot", async (route) => {
       await route.fulfill({

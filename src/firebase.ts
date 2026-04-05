@@ -36,7 +36,7 @@ const getApiKey = () => {
   ) {
     return process.env.VITE_FIREBASE_API_KEY;
   }
-  return "mock-api-key"; // Provide a fallback for CI/Emulators
+  return "AIzaSy" + "A".repeat(33); // Provide a fallback for CI/Emulators
 };
 
 const getProjectId = () => {

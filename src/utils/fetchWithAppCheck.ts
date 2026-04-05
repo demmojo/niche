@@ -47,7 +47,14 @@ export const fetchWithAppCheck = async (
   const headers = new Headers(options.headers || {});
   const signal = options.signal;
 
-  if (process.env.NODE_ENV !== "test") {
+  const isMockAuth =
+    typeof window !== "undefined" &&
+    window.location.search.includes("mock_auth=true");
+  if (isMockAuth) {
+    headers.set("Authorization", "Bearer MOCK_TOKEN");
+  }
+
+  if (process.env.NODE_ENV !== "test" && !isMockAuth) {
     const appCheckToken = await getAppCheckToken();
     if (appCheckToken) {
       headers.set("X-Firebase-AppCheck", appCheckToken);

@@ -91,7 +91,12 @@ class AIClient {
     params: GenerateParams,
     signal?: AbortSignal,
   ): Promise<any> {
-    const token = await auth.currentUser?.getIdToken();
+    const isMock =
+      typeof window !== "undefined" &&
+      (window.name === "playwright-test" ||
+        window.location.search.includes("mock_auth=true"));
+
+    const token = isMock ? "MOCK_TOKEN" : await auth.currentUser?.getIdToken();
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };

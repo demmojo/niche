@@ -19,6 +19,12 @@ export function SuperadminTaxonomyQueue() {
   const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("mock_auth=true")
+    ) {
+      return;
+    }
     const q = query(
       collection(db, "taxonomy_proposals"),
       where("status", "==", "pending_superadmin"),

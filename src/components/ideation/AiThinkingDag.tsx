@@ -65,7 +65,14 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
   const textRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    if (!jobId || appState !== STATE_POLLING) return;
+    if (
+      !jobId ||
+      appState !== STATE_POLLING ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
+      return;
+    }
 
     const docRef = doc(db, "campaign_jobs", jobId);
     const unsubscribe = onSnapshot(docRef, (snapshot) => {

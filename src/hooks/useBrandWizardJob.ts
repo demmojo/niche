@@ -44,7 +44,11 @@ export function useBrandWizardJob(jobId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jobId) {
+    if (
+      !jobId ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
       setJob(null);
       setError(null);
       return;

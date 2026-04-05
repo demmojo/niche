@@ -39,6 +39,13 @@ export function DataMoatControlTab() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("mock_auth=true")
+    ) {
+      setLoading(false);
+      return;
+    }
     // Subscribe to admin_dashboards/data_quality
     const dqUnsubscribe = onSnapshot(
       doc(db, "admin_dashboards", "data_quality"),

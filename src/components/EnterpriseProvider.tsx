@@ -25,7 +25,13 @@ export function EnterpriseProvider({
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>("");
 
   useEffect(() => {
-    if (!user) return;
+    if (
+      !user ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
+      return;
+    }
 
     const controller = new AbortController();
     const watchlistsRef = collection(db, "watchlists");

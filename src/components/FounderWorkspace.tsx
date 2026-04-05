@@ -948,7 +948,10 @@ export function useFirestoreDoc<T>(
 
   useEffect(() => {
     // Skip remote sync if demo mode is active
-    if (window.location.search.includes("demo_data=true")) {
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.location.search.includes("mock_auth=true")
+    ) {
       return;
     }
 
@@ -999,6 +1002,13 @@ export function useFirestoreDoc<T>(
 
     setData(newValue);
     dataRef.current = newValue;
+
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.location.search.includes("mock_auth=true")
+    ) {
+      return;
+    }
 
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
@@ -5249,8 +5259,8 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                 </div>
               )}
 
-            {/* MARKET INTELLIGENCE TAB */}
-            {activeTab === "market-intelligence" && (
+            {/* MARKET ANALYSIS TAB */}
+            {activeTab === "market-analysis" && (
               <LensStrategyConsole
                 stats={stats}
                 competitors={competitors}

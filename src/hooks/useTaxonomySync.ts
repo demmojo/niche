@@ -30,7 +30,10 @@ export function useTaxonomySync(): {
 
   useEffect(() => {
     // Skip remote sync if demo mode is active
-    if (window.location.search.includes("demo_data=true")) {
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.location.search.includes("mock_auth=true")
+    ) {
       return;
     }
 

@@ -16,7 +16,13 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
   const [activeProductId, setActiveProductId] = useState<string>("");
 
   useEffect(() => {
-    if (!user) return;
+    if (
+      !user ||
+      (typeof window !== "undefined" &&
+        window.location.search.includes("mock_auth=true"))
+    ) {
+      return;
+    }
 
     const controller = new AbortController();
     const productsRef = collection(db, "products");

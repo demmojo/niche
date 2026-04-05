@@ -24,6 +24,13 @@ export function useMarketIntelligence<T>(
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("mock_auth=true")
+    ) {
+      setState({ status: "success", data: [] });
+      return;
+    }
     setState({ status: "loading" });
     const controller = new AbortController();
 

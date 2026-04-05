@@ -17,11 +17,20 @@ export function useUserProfile() {
 
   useEffect(() => {
     // E2E Test mock profile hook
-    if (typeof window !== "undefined" && window.location.search.includes("mock_auth=true")) {
-       const mockPersona = (window as any).__mock_profile_persona || "solo_founder";
-       setProfile({ persona: mockPersona });
-       setLoading(false);
-       return;
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("mock_auth=true")
+    ) {
+      if (window.location.search.includes("e2e_entry=true")) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      const mockPersona =
+        (window as any).__mock_profile_persona || "solo_founder";
+      setProfile({ persona: mockPersona });
+      setLoading(false);
+      return;
     }
 
     if (!user) {
