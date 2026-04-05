@@ -159,6 +159,8 @@ export function ZeroFrictionEntry({
 
   const handleIntentSelection = async (selectedIntent: IntentType) => {
     setIntent(selectedIntent);
+    setErrorMessage("");
+    setErrorMessage("");
 
     let selectedPersona: PersonaType = "solo_founder";
     if (selectedIntent === "analyze") {
@@ -385,14 +387,14 @@ export function ZeroFrictionEntry({
             action={handleAction}
             className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200"
           >
-            <div className="text-2xl text-ink-dark leading-loose font-medium text-left">
+            <div className="text-2xl text-ink-dark leading-loose font-medium text-left flex flex-wrap items-center">
               I want to build a{" "}
               <input
                 type="text"
                 name="category"
                 aria-label="Category"
                 placeholder="Category (e.g. CRM)"
-                className="inline-block w-48 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-48 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
                 disabled={isAuthenticating}
                 autoFocus
@@ -403,7 +405,7 @@ export function ZeroFrictionEntry({
                 name="audience"
                 aria-label="Target Audience"
                 placeholder="Audience (e.g. Plumbers)"
-                className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
                 disabled={isAuthenticating}
               />{" "}
@@ -413,7 +415,7 @@ export function ZeroFrictionEntry({
                 name="problem"
                 aria-label="Core Problem"
                 placeholder="Problem (e.g. scheduling)"
-                className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
                 disabled={isAuthenticating}
               />

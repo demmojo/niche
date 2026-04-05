@@ -127,7 +127,9 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                 key={index}
                 className="bg-green-100 text-green-900 px-2 py-0.5 border-l-2 border-green-500 flex gap-2"
               >
-                <span className="opacity-50 select-none">+</span>
+                <span className="opacity-50 select-none" aria-hidden="true">
+                  +
+                </span>
                 <span>{diff.line}</span>
               </div>
             );
@@ -137,7 +139,9 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
               key={index}
               className="px-2 py-0.5 text-ink-dark/70 flex gap-2"
             >
-              <span className="opacity-0 select-none">+</span>
+              <span className="opacity-0 select-none" aria-hidden="true">
+                +
+              </span>
               <span>{diff.line}</span>
             </div>
           );
@@ -404,29 +408,34 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
             <div className="h-32 bg-slate-50 rounded border border-slate-200"></div>
           ) : isDrafting ? (
             <div
-              className="bg-[#1e1e1e] rounded-lg p-4 font-mono text-xs text-emerald-400 border border-slate-800 shadow-inner flex flex-col gap-2 h-40 overflow-hidden relative"
+              className="bg-white rounded-lg p-4 font-sans text-sm text-ink-dark border border-slate-200 shadow-sm flex flex-col gap-3 h-40 overflow-hidden relative"
               aria-live="polite"
               aria-relevant="additions"
             >
+              <div className="font-bold text-ink-dark/60 text-xs uppercase mb-1">
+                Generating Backend Services
+              </div>
               {DRAFT_LOGS.slice(0, currentLogIndex + 1).map((log, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 animate-[fadeIn_0.3s_ease-out_forwards]"
+                  className="flex items-start gap-3 animate-[fadeIn_0.3s_ease-out_forwards]"
                 >
-                  <span
-                    className="text-emerald-700 select-none mt-0.5"
-                    aria-hidden="true"
-                  >
-                    {">"}
-                  </span>
-                  <span className="leading-relaxed">{log}</span>
+                  <div className="mt-0.5 rounded-full bg-slate-100 p-1">
+                    <Check className="w-3 h-3 text-ink-dark/40" />
+                  </div>
+                  <span className="leading-relaxed font-medium">{log}</span>
                 </div>
               ))}
               {currentLogIndex < DRAFT_LOGS.length && (
-                <div
-                  className="w-2 h-3.5 bg-emerald-400 animate-pulse mt-1 ml-4"
-                  aria-hidden="true"
-                ></div>
+                <div className="flex items-start gap-3 mt-1">
+                  <div className="mt-0.5 rounded-full bg-slate-50 p-1 border border-slate-100">
+                    <RefreshCw className="w-3 h-3 text-ink-dark/20 animate-spin" />
+                  </div>
+                  <div
+                    className="h-4 w-32 bg-slate-100 animate-pulse rounded"
+                    aria-hidden="true"
+                  ></div>
+                </div>
               )}
             </div>
           ) : (
