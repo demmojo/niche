@@ -156,6 +156,28 @@ afterAll(async () => {
   server.close();
   await teardownFirebase();
 
+  // Hard fallback for CI memory leaks, independent of teardownFirebase internals
+  try {
+    const { getApp, deleteApp } = await import("firebase/app");
+    const app = getApp();
+    if (app) await deleteApp(app);
+  } catch (e) {
+    // Ignore if no default app
+  }
+
+  try {
+    const admin = await import("firebase-admin");
+    if (admin.apps && admin.apps.length > 0) {
+      await Promise.all(
+        admin.apps.map((app) => (app ? app.delete() : Promise.resolve())),
+      );
+    }
+  } catch (e) {
+    // Ignore
+  }
+
+  delete (globalThis as any).firestoreInstance;
+
   // Expose GC hook allows us to clear up V8 memory limits caused by JsDOM
   if (typeof global.gc === "function") {
     global.gc();

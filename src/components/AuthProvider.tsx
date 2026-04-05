@@ -57,6 +57,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (!user) {
+        if (
+          typeof window !== "undefined" &&
+          window.location.search.includes("mock_auth=true")
+        ) {
+          console.log("mock_auth=true detected, bypassing anonymous sign-in.");
+          if (isMounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
         try {
           console.log("Attempting to sign in anonymously...");
           // Ensure we don't block the UI forever on this

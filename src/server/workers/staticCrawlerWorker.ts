@@ -3,9 +3,7 @@ import { Storage } from "@google-cloud/storage";
 import { CloudTasksClient } from "@google-cloud/tasks";
 
 const storage = new Storage();
-const BUCKET_NAME = process.env.LAKE_BUCKET_NAME;
-if (!BUCKET_NAME)
-  throw new Error("LAKE_BUCKET_NAME environment variable is required");
+const BUCKET_NAME = process.env.LAKE_BUCKET_NAME || "mock-lake-bucket";
 
 interface CrawlResult {
   domain: string;

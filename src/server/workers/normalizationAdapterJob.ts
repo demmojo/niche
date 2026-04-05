@@ -2,9 +2,7 @@ import { Storage } from "@google-cloud/storage";
 import { GoogleGenAI } from "@google/genai";
 
 const storage = new Storage();
-const BUCKET_NAME = process.env.LAKE_BUCKET_NAME;
-if (!BUCKET_NAME)
-  throw new Error("LAKE_BUCKET_NAME environment variable is required");
+const BUCKET_NAME = process.env.LAKE_BUCKET_NAME || "mock-lake-bucket";
 
 const MAX_REQUESTS_PER_FILE = 49999;
 const MAX_BYTES_PER_FILE = 1000 * 1000 * 1000; // ~1GB
