@@ -9,14 +9,14 @@ RUN npm ci --legacy-peer-deps --ignore-scripts --omit=dev --ignore-scripts
 # Stage 2: Build the Vite frontend and compile the backend
 FROM node:22-alpine AS builder
 WORKDIR /app
-# Copy package.json and lockfile for optimal layer caching
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_PROJECT_ID=gtmforge-45e57
 COPY package*.json ./
-# Install all dependencies (including dev) to build the React frontend and compile TS
 RUN npm ci --legacy-peer-deps --ignore-scripts
-# Copy the rest of the application code
 COPY . .
-# Build the Vite frontend to the /app/dist directory
-RUN npm run build
+RUN VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
+    VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID \
+    npm run build
 # Pre-compile the Express backend to a single JS file
 RUN npx esbuild server.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=dist/server/index.js
 
