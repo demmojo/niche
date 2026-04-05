@@ -25,7 +25,7 @@ describe("NodeGraphPipeline", () => {
 
     // Check for Approve button
     const approveBtn = screen.getByText("Approve");
-    expect(approveBtn).toHaveClass("bg-[#E3FF00]");
+    expect(approveBtn).toHaveClass("bg-ink-dark");
   });
 
   it("transitions to MASTER state when Approve is clicked", async () => {
@@ -44,5 +44,23 @@ describe("NodeGraphPipeline", () => {
     expect(
       screen.queryByText(/The AI breaks features into atomic phases/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("handles Revise button logic", async () => {
+    const { userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    render(<NodeGraphPipeline isLocked={false} />);
+
+    const reviseBtn = screen.getByText("Revise");
+    expect(reviseBtn).toBeDisabled();
+
+    const input = screen.getByPlaceholderText(/Ask the AI to revise/i);
+    await user.type(input, "Change email to username");
+
+    expect(reviseBtn).not.toBeDisabled();
+    await user.click(reviseBtn);
+
+    // Should clear the input
+    expect(input).toHaveValue("");
   });
 });

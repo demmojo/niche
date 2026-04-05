@@ -50,21 +50,28 @@ function insightsReducer(state: Insight[], action: InsightAction): Insight[] {
 }
 
 function getWorkspaceId() {
+  if (typeof window === "undefined") return "ssr-workspace";
   const urlParams = new URLSearchParams(window.location.search);
   let wid = urlParams.get("w");
   if (wid) {
     try {
       window.localStorage.setItem("nicheai_workspace_id", wid);
-    } catch (e) {}
+    } catch (e) {
+      console.warn("localStorage setItem failed", e);
+    }
   } else {
     try {
       wid = window.localStorage.getItem("nicheai_workspace_id");
-    } catch (e) {}
+    } catch (e) {
+      console.warn("localStorage getItem failed", e);
+    }
     if (!wid) {
       wid = `ws-${Math.random().toString(36).substring(2, 9)}`;
       try {
         window.localStorage.setItem("nicheai_workspace_id", wid);
-      } catch (e) {}
+      } catch (e) {
+        console.warn("localStorage setItem failed", e);
+      }
     }
     urlParams.set("w", wid);
     window.history.replaceState(
@@ -104,13 +111,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const setWorkspaceId = (id: string) => {
     setWorkspaceIdState(id);
-    if (user?.uid) {
+    if (user?.uid && typeof window !== "undefined") {
       try {
         window.localStorage.setItem(
           `${WORKSPACE_ID}_active_product_id_${user.uid}`,
           JSON.stringify(id),
         );
-      } catch (e) {}
+      } catch (e) {
+        console.warn("localStorage setItem failed", e);
+      }
     }
   };
 

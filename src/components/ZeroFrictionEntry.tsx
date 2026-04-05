@@ -4,6 +4,7 @@ import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { TrustBuilderScreen } from "./TrustBuilderScreen";
 import { URLTeaserScreen } from "./URLTeaserScreen";
+import { isMockAuthEnabled } from "../utils/testEnv";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
@@ -23,6 +24,47 @@ export function ZeroFrictionEntry({
   const [ideaPayload, setIdeaPayload] = useState<any>(null);
   const [pivotedIdea, setPivotedIdea] = useState<string | null>(null);
 
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const ensureAnonymousUser = async (selectedPersona?: PersonaType) => {
+    let user = auth.currentUser;
+    if (!user) {
+      if (isMockAuthEnabled()) {
+        console.log("Bypassing auth in test environment.");
+      } else {
+        setIsAuthenticating(true);
+        try {
+          // Use AbortController for circuit breaker pattern (timeout)
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(
+              () => reject(new Error("Auth timeout circuit breaker tripped")),
+              5000,
+            );
+          });
+          const cred = (await Promise.race([
+            signInAnonymously(auth),
+            timeoutPromise,
+          ])) as any;
+          user = cred.user;
+        } finally {
+          setIsAuthenticating(false);
+        }
+      }
+    }
+
+    if (user && selectedPersona && !isMockAuthEnabled()) {
+      try {
+        await setDoc(
+          doc(db, "users", user.uid),
+          { persona: selectedPersona },
+          { merge: true },
+        );
+      } catch (e) {
+        console.error("Failed to set persona:", e);
+      }
+    }
+  };
+
   const handleIntentSelection = async (selectedIntent: IntentType) => {
     setIntent(selectedIntent);
 
@@ -34,34 +76,7 @@ export function ZeroFrictionEntry({
     if (onIntentSelected) onIntentSelected();
 
     try {
-      let user = auth.currentUser;
-      if (!user) {
-        if (
-          typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
-        ) {
-          console.log("Bypassing auth in test environment.");
-        } else {
-          const cred = await signInAnonymously(auth);
-          user = cred.user;
-        }
-      }
-
-      if (
-        user &&
-        !(
-          typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
-        )
-      ) {
-        await setDoc(
-          doc(db, "users", user.uid),
-          { persona: selectedPersona },
-          { merge: true },
-        );
-      }
+      await ensureAnonymousUser(selectedPersona);
     } catch (e: any) {
       console.error("Failed to sign in anonymously and set persona:", e);
       // We don't block the UI here, fallback to proceeding
@@ -85,17 +100,7 @@ export function ZeroFrictionEntry({
     }
 
     try {
-      if (!auth.currentUser) {
-        if (
-          typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
-        ) {
-          console.log("Bypassing auth in test environment.");
-        } else {
-          await signInAnonymously(auth);
-        }
-      }
+      await ensureAnonymousUser();
 
       if (intent === "url") {
         setIdeaPayload({
@@ -269,33 +274,39 @@ export function ZeroFrictionEntry({
               formData.set("idea", combinedIdea);
               handleAction(formData);
             }}
-            className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200 dot-grid-bg"
+            className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200"
           >
             <div className="text-2xl text-ink-dark leading-loose font-medium text-left">
               I want to build a{" "}
               <input
                 type="text"
                 name="category"
+                aria-label="Category"
                 placeholder="Category (e.g. CRM)"
                 className="inline-block w-48 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
+                disabled={isAuthenticating}
                 autoFocus
               />{" "}
               for{" "}
               <input
                 type="text"
                 name="audience"
+                aria-label="Target Audience"
                 placeholder="Audience (e.g. Plumbers)"
                 className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
+                disabled={isAuthenticating}
               />{" "}
               that solves{" "}
               <input
                 type="text"
                 name="problem"
+                aria-label="Core Problem"
                 placeholder="Problem (e.g. scheduling)"
                 className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
+                disabled={isAuthenticating}
               />
               .
             </div>
@@ -312,9 +323,10 @@ export function ZeroFrictionEntry({
             <div className="mt-8 flex justify-end">
               <button
                 type="submit"
-                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md"
+                disabled={isAuthenticating}
+                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Validate Niche
+                {isAuthenticating ? "Authenticating..." : "Validate Niche"}
               </button>
             </div>
           </form>
@@ -332,21 +344,31 @@ export function ZeroFrictionEntry({
             <input
               type="text"
               name="idea"
+              aria-label={
+                intent === "analyze"
+                  ? "Competitor or market to analyze"
+                  : "Website URL"
+              }
               placeholder={
                 intent === "analyze"
                   ? "Which competitor or market do you want to analyze?"
                   : "Paste a website URL (e.g. https://...)"
               }
-              className="w-full text-2xl p-6 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
+              className="w-full text-2xl p-6 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark disabled:opacity-50"
               autoFocus
               required
+              disabled={isAuthenticating}
             />
             {step === "error" && (
               <p className="text-rose-500 mt-4 font-medium" role="alert">
                 {errorMessage}
               </p>
             )}
-            <button type="submit" className="hidden">
+            <button
+              type="submit"
+              className="hidden"
+              disabled={isAuthenticating}
+            >
               Submit
             </button>
           </form>

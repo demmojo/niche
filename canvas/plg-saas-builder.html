@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLG SaaS Builder - Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Newsreader', 'serif'],
+                    },
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    backgroundImage: {
+                        'dot-grid': 'radial-gradient(#cbd5e1 1px, transparent 1px)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .dot-bg {
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .simulated-highlight {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border-bottom: 1px dashed #cbd5e1;
+            background-color: transparent;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            color: #3b82f6;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .simulated-highlight:hover {
+            background-color: #eff6ff; /* blue-50 */
+            border-bottom-color: transparent;
+            color: #1d4ed8; /* blue-700 */
+            box-shadow: 0 0 0 4px #eff6ff;
+        }
+
+        .workspace-locked {
+            filter: blur(4px) grayscale(50%);
+            opacity: 0.6;
+            pointer-events: none;
+            user-select: none;
+            transition: all 0.5s ease;
+        }
+
+        .workspace-unlocked {
+            filter: blur(0) grayscale(0%);
+            opacity: 1;
+            pointer-events: auto;
+            user-select: auto;
+            transition: all 0.5s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900 h-screen overflow-hidden flex flex-col">
+
+    <!-- Top Navbar -->
+    <header class="h-14 border-b border-slate-200 bg-white flex items-center justify-between px-6 shrink-0 z-10">
+        <div class="flex items-center gap-2">
+            <div class="w-6 h-6 bg-slate-900 rounded-md"></div>
+            <span class="font-semibold text-sm tracking-tight">NicheAI</span>
+        </div>
+        <div class="flex items-center gap-4 text-sm">
+            <button id="toggle-gate" class="px-3 py-1.5 bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-colors">
+                Unlock Workspace
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar: SaaS Intelligence -->
+        <aside class="w-80 border-r border-slate-200 bg-white/80 backdrop-blur-md flex flex-col shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative">
+            <div class="p-6 border-b border-slate-100 bg-white">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h2 class="font-serif text-lg font-medium text-slate-900">SaaS Intelligence</h2>
+                </div>
+                <div class="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-xs font-medium text-slate-600">
+                    42 competitors analyzed
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50">
+                <!-- Insight Card -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded bg-indigo-100 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pricing Strategy</h3>
+                    </div>
+                    <div class="text-[15px] text-slate-700 leading-relaxed font-serif bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
+                        <div class="absolute -left-1.5 top-5 w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45 transform"></div>
+                        Most competitors use <span class="simulated-highlight" data-target="pricing-model">tiered subscriptions</span>. However, user reviews indicate a strong preference for <span class="simulated-highlight" data-target="usage-billing">usage-based billing</span> in this specific niche.
+                    </div>
+                </div>
+
+                <!-- Insight Card -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded bg-emerald-100 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Feature Gaps</h3>
+                    </div>
+                    <div class="text-[15px] text-slate-700 leading-relaxed font-serif bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
+                        <div class="absolute -left-1.5 top-5 w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45 transform"></div>
+                        There is a significant lack of <span class="simulated-highlight" data-target="integrations">native CRM integrations</span> among the top 3 tools. Building this first provides a clear <span class="simulated-highlight" data-target="moat">defensible moat</span>.
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Workspace Area -->
+        <section class="flex-1 relative dot-bg bg-slate-50/50 overflow-y-auto p-8">
+            
+            <!-- Frosted Glass Overlay (Pre-gate) -->
+            <div id="gate-overlay" class="absolute inset-0 z-20 flex items-center justify-center bg-slate-50/50 backdrop-blur-md transition-all duration-500">
+                <div class="relative">
+                    <!-- Subtle Glow -->
+                    <div class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl blur opacity-20"></div>
+                    
+                    <div class="relative bg-white border border-slate-200 shadow-2xl rounded-2xl p-8 max-w-sm text-center flex flex-col items-center">
+                        <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-4 border border-blue-100">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </div>
+                        <h2 class="font-serif text-2xl font-semibold text-slate-900 mb-2">Unlock Your Workspace</h2>
+                        <p class="text-slate-500 text-sm mb-6 leading-relaxed">Upgrade to access the full canvas, export your product specifications, and generate code.</p>
+                        <button id="upgrade-btn" class="w-full py-2.5 bg-gradient-to-b from-blue-500 to-blue-600 text-white rounded-lg shadow-[0_2px_4px_rgba(37,99,235,0.2)] hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm">
+                            Upgrade for $29/mo
+                        </button>
+                        <p class="mt-4 text-xs text-slate-400">Cancel anytime. 14-day money-back guarantee.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Canvas -->
+            <div id="workspace-canvas" class="workspace-locked max-w-4xl mx-auto space-y-6">
+                <!-- Document Header -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm relative overflow-hidden flex flex-col">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
+                                Draft
+                            </div>
+                            <span class="text-xs text-slate-400 font-mono">ID: SPEC-0942</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                                Export PDF
+                            </button>
+                            <button class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Generate Code
+                            </button>
+                        </div>
+                    </div>
+                    <h1 class="font-serif text-3xl font-medium text-slate-900 mb-4">Product Specification: <span class="text-slate-400 italic">Untitled</span></h1>
+                    <div class="space-y-3 max-w-2xl">
+                        <div class="h-3 bg-slate-100 rounded-full w-full"></div>
+                        <div class="h-3 bg-slate-100 rounded-full w-5/6"></div>
+                        <div class="h-3 bg-slate-100 rounded-full w-4/6"></div>
+                    </div>
+                </div>
+
+                <!-- Interactive Blocks -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div id="pricing-model-block" class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <h3 class="font-semibold text-xs text-slate-700 uppercase tracking-wider">Pricing Architecture</h3>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="h-10 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between px-4 text-sm text-slate-600 font-medium">
+                                <span>Tier 1: Free</span>
+                                <span class="text-xs text-slate-400 font-mono">$0</span>
+                            </div>
+                            <div class="h-10 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between px-4 text-sm text-slate-600 font-medium">
+                                <span>Tier 2: Pro</span>
+                                <span class="text-xs text-slate-400 font-mono">$29/mo</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="integrations-block" class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <h3 class="font-semibold text-xs text-slate-700 uppercase tracking-wider">Core Integrations</h3>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center hover:border-blue-300 transition-colors cursor-pointer">
+                                <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer">
+                                <svg class="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Toggle Gate Logic
+        const toggleBtn = document.getElementById('toggle-gate');
+        const upgradeBtn = document.getElementById('upgrade-btn');
+        const overlay = document.getElementById('gate-overlay');
+        const canvas = document.getElementById('workspace-canvas');
+        let isLocked = true;
+
+        function toggleWorkspace() {
+            isLocked = !isLocked;
+            if (isLocked) {
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+                canvas.classList.remove('workspace-unlocked');
+                canvas.classList.add('workspace-locked');
+                toggleBtn.textContent = 'Unlock Workspace';
+            } else {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+                canvas.classList.remove('workspace-locked');
+                canvas.classList.add('workspace-unlocked');
+                toggleBtn.textContent = 'Lock Workspace';
+            }
+        }
+
+        toggleBtn.addEventListener('click', toggleWorkspace);
+        upgradeBtn.addEventListener('click', toggleWorkspace);
+
+        // Highlight Hover Mechanics
+        const highlights = document.querySelectorAll('.simulated-highlight');
+        
+        highlights.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                const targetId = el.getAttribute('data-target');
+                if (targetId) {
+                    const targetBlock = document.getElementById(targetId + '-block');
+                    if (targetBlock) {
+                        targetBlock.classList.add('ring-2', 'ring-blue-400', 'ring-offset-2', 'transform', '-translate-y-1');
+                    }
+                }
+            });
+            
+            el.addEventListener('mouseleave', () => {
+                const targetId = el.getAttribute('data-target');
+                if (targetId) {
+                    const targetBlock = document.getElementById(targetId + '-block');
+                    if (targetBlock) {
+                        targetBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-2', 'transform', '-translate-y-1');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

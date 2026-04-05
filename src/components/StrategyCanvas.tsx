@@ -13,6 +13,7 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
     <div className="relative w-full h-full min-h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-white">
       <div
         data-testid="canvas-content"
+        inert={isLocked || undefined}
         className={cn(
           "w-full h-full p-6 transition-all duration-500 ease-in-out",
           isLocked &&
