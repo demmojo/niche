@@ -185,6 +185,7 @@ jobs:
             -var="region=${{ secrets.GCP_REGION }}" \
             -var="image=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/core-app-repo/core-app:${{ github.sha }}" \
             -var="gemini_api_key=${{ secrets.GEMINI_API_KEY }}" \
+            -var="exa_api_key=${{ secrets.EXA_API_KEY }}" \
             -var="firebase_project_id=${{ secrets.FIREBASE_PROJECT_ID }}" \
             -var="firebase_service_account_base64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}"
         working-directory: ./terraform

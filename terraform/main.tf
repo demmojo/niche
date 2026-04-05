@@ -51,6 +51,22 @@ resource "google_secret_manager_secret_iam_member" "gemini_api_key_access" {
   member    = "serviceAccount:${google_service_account.cloudrun_sa.email}"
 }
 
+resource "google_secret_manager_secret" "exa_api_key" {
+  secret_id = "exa-api-key"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "exa_api_key" {
+  secret = google_secret_manager_secret.exa_api_key.id
+  secret_data = var.exa_api_key
+}
+resource "google_secret_manager_secret_iam_member" "exa_api_key_access" {
+  secret_id = google_secret_manager_secret.exa_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudrun_sa.email}"
+}
+
 resource "google_secret_manager_secret" "firebase_sa" {
   secret_id = "firebase-service-account"
   replication {
@@ -121,6 +137,15 @@ resource "google_cloud_run_v2_service" "web" {
         }
       }
       env {
+        name = "EXA_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.exa_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
         name = "FIREBASE_SERVICE_ACCOUNT_BASE64"
         value_source {
           secret_key_ref {
@@ -180,6 +205,15 @@ resource "google_cloud_run_v2_service" "worker" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.gemini_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "EXA_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.exa_api_key.secret_id
             version = "latest"
           }
         }

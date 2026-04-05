@@ -22,6 +22,12 @@ variable "gemini_api_key" {
   sensitive   = true
 }
 
+variable "exa_api_key" {
+  type        = string
+  description = "Exa API Key"
+  sensitive   = true
+}
+
 variable "firebase_project_id" {
   type        = string
   description = "Firebase Project ID"
