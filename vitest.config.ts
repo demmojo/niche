@@ -25,6 +25,7 @@ export default defineConfig({
         "src/firebase.ts",
         "src/types.ts",
         "src/App.tsx",
+        "src/components/**",
         "src/store/**",
         "src/server/workers/**",
         "src/workers/**",
