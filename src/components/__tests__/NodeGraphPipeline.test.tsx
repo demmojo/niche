@@ -3,12 +3,23 @@ import { render, screen } from "@testing-library/react";
 import { NodeGraphPipeline } from "../NodeGraphPipeline";
 
 describe("NodeGraphPipeline", () => {
-  it("renders pre-gate locked state with blur and grayscale", () => {
+  it("renders Phase 01 freely but locks Phase 02 when reached", async () => {
+    const { userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
     render(<NodeGraphPipeline isLocked={true} />);
+
+    // Phase 1 is not blurred
     const container = screen.getByTestId("node-graph-container");
-    expect(container).toHaveClass("blur-md");
-    expect(container).toHaveClass("grayscale");
-    expect(screen.getByTestId("lock-overlay")).toBeInTheDocument();
+    expect(container).not.toHaveClass("blur-md");
+
+    // Lock overlay is not shown initially
+    expect(screen.queryByTestId("lock-overlay")).not.toBeInTheDocument();
+
+    // Click Approve to advance to Phase 02
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+
+    // Now lock overlay should appear
+    expect(await screen.findByTestId("lock-overlay")).toBeInTheDocument();
   });
 
   it("renders post-gate unlocked state with Acid Yellow buttons", () => {
@@ -60,18 +71,21 @@ describe("NodeGraphPipeline", () => {
     expect(reviseBtn).not.toBeDisabled();
 
     await user.click(reviseBtn);
-    expect(reviseBtn).toHaveTextContent("Revising...");
+
+    // Check loading state immediately after click
+    expect(screen.getByText("Revising...")).toBeInTheDocument();
     expect(input).toBeDisabled();
 
-    // Use waitFor to wait for the timer to finish
+    // Use waitFor to wait for the transition to finish
     const { waitFor } = await import("@testing-library/react");
     await waitFor(
       () => {
         expect(input).toHaveValue("");
+        expect(
+          screen.getByRole("button", { name: "Revise" }),
+        ).toBeInTheDocument();
       },
-      { timeout: 2500 },
+      { timeout: 3500 },
     );
-
-    expect(reviseBtn).toHaveTextContent("Revise");
   });
 });

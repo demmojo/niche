@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { cn } from "../lib/utils";
 import { Lock } from "lucide-react";
 
@@ -11,13 +11,6 @@ interface Props {
 export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
   const [isPending, startTransition] = React.useTransition();
   const [error, setError] = useState<string | null>(null);
-  const isMounted = useRef(true);
-
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
 
   const handleUnlockClick = async () => {
     if (!onUnlockClick) return;
@@ -25,9 +18,11 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
       setError(null);
       try {
         await Promise.resolve(onUnlockClick());
-      } catch (e: any) {
-        if (isMounted.current) {
+      } catch (e: unknown) {
+        if (e instanceof Error) {
           setError(e.message || "Failed to unlock canvas.");
+        } else {
+          setError("An unexpected error occurred.");
         }
       }
     });

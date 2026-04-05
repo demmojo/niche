@@ -230,7 +230,7 @@ describe("ZeroFrictionEntry", () => {
 
     await user.click(screen.getByText("Complete Trust Builder"));
 
-    expect(await screen.findByText("Your Validated Idea")).toBeInTheDocument();
+    expect(await screen.findByText("Pivot Recommended")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Enter Strategy Canvas" }),
@@ -241,7 +241,9 @@ describe("ZeroFrictionEntry", () => {
 
   it("shows error when auth fails", async () => {
     vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
-      new Error("auth/operation-not-allowed"),
+      Object.assign(new Error("auth/operation-not-allowed"), {
+        code: "auth/operation-not-allowed",
+      }),
     );
 
     const user = userEvent.setup();
@@ -262,7 +264,9 @@ describe("ZeroFrictionEntry", () => {
 
   it("shows API key error when auth fails with api-key-not-valid", async () => {
     vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
-      new Error("auth/api-key-not-valid"),
+      Object.assign(new Error("auth/api-key-not-valid"), {
+        code: "auth/api-key-not-valid",
+      }),
     );
 
     const user = userEvent.setup();

@@ -82,7 +82,7 @@ function safeStorageGet(key: string): string | null {
   }
 }
 
-export function initializeWorkspaceId() {
+export function initializeWorkspaceId(syncUrl: boolean = true) {
   if (typeof window === "undefined") return "ssr-workspace";
   const urlParams = new URLSearchParams(window.location.search);
   let wid = urlParams.get("w");
@@ -94,19 +94,21 @@ export function initializeWorkspaceId() {
       wid = `ws-${Math.random().toString(36).substring(2, 9)}`;
       safeStorageSet("nicheai_workspace_id", wid);
     }
-    urlParams.set("w", wid);
-    window.history.replaceState(
-      {},
-      "",
-      `${window.location.pathname}?${urlParams.toString()}`,
-    );
+    if (syncUrl) {
+      urlParams.set("w", wid);
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}?${urlParams.toString()}`,
+      );
+    }
   }
   return wid;
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [workspaceId, setWorkspaceIdState] = useState<string>("");
+  const [activeProductId, setActiveProductIdState] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [insights, dispatchInsights] = useReducer(insightsReducer, []);
 
@@ -118,37 +120,28 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Now initializeWorkspaceId is executed only in the browser context, preventing SSR module-side-effects
-    const wid = initializeWorkspaceId();
-    const storedActiveId = safeStorageGet(
-      `${wid}_active_product_id_${user.uid}`,
-    );
+    const wid = initializeWorkspaceId(true);
+    const storedActiveId = safeStorageGet(`${wid}_active_product_id`);
 
     if (storedActiveId) {
-      try {
-        setWorkspaceIdState(JSON.parse(storedActiveId));
-      } catch (e) {
-        console.error("Failed to parse workspace data from local storage", e);
-      }
+      setActiveProductIdState(storedActiveId);
     }
     setIsLoading(false);
   }, [user?.uid]);
 
   const setWorkspaceId = useCallback(
     (id: string) => {
-      setWorkspaceIdState(id);
+      setActiveProductIdState(id);
       if (user?.uid) {
-        const wid = initializeWorkspaceId();
-        safeStorageSet(
-          `${wid}_active_product_id_${user.uid}`,
-          JSON.stringify(id),
-        );
+        const wid = initializeWorkspaceId(false);
+        safeStorageSet(`${wid}_active_product_id`, id);
       }
     },
     [user?.uid],
   );
 
   return (
-    <WorkspaceStateContext value={workspaceId}>
+    <WorkspaceStateContext value={activeProductId}>
       <WorkspaceDispatchContext value={setWorkspaceId}>
         <WorkspaceLoadingContext value={isLoading}>
           <InsightsStateContext value={insights}>

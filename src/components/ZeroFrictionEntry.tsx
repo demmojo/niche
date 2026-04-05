@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
@@ -6,6 +6,7 @@ import { auth, db } from "../firebase";
 import { TrustBuilderScreen } from "./TrustBuilderScreen";
 import { URLTeaserScreen } from "./URLTeaserScreen";
 import { isMockAuthEnabled } from "../utils/testEnv";
+import { useIsMounted } from "../hooks/useIsMounted";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
@@ -102,14 +103,15 @@ export function ZeroFrictionEntry({
   const [errorMessage, setErrorMessage] = useState("");
   const [ideaPayload, setIdeaPayload] = useState<IdeaPayload | null>(null);
   const [pivotedIdea, setPivotedIdea] = useState<string | null>(null);
+  const [originalIdea, setOriginalIdea] = useState<string | null>(null);
+  const [tarpitData, setTarpitData] = useState<{
+    isTarpit: boolean;
+    reason: string;
+  } | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isProceeding, setIsProceeding] = useState(false);
 
-  const isMounted = useRef(true);
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+  const isMounted = useIsMounted();
 
   const ensureAnonymousUser = async (selectedPersona?: PersonaType) => {
     let user = auth.currentUser;
@@ -118,9 +120,8 @@ export function ZeroFrictionEntry({
         console.log("Bypassing auth in test environment.");
       } else {
         setIsAuthenticating(true);
+        let timeoutId: ReturnType<typeof setTimeout>;
         try {
-          // Use AbortController for circuit breaker pattern (timeout)
-          let timeoutId: ReturnType<typeof setTimeout>;
           const timeoutPromise = new Promise<never>((_, reject) => {
             timeoutId = setTimeout(
               () => reject(new Error("Auth timeout circuit breaker tripped")),
@@ -131,9 +132,11 @@ export function ZeroFrictionEntry({
             signInAnonymously(auth),
             timeoutPromise,
           ])) as any;
-          clearTimeout(timeoutId!);
           user = cred.user;
         } finally {
+          if (timeoutId!) {
+            clearTimeout(timeoutId);
+          }
           if (isMounted.current) {
             setIsAuthenticating(false);
           }
@@ -224,12 +227,15 @@ export function ZeroFrictionEntry({
 
       let errorMsg = e.message || "Failed to sign in.";
       if (
-        errorMsg.includes("auth/api-key-not-valid") ||
+        e.code === "auth/api-key-not-valid" ||
         errorMsg.includes("mock-api-key")
       ) {
         errorMsg =
           "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
-      } else if (errorMsg.includes("auth/operation-not-allowed")) {
+      } else if (
+        e.code === "auth/operation-not-allowed" ||
+        errorMsg.includes("auth/operation-not-allowed")
+      ) {
         errorMsg =
           "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
       }
@@ -240,12 +246,21 @@ export function ZeroFrictionEntry({
 
   const handleValidationComplete = (data: any, currentPayload: any) => {
     let finalIdea = currentPayload.productDescription;
+    setOriginalIdea(finalIdea);
     if (
       data.isTarpit &&
       data.suggestedNiches &&
       data.suggestedNiches.length > 0
     ) {
       finalIdea = data.suggestedNiches[0];
+      setTarpitData({
+        isTarpit: true,
+        reason:
+          data.tarpitReason ||
+          "We found heavy competition and low differentiation in your original concept.",
+      });
+    } else {
+      setTarpitData({ isTarpit: false, reason: "" });
     }
     setPivotedIdea(finalIdea);
     setStep("success");
@@ -280,18 +295,32 @@ export function ZeroFrictionEntry({
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]">
         <div className="w-full max-w-2xl px-4 text-center">
           <h2 className="text-3xl font-serif font-bold text-ink-dark mb-6">
-            Your Validated Idea
+            {tarpitData?.isTarpit ? "Pivot Recommended" : "Your Validated Idea"}
           </h2>
-          <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10 mb-8 text-left">
+
+          {tarpitData?.isTarpit && (
+            <div className="bg-rose-50 text-rose-800 p-4 rounded-xl border border-rose-200 mb-6 text-left text-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <span className="font-bold block mb-1">
+                Tarpit Detected: {originalIdea}
+              </span>
+              {tarpitData.reason}
+            </div>
+          )}
+
+          <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10 mb-8 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
+            {tarpitData?.isTarpit && (
+              <div className="text-xs font-bold text-ink-dark/40 uppercase mb-2">
+                Suggested Niche
+              </div>
+            )}
             <p className="text-xl text-ink-dark leading-relaxed">
               {pivotedIdea}
             </p>
           </div>
-          <p className="text-sm text-ink-dark/60 mb-4 animate-pulse">
-            Connecting to your workspace canvas...
-          </p>
           <button
+            disabled={isProceeding}
             onClick={() => {
+              setIsProceeding(true);
               onComplete({
                 name: "My AI Idea",
                 description: pivotedIdea,
@@ -302,9 +331,9 @@ export function ZeroFrictionEntry({
                 visibility: "shared",
               });
             }}
-            className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg"
+            className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg disabled:opacity-50 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both"
           >
-            Enter Strategy Canvas
+            {isProceeding ? "Connecting to Canvas..." : "Enter Strategy Canvas"}
           </button>
         </div>
       </div>
