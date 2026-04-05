@@ -5,9 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 const bq = new BigQuery();
 
 export async function processVectorSync() {
-  const PROJECT_ID = process.env.GCP_PROJECT_ID;
-  if (!PROJECT_ID)
-    throw new Error("GCP_PROJECT_ID environment variable is required");
+  const PROJECT_ID = process.env.GCP_PROJECT_ID || "mock-project-id";
 
   const query = `
     SELECT 

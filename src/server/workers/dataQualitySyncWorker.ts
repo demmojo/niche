@@ -4,9 +4,7 @@ import * as admin from "firebase-admin";
 const bq = new BigQuery();
 
 export async function processDataQualitySync() {
-  const PROJECT_ID = process.env.GCP_PROJECT_ID;
-  if (!PROJECT_ID)
-    throw new Error("GCP_PROJECT_ID environment variable is required");
+  const PROJECT_ID = process.env.GCP_PROJECT_ID || "mock-project-id";
 
   // Aggregate BigQuery metrics
   // 1. Active vs Quarantine

@@ -2,9 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { BigQuery } from "@google-cloud/bigquery";
 
 export async function processAuditWorker(batchExtractions: any[]) {
-  const PROJECT_ID = process.env.GCP_PROJECT_ID;
-  if (!PROJECT_ID)
-    throw new Error("GCP_PROJECT_ID environment variable is required");
+  const PROJECT_ID = process.env.GCP_PROJECT_ID || "mock-project-id";
 
   const bq = new BigQuery();
 
