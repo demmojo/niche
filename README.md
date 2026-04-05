@@ -1,6 +1,12 @@
-# NicheAI
+<div align="center">
+  <img width="1200" height="475" alt="NicheAI Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <h1>NicheAI</h1>
+  <p>An advanced, AI-driven Competitive Intelligence & Market Analysis tool</p>
 
-An advanced, AI-driven Competitive Intelligence & Market Analysis tool
+  <p>
+    <a href="https://github.com/your-org/nicheai/actions"><img src="https://img.shields.io/github/actions/workflow/status/your-org/nicheai/ci.yml?branch=main" alt="CI Status" /></a>
+  </p>
+</div>
 
 ---
 
@@ -15,8 +21,6 @@ An advanced, AI-driven Competitive Intelligence & Market Analysis tool
 - [Recent Momentum](#-recent-momentum)
 - [Sprint Insights & Tech Debt](#-sprint-insights--tech-debt)
 - [Local Development Setup (Quick Start)](#-local-development-setup-quick-start)
-- [Deployment: Core Application](#️-deployment-core-application)
-- [Deployment: Hyper-Scale Data Moat](#-deployment-hyper-scale-data-moat)
 - [Available Scripts](#-available-scripts)
 - [AI Agent Benchmarking (SWE-Bench)](#-ai-agent-benchmarking-swe-bench)
 - [Testing](#-testing)
@@ -79,82 +83,142 @@ Our design philosophy focuses on "First Principles Education" and "Guided Journe
 
 This project uses Spec-Driven Development via OpenSpec. Below is the live status of our planned, active, and completed features.
 
-> **Note:** For a deep dive into our product philosophy, business model, and architectural constraints, please review our [Master Context Document](docs/nicheai-master-context.md) and the `docs/strategy/` directory.
+<!-- OPENSPEC_TABLE_START -->
+| Feature | Summary | Status | Link |
+|---|---|---|---|
+| ai-model-fallback | We are introducing a unified AI client that wraps Gemini, OpenAI, and Anthropic SDKs. We will allow users to input their own keys for ChatGPT (OpenAI)... | archived | [Link](openspec/changes/ai-model-fallback) |
+| analytical-template-system | Introduce a unified **Analytical Template System** that routes users into two distinct flows:  1. **Presentation Templates**: Read-optimized, high-den... | archived | [Link](openspec/changes/analytical-template-system) |
+| architecture-performance-optimization | - **Deconstruct Monolith**: Extract heavy subcomponents from `App.tsx` into separate files and push volatile state (like chat inputs) down the compone... | archived | [Link](openspec/changes/architecture-performance-optimization) |
+| comprehensive-documentation-update | - **In-App Documentation Update**: Update in-app guides, tooltips, onboarding modals, and help pages to reflect the current feature set and UI changes... | archived | [Link](openspec/changes/comprehensive-documentation-update) |
+| consolidate-features-modal | Retroactive documentation of the Consolidate Features Modal feature.... | archived | [Link](openspec/changes/consolidate-features-modal) |
+| data-export-generator | Introduce a "Comprehensive Data Export & Documentation Generator" feature across the application.  - **Universal Export Buttons**: Add clear "Export" ... | archived | [Link](openspec/changes/data-export-generator) |
+| data-sync-review | Introduce a universal "Data Sync Review" workflow to act as a gatekeeper for all external data pulls and AI-generated state updates, along with compre... | archived | [Link](openspec/changes/data-sync-review) |
+| dev-workflow-and-cicd | 1. **Lefthook over Husky:** Implementing `lefthook` for parallelized, high-performance local git hooks. 2. **Pre-commit Test Hooks:** Selectively runn... | archived | [Link](openspec/changes/dev-workflow-and-cicd) |
+| developer-onboarding-docs | # Proposal: Developer Onboarding Docs Update  ## 1. Context and Problem Statement  Our current developer documentation needs to be enhanced to ensure ... | proposed | [Link](openspec/changes/developer-onboarding-docs) |
+| documentation-wizard | Introduces the DocumentationWizardModal, allowing users to select features, next steps, and insights, choose an export format, and generate/download t... | archived | [Link](openspec/changes/documentation-wizard) |
+| feature-videos | We are transitioning the feature video generation pipeline from continuous Playwright `WebM` recordings to an `agent-browser` (or Playwright screensho... | archived | [Link](openspec/changes/feature-videos) |
+| gemini-model-upgrade-routing | 1. **Model Audit & Replacement**: Complete removal of `gemini-3-flash-preview` and other legacy models, replacing them with the current state-of-the-a... | archived | [Link](openspec/changes/gemini-model-upgrade-routing) |
+| global-progress-banner | Introduces a `GlobalProgressBanner` component at the top of the application layout that listens to the global `activeTasks` array, displaying the acti... | archived | [Link](openspec/changes/global-progress-banner) |
+| head-to-head-comparison | Introducing a Head-to-Head Comparison view.  - Updates to the Data Points Table to allow selecting up to 2 competitors. - Updates to the main App stat... | archived | [Link](openspec/changes/head-to-head-comparison) |
+| hitl-feature-merging | We are introducing a Human-in-the-Loop (HITL) merging system. Users can select multiple similar competitor features and merge them into a new feature ... | archived | [Link](openspec/changes/hitl-feature-merging) |
+| hybrid-scoring-tarpit-flywheel | We are replacing stochastic LLM "vibes" with a mathematically rigorous Hybrid Scoring Engine.  1. **Deterministic Scoring**: An LLM structurally parse... | archived | [Link](openspec/changes/hybrid-scoring-tarpit-flywheel) |
+| idea-validation-plg-teaser | - **Backend**: Route unauthenticated users to a teaser branch. Downgrade LLM to `gemini-3.1-flash-lite-preview` and Exa search to `exa.search`. Implem... | archived | [Link](openspec/changes/idea-validation-plg-teaser) |
+| inject-brand-identity-prompt | 1. Add a pure function (`promptAssembler.ts`) to format and append the `ProjectBrandIdentity` (hex colors converted to HSL, typography, and personalit... | implemented | [Link](openspec/changes/inject-brand-identity-prompt) |
+| insight-brainstorm-chat | Retroactive documentation of the Insight Brainstorm Chat feature.... | archived | [Link](openspec/changes/insight-brainstorm-chat) |
+| insight-generator-modal | Retroactive documentation of the Insight Generator Modal feature.... | archived | [Link](openspec/changes/insight-generator-modal) |
+| insight-quest-modal | We are documenting the implementation of the `InsightQuestModal`, a gamified, Tinder-style A/B testing interface wrapped in a whimsical "farming" meta... | archived | [Link](openspec/changes/insight-quest-modal) |
+| interactive-tour-guide | 1. **Interactive Tour Engine**: A custom, lightweight, React 19-compatible guided tour component powered by Framer Motion. 2. **Whiteboard Onboarding ... | archived | [Link](openspec/changes/interactive-tour-guide) |
+| market-analysis-features | We are introducing a tabbed interface within the `MarketAnalysis` component to separate the conversational AI ("Archivist Burt") from a new, robust "D... | archived | [Link](openspec/changes/market-analysis-features) |
+| market-data-grid | Retroactive documentation of the Market Data Grid feature.... | archived | [Link](openspec/changes/market-data-grid) |
+| market-value-notebook | Retroactive documentation of the Market Value Notebook feature.... | archived | [Link](openspec/changes/market-value-notebook) |
+| marketing-video-automation | We are implementing "Marketing Video Automation & Mock Data" to streamline video generation. We will focus on the 5 most impactful features and genera... | archived | [Link](openspec/changes/marketing-video-automation) |
+| multi-product-and-teams | - Enhancing the existing product dropdown in the top navigation to support adding new products. - Adding a new "Team" tab to the Settings area for use... | archived | [Link](openspec/changes/multi-product-and-teams) |
+| multiple-visual-whiteboards | 1. **Multiple Whiteboards:** Users can create, name, and switch between multiple infinite-canvas whiteboards. 2. **Template Library:** Introduce 10 wh... | archived | [Link](openspec/changes/multiple-visual-whiteboards) |
+| narrative-feature-videos | We are upgrading `scripts/generate_feature_videos.cjs` to inject a highly-realistic, animated macOS-style SVG cursor. We will rewrite the script for t... | archived | [Link](openspec/changes/narrative-feature-videos) |
+| premium-teaser-fingerprinting | 1. Upgrade `/api/scoring/stream` endpoint to utilize `gemini-3.1-pro-preview` and `exa.searchAndContents` for anonymous users. 2. Implement `generateA... | archived | [Link](openspec/changes/premium-teaser-fingerprinting) |
+| rapid-pdlc-prompt-exporter | We are introducing a **Rapid PDLC Workflow (Strategy to Code)** feature. This consists of:  1. A zero-cost, client-side **Prompt Assembler** that pack... | implemented | [Link](openspec/changes/rapid-pdlc-prompt-exporter) |
+| raw-data-library | We are introducing a unified, multi-modal "Raw Data Library" backed by PostgreSQL. This library will handle structured, semi-structured, and unstructu... | archived | [Link](openspec/changes/raw-data-library) |
+| remove-inspire-radio | - Complete removal of the `<InspiringRadioWidget />` component and its associated tests. - Removal of the widget's invocation from the main navigation... | archived | [Link](openspec/changes/remove-inspire-radio) |
+| test-coverage-expansion | - Enforce an 80% branch and intent-based test coverage threshold using Vitest (`v8` provider). - Implement robust, isolated integration tests directly... | archived | [Link](openspec/changes/test-coverage-expansion) |
+| test-coverage-expansion-phase2 | We are introducing new unit and integration tests for various hooks, utility functions, and React components. We are also refining existing tests to r... | archived | [Link](openspec/changes/test-coverage-expansion-phase2) |
+| test-coverage-tarpit-tollgate | We will implement a non-brittle, comprehensive Boundary Testing Approach using Vitest, MSW (Mock Service Worker), Supertest, and Playwright. The focus... | archived | [Link](openspec/changes/test-coverage-tarpit-tollgate) |
+| testing-architecture-modernization | We are modernizing the testing architecture by shifting to the "Testing Trophy" methodology. This involves:  1. Transitioning from heavily mocked unit... | archived | [Link](openspec/changes/testing-architecture-modernization) |
+| ast-driven-drift-healing | We will transform documentation drift detection into a proactive, self-healing **Strategic Sprint Engine**. By upgrading from raw git text diffs to Ab... | archived | [Link](openspec/changes/ast-driven-drift-healing) |
+| atomic-staging-safeguards | We are introducing Atomic Staging Safeguards to the OpenSpec CLI, specifically targeting the `propose.ts` command.  1. **Interactive Overwrite Warning... | archived | [Link](openspec/changes/atomic-staging-safeguards) |
+| bq-search-signals | 1. **BigQuery Queries**: Implement logic to execute native partitioned queries for `githubarchive`, `hacker_news`, and `chrome-ux-report`, enforcing s... | archived | [Link](openspec/changes/bq-search-signals) |
+| brand-positioning-wizard | We are introducing a Brand Identity & Positioning Wizard. This feature will scrape 3-5 competitor URLs, parse their visual and tonal identities using ... | implemented | [Link](openspec/changes/brand-positioning-wizard) |
+| bug-hunt-test-review | Implement rigorous testing standards across the repository. We will conduct a thorough bug hunt, resolve identified issues, and add missing unit and i... | archived | [Link](openspec/changes/bug-hunt-test-review) |
+| calibrated-transparent-ai | We are implementing "Calibrated Trust"—a suite of five UX and Backend patterns:  1. Cryptographically Verifiable Zero Data Retention (ZDR) Receipts. 2... | archived | [Link](openspec/changes/calibrated-transparent-ai) |
+| cloud-run-scale-to-zero | 1. **Containerization**: Introduce a multi-stage Docker build transitioning to a distroless runtime environment. 2. **Infrastructure as Code**: Provis... | archived | [Link](openspec/changes/cloud-run-scale-to-zero) |
+| cloud-tasks-local-simulator | This OpenSpec will refactor the local development setup to ensure true offline/local operation:  1.  **Firebase Emulator Suite Integration:** Introduc... | archived | [Link](openspec/changes/cloud-tasks-local-simulator) |
+| cloudflare-deployment-analytics-engine | ### Why\nCurrently, our application relies on mocked frontend and backend components, lacking a production-grade deployment and analytics infrastructu... | archived | [Link](openspec/changes/cloudflare-deployment-analytics-engine) |
+| codebase-test-quality-review | A comprehensive, structured review of the entire NicheAI codebase to discover latent bugs, improve test quality, and ensure system robustness. This in... | archived | [Link](openspec/changes/codebase-test-quality-review) |
+| competitor-discovery-frontend | - **Frontend (`src/App.tsx`)**: Update `handleGlobalSync` to intercept the empty `competitors` array condition. Show an explainable loading state and ... | completed | [Link](openspec/changes/competitor-discovery-frontend) |
+| competitor-discovery-review | This feature intercepts the deep validation trigger and introduces a synchronous Human-in-the-Loop (HITL) Competitor Curation step. It discovers compe... | implemented | [Link](openspec/changes/competitor-discovery-review) |
+| comprehensive-documentation | A massive platform-wide overhaul of all documentation, user onboarding guides, and progressive disclosure patterns (tooltips). We are standardizing al... | archived | [Link](openspec/changes/comprehensive-documentation) |
+| comprehensive-test-coverage | Introduces comprehensive, intent-based testing utilizing a combination of `Vitest`, `React Testing Library`, `MSW` for network mocking, and `Firebase-... | archived | [Link](openspec/changes/comprehensive-test-coverage) |
+| deduplication-algorithm | We are formalizing a Tri-Tiered Waterfall Matching Strategy (Exact Match, Perceptual/Lexical Match, and Semantic Match) to identify related raw data i... | archived | [Link](openspec/changes/deduplication-algorithm) |
+| dummy-spec | No proposal found. | implemented | [Link](openspec/changes/dummy-spec) |
+| dynamic-test-scaling | Introduces a dynamic, hardware-and-environment-aware resource allocation strategy for the test runner.  The configuration (`vitest.config.ts`, `vitest... | archived | [Link](openspec/changes/dynamic-test-scaling) |
+| educational-tone-refactor | The global CO-STAR User Rule will be refactored to incorporate:  1. The "Anchor and Define" pattern. 2. Complexity scaling for AI explanations. 3. Exp... | implemented | [Link](openspec/changes/educational-tone-refactor) |
+| enterprise-ml-orchestration | 1. **Capability-Driven Smart Routing:** Semantic routing mapping tasks to model tiers (Lite, Fast, Pro) using Multi-Armed Bandits (MAB) for adaptive t... | archived | [Link](openspec/changes/enterprise-ml-orchestration) |
+| exa-api-key-fallback | We are introducing a secondary Exa API key to be used as a fallback in our code. The priority for API keys will now be:  1. User's custom API key (via... | archived | [Link](openspec/changes/exa-api-key-fallback) |
+| fetch-with-app-check-fix | The `getIdToken()` call will be wrapped in a robust exponential backoff retry utility rather than relying on the undocumented and unreliable `(auth.cu... | completed | [Link](openspec/changes/fetch-with-app-check-fix) |
+| global-anonymous-limits | - **Global Circuit Breaker**: Add a global counter in Firestore (`system_limits/anonymous_daily_{YYYY-MM-DD}`) that tracks total anonymous teaser runs... | superseded | [Link](openspec/changes/global-anonymous-limits) |
+| hyper-scale-saas-data-moat-pipeline | Replaces basic directories and Cloud SQL queues with a **Serverless Extraction & LLM Synthesis (SELS)** architecture. It introduces a **Synthetic Sign... | archived | [Link](openspec/changes/hyper-scale-saas-data-moat-pipeline) |
+| ideation-workflow | We are introducing the **Product Ideation & Niche Discovery Workflow**, a radical overhaul of the onboarding and product definition experience.  It re... | superseded | [Link](openspec/changes/ideation-workflow) |
+| image-import | The `UploadDataModal` will be extended to accept image files (`.jpg`, `.jpeg`, `.png`, `.webp`). Users will be able to paste images directly from thei... | archived | [Link](openspec/changes/image-import) |
+| intent-based-testing | We are rolling out an intent-based testing suite for all P0 features: Tarpit Flywheel, Market Intelligence, and Validation Arena. The initiative inclu... | implemented | [Link](openspec/changes/intent-based-testing) |
+| ml-orchestration-system | 1. **Contextual Queueing Bandits (CQB)**: Replaces static model routing with dynamically weighted, asynchronously updated model routing (Lite, Fast, P... | implemented | [Link](openspec/changes/ml-orchestration-system) |
+| mlp-hands-on-review | We are conducting a comprehensive, hands-on product review spanning four key areas:  1. **Anonymous / PLG Flow (The Hook):** Security and anti-abuse m... | archived | [Link](openspec/changes/mlp-hands-on-review) |
+| multi-category-mentions | A real-time, multi-category autocomplete mention system will be introduced into the chat interface using Tiptap for the rich-text editor and a Supabas... | archived | [Link](openspec/changes/multi-category-mentions) |
+| multi-product-workspace | We are introducing a native `<WorkspaceProvider>` using React Context to manage the `activeProductId` and the user's list of products. We are also ext... | archived | [Link](openspec/changes/multi-product-workspace) |
+| mvp-analytics-superadmin | 1. Replace the over-engineered Recharts visualizations in `SuperadminAnalytics.tsx` with a Magic Login (user impersonation) table and a daily Generati... | archived | [Link](openspec/changes/mvp-analytics-superadmin) |
+| navbar-logical-ordering | The sidebar navigation items will be reordered and grouped logically to reflect a workflow-based navigation pattern: Observe -> Analyze -> Act -> Conf... | archived | [Link](openspec/changes/navbar-logical-ordering) |
+| next-gen-analytics | We are introducing the **Next-Gen Analytics Platform**. This replaces static data views with a dynamic, "Triple-Mode Smart Compose" reporting canvas b... | archived | [Link](openspec/changes/next-gen-analytics) |
+| niche-radar-plg-loop | # Proposal\n\n## Why\nNicheAI requires a high-converting Product-Led Growth (PLG) acquisition engine. By leveraging a 'Reverse Demo' model, we can del... | archived | [Link](openspec/changes/niche-radar-plg-loop) |
+| nicheai-ux-strategy | - **Evidence-Based Onboarding**: Implementation of Intent-Based Routing and Progressive Disclosure to reduce decision fatigue. - **Optimized Time-to-F... | implemented | [Link](openspec/changes/nicheai-ux-strategy) |
+| openspec-agent-cli-upgrade | The CLI will be refactored into a "Dual-Mode" tool, safely bridging human interactive operation with non-interactive, programmable agentic workflows. ... | archived | [Link](openspec/changes/openspec-agent-cli-upgrade) |
+| openspec-continual-learning | - Introduce a formal Phase 2.5: "Continual Learning & Extraction" into the OpenSpec lifecycle, injected between Verification and Archival phases. - Cr... | implemented | [Link](openspec/changes/openspec-continual-learning) |
+| openspec-documentation-unification | 1. Establish an 8-Step Lifecycle by explicitly adding the Validate phase. 2. Add a Halt & Update Loop to the visual state machine for mid-flight spec ... | implemented | [Link](openspec/changes/openspec-documentation-unification) |
+| openspec-intent-based-testing | We are updating the custom OpenSpec workflow managed via `.cursor/rules` and `.cursor/skills`. Every new feature implementation will now strictly requ... | implemented | [Link](openspec/changes/openspec-intent-based-testing) |
+| performance-optimization | This change introduces aggressive code-splitting for large feature components, defers loading of heavy AI SDKs, natively memoizes the React tree using... | archived | [Link](openspec/changes/performance-optimization) |
+| plg-architecture-remediation | 1. **Migrate Global Limit:** Transition the global anonymous rate limit from Firestore to a Redis distributed counter via atomic `INCR`. 2. **Standard... | archived | [Link](openspec/changes/plg-architecture-remediation) |
+| plg-journey-optimization | This OpenSpec overhauls the PLG-to-Workspace journey by stabilizing the streaming UI, ensuring seamless state hydration across the auth boundary (via ... | archived | [Link](openspec/changes/plg-journey-optimization) |
+| plg-reverse-demo-hook | This OpenSpec overhauls the PLG-to-Workspace journey by stabilizing the streaming UI, ensuring seamless state hydration across the auth boundary (via ... | archived | [Link](openspec/changes/plg-reverse-demo-hook) |
+| plg-teaser-idea-validation | - **Backend (`src/server/scoringRoutes.ts`)**: Route `/api/scoring/stream` to detect unauthenticated users. Implement Remote Config for model resoluti... | archived | [Link](openspec/changes/plg-teaser-idea-validation) |
+| plg-ux-bifurcation | We will explicitly bifurcate the User Experience (UX) and Information Architecture (IA) at the Zero Friction Entry, separating user intent immediately... | archived | [Link](openspec/changes/plg-ux-bifurcation) |
+| pql-reverse-demo-trust-builder | We are revamping the ideation flow to be a Trust-Building Progressive Disclosure journey, culminating in a high-converting PQL gate.  1. **The Trust B... | archived | [Link](openspec/changes/pql-reverse-demo-trust-builder) |
+| pql-trust-builder | The ideation flow is being revamped into a Trust-Building Progressive Disclosure journey, culminating in a high-converting PQL gate. Key changes inclu... | archived | [Link](openspec/changes/pql-trust-builder) |
+| proactive-market-analysis | - Introduce a progressive sync banner that displays real-time background task progress without blocking the chat. - Add data freshness indicators (sta... | archived | [Link](openspec/changes/proactive-market-analysis) |
+| product-evolution-engine | NicheAI will evolve from tracking a static "My Product" object into an **Evolution Engine**. Users can start with a seed idea, ingest market data, com... | superseded | [Link](openspec/changes/product-evolution-engine) |
+| raw-data-image-storage | We are introducing persistent cloud storage for user-uploaded images using **Supabase Storage**.  Before images are sent to the AI for analysis, the R... | archived | [Link](openspec/changes/raw-data-image-storage) |
+| react19-firebase-sync | 1. **Adopt "Snapshot-Only" Approach**: Completely reject parallel `get()` fetches in favor of strictly relying on `onSnapshot` with built-in metadata ... | completed | [Link](openspec/changes/react19-firebase-sync) |
+| reverse-demo-hook-plg | 1. **Zero-Friction Entry:** We will remove the initial `<AuthScreen />` and replace the multi-step onboarding with a single input: "What are you think... | archived | [Link](openspec/changes/reverse-demo-hook-plg) |
+| sanitize-system-logs | 1. Hide the "View Context Data" and "View Response Details" sections in the System Logs UI for non-superadmin users. 2. Sanitize log messages to repla... | archived | [Link](openspec/changes/sanitize-system-logs) |
+| scale-to-zero-deployment-docs | The `README.md` will be updated with a comprehensive "☁️ Scale-to-Zero Deployment Guide". This guide will break down the deployment into discrete, cop... | archived | [Link](openspec/changes/scale-to-zero-deployment-docs) |
+| smart-llm-routing | We are introducing an "Auto (Smart Routing)" mode as the default behavior. The application code will define whether a specific AI flow requires a `fas... | archived | [Link](openspec/changes/smart-llm-routing) |
+| strategy-toolbox | Replacing the static, rigid "Analytical Template Library" with a dynamic, data-driven "Strategy Toolbox". This tool transforms passive form-filling in... | archived | [Link](openspec/changes/strategy-toolbox) |
+| supabase-integration | 1. **Database Multi-tenancy**: Adding `team_id` to `raw_data_assets`, `raw_data_versions`, and `raw_data_inbox`. 2. **Supabase Client**: Updated to in... | archived | [Link](openspec/changes/supabase-integration) |
+| superadmin-data-quality-control | We will add a "Data Quality & Control" tab within the NicheAI Superadmin Dashboard. To avoid OLAP anti-patterns and IAM bloat, this feature introduces... | archived | [Link](openspec/changes/superadmin-data-quality-control) |
+| superadmin-feature-controls | 1. **View-As Toggle (Impersonation)**: A toggle in the Superadmin Dashboard to drop superadmin privileges temporarily for the current session, allowin... | archived | [Link](openspec/changes/superadmin-feature-controls) |
+| sync-fallback | 1. **Real-time Fallback Path**: Implement a synchronous fallback (Exa -> Gemini Flash) for unseeded hyper-niches. 2. **Circuit Breaker**: Add a Circui... | archived | [Link](openspec/changes/sync-fallback) |
+| system-logs-ux | 1. **Label Obfuscation**: Map internal AI and search tool names to generic action labels in the UI. 2. **Collapsible API Details**: Refactor the "API ... | archived | [Link](openspec/changes/system-logs-ux) |
+| test-coverage-and-quality | 1. **Intent-Based Tests:** Addition of comprehensive test suites using Vitest, React Testing Library (RTL), and MSW for newly modified/added UI compon... | archived | [Link](openspec/changes/test-coverage-and-quality) |
+| test-coverage-expansion | - Enforce an 80% branch and intent-based test coverage threshold using Vitest (`v8` provider). - Implement robust, isolated integration tests directly... | implemented | [Link](openspec/changes/test-coverage-expansion) |
+| test-coverage-quality | 1. **Intent-Based Tests:** Comprehensive test suites for recently modified/added files using Vitest, React Testing Library (RTL), and MSW, focusing on... | archived | [Link](openspec/changes/test-coverage-quality) |
+| tooltip-activation-fix | - Update the wrapper for `SyncNowButton` to tightly fit the button. - Ensure that the "Sync Now" tooltip correctly uses `invisible` and `group-hover:v... | archived | [Link](openspec/changes/tooltip-activation-fix) |
+| unified-ideation-and-evolution | A complete overhaul of the initial onboarding and product ideation experience, evolving it into the "Unified Ideation & Evolution Engine." We are repl... | archived | [Link](openspec/changes/unified-ideation-and-evolution) |
+| update-coverage-threshold-80 | The enforced coverage threshold across the repository documentation, rules, and skills will be updated to 80%.... | implemented | [Link](openspec/changes/update-coverage-threshold-80) |
+| url-onboarding-plg | - Introduce a new intent/flow in `ZeroFrictionEntry` where users can input a URL. - Implement an Express BFF endpoint using Gemini Flash-Lite to scrap... | archived | [Link](openspec/changes/url-onboarding-plg) |
 
-| Feature                                | Summary                                                                                                                            | Status      | Link                                                                 |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------- |
-| ast-driven-drift-healing               | We will transform documentation drift detection into a proactive, self-healing Strategic Sprint Engine.                            | draft       | [View Spec](openspec/changes/ast-driven-drift-healing)               |
-| brand-positioning-wizard               | We are introducing a Brand Identity & Positioning Wizard.                                                                          | implemented | [View Spec](openspec/changes/brand-positioning-wizard)               |
-| bug-hunt-test-review                   | Implement rigorous testing standards across the repository.                                                                        | superseded  | [View Spec](openspec/changes/bug-hunt-test-review)                   |
-| cloudflare-deployment-analytics-engine | Currently, our application relies on mocked frontend and backend components.                                                       | draft       | [View Spec](openspec/changes/cloudflare-deployment-analytics-engine) |
-| codebase-test-quality-review           | A comprehensive, structured review of the entire NicheAI codebase to discover latent bugs and improve test quality.                | draft       | [View Spec](openspec/changes/codebase-test-quality-review)           |
-| deduplication-algorithm                | We are formalizing a Tri-Tiered Waterfall Matching Strategy to identify related raw data.                                          | superseded  | [View Spec](openspec/changes/deduplication-algorithm)                |
-| exa-api-key-fallback                   | We are introducing a secondary Exa API key to be used as a fallback in our code.                                                   | draft       | [View Spec](openspec/changes/exa-api-key-fallback)                   |
-| head-to-head-comparison                | Introducing a Head-to-Head Comparison view.                                                                                        | draft       | [View Spec](openspec/changes/head-to-head-comparison)                |
-| hitl-feature-merging                   | We are introducing a Human-in-the-Loop (HITL) merging system.                                                                      | draft       | [View Spec](openspec/changes/hitl-feature-merging)                   |
-| hybrid-scoring-tarpit-flywheel         | We are replacing stochastic LLM "vibes" with a mathematically rigorous Hybrid Scoring Engine.                                      | draft       | [View Spec](openspec/changes/hybrid-scoring-tarpit-flywheel)         |
-| image-import                           | The UploadDataModal will be extended to accept image files.                                                                        | superseded  | [View Spec](openspec/changes/image-import)                           |
-| inject-brand-identity-prompt           | Add a pure function to format and append the ProjectBrandIdentity to prompts.                                                      | implemented | [View Spec](openspec/changes/inject-brand-identity-prompt)           |
-| multi-category-mentions                | A real-time, multi-category autocomplete mention system will be introduced into the chat interface.                                | draft       | [View Spec](openspec/changes/multi-category-mentions)                |
-| mvp-analytics-superadmin               | Replace the over-engineered Recharts visualizations with a Magic Login table and a daily Generation Count metric.                  | draft       | [View Spec](openspec/changes/mvp-analytics-superadmin)               |
-| navbar-logical-ordering                | The sidebar navigation items will be reordered and grouped logically to reflect a workflow-based navigation pattern.               | draft       | [View Spec](openspec/changes/navbar-logical-ordering)                |
-| next-gen-analytics                     | We are introducing the Next-Gen Analytics Platform.                                                                                | superseded  | [View Spec](openspec/changes/next-gen-analytics)                     |
-| performance-optimization               | This change introduces aggressive code-splitting for large feature components and defers loading of heavy AI SDKs.                 | draft       | [View Spec](openspec/changes/performance-optimization)               |
-| proactive-market-analysis              | Introduce a progressive sync banner that displays real-time background task progress without blocking the chat.                    | draft       | [View Spec](openspec/changes/proactive-market-analysis)              |
-| rapid-pdlc-prompt-exporter             | We are introducing a Rapid PDLC Workflow (Strategy to Code) feature.                                                               | implemented | [View Spec](openspec/changes/rapid-pdlc-prompt-exporter)             |
-| raw-data-image-storage                 | We are introducing persistent cloud storage for user-uploaded images using Supabase Storage.                                       | draft       | [View Spec](openspec/changes/raw-data-image-storage)                 |
-| sanitize-system-logs                   | Hide the View Context Data and View Response Details sections in the System Logs UI for non-superadmin users.                      | draft       | [View Spec](openspec/changes/sanitize-system-logs)                   |
-| smart-llm-routing                      | We are introducing an Auto (Smart Routing) mode as the default behavior.                                                           | superseded  | [View Spec](openspec/changes/smart-llm-routing)                      |
-| strategy-toolbox                       | Replacing the static, rigid Analytical Template Library with a dynamic, data-driven Strategy Toolbox.                              | superseded  | [View Spec](openspec/changes/strategy-toolbox)                       |
-| supabase-integration                   | Adding team_id to raw_data_assets, raw_data_versions, and raw_data_inbox.                                                          | draft       | [View Spec](openspec/changes/supabase-integration)                   |
-| superadmin-feature-controls            | Add a View-As Toggle in the Superadmin Dashboard to drop superadmin privileges temporarily.                                        | draft       | [View Spec](openspec/changes/superadmin-feature-controls)            |
-| system-logs-ux                         | Map internal AI and search tool names to generic action labels in the UI.                                                          | draft       | [View Spec](openspec/changes/system-logs-ux)                         |
-| test-coverage-and-quality              | Addition of comprehensive test suites using Vitest, React Testing Library, and MSW for newly modified UI components.               | draft       | [View Spec](openspec/changes/test-coverage-and-quality)              |
-| test-coverage-quality                  | Comprehensive test suites for recently modified files using Vitest, React Testing Library, and MSW.                                | draft       | [View Spec](openspec/changes/test-coverage-quality)                  |
-| test-coverage-tarpit-tollgate          | We will implement a non-brittle, comprehensive Boundary Testing Approach using Vitest, MSW, Supertest, and Playwright.             | draft       | [View Spec](openspec/changes/test-coverage-tarpit-tollgate)          |
-| tooltip-activation-fix                 | Update the wrapper for SyncNowButton to tightly fit the button.                                                                    | draft       | [View Spec](openspec/changes/tooltip-activation-fix)                 |
-| unified-ideation-and-evolution         | A complete overhaul of the initial onboarding and product ideation experience.                                                     | draft       | [View Spec](openspec/changes/unified-ideation-and-evolution)         |
-| ai-model-fallback                      | We are introducing a unified AI client that wraps Gemini, OpenAI, and Anthropic SDKs.                                              | draft       | [View Spec](openspec/changes/ai-model-fallback)                      |
-| analytical-template-system             | Introduce a unified Analytical Template System that routes users into two distinct flows.                                          | draft       | [View Spec](openspec/changes/analytical-template-system)             |
-| architecture-performance-optimization  | Extract heavy subcomponents from App.tsx into separate files and push volatile state down the component tree.                      | draft       | [View Spec](openspec/changes/architecture-performance-optimization)  |
-| comprehensive-documentation-update     | Update in-app guides, tooltips, onboarding modals, and help pages to reflect the current feature set and UI changes.               | draft       | [View Spec](openspec/changes/comprehensive-documentation-update)     |
-| consolidate-features-modal             | Retroactive documentation of the Consolidate Features Modal feature.                                                               | superseded  | [View Spec](openspec/changes/consolidate-features-modal)             |
-| data-export-generator                  | Introduce a Comprehensive Data Export & Documentation Generator feature across the application.                                    | superseded  | [View Spec](openspec/changes/data-export-generator)                  |
-| data-sync-review                       | Introduce a universal Data Sync Review workflow to act as a gatekeeper for all external data pulls and AI-generated state updates. | draft       | [View Spec](openspec/changes/data-sync-review)                       |
-| dev-workflow-and-cicd                  | Implementing lefthook for parallelized, high-performance local git hooks.                                                          | draft       | [View Spec](openspec/changes/dev-workflow-and-cicd)                  |
-| developer-onboarding-docs              | Our current developer documentation needs to be enhanced to ensure smooth onboarding.                                              | proposed    | [View Spec](openspec/changes/developer-onboarding-docs)              |
-| documentation-wizard                   | Introduces the DocumentationWizardModal to generate and download system documentation.                                             | draft       | [View Spec](openspec/changes/documentation-wizard)                   |
-| feature-videos                         | We are transitioning the feature video generation pipeline to an agent-browser.                                                    | superseded  | [View Spec](openspec/changes/feature-videos)                         |
-| gemini-model-upgrade-routing           | Complete removal of legacy models, replacing them with the current state-of-the-art.                                               | draft       | [View Spec](openspec/changes/gemini-model-upgrade-routing)           |
-| global-progress-banner                 | Introduces a GlobalProgressBanner component at the top of the application layout that listens to active tasks.                     | draft       | [View Spec](openspec/changes/global-progress-banner)                 |
-| insight-brainstorm-chat                | Retroactive documentation of the Insight Brainstorm Chat feature.                                                                  | superseded  | [View Spec](openspec/changes/insight-brainstorm-chat)                |
-| insight-generator-modal                | Retroactive documentation of the Insight Generator Modal feature.                                                                  | draft       | [View Spec](openspec/changes/insight-generator-modal)                |
-| insight-quest-modal                    | We are documenting the implementation of the InsightQuestModal, a gamified A/B testing interface.                                  | draft       | [View Spec](openspec/changes/insight-quest-modal)                    |
-| interactive-tour-guide                 | A custom, lightweight, React 19-compatible guided tour component powered by Framer Motion.                                         | draft       | [View Spec](openspec/changes/interactive-tour-guide)                 |
-| market-analysis-features               | We are introducing a tabbed interface within the MarketAnalysis component.                                                         | draft       | [View Spec](openspec/changes/market-analysis-features)               |
-| market-data-grid                       | Retroactive documentation of the Market Data Grid feature.                                                                         | superseded  | [View Spec](openspec/changes/market-data-grid)                       |
-| market-value-notebook                  | Retroactive documentation of the Market Value Notebook feature.                                                                    | draft       | [View Spec](openspec/changes/market-value-notebook)                  |
-| marketing-video-automation             | We are implementing Marketing Video Automation & Mock Data to streamline video generation.                                         | draft       | [View Spec](openspec/changes/marketing-video-automation)             |
-| multi-product-and-teams                | Enhancing the existing product dropdown in the top navigation to support adding new products.                                      | draft       | [View Spec](openspec/changes/multi-product-and-teams)                |
-| multiple-visual-whiteboards            | Users can create, name, and switch between multiple infinite-canvas whiteboards.                                                   | draft       | [View Spec](openspec/changes/multiple-visual-whiteboards)            |
-| narrative-feature-videos               | We are upgrading the scripts to inject a highly-realistic, animated macOS-style SVG cursor.                                        | draft       | [View Spec](openspec/changes/narrative-feature-videos)               |
-| raw-data-library                       | We are introducing a unified, multi-modal Raw Data Library backed by PostgreSQL.                                                   | draft       | [View Spec](openspec/changes/raw-data-library)                       |
-| remove-inspire-radio                   | Complete removal of the InspiringRadioWidget component and its associated tests.                                                   | draft       | [View Spec](openspec/changes/remove-inspire-radio)                   |
-| test-coverage-expansion                | We are introducing a comprehensive suite of unit tests for the visual knowledge store and whiteboard UI components.                | draft       | [View Spec](openspec/changes/test-coverage-expansion)                |
-| test-coverage-expansion-phase2         | We are introducing new unit and integration tests for various hooks, utility functions, and React components.                      | draft       | [View Spec](openspec/changes/test-coverage-expansion-phase2)         |
-| testing-architecture-modernization     | We are modernizing the testing architecture by shifting to the Testing Trophy methodology.                                         | draft       | [View Spec](openspec/changes/testing-architecture-modernization)     |
+<!-- OPENSPEC_TABLE_END -->
 
 ## 📈 Recent Momentum
 
-- **Feature**: Implemented Unified Ideation Engine and scaffolded workflows.
-- **Feature**: Built ML-powered doc drift detector and roadmap extractor, upgraded to `gemini-3.1-pro-preview`.
-- **Feature**: Implemented strategy toolbox components and ML updates.
-- **Fix**: Integrated roadmap extractor into Lefthook pre-commit hooks.
-- **Docs**: Comprehensive UX/DX documentation review and OpenSpec updates.
+<!-- GIT_HISTORY_START -->
+* fix(ci): resolve unit test OOM and playwright startup failures (3b91979) - 2026-04-05
+* fix(build): resolve typescript compilation errors across worker routes and custom search proxy (1f422e7) - 2026-04-05
+* feat(superadmin): implement superadmin data quality dashboard & pipeline control circuit breaker (55e218b) - 2026-04-05
+* fix(tests): resolve failing auditWorker test lengths due to adjusted sample sizes (64b24df) - 2026-04-05
+* docs: extract continual learning lessons from plg teaser optimizations (23fd2c5) - 2026-03-30
+* feat: enforce global quota and optimize tokens for anonymous plg teaser (b93a318) - 2026-03-30
+* feat: implement premium-teaser-fingerprinting via openspec (2e36f90) - 2026-03-30
+* feat: implement idea-validation-plg-teaser via openspec (08b8eeb) - 2026-03-30
+* test: increase test coverage to 100% for campaignRoutes (93d1a52) - 2026-03-30
+* fix(ZeroFrictionEntry): prevent Uncaught TypeError on productDescription (62e8d12) - 2026-03-30
+* chore(openspec): extract lessons and archive niche-radar-plg-loop (a5e462a) - 2026-03-30
+* chore: untrack and ignore openspec local evaluation files (7981063) - 2026-03-30
+* chore: configure workspace rules, ignore temp files, and add utility scripts (75906aa) - 2026-03-30
+* docs(openspec): extract learnings for cloud tasks simulator and archive openspec (fe4720e) - 2026-03-30
+* feat(cloud-tasks-local-simulator): apply openspec, implement local emulator setup and fix tasks simulator (f69d57e) - 2026-03-30
+<!-- GIT_HISTORY_END -->
 
 ## 🎯 Sprint Insights & Tech Debt
 
-No outstanding technical debt or scope creep.
+<!-- TECH_DEBT_START -->
+No tech debt recorded.
+<!-- TECH_DEBT_END -->
 
 ## 💻 Local Development Setup (Quick Start)
 
@@ -177,15 +241,13 @@ cd nicheai
 npm install
 ```
 
-1. Set up your environment variables:
+2. Set up your environment variables:
 
 ```bash
 cp .env.example .env
 ```
 
-> **Note on Local Simulation:** By default, `.env.example` sets `SIMULATE_CLOUD_TASKS=true` and `VITE_USE_FIREBASE_EMULATOR=true`. This ensures your local environment runs completely sandboxed against local Firebase emulators and a mocked Cloud Tasks queue.
-
-1. Configure your API keys in the `.env` file:
+3. Configure your API keys in the `.env` file:
 
 ```env
 # Google Gemini API key for generating insights
@@ -197,17 +259,14 @@ APP_URL="http://localhost:3000"
 # Apollo.io API key for fetching company firmographics
 APOLLO_API_KEY="your_apollo_api_key_here"
 
+# Google Custom Search API for competitor news
+GOOGLE_SEARCH_API_KEY="your_google_search_api_key_here"
+GOOGLE_SEARCH_ENGINE_ID="your_google_search_engine_id_here"
 ```
 
 _(Note: The app will boot with dummy keys, but data enrichment and AI features require valid API keys.)_
 
-1. Start the local Firebase emulators (in a separate terminal):
-
-```bash
-npm run emulators:start
-```
-
-1. Start the development server:
+4. Start the development server:
 
 ```bash
 npm run dev
@@ -215,158 +274,13 @@ npm run dev
 
 The application will be available at **[http://localhost:3000](http://localhost:3000)**.
 
-### Hybrid vs. Full Local Development
-
-- **Full Local Mode (Default):** With `VITE_USE_FIREBASE_EMULATOR=true` and `SIMULATE_CLOUD_TASKS=true`, no data is written to the production cloud. The backend task dispatcher hits `http://127.0.0.1:3000` to simulate Google Cloud Tasks.
-- **Hybrid Mode (Live DB + Local Express):** If you need to test against live production or staging data, set `VITE_USE_FIREBASE_EMULATOR=false` and `SIMULATE_CLOUD_TASKS=false`, and provide a valid `FIREBASE_SERVICE_ACCOUNT_BASE64` in your `.env`. You will need to use `ngrok` to expose your local port `3000` to the internet and set `CLOUD_RUN_URL=https://your-ngrok-url.app` so the real Google Cloud Tasks can ping your local machine.
-
 ### Local Troubleshooting & Configuration
 
-- **Local Authentication & E2E Testing:** If you specifically want to browse the application fully authenticated as the `mo.hassaniv@gmail.com` superadmin user without going through the UI:
-  - The application has a built-in "Playwright E2E Test Mode" that mocks the authentication layer completely. You can trigger it by appending a query parameter to your URL.
-  - Navigate to: `http://localhost:5173/?mock_auth=true` (or whichever port your local server is running on).
-  - The application will instantly bypass the Firebase Authentication listeners and hardcode your session to:
-    - **Email:** `mo.hassaniv@gmail.com`
-    - **Role:** Superadmin
-  - _(If you ever need to test what a regular user sees instead of the superadmin, you can use: `http://localhost:5173/?mock_auth=true&role=user`)_
 - **API Rate Limits**: The AI clients (`aiClient.ts`, `geminiClient.ts`) handle `429` rate limits dynamically. Ensure you monitor the in-app Usage Tracker during extensive testing. If you exhaust a key, fallback mechanisms will attempt to use alternative models.
 - **Firebase Sync Conflicts**: `useFirebaseSync` includes debounced logic and error trapping. If testing offline scenarios, rely on `firebase.ts` built-in offline persistence. Check console logs for `resource-exhausted` quotas.
 - **Test State Leaks**: Tests are wrapped with `<VisualKnowledgeProvider>` in `src/test-utils/render.tsx` to isolate Zustand state. Ensure any new tests utilizing context-bound stores import `render` from `test-utils` rather than `@testing-library/react`.
 
 ---
-
-## ☁️ Deployment: Core Application
-
-The main NicheAI application (frontend and BFF API) is fully containerized and uses Terraform (Infrastructure as Code) for a strict **Scale-to-Zero** ($0 idle cost) architecture on Google Cloud Run.
-
-### Phase 1: Local Prerequisites & GCP Bootstrapping
-
-1. **Install Dependencies**: Ensure [Docker](https://docs.docker.com/get-docker/), [Google Cloud CLI (`gcloud`)](https://cloud.google.com/sdk/docs/install), and [Terraform](https://developer.hashicorp.com/terraform/downloads) are installed.
-2. **Create a GCP Project**: Go to the Google Cloud Console and create a new project.
-3. **Enable Billing**: **CRITICAL:** You must attach an active billing account to the GCP project. Scale-to-zero is virtually free, but the APIs require a billing method.
-4. **Firebase Configuration**: Create a Firebase project and enable **Firestore in Native Mode** (Warning: This choice is permanent).
-5. **Enable APIs**:
-
-```bash
- gcloud services enable run.googleapis.com \
-   artifactregistry.googleapis.com \
-   cloudtasks.googleapis.com \
-   cloudscheduler.googleapis.com \
-   secretmanager.googleapis.com \
-   cloudbuild.googleapis.com
-```
-
-### Phase 2: Authentication & Local Config
-
-1. **Authenticate gcloud**:
-
-```bash
- gcloud auth login
- gcloud auth application-default login
- gcloud config set project YOUR_PROJECT_ID
-```
-
-2. **Environment Variables**: Create your local `.env` and `terraform/terraform.tfvars`:
-
-- Obtain your Firebase Admin SDK service account JSON. **Encode it in base64** to prevent Terraform parsing errors: `cat service-account.json | base64`
-- Set `terraform.tfvars`:
-  ```hcl
-  project_id                      = "YOUR_PROJECT_ID"
-  region                          = "us-central1"
-  gemini_api_key                  = "YOUR_GEMINI_API_KEY"
-  firebase_project_id             = "YOUR_FIREBASE_PROJECT_ID"
-  firebase_service_account_base64 = "YOUR_BASE64_ENCODED_JSON"
-  ```
-
-### Phase 3: Containerization
-
-1. **Create Artifact Registry Repo**:
-
-```bash
- gcloud artifacts repositories create core-app-repo --repository-format=docker --location=us-central1
-```
-
-2. **Authenticate Docker**:
-
-```bash
- gcloud auth configure-docker us-central1-docker.pkg.dev
-```
-
-3. **Build & Push**:
-   > **🛑 APPLE SILICON WARNING:** If you are on an M-series Mac, you _must_ include `--platform linux/amd64` or Cloud Run will crash with an `exec format error`.
-
-```bash
- docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/core-app-repo/core-app:latest .
- docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/core-app-repo/core-app:latest
-```
-
-### Phase 4: Infrastructure as Code (Terraform)
-
-Navigate to the `terraform/` directory and deploy:
-_(Note: We strongly recommend configuring a GCS bucket for Terraform remote state for production.)_
-
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
----
-
-## 🚀 CI/CD Pipeline (GitHub Actions)
-
-NicheAI utilizes an automated CI/CD pipeline via GitHub Actions (`.github/workflows/ci.yml`). Every push to `main` or `master` triggers a deployment of **both** the Core Application and the Data Moat.
-
-### Setting up CI/CD Secrets
-
-To enable automated deployments, configure the following secrets in your GitHub repository (`Settings > Secrets and variables > Actions`):
-
-1. **GCP_PROJECT_ID**: Your target GCP Project ID.
-2. **GCP_REGION**: e.g., `us-central1`.
-3. **LAKE_BUCKET_NAME**: e.g., `my-company-lake-bucket`.
-4. **GCP_WORKLOAD_IDENTITY_PROVIDER**: The resource name of your Workload Identity Pool Provider (e.g., `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider`).
-5. **GCP_SERVICE_ACCOUNT**: The email address of the GCP service account associated with the Workload Identity (must have permissions for Cloud Run, Artifact Registry, BigQuery, GCS, Cloud Tasks, and IAM).
-
-> **Note**: Workload Identity Federation is the secure, best-practice way to authenticate GitHub Actions to GCP without using long-lived JSON service account keys.
-
----
-
-## 🌊 Deployment: Hyper-Scale Data Moat
-
-The Data Moat is an independent, asynchronous background pipeline comprised of GCS buckets, BigQuery datasets, Cloud Tasks, and dedicated Cloud Run worker nodes (crawlers and ML normalizers). It is deployed separately from the Core Application.
-
-It is **highly recommended** to authenticate and run the deployment scripts locally from your terminal (rather than the GCP Cloud Shell). This ensures the deployment scripts have access to your local source code, BigQuery schemas, and `.env` variables.
-
-1. **Local Authentication**:
-   Authenticate your `gcloud` CLI with your Google Cloud account:
-2. **Verify Environment Variables**:
-   Ensure the following are set in your `.env` file (the scripts will automatically load them for you):
-
-- `GEMINI_API_KEY` (Required for LLM extraction and Proxy metrics)
-- `GCP_PROJECT_ID` (Your GCP Project ID)
-- `GCP_REGION` (e.g., `us-central1`)
-- `LAKE_BUCKET_NAME` (Must be **globally unique** across all of GCP, e.g., `data-lake-yourname`)
-  **Proxy Metrics Setup:**
-- Note: Google Programmable Search Engine "Search the entire web" was deprecated in early 2026.
-- We now rely exclusively on `GEMINI_API_KEY` using Vertex AI / Gemini Search Grounding natively to proxy SEO metrics.
-- This approach is 100% GCP-credit burnable and requires zero extra setup!
-
-3. **Provision VPC Egress & Cloud NAT** (For IP Rotation):
-   Run the setup script to configure the network for the crawler. This allows your Cloud Run workers to use static IPs, avoiding bot-blocking.
-4. **Deploy the Infrastructure & Workers**:
-   Run the deployment script to create the GCS bucket, BigQuery datasets/tables, Cloud Tasks queue, and build/deploy the worker functions to Cloud Run.
-5. **Start the Data Moat Pipeline**:
-   After deployment, trigger the ingestion process. This will parse sitemaps and seed the Cloud Tasks queue.
-
-### Appendix: Security & Architecture Patterns
-
-To maintain a zero-friction, highly secure serverless architecture, NicheAI enforces the following rules:
-
-- **OIDC Internal Routes**: The `worker` Cloud Run service is NOT public. Cloud Tasks attaches an OIDC token matching the `core-cloudrun-sa` service account, which the worker verifies before executing any background job.
-- **CPU Allocation Guarantee**: Cloud Run throttles CPU to 0 immediately upon returning a response. Internal worker endpoints **MUST `await` the entire background process and hold the HTTP request open**. Do not return `202 Accepted` early from a worker route.
-- **The Claim Check Pattern**: Cloud Tasks enforces a strict 100KB payload limit. For heavy ML payloads (e.g., base64 images), the system offloads data to the `cloud_tasks_payloads` Firestore collection and passes `{ jobId, isHeavyPayload: true }` through the queue.
-- **IAM Least Privilege**: The custom `core-cloudrun-sa` service account acts strictly as an invoker and secret accessor.
 
 ## 🛠 Available Scripts
 
@@ -433,9 +347,9 @@ npm run test
 
 ### Test Coverage Highlights
 
-- `**useLocalStorage.test.tsx**`: Validates custom hook side-effects, cache synchronization, and correct behavior without violating React state mutations.
-- `**pagination.test.ts**`: Verifies zero-index boundaries and edge cases for data grids.
-- `**App.test.tsx**`: Mounts the full application, testing navigation consistency and ensuring global components (like the Background Sync Engine) don't duplicate across tabs.
+- **`useLocalStorage.test.tsx`**: Validates custom hook side-effects, cache synchronization, and correct behavior without violating React state mutations.
+- **`pagination.test.ts`**: Verifies zero-index boundaries and edge cases for data grids.
+- **`App.test.tsx`**: Mounts the full application, testing navigation consistency and ensuring global components (like the Background Sync Engine) don't duplicate across tabs.
 
 ---
 
