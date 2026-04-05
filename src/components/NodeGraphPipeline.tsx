@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Lock,
   Check,
@@ -110,22 +110,27 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
   };
 
   // Very naive diff renderer for our hardcoded mock
-  const renderDiff = () => {
+  const diffLines = useMemo(() => {
     const oldLines = INITIAL_SCHEMA.split("\n");
     const newLines = REVISED_SCHEMA.split("\n");
+    return newLines.map((line) => ({
+      line,
+      isNew: !oldLines.includes(line),
+    }));
+  }, []);
 
+  const renderDiff = () => {
     return (
       <div className="font-mono text-xs flex flex-col">
-        {newLines.map((line, index) => {
-          const isNew = !oldLines.includes(line);
-          if (isNew) {
+        {diffLines.map((diff, index) => {
+          if (diff.isNew) {
             return (
               <div
                 key={index}
                 className="bg-green-100 text-green-900 px-2 py-0.5 border-l-2 border-green-500 flex gap-2"
               >
                 <span className="opacity-50 select-none">+</span>
-                <span>{line}</span>
+                <span>{diff.line}</span>
               </div>
             );
           }
@@ -135,7 +140,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
               className="px-2 py-0.5 text-ink-dark/70 flex gap-2"
             >
               <span className="opacity-0 select-none">+</span>
-              <span>{line}</span>
+              <span>{diff.line}</span>
             </div>
           );
         })}
@@ -147,12 +152,12 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
     <div className="relative w-full h-full flex flex-col bg-[#F5F3ED] p-6 text-ink-dark font-sans">
       <div
         data-testid="node-graph-container"
-        inert={isLocked || undefined}
-        className={`flex-1 transition-all duration-500 flex flex-col gap-6 ${
-          isLocked
-            ? "blur-md grayscale opacity-40 select-none pointer-events-none"
-            : ""
-        }`}
+        inert={isLocked}
+        className={cn(
+          "flex-1 transition-all duration-500 flex flex-col gap-6",
+          isLocked &&
+            "blur-md grayscale opacity-40 select-none pointer-events-none",
+        )}
       >
         {pipelineState === PipelineState.NOVICE && (
           <div className="border border-dashed border-ink-dark/20 p-4 rounded-xl text-ink-dark/70 text-sm font-medium">
@@ -383,20 +388,30 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
           ) : activePhase === Phase.SCHEMA ? (
             <div className="h-32 bg-slate-50 rounded border border-slate-200"></div>
           ) : isDrafting ? (
-            <div className="bg-[#1e1e1e] rounded-lg p-4 font-mono text-xs text-emerald-400 border border-slate-800 shadow-inner flex flex-col gap-2 h-40 overflow-hidden relative">
+            <div
+              className="bg-[#1e1e1e] rounded-lg p-4 font-mono text-xs text-emerald-400 border border-slate-800 shadow-inner flex flex-col gap-2 h-40 overflow-hidden relative"
+              aria-live="polite"
+              aria-relevant="additions"
+            >
               {DRAFT_LOGS.slice(0, currentLogIndex + 1).map((log, i) => (
                 <div
                   key={i}
                   className="flex items-start gap-2 animate-[fadeIn_0.3s_ease-out_forwards]"
                 >
-                  <span className="text-emerald-700 select-none mt-0.5">
+                  <span
+                    className="text-emerald-700 select-none mt-0.5"
+                    aria-hidden="true"
+                  >
                     {">"}
                   </span>
                   <span className="leading-relaxed">{log}</span>
                 </div>
               ))}
               {currentLogIndex < DRAFT_LOGS.length && (
-                <div className="w-2 h-3.5 bg-emerald-400 animate-pulse mt-1 ml-4"></div>
+                <div
+                  className="w-2 h-3.5 bg-emerald-400 animate-pulse mt-1 ml-4"
+                  aria-hidden="true"
+                ></div>
               )}
             </div>
           ) : (
@@ -427,37 +442,6 @@ export const POST = async (req: Request) => {
           data-testid="lock-overlay"
           className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#F5F3ED]/40 backdrop-blur-[6px]"
         >
-          {/* Blurred Architecture Map Background */}
-          <div className="absolute inset-0 opacity-30 pointer-events-none scale-110 blur-[3px]">
-            <div className="absolute top-1/4 left-1/4 w-32 h-20 border-2 border-ink-dark/60 rounded-xl"></div>
-            <div className="absolute top-1/3 left-1/2 w-48 h-32 border-2 border-ink-dark/60 rounded-xl"></div>
-            <div className="absolute bottom-1/4 right-1/3 w-24 h-24 border-2 border-ink-dark/60 rounded-full"></div>
-            <div className="absolute top-2/3 left-1/4 w-16 h-16 border-2 border-ink-dark/60 rounded-lg rotate-45"></div>
-            <svg className="absolute inset-0 w-full h-full text-ink-dark/40">
-              <path
-                d="M 25% 25% L 50% 33%"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                fill="none"
-              />
-              <path
-                d="M 50% 33% L 75% 75%"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                fill="none"
-              />
-              <path
-                d="M 25% 66% L 50% 33%"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                fill="none"
-              />
-            </svg>
-          </div>
-
           <div className="relative bg-white/95 backdrop-blur-xl p-10 rounded-2xl flex flex-col items-center border border-slate-200 shadow-2xl max-w-md text-center z-10 transform transition-transform hover:scale-[1.02]">
             <div className="w-16 h-16 bg-ink-dark rounded-2xl flex items-center justify-center mb-6 shadow-inner rotate-3">
               <Lock className="w-8 h-8 text-white -rotate-3" />

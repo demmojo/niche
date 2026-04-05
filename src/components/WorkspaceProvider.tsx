@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useReducer,
+  useCallback,
 } from "react";
 import { useAuth } from "./AuthProvider";
 
@@ -81,7 +82,7 @@ function safeStorageGet(key: string): string | null {
   }
 }
 
-export function getWorkspaceId() {
+export function initializeWorkspaceId() {
   if (typeof window === "undefined") return "ssr-workspace";
   const urlParams = new URLSearchParams(window.location.search);
   let wid = urlParams.get("w");
@@ -116,8 +117,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Now getWorkspaceId is executed only in the browser context, preventing SSR module-side-effects
-    const wid = getWorkspaceId();
+    // Now initializeWorkspaceId is executed only in the browser context, preventing SSR module-side-effects
+    const wid = initializeWorkspaceId();
     const storedActiveId = safeStorageGet(
       `${wid}_active_product_id_${user.uid}`,
     );
@@ -132,16 +133,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, [user?.uid]);
 
-  const setWorkspaceId = (id: string) => {
-    setWorkspaceIdState(id);
-    if (user?.uid) {
-      const wid = getWorkspaceId();
-      safeStorageSet(
-        `${wid}_active_product_id_${user.uid}`,
-        JSON.stringify(id),
-      );
-    }
-  };
+  const setWorkspaceId = useCallback(
+    (id: string) => {
+      setWorkspaceIdState(id);
+      if (user?.uid) {
+        const wid = initializeWorkspaceId();
+        safeStorageSet(
+          `${wid}_active_product_id_${user.uid}`,
+          JSON.stringify(id),
+        );
+      }
+    },
+    [user?.uid],
+  );
 
   return (
     <WorkspaceStateContext value={workspaceId}>

@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = React.useTransition();
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
 
@@ -21,26 +21,23 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
 
   const handleUnlockClick = async () => {
     if (!onUnlockClick) return;
-    setIsPending(true);
-    setError(null);
-    try {
-      await Promise.resolve(onUnlockClick());
-    } catch (e: any) {
-      if (isMounted.current) {
-        setError(e.message || "Failed to unlock canvas.");
+    startTransition(async () => {
+      setError(null);
+      try {
+        await Promise.resolve(onUnlockClick());
+      } catch (e: any) {
+        if (isMounted.current) {
+          setError(e.message || "Failed to unlock canvas.");
+        }
       }
-    } finally {
-      if (isMounted.current) {
-        setIsPending(false);
-      }
-    }
+    });
   };
 
   return (
     <div className="relative w-full h-full min-h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-white">
       <div
         data-testid="canvas-content"
-        inert={isLocked || undefined}
+        inert={isLocked}
         className={cn(
           "w-full h-full p-6 transition-all duration-500 ease-in-out",
           isLocked &&
