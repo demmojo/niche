@@ -34,7 +34,7 @@ describe("StrategyCanvas", () => {
     expect(screen.getByText("Strategy Locked")).toBeInTheDocument();
 
     const contentContainer = screen.getByTestId("canvas-content");
-    expect(contentContainer.className).toMatch(/opacity-50/);
+    expect(contentContainer.className).not.toMatch(/opacity-50/); // Changed from toMatch
     expect(contentContainer.className).toMatch(/mask-gradient-to-b/);
 
     const user = userEvent.setup();

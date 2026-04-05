@@ -18,9 +18,11 @@ function StepLoading({ title }: { title: string }) {
 export function TrustBuilderScreen({
   ideaPayload,
   onComplete,
+  onCancel,
 }: {
   ideaPayload: any;
   onComplete: (data: any) => void;
+  onCancel?: () => void;
 }) {
   const [data, setData] = useState<{
     competitors: number | null;
@@ -328,6 +330,22 @@ export function TrustBuilderScreen({
               View Validated Idea
             </button>
           </motion.div>
+        )}
+
+        {onCancel && !isComplete && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => {
+                if (abortControllerRef.current) {
+                  abortControllerRef.current.abort();
+                }
+                onCancel();
+              }}
+              className="px-4 py-2 text-ink-dark/50 hover:text-ink-dark font-medium transition-colors text-sm"
+            >
+              Cancel Analysis
+            </button>
+          </div>
         )}
       </div>
     </div>

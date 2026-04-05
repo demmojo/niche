@@ -7,6 +7,7 @@ import { TrustBuilderScreen } from "./TrustBuilderScreen";
 import { URLTeaserScreen } from "./URLTeaserScreen";
 import { isMockAuthEnabled } from "../utils/testEnv";
 import { useIsMounted } from "../hooks/useIsMounted";
+import { AsyncButton } from "./AsyncButton";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
@@ -75,17 +76,16 @@ function EntryActionButtons({
       >
         ← Back
       </button>
-      <button
+      <AsyncButton
         type="submit"
-        disabled={isDisabled}
-        className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+        isPending={pending || isAuthenticating}
+        loadingText={
+          isAuthenticating ? "Initializing engine..." : "Processing..."
+        }
+        className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black shadow-md"
       >
-        {isAuthenticating
-          ? "Initializing engine..."
-          : pending
-            ? "Processing..."
-            : submitLabel}
-      </button>
+        {submitLabel}
+      </AsyncButton>
     </div>
   );
 }
@@ -128,10 +128,10 @@ export function ZeroFrictionEntry({
               5000,
             );
           });
-          const cred = (await Promise.race([
+          const cred = await Promise.race([
             signInAnonymously(auth),
             timeoutPromise,
-          ])) as any;
+          ]);
           user = cred.user;
         } finally {
           if (timeoutId!) {
@@ -145,6 +145,7 @@ export function ZeroFrictionEntry({
     }
 
     if (user && selectedPersona && !isMockAuthEnabled()) {
+      if (!isMounted.current) return;
       try {
         await setDoc(
           doc(db, "users", user.uid),
@@ -171,7 +172,7 @@ export function ZeroFrictionEntry({
 
     try {
       await ensureAnonymousUser(selectedPersona);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to sign in anonymously and set persona:", e);
       // We don't block the UI here, fallback to proceeding
     }
@@ -277,10 +278,16 @@ export function ZeroFrictionEntry({
   };
 
   if (step === "analyzing" && ideaPayload) {
+    const handleCancel = () => {
+      setStep("intent");
+      setIdeaPayload(null);
+    };
+
     if (intent === "url" && ideaPayload.url) {
       return (
         <URLTeaserScreen
           url={ideaPayload.url}
+          onCancel={handleCancel}
           onComplete={(data) => {
             let finalIdea = ideaPayload.url!;
             if (data.orthogonal_pivots && data.orthogonal_pivots.length > 0) {
@@ -295,6 +302,7 @@ export function ZeroFrictionEntry({
     return (
       <TrustBuilderScreen
         ideaPayload={ideaPayload}
+        onCancel={handleCancel}
         onComplete={(data) => handleValidationComplete(data, ideaPayload)}
       />
     );
@@ -351,8 +359,9 @@ export function ZeroFrictionEntry({
                 Proceed with Original Idea
               </button>
             )}
-            <button
-              disabled={isProceeding}
+            <AsyncButton
+              isPending={isProceeding}
+              loadingText="Connecting to Canvas..."
               onClick={() => {
                 setIsProceeding(true);
                 onComplete({
@@ -365,13 +374,26 @@ export function ZeroFrictionEntry({
                   visibility: "shared",
                 });
               }}
-              className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg disabled:opacity-50 w-full sm:w-auto"
+              className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black shadow-lg w-full sm:w-auto"
             >
-              {isProceeding
-                ? "Connecting to Canvas..."
-                : tarpitData?.isTarpit
-                  ? "Proceed with Pivot"
-                  : "Enter Strategy Canvas"}
+              {tarpitData?.isTarpit
+                ? "Proceed with Pivot"
+                : "Enter Strategy Canvas"}
+            </AsyncButton>
+          </div>
+
+          <div className="mt-8 flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500 fill-mode-both">
+            <button
+              disabled={isProceeding}
+              onClick={() => {
+                setStep("intent");
+                setPivotedIdea(null);
+                setOriginalIdea(null);
+                setTarpitData(null);
+              }}
+              className="px-4 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50 text-sm"
+            >
+              Start Over
             </button>
           </div>
         </div>
@@ -424,49 +446,61 @@ export function ZeroFrictionEntry({
             action={handleAction}
             className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200"
           >
-            <div className="text-2xl text-ink-dark leading-loose font-medium text-left flex flex-wrap items-center">
-              I want to build a{" "}
+            <div className="flex flex-col sm:block text-lg sm:text-2xl text-ink-dark leading-loose font-medium text-left gap-4 sm:gap-0">
+              <span className="sm:inline hidden">I want to build a </span>
+              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px]">
+                Product Category
+              </label>
               <input
                 type="text"
                 name="category"
                 aria-label="Category"
                 placeholder="Category (e.g. CRM)"
-                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-48 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="block sm:inline-block w-full sm:w-48 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
                 required
                 disabled={isAuthenticating}
                 autoFocus
-              />{" "}
-              for{" "}
+              />
+              <span className="sm:inline hidden"> for </span>
+              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
+                Target Audience
+              </label>
               <input
                 type="text"
                 name="audience"
                 aria-label="Target Audience"
                 placeholder="Audience (e.g. Plumbers)"
-                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
                 required
                 disabled={isAuthenticating}
-              />{" "}
-              that solves{" "}
+              />
+              <span className="sm:inline hidden"> that solves </span>
+              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
+                Core Problem
+              </label>
               <input
                 type="text"
                 name="problem"
                 aria-label="Core Problem"
                 placeholder="Problem (e.g. scheduling)"
-                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
                 required
                 disabled={isAuthenticating}
               />
-              , reaching them through{" "}
+              <span className="sm:inline hidden">, reaching them through </span>
+              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
+                Distribution Channel
+              </label>
               <input
                 type="text"
                 name="channel"
                 aria-label="Distribution Channel"
                 placeholder="Channel (e.g. cold email)"
-                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
                 required
                 disabled={isAuthenticating}
               />
-              .
+              <span className="sm:inline hidden">.</span>
             </div>
 
             {step === "error" && (

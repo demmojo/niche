@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useIsMounted } from "../hooks/useIsMounted";
+import { AsyncButton } from "./AsyncButton";
 
 enum PipelineState {
   NOVICE,
@@ -25,23 +26,23 @@ enum Phase {
   API = 2,
 }
 
-const INITIAL_SCHEMA = `model User {
-  id    String @id @default(cuid())
-  email String @unique
-}`;
+const INITIAL_SCHEMA = `Features:
+- User Authentication (Email/Password)
+- Basic Profile Management
+- Standard Dashboard`;
 
-const REVISED_SCHEMA = `model User {
-  id    String @id @default(cuid())
-  email String @unique
-  role  String @default("USER")
-  stripeId String? @unique
-}`;
+const REVISED_SCHEMA = `Features:
+- User Authentication (Email/Password & SSO)
+- Basic Profile Management
+- Standard Dashboard
+- Role-based Access Control (RBAC)
+- Stripe Integration (Billing)`;
 
 const DRAFT_LOGS = [
-  "Analyzing schema relationships...",
-  "Generating CRUD routes...",
-  "Validating types and constraints...",
-  "Optimizing query boundaries...",
+  "Analyzing target audience...",
+  "Drafting high-converting headlines...",
+  "Structuring value propositions...",
+  "Generating landing page copy...",
 ];
 
 export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
@@ -86,7 +87,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
       setRevisionError(null);
       try {
         // Simulate AI generation
-        await new Promise((res, rej) => {
+        await new Promise((res) => {
           // Simulate occasional error for robustness if desired, but default to success
           setTimeout(res, 2000);
         });
@@ -130,12 +131,29 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
   // Very naive diff renderer for our hardcoded mock
   const diffLines = useMemo(() => {
-    const oldLines = new Set(INITIAL_SCHEMA.split("\n"));
-    const newLines = REVISED_SCHEMA.split("\n");
-    return newLines.map((line) => ({
-      line,
-      isNew: !oldLines.has(line),
-    }));
+    const oldLinesArray = INITIAL_SCHEMA.split("\n");
+    const newLinesArray = REVISED_SCHEMA.split("\n");
+    const newLinesSet = new Set(newLinesArray);
+    const oldLinesSet = new Set(oldLinesArray);
+
+    const diff: { line: string; isNew?: boolean; isDeleted?: boolean }[] = [];
+
+    // Naive diff: first show deleted lines from old
+    oldLinesArray.forEach((line) => {
+      if (!newLinesSet.has(line)) {
+        diff.push({ line, isDeleted: true });
+      }
+    });
+
+    // Then show all lines from new (marking added ones)
+    newLinesArray.forEach((line) => {
+      diff.push({
+        line,
+        isNew: !oldLinesSet.has(line),
+      });
+    });
+
+    return diff;
   }, []);
 
   const renderDiff = () => {
@@ -150,6 +168,19 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
               >
                 <span className="opacity-50 select-none" aria-hidden="true">
                   +
+                </span>
+                <span>{diff.line}</span>
+              </div>
+            );
+          }
+          if (diff.isDeleted) {
+            return (
+              <div
+                key={index}
+                className="bg-rose-100 text-rose-900 px-2 py-0.5 border-l-2 border-rose-500 flex gap-2 line-through opacity-70"
+              >
+                <span className="opacity-50 select-none" aria-hidden="true">
+                  -
                 </span>
                 <span>{diff.line}</span>
               </div>
@@ -180,7 +211,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
         {pipelineState === PipelineState.NOVICE && (
           <div className="border border-dashed border-ink-dark/20 p-4 rounded-xl text-ink-dark/70 text-sm font-medium">
             The AI breaks features into atomic phases and pauses. Nothing is
-            coded until you approve.
+            generated until you approve.
           </div>
         )}
 
@@ -198,7 +229,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
         >
           <h3 className="font-serif font-bold text-xl mb-4 text-ink-dark flex items-center justify-between">
             <span className="flex items-center gap-3">
-              Phase 01: Data Model
+              Phase 01: Product Specification
               <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-sans">
                 <button
                   onClick={() => setIsDeveloperMode(false)}
@@ -250,23 +281,24 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                 )
               ) : (
                 <div className="flex flex-col gap-2">
-                  <div className="font-bold text-sm mb-1">
-                    User Profile Entity
-                  </div>
+                  <div className="font-bold text-sm mb-1">Core Feature Set</div>
                   <div className="flex flex-wrap gap-2">
                     <span className="px-2 py-1 bg-white border border-slate-200 rounded shadow-sm">
-                      id (System ID)
+                      User Auth (Email/SSO)
                     </span>
                     <span className="px-2 py-1 bg-white border border-slate-200 rounded shadow-sm">
-                      email (Unique Login)
+                      Basic Profile
+                    </span>
+                    <span className="px-2 py-1 bg-white border border-slate-200 rounded shadow-sm">
+                      Standard Dashboard
                     </span>
                     {(schemaVersion > 0 || showDiff) && (
                       <>
                         <span className="px-2 py-1 bg-green-50 text-green-800 border border-green-200 rounded shadow-sm">
-                          role (User Tier Access)
+                          RBAC (Access Control)
                         </span>
                         <span className="px-2 py-1 bg-green-50 text-green-800 border border-green-200 rounded shadow-sm">
-                          stripeId (SaaS Billing Required)
+                          Stripe (Billing)
                         </span>
                       </>
                     )}
@@ -320,7 +352,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
           pipelineState !== PipelineState.REJECTED ? (
             <div className="mt-6 flex flex-col gap-4">
               {revisionHistory.length > 0 && (
-                <div className="flex flex-col gap-2 mb-2">
+                <div className="flex flex-col gap-2 mb-2 overflow-y-auto max-h-40 pr-2">
                   {revisionHistory.map((historyItem, idx) => (
                     <div
                       key={idx}
@@ -361,23 +393,24 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                   >
                     <X className="w-4 h-4" /> Reject
                   </button>
-                  <button
-                    disabled={!revisionText || isRevising}
+                  <AsyncButton
+                    isPending={isRevising}
                     onClick={handleRevise}
-                    className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded hover:bg-slate-100 transition-colors text-ink-dark/70 disabled:opacity-50"
+                    disabled={!revisionText}
+                    loadingText="Revising..."
+                    icon={<RefreshCw className="w-4 h-4" />}
+                    className="px-4 py-2 border border-slate-200 rounded hover:bg-slate-100 text-ink-dark/70"
                   >
-                    <RefreshCw
-                      className={`w-4 h-4 ${isRevising ? "animate-spin" : ""}`}
-                    />
-                    {isRevising ? "Revising..." : "Revise"}
-                  </button>
-                  <button
-                    disabled={isRevising}
+                    Revise
+                  </AsyncButton>
+                  <AsyncButton
+                    isPending={isDrafting} // Add drafting state if you want, but handleApprovePhase1 is an async transition
                     onClick={handleApprovePhase1}
-                    className="flex items-center gap-2 px-6 py-2 bg-ink-dark text-white font-bold rounded hover:bg-black transition-colors disabled:opacity-50"
+                    icon={<Check className="w-4 h-4" />}
+                    className="px-6 py-2 bg-ink-dark text-white font-bold rounded hover:bg-black"
                   >
-                    <Check className="w-4 h-4" /> Approve
-                  </button>
+                    Approve
+                  </AsyncButton>
                 </div>
               </div>
             </div>
@@ -426,7 +459,7 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
               </div>
             )}
           <h3 className="font-serif font-bold text-xl mb-4 text-ink-dark/80 flex items-center justify-between">
-            Phase 02: Execution Logic
+            Phase 02: Market Experiments
             {pipelineState === PipelineState.COMPLETED && (
               <span className="text-sm font-sans bg-green-100 text-green-800 px-2 py-1 rounded-full">
                 <Check className="w-4 h-4 inline mr-1" />
@@ -441,12 +474,12 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
             <div className="h-32 bg-slate-50 rounded border border-slate-200"></div>
           ) : isDrafting ? (
             <div
-              className="bg-white rounded-lg p-4 font-sans text-sm text-ink-dark border border-slate-200 shadow-sm flex flex-col gap-3 h-40 overflow-hidden relative"
+              className="bg-white rounded-lg p-4 font-sans text-sm text-ink-dark border border-slate-200 shadow-sm flex flex-col gap-3 h-40 overflow-y-auto relative"
               aria-live="polite"
               aria-relevant="additions"
             >
               <div className="font-bold text-ink-dark/60 text-xs uppercase mb-1">
-                Generating Backend Services
+                Generating Landing Page Copy
               </div>
               {DRAFT_LOGS.slice(0, currentLogIndex + 1).map((log, i) => (
                 <div
@@ -473,17 +506,25 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              <pre className="text-xs text-ink-dark/80 bg-slate-50 p-4 rounded overflow-x-auto border border-slate-200 font-mono h-40">
-                {`// Generated Execution Logic
-export const GET = async (req: Request) => {
-  const users = await db.user.findMany();
-  return Response.json(users);
-}
-
-export const POST = async (req: Request) => {
-  // AI scaffolding...
-}`}
-              </pre>
+              <div className="text-sm text-ink-dark/80 bg-slate-50 p-4 rounded overflow-y-auto border border-slate-200 h-40">
+                <h4 className="font-bold mb-2 font-serif text-lg">
+                  Landing Page Copy
+                </h4>
+                <p className="font-bold text-indigo-700 mb-1">Headline:</p>
+                <p className="mb-4 text-ink-dark">
+                  Stop wrestling with generic tools. Built exclusively for your
+                  niche.
+                </p>
+                <p className="font-bold text-indigo-700 mb-1">Sub-headline:</p>
+                <p className="mb-4 text-ink-dark">
+                  Automate your most painful workflows in 5 minutes without
+                  writing a single line of code.
+                </p>
+                <p className="font-bold text-indigo-700 mb-1">
+                  Call to Action:
+                </p>
+                <p className="text-ink-dark">Start Free Trial →</p>
+              </div>
               {pipelineState === PipelineState.COMPLETED && (
                 <button className="flex items-center justify-center gap-2 px-6 py-3 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors w-full mt-2">
                   Proceed to Workspace <ArrowRight className="w-4 h-4" />
@@ -509,9 +550,8 @@ export const POST = async (req: Request) => {
                 Architecture Locked
               </h2>
               <p className="text-ink-dark/80 text-base leading-relaxed mb-8">
-                Save your validated schema to unlock the Director execution
-                phase. The AI is ready to generate and deploy your backend
-                routes.
+                Save your validated features to unlock the Director execution
+                phase. The AI is ready to generate your market experiments.
               </p>
               <button className="bg-ink-dark text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-black transition-colors w-full flex items-center justify-center gap-2">
                 <Lock className="w-4 h-4" /> Unlock Director Phase

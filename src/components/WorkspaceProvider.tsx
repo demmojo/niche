@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { useAuth } from "./AuthProvider";
+import { safeStorageGet, safeStorageSet } from "../utils/storage";
 
 export interface Product {
   id: string;
@@ -63,25 +64,6 @@ function insightsReducer(state: Insight[], action: InsightAction): Insight[] {
   }
 }
 
-function safeStorageSet(key: string, value: string) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, value);
-  } catch (e) {
-    console.warn(`localStorage setItem failed for key: ${key}`, e);
-  }
-}
-
-function safeStorageGet(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage.getItem(key);
-  } catch (e) {
-    console.warn(`localStorage getItem failed for key: ${key}`, e);
-    return null;
-  }
-}
-
 export function initializeWorkspaceId(syncUrl: boolean = true) {
   if (typeof window === "undefined") return "ssr-workspace";
   const urlParams = new URLSearchParams(window.location.search);
@@ -93,19 +75,6 @@ export function initializeWorkspaceId(syncUrl: boolean = true) {
     if (!wid) {
       wid = `ws-${Math.random().toString(36).substring(2, 9)}`;
       safeStorageSet("nicheai_workspace_id", wid);
-    }
-    if (syncUrl) {
-      setTimeout(() => {
-        const newUrlParams = new URLSearchParams(window.location.search);
-        if (newUrlParams.get("w") !== wid) {
-          newUrlParams.set("w", wid);
-          window.history.replaceState(
-            {},
-            "",
-            `${window.location.pathname}?${newUrlParams.toString()}`,
-          );
-        }
-      }, 0);
     }
   }
   return wid;
@@ -131,6 +100,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (storedActiveId) {
       setActiveProductIdState(storedActiveId);
     }
+
+    // Sync URL if needed
+    const newUrlParams = new URLSearchParams(window.location.search);
+    if (newUrlParams.get("w") !== wid) {
+      newUrlParams.set("w", wid);
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}?${newUrlParams.toString()}`,
+      );
+    }
+
     setIsLoading(false);
   }, [user?.uid]);
 

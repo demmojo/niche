@@ -6,9 +6,11 @@ import { Loader2, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 export function URLTeaserScreen({
   url,
   onComplete,
+  onCancel,
 }: {
   url: string;
   onComplete: (data: any) => void;
+  onCancel?: () => void;
 }) {
   const [status, setStatus] = useState<string>("Initializing...");
   const [metadata, setMetadata] = useState<any>(null);
@@ -157,6 +159,17 @@ export function URLTeaserScreen({
               </button>
             </div>
           </motion.div>
+        )}
+
+        {onCancel && !teaser && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => onCancel()}
+              className="px-4 py-2 text-ink-dark/50 hover:text-ink-dark font-medium transition-colors text-sm"
+            >
+              Cancel Analysis
+            </button>
+          </div>
         )}
       </div>
     </div>
