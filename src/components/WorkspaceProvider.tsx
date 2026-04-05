@@ -1,4 +1,10 @@
-import React, { createContext, use, useState, useEffect } from "react";
+import React, {
+  createContext,
+  use,
+  useState,
+  useEffect,
+  useReducer,
+} from "react";
 import { useAuth } from "./AuthProvider";
 
 export interface Product {
@@ -8,11 +14,40 @@ export interface Product {
   createdAt?: string;
 }
 
+export interface Insight {
+  id: string;
+  type: "insight" | "feature";
+  content: string;
+}
+
+export type InsightAction =
+  | { type: "ADD_INSIGHT"; insight: Insight }
+  | { type: "REMOVE_INSIGHT"; id: string }
+  | { type: "SET_INSIGHTS"; insights: Insight[] };
+
 const WorkspaceStateContext = createContext<string | null>(null);
 const WorkspaceDispatchContext = createContext<((id: string) => void) | null>(
   null,
 );
 const WorkspaceLoadingContext = createContext<boolean | null>(null);
+
+const InsightsStateContext = createContext<Insight[] | null>(null);
+const InsightsDispatchContext =
+  createContext<React.Dispatch<InsightAction> | null>(null);
+
+function insightsReducer(state: Insight[], action: InsightAction): Insight[] {
+  switch (action.type) {
+    case "ADD_INSIGHT":
+      if (state.find((i) => i.id === action.insight.id)) return state;
+      return [...state, action.insight];
+    case "REMOVE_INSIGHT":
+      return state.filter((i) => i.id !== action.id);
+    case "SET_INSIGHTS":
+      return action.insights;
+    default:
+      return state;
+  }
+}
 
 function getWorkspaceId() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -47,6 +82,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [workspaceId, setWorkspaceIdState] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [insights, dispatchInsights] = useReducer(insightsReducer, []);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -82,7 +118,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     <WorkspaceStateContext value={workspaceId}>
       <WorkspaceDispatchContext value={setWorkspaceId}>
         <WorkspaceLoadingContext value={isLoading}>
-          {children}
+          <InsightsStateContext value={insights}>
+            <InsightsDispatchContext value={dispatchInsights}>
+              {children}
+            </InsightsDispatchContext>
+          </InsightsStateContext>
         </WorkspaceLoadingContext>
       </WorkspaceDispatchContext>
     </WorkspaceStateContext>
@@ -112,6 +152,24 @@ export function useWorkspaceLoading() {
   if (context === null) {
     throw new Error(
       "useWorkspaceLoading must be used within a WorkspaceProvider",
+    );
+  }
+  return context;
+}
+
+export function useInsights() {
+  const context = use(InsightsStateContext);
+  if (context === null) {
+    throw new Error("useInsights must be used within a WorkspaceProvider");
+  }
+  return context;
+}
+
+export function useInsightsDispatch() {
+  const context = use(InsightsDispatchContext);
+  if (context === null) {
+    throw new Error(
+      "useInsightsDispatch must be used within a WorkspaceProvider",
     );
   }
   return context;

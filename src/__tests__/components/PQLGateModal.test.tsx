@@ -37,7 +37,7 @@ describe("PQLGateModal", () => {
 
     render(<PQLGateModal isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByText("Save Your Analysis")).toBeInTheDocument();
+    expect(screen.getByText("Unlock the Vault")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(
@@ -58,6 +58,6 @@ describe("PQLGateModal", () => {
     render(<PQLGateModal isOpen={true} onClose={vi.fn()} />);
 
     expect(screen.getByText("Upgrade failed")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Unlocking..." })).toBeDisabled();
   });
 });

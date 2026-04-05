@@ -100,7 +100,7 @@ describe("ZeroFrictionEntry", () => {
     });
 
     expect(
-      screen.getByPlaceholderText("What are you thinking of building?"),
+      screen.getByPlaceholderText("Category (e.g. CRM)"),
     ).toBeInTheDocument();
   });
 

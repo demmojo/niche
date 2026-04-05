@@ -109,3 +109,28 @@
 *::-webkit-scrollbar {
   display: none;
 }
+
+@layer utilities {
+  .dot-grid-bg {
+    background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-border {
+    animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes pulse-border {
+  0%,
+  100% {
+    border-color: rgba(227, 255, 0, 1);
+    box-shadow: 0 0 15px rgba(227, 255, 0, 0.2);
+  }
+  50% {
+    border-color: rgba(227, 255, 0, 0.3);
+    box-shadow: 0 0 5px rgba(227, 255, 0, 0.05);
+  }
+}

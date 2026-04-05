@@ -104,3 +104,10 @@ When the `apply-openspec` workflow completes a feature implementation:
 2. Ensure the "Value Prop" aligns with the newly added feature's core "Why", referencing `docs/strategy/BUSINESS_PLAN.md` if necessary.
 3. Verify that all in-app documentation (e.g., `PageGuideModal.tsx`, tooltips, UI copy) has been updated to reflect the new feature reality.
 4. **Video Regeneration**: If the applied OpenSpec modifies the UI or functionality of an existing feature listed here, use `node scripts/generate_feature_videos.cjs` to regenerate the WebM video. If a new major feature is added to this list, add it to the Playwright script to create a new feature video for it.
+
+### 12. PLG Builder Paradigm Journey
+
+- **Value Prop:** "Build your strategy before you even sign up."
+- **Description:** Converts anonymous traffic into retained users through the "Reverse Demo Hook." Users experience zero-friction entry, perform market analysis with simulated highlighting to curate insights, and then hit a Product Qualified Lead (PQL) gate. Once authenticated, the frosted glass lifts, unlocking the final "Director" execution phase with a Node Graph Pipeline and Ghost Node onboarding.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/plg-builder-journey.webm" autoplay loop muted playsinline></video>`

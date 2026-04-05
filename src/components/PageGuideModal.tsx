@@ -68,6 +68,38 @@ interface GuideData {
  *
  */
 const getPageGuides = (): Record<string, GuideData> => ({
+  "plg-builder": {
+    title: "PLG Builder Paradigm",
+    description:
+      "Build your product strategy before you even sign up. Experience the core value of NicheAI through a zero-friction entry, curate your insights, and unlock the Director Execution Phase.",
+    icon: <Sparkles size={28} />,
+    color: "text-amber-500",
+    bgGlow: "bg-amber-500/20",
+    capabilities: [
+      {
+        icon: <Wand2 size={20} />,
+        title: "Zero-Friction Entry",
+        desc: "Start with a Mad-Libs style constraint engine to define your product and audience immediately.",
+      },
+      {
+        icon: <MousePointerClick size={20} />,
+        title: "Simulated Highlighting",
+        desc: "Curate insights directly from market data by highlighting sentences that resonate with your strategy.",
+      },
+      {
+        icon: <CheckCircle2 size={20} />,
+        title: "Director Execution Phase",
+        desc: "Unlock the node graph pipeline to approve, reject, or revise AI-generated artifacts.",
+      },
+    ],
+    steps: [
+      "Define your product, audience, and value prop in the entry form.",
+      "Highlight key insights from the AI-generated market data to save them.",
+      "Sign in to unlock the Vault and begin reviewing architectural outputs in the Director phase.",
+    ],
+    proTip:
+      "Use the placeholder inputs in the comment box during the Director phase to easily send targeted revision constraints to the AI.",
+  },
   ideation: {
     title: "Unified Ideation Engine",
     description:

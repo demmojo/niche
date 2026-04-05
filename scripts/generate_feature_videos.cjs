@@ -422,6 +422,66 @@ async function run() {
   await context8.close();
   fs.renameSync(videoPath8, path.join(VIDEOS_DIR, 'head-to-head-comparison.webm'));
 
+  // Feature 12: PLG Builder Paradigm Journey
+  console.log('Recording PLG Builder Paradigm Journey...');
+  const context12 = await browser.newContext({
+    recordVideo: { dir: VIDEOS_DIR, size: { width: 1280, height: 720 } },
+    viewport: { width: 1280, height: 720 }
+  });
+  const page12 = await context12.newPage();
+  await mockAuth(page12);
+  
+  try {
+    // Start unauthenticated
+    await page12.goto(`http://localhost:3000/?mock_auth=false&demo_data=true`);
+    await page12.waitForSelector('#root', { state: 'visible', timeout: 15000 });
+    await page12.waitForTimeout(4000);
+    await dismissModals(page12);
+    await injectCursor(page12);
+    
+    // Fill Mad Libs
+    const inputs = page12.locator('input[type="text"]');
+    if (await inputs.count() >= 3) {
+      await humanClick(page12, inputs.nth(0));
+      await page12.keyboard.type("AI platform", { delay: 50 });
+      await humanClick(page12, inputs.nth(1));
+      await page12.keyboard.type("product managers", { delay: 50 });
+      await humanClick(page12, inputs.nth(2));
+      await page12.keyboard.type("validate ideas faster", { delay: 50 });
+      
+      const genBtn = page12.locator('button:has-text("Generate Idea")').first();
+      if (await genBtn.isVisible()) {
+        await humanClick(page12, genBtn);
+        await page12.waitForTimeout(4000); // Watch it generate and show market data
+      }
+    }
+    
+    // Simulate highlighting
+    const highlightableText = page12.locator('span[role="button"]').first();
+    if (await highlightableText.isVisible()) {
+        await humanClick(page12, highlightableText);
+        await page12.waitForTimeout(2000);
+    }
+
+    // Hit the Lock / PQL gate
+    const unlockBtn = page12.locator('button:has-text("Unlock Canvas")').first();
+    if (await unlockBtn.isVisible()) {
+        await humanClick(page12, unlockBtn);
+        await page12.waitForTimeout(1500); // Show modal
+        
+        const googleBtn = page12.locator('button:has-text("Continue with Google")').first();
+        if (await googleBtn.isVisible()) {
+            // Because we mocked auth, this should theoretically succeed or show error state
+            await humanClick(page12, googleBtn);
+            await page12.waitForTimeout(3000); // Watch it unlock and show the node graph
+        }
+    }
+  } catch (e) { console.error('Error in Feature 12:', e.message); }
+  
+  const videoPath12 = await page12.video().path();
+  await context12.close();
+  fs.renameSync(videoPath12, path.join(VIDEOS_DIR, 'plg-builder-journey.webm'));
+
   await browser.close();
   console.log('All feature videos recorded successfully to public/videos/');
 }

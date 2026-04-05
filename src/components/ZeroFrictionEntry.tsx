@@ -254,7 +254,73 @@ export function ZeroFrictionEntry({
           </div>
         )}
 
-        {(step === "input" || step === "error") && (
+        {(step === "input" || step === "error") && intent === "validate" && (
+          <form
+            action={handleAction}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const category = formData.get("category") as string;
+              const audience = formData.get("audience") as string;
+              const problem = formData.get("problem") as string;
+              const combinedIdea = `I want to build a ${category} for ${audience} that solves ${problem}.`;
+
+              // We'll mutate the FormData to pass our combined idea down
+              formData.set("idea", combinedIdea);
+              handleAction(formData);
+            }}
+            className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200 dot-grid-bg"
+          >
+            <div className="text-2xl text-ink-dark leading-loose font-medium text-left">
+              I want to build a{" "}
+              <input
+                type="text"
+                name="category"
+                placeholder="Category (e.g. CRM)"
+                className="inline-block w-48 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                required
+                autoFocus
+              />{" "}
+              for{" "}
+              <input
+                type="text"
+                name="audience"
+                placeholder="Audience (e.g. Plumbers)"
+                className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                required
+              />{" "}
+              that solves{" "}
+              <input
+                type="text"
+                name="problem"
+                placeholder="Problem (e.g. scheduling)"
+                className="inline-block w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                required
+              />
+              .
+            </div>
+
+            {step === "error" && (
+              <p
+                className="text-rose-500 mt-6 font-medium text-center"
+                role="alert"
+              >
+                {errorMessage}
+              </p>
+            )}
+
+            <div className="mt-8 flex justify-end">
+              <button
+                type="submit"
+                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md"
+              >
+                Validate Niche
+              </button>
+            </div>
+          </form>
+        )}
+
+        {(step === "input" || step === "error") && intent !== "validate" && (
           <form
             action={handleAction}
             onSubmit={(e) => {
@@ -267,13 +333,11 @@ export function ZeroFrictionEntry({
               type="text"
               name="idea"
               placeholder={
-                intent === "validate"
-                  ? "What are you thinking of building?"
-                  : intent === "analyze"
-                    ? "Which competitor or market do you want to analyze?"
-                    : "Paste a website URL (e.g. https://...)"
+                intent === "analyze"
+                  ? "Which competitor or market do you want to analyze?"
+                  : "Paste a website URL (e.g. https://...)"
               }
-              className="w-full text-2xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
+              className="w-full text-2xl p-6 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
               autoFocus
               required
             />

@@ -65,6 +65,12 @@ export async function checkAndIncrementAnonymousLimit(
   fingerprintHash: string,
   limit: number = 3,
 ): Promise<boolean> {
+  if (
+    process.env.BYPASS_ANONYMOUS_LIMITS === "true" &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    return true;
+  }
   const db = admin.firestore();
   const docRef = db.collection("anonymous_usage_limits").doc(fingerprintHash);
 
