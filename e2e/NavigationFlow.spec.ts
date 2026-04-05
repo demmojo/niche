@@ -32,6 +32,15 @@ test.describe("Dashboard and Main Navigation Flow", () => {
 
     // Wait for the app container to load instead of text
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
+    
+    // Attempt to dismiss onboarding modal if it appears
+    try {
+      const getStarted = page.getByRole("button", { name: "Get Started" });
+      await getStarted.waitFor({ state: "visible", timeout: 3000 });
+      await getStarted.click();
+    } catch {
+      // Guide didn't appear, safe to continue
+    }
   });
 
   test("user can navigate through all primary tabs", async ({ page }) => {

@@ -107,7 +107,15 @@ export function ZeroFrictionEntry({
     } catch (e: any) {
       console.error(e);
       setStep("error");
-      setErrorMessage(e.message || "Failed to sign in.");
+      
+      let errorMsg = e.message || "Failed to sign in.";
+      if (errorMsg.includes("auth/api-key-not-valid") || errorMsg.includes("mock-api-key")) {
+        errorMsg = "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
+      } else if (errorMsg.includes("auth/operation-not-allowed")) {
+        errorMsg = "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
+      }
+      
+      setErrorMessage(errorMsg);
     }
   };
 
