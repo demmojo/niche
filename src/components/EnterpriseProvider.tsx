@@ -28,7 +28,8 @@ export function EnterpriseProvider({
     if (
       !user ||
       (typeof window !== "undefined" &&
-        window.location.search.includes("mock_auth=true"))
+        (window.name === "playwright-test" ||
+          window.location.search.includes("mock_auth=true")))
     ) {
       return;
     }

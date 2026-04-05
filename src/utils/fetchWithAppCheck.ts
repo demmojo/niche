@@ -49,7 +49,8 @@ export const fetchWithAppCheck = async (
 
   const isMockAuth =
     typeof window !== "undefined" &&
-    window.location.search.includes("mock_auth=true");
+    (window.name === "playwright-test" ||
+      window.location.search.includes("mock_auth=true"));
   if (isMockAuth) {
     headers.set("Authorization", "Bearer MOCK_TOKEN");
   }

@@ -47,7 +47,8 @@ export function useBrandWizardJob(jobId: string | null) {
     if (
       !jobId ||
       (typeof window !== "undefined" &&
-        window.location.search.includes("mock_auth=true"))
+        (window.name === "playwright-test" ||
+          window.location.search.includes("mock_auth=true")))
     ) {
       setJob(null);
       setError(null);

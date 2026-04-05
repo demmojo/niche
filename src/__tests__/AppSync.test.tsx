@@ -302,7 +302,7 @@ describe("App System/Integration Tests", () => {
     });
 
     // Wait for it to render
-    await screen.findByRole("heading", { name: "Dashboard" });
+    await screen.findByRole("heading", { name: "Dashboard", level: 1 });
 
     // Click Sync Now
     const syncButtons = screen.getAllByRole("button", {

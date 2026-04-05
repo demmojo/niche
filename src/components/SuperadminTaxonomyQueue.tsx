@@ -21,7 +21,8 @@ export function SuperadminTaxonomyQueue() {
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      window.location.search.includes("mock_auth=true")
+      (window.name === "playwright-test" ||
+        window.location.search.includes("mock_auth=true"))
     ) {
       return;
     }

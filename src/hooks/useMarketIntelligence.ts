@@ -26,7 +26,8 @@ export function useMarketIntelligence<T>(
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      window.location.search.includes("mock_auth=true")
+      (window.name === "playwright-test" ||
+        window.location.search.includes("mock_auth=true"))
     ) {
       setState({ status: "success", data: [] });
       return;

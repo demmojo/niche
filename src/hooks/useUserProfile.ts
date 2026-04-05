@@ -19,7 +19,8 @@ export function useUserProfile() {
     // E2E Test mock profile hook
     if (
       typeof window !== "undefined" &&
-      window.location.search.includes("mock_auth=true")
+      (window.name === "playwright-test" ||
+        window.location.search.includes("mock_auth=true"))
     ) {
       if (window.location.search.includes("e2e_entry=true")) {
         setProfile(null);

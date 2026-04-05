@@ -38,7 +38,8 @@ export function ZeroFrictionEntry({
       if (!user) {
         if (
           typeof window !== "undefined" &&
-          window.location.search.includes("mock_auth=true")
+          (window.name === "playwright-test" ||
+            window.location.search.includes("mock_auth=true"))
         ) {
           console.log("Bypassing auth in test environment.");
         } else {
@@ -47,7 +48,14 @@ export function ZeroFrictionEntry({
         }
       }
 
-      if (user) {
+      if (
+        user &&
+        !(
+          typeof window !== "undefined" &&
+          (window.name === "playwright-test" ||
+            window.location.search.includes("mock_auth=true"))
+        )
+      ) {
         await setDoc(
           doc(db, "users", user.uid),
           { persona: selectedPersona },
@@ -80,7 +88,8 @@ export function ZeroFrictionEntry({
       if (!auth.currentUser) {
         if (
           typeof window !== "undefined" &&
-          window.location.search.includes("mock_auth=true")
+          (window.name === "playwright-test" ||
+            window.location.search.includes("mock_auth=true"))
         ) {
           console.log("Bypassing auth in test environment.");
         } else {
@@ -107,14 +116,19 @@ export function ZeroFrictionEntry({
     } catch (e: any) {
       console.error(e);
       setStep("error");
-      
+
       let errorMsg = e.message || "Failed to sign in.";
-      if (errorMsg.includes("auth/api-key-not-valid") || errorMsg.includes("mock-api-key")) {
-        errorMsg = "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
+      if (
+        errorMsg.includes("auth/api-key-not-valid") ||
+        errorMsg.includes("mock-api-key")
+      ) {
+        errorMsg =
+          "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
       } else if (errorMsg.includes("auth/operation-not-allowed")) {
-        errorMsg = "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
+        errorMsg =
+          "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
       }
-      
+
       setErrorMessage(errorMsg);
     }
   };

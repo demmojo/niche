@@ -781,6 +781,21 @@ export function useLocalStorage<T>(
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log(
+        "useLocalStorage useEffect running. URL:",
+        window.location.href,
+      );
+    }
+    // Skip remote sync if mock_auth or demo mode
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.name === "playwright-test" ||
+      window.location.search.includes("mock_auth=true")
+    ) {
+      return;
+    }
+
     const docRef = doc(db, "workspaces", WORKSPACE_ID, "appData", key);
 
     // Check if we have pending local changes to sync on mount
@@ -861,20 +876,31 @@ export function useLocalStorage<T>(
     const newValue =
       value instanceof Function ? value(stateRef.current) : value;
 
+    try {
+      window.localStorage.setItem(
+        `${WORKSPACE_ID}_${key}`,
+        JSON.stringify(newValue),
+      );
+      window.localStorage.setItem(dirtyKey, "true");
+    } catch (e) {}
+
+    // Skip remote sync if mock_auth or demo mode
+    if (
+      window.location.search.includes("demo_data=true") ||
+      window.name === "playwright-test" ||
+      window.location.search.includes("mock_auth=true")
+    ) {
+      setStoredValue(newValue);
+      stateRef.current = newValue;
+      return;
+    }
+
     // Debounce the Firebase write by 2 seconds to save quota
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
 
     syncTimeoutRef.current = setTimeout(() => {
-      try {
-        window.localStorage.setItem(
-          `${WORKSPACE_ID}_${key}`,
-          JSON.stringify(newValue),
-        );
-        window.localStorage.setItem(dirtyKey, "true");
-      } catch (e) {}
-
       const docRef = doc(db, "workspaces", WORKSPACE_ID, "appData", key);
       const firebaseValue =
         newValue === undefined ? null : JSON.parse(JSON.stringify(newValue));
@@ -942,6 +968,7 @@ export function useFirestoreDoc<T>(
     // Skip remote sync if demo mode is active
     if (
       window.location.search.includes("demo_data=true") ||
+      window.name === "playwright-test" ||
       window.location.search.includes("mock_auth=true")
     ) {
       return;
@@ -997,6 +1024,7 @@ export function useFirestoreDoc<T>(
 
     if (
       window.location.search.includes("demo_data=true") ||
+      window.name === "playwright-test" ||
       window.location.search.includes("mock_auth=true")
     ) {
       return;

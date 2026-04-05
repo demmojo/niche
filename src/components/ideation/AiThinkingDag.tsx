@@ -69,7 +69,8 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
       !jobId ||
       appState !== STATE_POLLING ||
       (typeof window !== "undefined" &&
-        window.location.search.includes("mock_auth=true"))
+        (window.name === "playwright-test" ||
+          window.location.search.includes("mock_auth=true")))
     ) {
       return;
     }
