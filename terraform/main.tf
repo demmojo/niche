@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -91,7 +95,7 @@ resource "google_cloud_run_v2_service" "web" {
     timeout                          = "300s"
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/core-app:latest"
+      image = var.image
 
       resources {
         limits = { cpu = "1000m", memory = "1024Mi" }
@@ -155,7 +159,7 @@ resource "google_cloud_run_v2_service" "worker" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/core-app:latest"
+      image = var.image
 
       resources {
         limits = { cpu = "1000m", memory = "2048Mi" } # 2GB baseline memory
