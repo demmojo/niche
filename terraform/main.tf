@@ -33,7 +33,9 @@ resource "google_service_account" "cloudrun_sa" {
 # Secret Manager Secrets
 resource "google_secret_manager_secret" "gemini_api_key" {
   secret_id = "gemini-api-key"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "gemini_api_key" {
   secret = google_secret_manager_secret.gemini_api_key.id
@@ -47,7 +49,9 @@ resource "google_secret_manager_secret_iam_member" "gemini_api_key_access" {
 
 resource "google_secret_manager_secret" "firebase_sa" {
   secret_id = "firebase-service-account"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "firebase_sa" {
   secret = google_secret_manager_secret.firebase_sa.id
