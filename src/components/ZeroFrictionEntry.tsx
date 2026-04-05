@@ -364,7 +364,7 @@ export function ZeroFrictionEntry({
                 disabled={isAuthenticating}
                 className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isAuthenticating ? "Authenticating..." : "Validate Niche"}
+                {isAuthenticating ? "Initializing engine..." : "Validate Niche"}
               </button>
             </div>
           </form>
@@ -416,7 +416,7 @@ export function ZeroFrictionEntry({
                 className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAuthenticating
-                  ? "Loading..."
+                  ? "Initializing engine..."
                   : intent === "analyze"
                     ? "Analyze"
                     : "Extract URL"}
