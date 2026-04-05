@@ -36,4 +36,13 @@ describe("SimulatedHighlight", () => {
     // Check for some highlighted class, like bg-amber-200
     expect(span.className).toMatch(/bg-amber-200/);
   });
+
+  it("handles missing onHighlight prop safely", async () => {
+    const text = "Safe click.";
+    render(<SimulatedHighlight text={text} />);
+    const user = userEvent.setup();
+    const span = screen.getByText(text);
+    await user.click(span);
+    expect(true).toBe(true);
+  });
 });

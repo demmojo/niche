@@ -18,4 +18,26 @@ describe("SimulatedHighlightText", () => {
     fireEvent.click(sentences[0]);
     expect(onHighlight).toHaveBeenCalledWith("This is sentence one.");
   });
+
+  it("allows keyboard interaction and toggling", () => {
+    const onHighlight = vi.fn();
+    render(
+      <SimulatedHighlightText
+        text="Single sentence without punctuation"
+        onHighlight={onHighlight}
+      />,
+    );
+
+    const sentences = screen.getAllByRole("button");
+    expect(sentences).toHaveLength(1);
+
+    fireEvent.keyDown(sentences[0], { key: "Enter" });
+    expect(onHighlight).toHaveBeenCalledWith(
+      "Single sentence without punctuation",
+    );
+
+    // Toggle off
+    fireEvent.keyDown(sentences[0], { key: " " });
+    expect(onHighlight).toHaveBeenCalledTimes(1); // Not called again on toggle off
+  });
 });

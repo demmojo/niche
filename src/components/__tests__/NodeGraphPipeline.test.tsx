@@ -27,4 +27,22 @@ describe("NodeGraphPipeline", () => {
     const approveBtn = screen.getByText("Approve");
     expect(approveBtn).toHaveClass("bg-[#E3FF00]");
   });
+
+  it("transitions to MASTER state when Approve is clicked", async () => {
+    const { userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    render(<NodeGraphPipeline isLocked={false} />);
+
+    expect(
+      screen.getByText(/The AI breaks features into atomic phases/i),
+    ).toBeInTheDocument();
+
+    const approveBtn = screen.getByText("Approve");
+    await user.click(approveBtn);
+
+    // After approval, the NOVICE text should disappear
+    expect(
+      screen.queryByText(/The AI breaks features into atomic phases/i),
+    ).not.toBeInTheDocument();
+  });
 });

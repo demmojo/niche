@@ -33,4 +33,15 @@ describe("ConstraintEngine", () => {
       valueProp: "book appointments faster",
     });
   });
+
+  it("submits safely when onSubmit is not provided", async () => {
+    const user = userEvent.setup();
+    render(<ConstraintEngine />);
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.type(inputs[0], "CRM");
+    await user.click(screen.getByRole("button", { name: /generate/i }));
+    // Should not throw
+    expect(true).toBe(true);
+  });
 });

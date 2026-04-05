@@ -7,6 +7,35 @@ import * as firebaseAuth from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 
+vi.mock("../../components/TrustBuilderScreen", () => ({
+  TrustBuilderScreen: ({ ideaPayload, onComplete }: any) => (
+    <div data-testid="mock-trust-builder">
+      <button
+        onClick={() =>
+          onComplete({
+            isTarpit: true,
+            suggestedNiches: ["A better niche CRM"],
+          })
+        }
+      >
+        Complete Trust Builder
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("../../components/URLTeaserScreen", () => ({
+  URLTeaserScreen: ({ url, onComplete }: any) => (
+    <div data-testid="url-teaser-screen">
+      <button
+        onClick={() => onComplete({ orthogonal_pivots: ["Pivot from URL"] })}
+      >
+        Complete URL Teaser
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock("firebase/auth", async () => {
   const actual = await vi.importActual("firebase/auth");
   return {
@@ -128,6 +157,127 @@ describe("ZeroFrictionEntry", () => {
       screen.getByPlaceholderText(
         "Which competitor or market do you want to analyze?",
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("Path C (URL): selects url intent and proceeds", async () => {
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    const urlBtn = screen.getByText("I have a Website");
+    await user.click(urlBtn);
+
+    expect(
+      screen.getByPlaceholderText("Paste a website URL (e.g. https://...)"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows error if form is submitted empty", async () => {
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    await user.click(screen.getByText("I have a Website"));
+    // Try to submit the empty form by firing submit directly on the input if hidden button
+    const form = screen
+      .getByPlaceholderText("Paste a website URL (e.g. https://...)")
+      .closest("form");
+    fireEvent.submit(form!);
+
+    expect(
+      await screen.findByText("Please enter some text."),
+    ).toBeInTheDocument();
+  });
+
+  it("submits the URL form successfully", async () => {
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    await user.click(screen.getByText("I have a Website"));
+    const input = screen.getByPlaceholderText(
+      "Paste a website URL (e.g. https://...)",
+    );
+    await user.type(input, "https://example.com");
+    const form = input.closest("form");
+    fireEvent.submit(form!);
+
+    // Should move to analyzing step, which renders URLTeaserScreen
+    const teaser = await screen.findByTestId("url-teaser-screen");
+    expect(teaser).toBeInTheDocument();
+
+    await user.click(screen.getByText("Complete URL Teaser"));
+    expect(await screen.findByText("Your Validated Idea")).toBeInTheDocument();
+  });
+
+  it("submits the Founder form successfully and completes flow", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(<ZeroFrictionEntry onComplete={onComplete} />);
+
+    await user.click(screen.getByText("I'm a Founder"));
+
+    const catInput = screen.getByPlaceholderText("Category (e.g. CRM)");
+    const audInput = screen.getByPlaceholderText("Audience (e.g. Plumbers)");
+    const probInput = screen.getByPlaceholderText("Problem (e.g. scheduling)");
+
+    await user.type(catInput, "App");
+    await user.type(audInput, "Users");
+    await user.type(probInput, "Issues");
+
+    await user.click(screen.getByRole("button", { name: "Validate Niche" }));
+
+    const builder = await screen.findByTestId("mock-trust-builder");
+    expect(builder).toBeInTheDocument();
+
+    await user.click(screen.getByText("Complete Trust Builder"));
+
+    expect(await screen.findByText("Your Validated Idea")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Generate Full Campaign" }),
+    );
+
+    expect(onComplete).toHaveBeenCalled();
+  });
+
+  it("shows error when auth fails", async () => {
+    vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
+      new Error("auth/operation-not-allowed"),
+    );
+
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    await user.click(screen.getByText("I have a Website"));
+    const input = screen.getByPlaceholderText(
+      "Paste a website URL (e.g. https://...)",
+    );
+    await user.type(input, "https://example.com");
+    const form = input.closest("form");
+    fireEvent.submit(form!);
+
+    expect(
+      await screen.findByText(/Anonymous Authentication is not enabled/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows API key error when auth fails with api-key-not-valid", async () => {
+    vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
+      new Error("auth/api-key-not-valid"),
+    );
+
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    await user.click(screen.getByText("I have a Website"));
+    const input = screen.getByPlaceholderText(
+      "Paste a website URL (e.g. https://...)",
+    );
+    await user.type(input, "https://example.com");
+    const form = input.closest("form");
+    fireEvent.submit(form!);
+
+    expect(
+      await screen.findByText(/Firebase API Key is missing or invalid/),
     ).toBeInTheDocument();
   });
 });

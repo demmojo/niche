@@ -98,7 +98,60 @@ describe("WorkspaceProvider", () => {
       "test insight",
     );
 
+    // Adding duplicate insight
+    await user.click(screen.getByText("Add Insight"));
+    expect(screen.getByTestId("insights-count")).toHaveTextContent("1");
+
     await user.click(screen.getByText("Remove Insight"));
     expect(screen.getByTestId("insights-count")).toHaveTextContent("0");
+  });
+
+  it("handles missing user on mount", () => {
+    (useAuth as any).mockReturnValue({ user: null });
+    render(
+      <WorkspaceProvider>
+        <TestComponent />
+      </WorkspaceProvider>,
+    );
+    expect(screen.getByTestId("isLoading")).toHaveTextContent("false");
+  });
+
+  it("handles throwing hooks when used outside provider", () => {
+    const ErrorWS = () => {
+      useWorkspace();
+      return null;
+    };
+    const ErrorWSD = () => {
+      useWorkspaceDispatch();
+      return null;
+    };
+    const ErrorWSL = () => {
+      useWorkspaceLoading();
+      return null;
+    };
+    const ErrorI = () => {
+      useInsights();
+      return null;
+    };
+    const ErrorID = () => {
+      useInsightsDispatch();
+      return null;
+    };
+
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => render(<ErrorWS />)).toThrow(/useWorkspace must be used/);
+    expect(() => render(<ErrorWSD />)).toThrow(
+      /useWorkspaceDispatch must be used/,
+    );
+    expect(() => render(<ErrorWSL />)).toThrow(
+      /useWorkspaceLoading must be used/,
+    );
+    expect(() => render(<ErrorI />)).toThrow(/useInsights must be used/);
+    expect(() => render(<ErrorID />)).toThrow(
+      /useInsightsDispatch must be used/,
+    );
+
+    spy.mockRestore();
   });
 });

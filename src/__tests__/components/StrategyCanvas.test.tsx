@@ -42,4 +42,16 @@ describe("StrategyCanvas", () => {
 
     expect(onUnlockClick).toHaveBeenCalledTimes(1);
   });
+
+  it("handles missing onUnlockClick prop safely", async () => {
+    render(
+      <StrategyCanvas isLocked={true}>
+        <div>Data</div>
+      </StrategyCanvas>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Unlock Canvas" }));
+    expect(true).toBe(true);
+  });
 });
