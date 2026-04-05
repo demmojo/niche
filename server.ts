@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { createServer as createViteServer } from "vite";
+import type { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
 import { requireAuth } from "./src/server/authMiddleware";
@@ -53,7 +53,7 @@ if (process.env.NODE_ENV !== "test") {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || "3000", 10);
 
   app.use(express.json());
 
@@ -889,7 +889,8 @@ async function startServer() {
     process.env.NODE_ENV !== "production" &&
     process.env.NODE_ENV !== "test"
   ) {
-    const vite = await createViteServer({
+    const { createServer } = await import("vite");
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });

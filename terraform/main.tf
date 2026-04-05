@@ -291,7 +291,7 @@ resource "google_compute_network" "crawler_vpc" {
 
 resource "google_compute_subnetwork" "crawler_subnet" {
   name          = "crawler-subnet"
-  ip_cidr_range = "10.0.0.0/28"
+  ip_cidr_range = "10.0.0.0/24"
   region        = var.region
   network       = google_compute_network.crawler_vpc.id
   purpose       = "PRIVATE"
@@ -305,7 +305,7 @@ resource "google_compute_router" "crawler_router" {
 
 # Pool of 50 static IPs for the crawler to prevent bot-bans
 resource "google_compute_address" "crawler_ips" {
-  count  = 50
+  count  = 4
   name   = "crawler-ip-${count.index}"
   region = var.region
 }
