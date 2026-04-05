@@ -25,7 +25,7 @@ test.describe("API Usage Limits and Settings Flow", () => {
     );
 
     // Start with blank page to prevent invalid URL navigations during rapid testing
-    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
+    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder`);
 
     // Wait for the app container to load
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });

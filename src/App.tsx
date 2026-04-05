@@ -1024,6 +1024,13 @@ export default function App() {
   ) {
     const isUserRole = window.location.search.includes("role=user");
     const mockEmail = isUserRole ? "user@example.com" : "mo.hassaniv@gmail.com";
+    
+    // We can also mock a profile load via localstorage for E2E testing
+    const mockProfilePersona = window.location.search.includes("persona=enterprise") ? "enterprise_pm" : "solo_founder";
+    if (typeof window !== "undefined") {
+      (window as any).__mock_profile_persona = mockProfilePersona;
+    }
+    
     return (
       <WorkspaceProvider>
         <WorkspaceRouter

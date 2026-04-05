@@ -28,7 +28,7 @@ test.describe("Data Sync Review Flow", () => {
       },
     ]);
 
-    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true`);
+    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder`);
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
   });
 

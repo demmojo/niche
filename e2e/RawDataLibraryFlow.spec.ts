@@ -47,7 +47,7 @@ test.describe("Raw Data Library and Upload Flow", () => {
 
     // Navigate with mock_auth parameters bypassing Firebase entirely
     await page.goto(
-      `http://localhost:3000/?w=${wid}&mock_auth=true&demo_data=true`,
+      `http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder&demo_data=true`,
     );
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
 

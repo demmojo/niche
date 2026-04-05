@@ -16,6 +16,14 @@ export function useUserProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // E2E Test mock profile hook
+    if (typeof window !== "undefined" && window.location.search.includes("mock_auth=true")) {
+       const mockPersona = (window as any).__mock_profile_persona || "solo_founder";
+       setProfile({ persona: mockPersona });
+       setLoading(false);
+       return;
+    }
+
     if (!user) {
       setProfile(null);
       setLoading(false);
