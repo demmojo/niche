@@ -33,23 +33,6 @@ if (!admin.apps?.length) {
     } else {
       admin.initializeApp(projectId ? { projectId } : undefined);
     }
-    // #region agent log
-    fetch("http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "6929b7",
-      },
-      body: JSON.stringify({
-        sessionId: "6929b7",
-        location: "authMiddleware.ts",
-        message: "Firebase Admin initialized",
-        data: { projectId: admin.app().options.projectId },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
-    // #endregion
   } catch (e) {
     console.warn("Firebase Admin Initialization Warning:", e);
   }
@@ -78,24 +61,6 @@ export const requireAuth = async (
 
   const idToken = authHeader.split("Bearer ")[1];
 
-  // #region agent log
-  fetch("http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "6929b7",
-    },
-    body: JSON.stringify({
-      sessionId: "6929b7",
-      location: "authMiddleware.ts:requireAuth",
-      message: "Parsed idToken",
-      data: { idToken },
-      timestamp: Date.now(),
-      hypothesisId: "H3",
-    }),
-  }).catch(() => {});
-  // #endregion
-
   // Handle Playwright tests specifically
   if (idToken === "MOCK_TOKEN") {
     req.user = {
@@ -114,23 +79,6 @@ export const requireAuth = async (
     req.user = decodedToken;
     next();
   } catch (error: any) {
-    // #region agent log
-    fetch("http://127.0.0.1:7755/ingest/98d2df09-f5ab-4d4c-9948-722cbac3f53f", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "6929b7",
-      },
-      body: JSON.stringify({
-        sessionId: "6929b7",
-        location: "authMiddleware.ts:requireAuth",
-        message: "Token verification failed",
-        data: { idToken, error: error.message, code: error.code },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
-    // #endregion
     console.error("Firebase Auth Error:", error.code || error.message);
 
     // Robust Error Handling based on specific Admin SDK error codes
@@ -161,17 +109,17 @@ export const requireAppCheck = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const appCheckToken = req.headers["x-firebase-appcheck"];
-
-  // Bypass App Check in local development or emulator environments
   if (
     process.env.NODE_ENV !== "production" ||
     process.env.FIREBASE_AUTH_EMULATOR_HOST ||
     process.env.FIRESTORE_EMULATOR_HOST ||
-    process.env.VITEST
+    process.env.VITEST ||
+    process.env.ENFORCE_APP_CHECK !== "true"
   ) {
     return next();
   }
+
+  const appCheckToken = req.headers["x-firebase-appcheck"];
 
   if (!appCheckToken || typeof appCheckToken !== "string") {
     return res.status(401).json({
@@ -181,7 +129,7 @@ export const requireAppCheck = async (
   }
 
   try {
-    const appCheckClaims = await admin.appCheck().verifyToken(appCheckToken);
+    await admin.appCheck().verifyToken(appCheckToken);
     return next();
   } catch (err: any) {
     console.error("App Check failed:", err);
