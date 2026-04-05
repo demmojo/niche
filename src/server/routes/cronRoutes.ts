@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { requireInternalOidc } from "../internalAuthMiddleware";
-import admin from "firebase-admin";
+import * as admin from "firebase-admin";
 
 import { runTarpitClustering } from "../../services/tarpitFlywheel";
 
@@ -22,6 +22,7 @@ cronRouter.post("/tarpit-clustering", async (req: Request, res: Response) => {
 // Taxonomy Merge Outbox Cron Route (Replacing 10s setInterval)
 // Cloud Scheduler triggers this instead of polling loop
 import { processTaxonomyOutboxJobs } from "../workers/taxonomyPiscinaWorker";
+import { processDataQualitySync } from "../workers/dataQualitySyncWorker";
 
 cronRouter.post("/taxonomy-merge", async (req: Request, res: Response) => {
   try {
@@ -29,6 +30,18 @@ cronRouter.post("/taxonomy-merge", async (req: Request, res: Response) => {
     return res.status(200).json({ success: true });
   } catch (error: any) {
     console.error("Taxonomy merge cron failed:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Data Quality Dashboard Sync
+// Triggered daily via Cloud Scheduler to pre-aggregate BQ metrics
+cronRouter.post("/data-quality-sync", async (req: Request, res: Response) => {
+  try {
+    const payload = await processDataQualitySync();
+    return res.status(200).json({ success: true, data: payload });
+  } catch (error: any) {
+    console.error("Data quality sync failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });

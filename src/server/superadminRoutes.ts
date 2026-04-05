@@ -39,6 +39,37 @@ export const requireSuperadmin = async (
 };
 
 // Get Recent Active Users
+superadminRouter.post(
+  "/pipeline/toggle-pause",
+  requireAuth,
+  requireSuperadmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { is_paused } = req.body;
+      if (typeof is_paused !== "boolean") {
+        return res.status(400).json({ error: "is_paused must be a boolean" });
+      }
+
+      const db = admin.firestore();
+      await db.collection("config").doc("pipeline_state").set(
+        {
+          is_paused,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      return res.status(200).json({ success: true, is_paused });
+    } catch (error) {
+      console.error("Failed to toggle pipeline pause state:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to toggle pipeline pause state" });
+    }
+  },
+);
+
+// Get Recent Active Users
 superadminRouter.get(
   "/users",
   requireAuth,

@@ -4,6 +4,7 @@ import * as crypto from "crypto";
 import { Command } from "commander";
 import { z } from "zod";
 import { enqueueTask } from "../src/server/cloudTasks.js";
+import admin from "firebase-admin";
 
 // Minimal presenter mimicking TerminalPresenter to avoid TS errors
 class TerminalPresenter {
@@ -172,6 +173,19 @@ async function main() {
   presenter.log(`Found ${urls.length} URLs. Dispatching...`);
 
   try {
+    if (!admin.apps.length) {
+      admin.initializeApp({ projectId: config.projectId });
+    }
+    const db = admin.firestore();
+    const pipelineState = await db
+      .collection("config")
+      .doc("pipeline_state")
+      .get();
+    if (pipelineState.exists && pipelineState.data()?.is_paused === true) {
+      presenter.fail("Pipeline is currently paused. Halting enqueue.");
+      return;
+    }
+
     // For the actual execution, we provide an adapter to `enqueueTask`
     const realCreateTask = async (request: any) => {
       if (config.dryRun) {

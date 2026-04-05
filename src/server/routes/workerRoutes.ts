@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { requireInternalOidc } from "../internalAuthMiddleware";
 import admin from "firebase-admin";
 
@@ -10,6 +10,21 @@ import { runDeepValidationCampaign } from "../workers/validationCampaignWorker";
 export const workerRouter = Router();
 
 workerRouter.use(requireInternalOidc);
+
+// Intercept requests and check if pipeline is paused
+workerRouter.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const db = admin.firestore();
+    const stateDoc = await db.collection("config").doc("pipeline_state").get();
+    if (stateDoc.exists && stateDoc.data()?.is_paused === true) {
+      return res.status(503).json({ error: "Pipeline is paused" });
+    }
+    next();
+  } catch (error) {
+    console.error("Error checking pipeline state:", error);
+    next();
+  }
+});
 
 // Validation Campaign Worker Route
 workerRouter.post(

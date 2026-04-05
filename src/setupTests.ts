@@ -11,6 +11,47 @@ import { testVisualKnowledgeStore } from "./store/visualKnowledgeStore";
 
 process.env.GEMINI_API_KEY = "test-mock-key";
 
+vi.mock("firebase/firestore", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    getFirestore: vi.fn(() => ({})),
+    collection: vi.fn(),
+    doc: vi.fn(),
+    getDoc: vi.fn(),
+    getDocs: vi.fn(),
+    setDoc: vi.fn(),
+    updateDoc: vi.fn(),
+    deleteDoc: vi.fn(),
+    query: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    startAfter: vi.fn(),
+    writeBatch: vi.fn(() => ({
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn(),
+    })),
+    onSnapshot: vi.fn(),
+    Timestamp: {
+      now: vi.fn(() => ({
+        toMillis: () => Date.now(),
+        toDate: () => new Date(),
+        seconds: Math.floor(Date.now() / 1000),
+        nanoseconds: 0,
+      })),
+      fromDate: vi.fn((date: Date) => ({
+        toMillis: () => date.getTime(),
+        toDate: () => date,
+        seconds: Math.floor(date.getTime() / 1000),
+        nanoseconds: 0,
+      })),
+    },
+  };
+});
+
 expect.extend(matchers);
 
 const initialVisualKnowledgeState = testVisualKnowledgeStore.getState();

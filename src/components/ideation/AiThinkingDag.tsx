@@ -121,7 +121,11 @@ export const AiThinkingDag: React.FC<AiThinkingDagProps> = ({
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
   }, [jobId, appState, competitorsCount, onComplete]);
 
   return (

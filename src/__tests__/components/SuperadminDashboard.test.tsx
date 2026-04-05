@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "../../test-utils/render";
+import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import { describe, it, expect, vi } from "vitest";
 import { SuperadminDashboard } from "../../components/SuperadminDashboard";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
@@ -13,6 +13,8 @@ vi.mock("firebase/firestore", () => ({
   query: vi.fn(),
   orderBy: vi.fn(),
   getDocs: vi.fn(),
+  doc: vi.fn(),
+  onSnapshot: vi.fn(() => vi.fn()),
 }));
 
 describe("SuperadminDashboard", () => {
@@ -26,9 +28,6 @@ describe("SuperadminDashboard", () => {
       docs: [
         {
           id: "1",
-          /**
-           *
-           */
           data: () => ({
             type: "Bug",
             message: "test bug",
@@ -42,7 +41,13 @@ describe("SuperadminDashboard", () => {
     render(<SuperadminDashboard isSuperadmin={true} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Alpha Feedback Dashboard")).toBeInTheDocument();
+      expect(screen.getByText("Alpha Feedback")).toBeInTheDocument();
+    });
+
+    // Click the "Alpha Feedback" tab first to reveal its content
+    fireEvent.click(screen.getByText("Alpha Feedback"));
+
+    await waitFor(() => {
       expect(screen.getByText("test bug")).toBeInTheDocument();
     });
   });
@@ -53,6 +58,13 @@ describe("SuperadminDashboard", () => {
     });
 
     render(<SuperadminDashboard isSuperadmin={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alpha Feedback")).toBeInTheDocument();
+    });
+
+    // Click the "Alpha Feedback" tab first to reveal its content
+    fireEvent.click(screen.getByText("Alpha Feedback"));
 
     await waitFor(() => {
       expect(

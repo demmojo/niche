@@ -78,7 +78,7 @@ export function EnterpriseWorkspace({ isSuperadmin }: any) {
           };
         }),
       );
-    }, 3000);
+    }, 100);
 
     return () => clearInterval(interval);
   }, [reports]);

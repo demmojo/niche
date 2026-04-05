@@ -115,7 +115,11 @@ export function hashString(str: string): string {
  *
  */
 export function getAllSpecs(
-  baseDirs: string[] = ["openspec/changes", "openspec/archive"],
+  baseDirs: string[] = [
+    "openspec/changes",
+    "openspec/archive",
+    "openspec/archive/changes",
+  ],
 ): ParsedSpec[] {
   const specs: ParsedSpec[] = [];
 
