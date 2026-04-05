@@ -68,7 +68,9 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
             execution.
           </p>
           {error && (
-            <p className="text-rose-600 mt-2 text-sm font-medium">{error}</p>
+            <p className="text-rose-600 mt-2 text-sm font-medium" role="alert">
+              {error}
+            </p>
           )}
           <button
             onClick={handleUnlockClick}

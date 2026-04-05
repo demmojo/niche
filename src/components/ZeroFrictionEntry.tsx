@@ -22,8 +22,8 @@ export interface CompletePayload {
   name: string;
   description: string;
   targetRegions: string[];
-  features: any[];
-  strategy: any[];
+  features: unknown[];
+  strategy: unknown[];
   jobId: string | null;
   visibility: string;
 }
@@ -186,8 +186,9 @@ export function ZeroFrictionEntry({
       const category = formData.get("category") as string;
       const audience = formData.get("audience") as string;
       const problem = formData.get("problem") as string;
-      if (category && audience && problem) {
-        inputValue = `I want to build a ${category} for ${audience} that solves ${problem}.`;
+      const channel = formData.get("channel") as string;
+      if (category && audience && problem && channel) {
+        inputValue = `I want to build a ${category} for ${audience} that solves ${problem}, reaching them through ${channel}.`;
       }
     }
 
@@ -246,8 +247,15 @@ export function ZeroFrictionEntry({
     }
   };
 
-  const handleValidationComplete = (data: any, currentPayload: any) => {
-    let finalIdea = currentPayload.productDescription;
+  const handleValidationComplete = (
+    data: {
+      isTarpit?: boolean;
+      suggestedNiches?: string[];
+      tarpitReason?: string;
+    },
+    currentPayload: IdeaPayload,
+  ) => {
+    let finalIdea = currentPayload.productDescription || "";
     setOriginalIdea(finalIdea);
     if (
       data.isTarpit &&
@@ -297,13 +305,15 @@ export function ZeroFrictionEntry({
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]">
         <div className="w-full max-w-2xl px-4 text-center">
           <h2 className="text-3xl font-serif font-bold text-ink-dark mb-6">
-            {tarpitData?.isTarpit ? "Pivot Recommended" : "Your Validated Idea"}
+            {tarpitData?.isTarpit
+              ? "Tarpit Detected: Pivot Recommended"
+              : "Your Validated Idea"}
           </h2>
 
           {tarpitData?.isTarpit && (
             <div className="bg-rose-50 text-rose-800 p-4 rounded-xl border border-rose-200 mb-6 text-left text-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
               <span className="font-bold block mb-1">
-                Tarpit Detected: {originalIdea}
+                Your Idea: {originalIdea}
               </span>
               {tarpitData.reason}
             </div>
@@ -312,31 +322,58 @@ export function ZeroFrictionEntry({
           <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/10 mb-8 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
             {tarpitData?.isTarpit && (
               <div className="text-xs font-bold text-ink-dark/40 uppercase mb-2">
-                Suggested Niche
+                Suggested Alternate Niche
               </div>
             )}
             <p className="text-xl text-ink-dark leading-relaxed">
               {pivotedIdea}
             </p>
           </div>
-          <button
-            disabled={isProceeding}
-            onClick={() => {
-              setIsProceeding(true);
-              onComplete({
-                name: "My AI Idea",
-                description: pivotedIdea,
-                targetRegions: ["Global"],
-                features: [],
-                strategy: [],
-                jobId: null,
-                visibility: "shared",
-              });
-            }}
-            className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg disabled:opacity-50 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both"
-          >
-            {isProceeding ? "Connecting to Canvas..." : "Enter Strategy Canvas"}
-          </button>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
+            {tarpitData?.isTarpit && (
+              <button
+                disabled={isProceeding}
+                onClick={() => {
+                  setIsProceeding(true);
+                  onComplete({
+                    name: "My Original Idea",
+                    description: originalIdea || "",
+                    targetRegions: ["Global"],
+                    features: [],
+                    strategy: [],
+                    jobId: null,
+                    visibility: "shared",
+                  });
+                }}
+                className="px-6 py-3 text-ink-dark bg-white border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50 w-full sm:w-auto"
+              >
+                Proceed with Original Idea
+              </button>
+            )}
+            <button
+              disabled={isProceeding}
+              onClick={() => {
+                setIsProceeding(true);
+                onComplete({
+                  name: "My AI Idea",
+                  description: pivotedIdea,
+                  targetRegions: ["Global"],
+                  features: [],
+                  strategy: [],
+                  jobId: null,
+                  visibility: "shared",
+                });
+              }}
+              className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg disabled:opacity-50 w-full sm:w-auto"
+            >
+              {isProceeding
+                ? "Connecting to Canvas..."
+                : tarpitData?.isTarpit
+                  ? "Proceed with Pivot"
+                  : "Enter Strategy Canvas"}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -415,6 +452,16 @@ export function ZeroFrictionEntry({
                 name="problem"
                 aria-label="Core Problem"
                 placeholder="Problem (e.g. scheduling)"
+                className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
+                required
+                disabled={isAuthenticating}
+              />
+              , reaching them through{" "}
+              <input
+                type="text"
+                name="channel"
+                aria-label="Distribution Channel"
+                placeholder="Channel (e.g. cold email)"
                 className="inline-block flex-1 min-w-[150px] max-w-full sm:w-64 text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors px-2 py-1 mx-2"
                 required
                 disabled={isAuthenticating}

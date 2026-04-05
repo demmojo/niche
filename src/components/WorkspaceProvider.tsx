@@ -95,12 +95,17 @@ export function initializeWorkspaceId(syncUrl: boolean = true) {
       safeStorageSet("nicheai_workspace_id", wid);
     }
     if (syncUrl) {
-      urlParams.set("w", wid);
-      window.history.replaceState(
-        {},
-        "",
-        `${window.location.pathname}?${urlParams.toString()}`,
-      );
+      setTimeout(() => {
+        const newUrlParams = new URLSearchParams(window.location.search);
+        if (newUrlParams.get("w") !== wid) {
+          newUrlParams.set("w", wid);
+          window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}?${newUrlParams.toString()}`,
+          );
+        }
+      }, 0);
     }
   }
   return wid;

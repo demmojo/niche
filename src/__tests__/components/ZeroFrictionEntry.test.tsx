@@ -218,10 +218,12 @@ describe("ZeroFrictionEntry", () => {
     const catInput = screen.getByPlaceholderText("Category (e.g. CRM)");
     const audInput = screen.getByPlaceholderText("Audience (e.g. Plumbers)");
     const probInput = screen.getByPlaceholderText("Problem (e.g. scheduling)");
+    const chanInput = screen.getByPlaceholderText("Channel (e.g. cold email)");
 
     await user.type(catInput, "App");
     await user.type(audInput, "Users");
     await user.type(probInput, "Issues");
+    await user.type(chanInput, "Ads");
 
     await user.click(screen.getByRole("button", { name: "Validate Niche" }));
 
@@ -230,10 +232,12 @@ describe("ZeroFrictionEntry", () => {
 
     await user.click(screen.getByText("Complete Trust Builder"));
 
-    expect(await screen.findByText("Pivot Recommended")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Tarpit Detected: Pivot Recommended"),
+    ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Enter Strategy Canvas" }),
+      screen.getByRole("button", { name: "Proceed with Pivot" }),
     );
 
     expect(onComplete).toHaveBeenCalled();

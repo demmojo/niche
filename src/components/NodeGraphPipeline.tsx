@@ -66,6 +66,8 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
   // Phase 02: Staggered Logs state
   const [currentLogIndex, setCurrentLogIndex] = useState(0);
 
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (isDrafting) {
@@ -74,32 +76,51 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
         setCurrentLogIndex((prev) => Math.min(prev + 1, DRAFT_LOGS.length - 1));
       }, 500);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isDrafting]);
 
   const handleRevise = () => {
     startReviseTransition(async () => {
-      // Simulate AI generation
-      await new Promise((res) => setTimeout(res, 2000));
-      if (!isMounted.current) return;
-      setSchemaVersion(1);
-      setShowDiff(true);
-      if (revisionText) {
-        setRevisionHistory((prev) => [...prev, revisionText]);
+      setRevisionError(null);
+      try {
+        // Simulate AI generation
+        await new Promise((res, rej) => {
+          // Simulate occasional error for robustness if desired, but default to success
+          setTimeout(res, 2000);
+        });
+        if (!isMounted.current) return;
+        setSchemaVersion(1);
+        setShowDiff(true);
+        if (revisionText) {
+          setRevisionHistory((prev) => [...prev, revisionText]);
+        }
+        setRevisionText("");
+      } catch (err: unknown) {
+        if (!isMounted.current) return;
+        setRevisionError("Failed to generate revision. Please try again.");
       }
-      setRevisionText("");
     });
   };
 
   const handleApprovePhase1 = () => {
+    setRevisionError(null);
     setPipelineState(PipelineState.MASTER);
     setActivePhase(Phase.API);
 
     startDraftTransition(async () => {
-      // Simulate drafting Phase 2
-      await new Promise((res) => setTimeout(res, 2500));
-      if (!isMounted.current) return;
-      setPipelineState(PipelineState.COMPLETED);
+      try {
+        // Simulate drafting Phase 2
+        await new Promise((res) => setTimeout(res, 2500));
+        if (!isMounted.current) return;
+        setPipelineState(PipelineState.COMPLETED);
+      } catch (err: unknown) {
+        if (!isMounted.current) return;
+        setRevisionError("Failed to draft Phase 02. Please restart.");
+        setPipelineState(PipelineState.NOVICE);
+        setActivePhase(Phase.SCHEMA);
+      }
     });
   };
 
@@ -321,31 +342,43 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                 className="w-full bg-slate-50 border border-slate-200 rounded p-3 text-sm text-ink-dark focus:border-ink-dark outline-none transition-colors"
                 disabled={isRevising}
               />
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={handleReject}
-                  disabled={isRevising}
-                  className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors text-ink-dark/70 disabled:opacity-50"
-                >
-                  <X className="w-4 h-4" /> Reject
-                </button>
-                <button
-                  disabled={!revisionText || isRevising}
-                  onClick={handleRevise}
-                  className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded hover:bg-slate-100 transition-colors text-ink-dark/70 disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${isRevising ? "animate-spin" : ""}`}
-                  />
-                  {isRevising ? "Revising..." : "Revise"}
-                </button>
-                <button
-                  disabled={isRevising}
-                  onClick={handleApprovePhase1}
-                  className="flex items-center gap-2 px-6 py-2 bg-ink-dark text-white font-bold rounded hover:bg-black transition-colors disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4" /> Approve
-                </button>
+              <div className="flex gap-3 justify-between items-center">
+                {revisionError ? (
+                  <span
+                    className="text-sm text-rose-600 font-medium"
+                    role="alert"
+                  >
+                    {revisionError}
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleReject}
+                    disabled={isRevising}
+                    className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors text-ink-dark/70 disabled:opacity-50"
+                  >
+                    <X className="w-4 h-4" /> Reject
+                  </button>
+                  <button
+                    disabled={!revisionText || isRevising}
+                    onClick={handleRevise}
+                    className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded hover:bg-slate-100 transition-colors text-ink-dark/70 disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 ${isRevising ? "animate-spin" : ""}`}
+                    />
+                    {isRevising ? "Revising..." : "Revise"}
+                  </button>
+                  <button
+                    disabled={isRevising}
+                    onClick={handleApprovePhase1}
+                    className="flex items-center gap-2 px-6 py-2 bg-ink-dark text-white font-bold rounded hover:bg-black transition-colors disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" /> Approve
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
