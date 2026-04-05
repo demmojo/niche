@@ -34,9 +34,14 @@ describe("useFirebaseSync", () => {
     vi.mocked(doc).mockReturnValue("mock-doc-ref" as any);
 
     vi.mocked(onSnapshot).mockImplementation(
-      (_docRef: any, onNext: any, onError: any) => {
-        mockOnSnapshotCallback = onNext;
-        mockOnSnapshotErrorCallback = onError;
+      (_docRef: any, optionsOrCb: any, cbOrErr: any, onError?: any) => {
+        if (typeof optionsOrCb === "function") {
+          mockOnSnapshotCallback = optionsOrCb;
+          mockOnSnapshotErrorCallback = cbOrErr;
+        } else {
+          mockOnSnapshotCallback = cbOrErr;
+          mockOnSnapshotErrorCallback = onError;
+        }
         return vi.fn(); // unsubscribe function
       },
     );
@@ -78,11 +83,8 @@ describe("useFirebaseSync", () => {
       });
     });
 
-    expect(setDoc).toHaveBeenCalledWith(
-      "mock-doc-ref",
-      { value: "initial" },
-      { merge: true },
-    );
+    // Should no longer call setDoc on initialization
+    expect(setDoc).not.toHaveBeenCalled();
     expect(result.current[0]).toBe("initial");
   });
 
@@ -172,14 +174,15 @@ describe("useFirebaseSync", () => {
       });
     });
 
-    expect(setDoc).toHaveBeenCalledWith(
-      "mock-doc-ref",
-      { value: null },
-      { merge: true },
-    );
+    // Should not call setDoc on init
+    expect(setDoc).not.toHaveBeenCalled();
 
     act(() => {
       result.current[1](undefined);
+    });
+
+    act(() => {
+      vi.runAllTimers();
     });
 
     expect(setDoc).toHaveBeenCalledWith(
@@ -197,17 +200,6 @@ describe("useFirebaseSync", () => {
 
     const { result } = renderHook(() => useFirebaseSync("test-key", "initial"));
 
-    // Trigger setDoc failure in snapshot initialization
-    await act(async () => {
-      mockOnSnapshotCallback({
-        exists: () => false,
-        metadata: { hasPendingWrites: false },
-      });
-      await vi.runAllTimersAsync();
-    });
-
-    expect(safeDisableNetwork).toHaveBeenCalled();
-
     // Mock setDoc failure for manual update
     vi.mocked(setDoc).mockRejectedValueOnce({ code: "resource-exhausted" });
 
@@ -216,7 +208,7 @@ describe("useFirebaseSync", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(safeDisableNetwork).toHaveBeenCalledTimes(2);
+    expect(safeDisableNetwork).toHaveBeenCalledTimes(1);
   });
 
   it("handles snapshot errors gracefully", () => {
@@ -324,5 +316,33 @@ describe("useFirebaseSync", () => {
       { value: null },
       { merge: true },
     );
+  });
+
+  it("ignores snapshot and error after unmount", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "user123" } } as any);
+
+    const { unmount, result } = renderHook(() =>
+      useFirebaseSync("test-key", "initial"),
+    );
+
+    unmount();
+
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    act(() => {
+      mockOnSnapshotCallback({
+        exists: () => true,
+        data: () => ({ value: "ignored-value" }),
+        metadata: { hasPendingWrites: false },
+      });
+      mockOnSnapshotErrorCallback(new Error("Test Error"));
+    });
+
+    expect(result.current[0]).toBe("initial"); // State was not updated
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });

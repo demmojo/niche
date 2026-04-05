@@ -32,7 +32,7 @@ vi.mock("firebase-admin", async (importOriginal) => {
     firestore: firestoreMock,
   };
 });
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 describe("byokMiddleware", () => {
   beforeEach(() => {

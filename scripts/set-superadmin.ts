@@ -1,6 +1,4 @@
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 
 // Minimal setup - rely on same env variables as the server
 if (!admin.apps.length) {

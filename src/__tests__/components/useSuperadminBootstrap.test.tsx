@@ -4,7 +4,6 @@ import { useSuperadminBootstrap } from "../../components/useSuperadminBootstrap"
 import { useAuth } from "../../components/AuthProvider";
 import {
   useWorkspaceDispatch,
-  useProductsDispatch,
   useWorkspaceLoading,
 } from "../../components/WorkspaceProvider";
 
@@ -14,22 +13,19 @@ vi.mock("../../components/AuthProvider", () => ({
 
 vi.mock("../../components/WorkspaceProvider", () => ({
   useWorkspaceDispatch: vi.fn(),
-  useProductsDispatch: vi.fn(),
   useWorkspaceLoading: vi.fn(),
 }));
 
 describe("useSuperadminBootstrap", () => {
   const mockSetWorkspaceId = vi.fn();
-  const mockSetProducts = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     (useWorkspaceDispatch as any).mockReturnValue(mockSetWorkspaceId);
-    (useProductsDispatch as any).mockReturnValue(mockSetProducts);
     (useWorkspaceLoading as any).mockReturnValue(false); // Make it not loading so it can bootstrap
   });
 
-  it("sets default kageform product when user has superadmin claims", async () => {
+  it("sets default kageform workspace when user has superadmin claims", async () => {
     (useAuth as any).mockReturnValue({
       user: {
         uid: "123",
@@ -43,13 +39,6 @@ describe("useSuperadminBootstrap", () => {
     renderHook(() => useSuperadminBootstrap());
 
     await waitFor(() => {
-      expect(mockSetProducts).toHaveBeenCalledWith([
-        {
-          id: "prod-kageform",
-          name: "KageForm",
-          niche: "BaaS form platform",
-        },
-      ]);
       expect(mockSetWorkspaceId).toHaveBeenCalledWith("prod-kageform");
     });
   });
@@ -67,7 +56,6 @@ describe("useSuperadminBootstrap", () => {
 
     renderHook(() => useSuperadminBootstrap());
 
-    expect(mockSetProducts).not.toHaveBeenCalled();
     expect(mockSetWorkspaceId).not.toHaveBeenCalled();
   });
 
@@ -85,7 +73,6 @@ describe("useSuperadminBootstrap", () => {
 
     renderHook(() => useSuperadminBootstrap());
 
-    expect(mockSetProducts).not.toHaveBeenCalled();
     expect(mockSetWorkspaceId).not.toHaveBeenCalled();
   });
 });

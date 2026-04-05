@@ -27,11 +27,12 @@ campaignRouter.post(
 
       // 1. Generate embeddings
       const embeddings: Float32Array[] = [];
-      const modelName = "text-embedding-004";
+      const modelName = "gemini-embedding-001";
       for (const feature of featuresToMerge) {
         const embedRes = await ai.models.embedContent({
           model: modelName,
           contents: feature,
+          config: { outputDimensionality: 768 },
         });
         const vals = embedRes.embeddings?.[0]?.values;
         if (!vals) throw new Error("Failed to embed feature");

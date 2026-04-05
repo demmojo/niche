@@ -1,0 +1,6 @@
+schema: spec-driven
+status: archived
+learnings_extracted: true
+created: '2026-04-04'
+depends_on:
+  - hyper-scale-saas-data-moat-pipeline

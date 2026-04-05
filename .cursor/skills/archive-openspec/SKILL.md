@@ -9,19 +9,38 @@ The `archive` command is the final step in the OpenSpec lifecycle, performed aft
 
 ## The Archival Process
 
-When asked to archive an OpenSpec change located at `openspec/changes/<feature-name>`, perform the following steps:
+When asked to archive or supersede an OpenSpec change located at `openspec/changes/<feature-name>`, perform the following steps:
 
-### 1. Pre-flight Checks
+### 1. Identify Action (Archive vs. Supersede)
+
+Ask or determine if the user wants to **archive** (successfully implemented) or **supersede** (replaced by a newer plan/spec).
+
+### 2. Pre-flight Checks
 
 Use the `Shell` or `Read` tools to check:
 
-1. Does the directory `openspec/changes/<feature-name>` exist?
-2. Are all tasks in `tasks.md` checked off (`- [x]`)?
+1. Does the directory `openspec/changes/<feature-name>` exist? (If it's just a raw plan in `openspec/plans/`, skip to step 3).
+2. For an archive: Are all tasks in `tasks.md` checked off (`- [x]`)?
 3. Read `openspec/changes/<feature-name>/.openspec.yaml`. Does it contain `learnings_extracted: true`?
    - **CRITICAL:** If `learnings_extracted` is missing or `false`, you MUST abort the archive process and immediately run the `.cursor/skills/extract-lessons/SKILL.md` skill to complete Phase 2.5 of the OpenSpec workflow.
 4. Have the changes been reviewed/verified by the user? (If in doubt, ask the user before proceeding.)
 
-### 2. Prepare the Destination
+### 3. Update State (If Superseding)
+
+If the spec or plan is being **superseded**:
+
+- For an OpenSpec change (`openspec/changes/<feature-name>`):
+  - Edit `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
+  - Edit `proposal.md` to add `> **NOTICE:** This spec has been **superseded** by [new-spec].` at the very top.
+- For a raw plan (`openspec/plans/<plan-name>.md`):
+  - Edit the YAML frontmatter to include `status: superseded` and `superseded_by: [new-spec]`.
+  - Add `> **NOTICE:** This plan has been **superseded** by [new-spec].` at the very top of the document body.
+
+If the spec is being **archived** (implemented successfully):
+
+- Edit `.openspec.yaml` to include `status: archived` (or update existing status if applicable).
+
+### 4. Prepare the Destination
 
 Use the `Shell` tool to ensure the base archive directory exists:
 

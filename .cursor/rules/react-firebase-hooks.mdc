@@ -1,0 +1,23 @@
+---
+name: React & Firebase Hooks
+description: Enforces stability, offline-first capabilities, and race-condition prevention when syncing React state with Firestore using onSnapshot, setDoc, and debouncing.
+globs: src/hooks/**/*.ts, src/hooks/**/*.tsx, src/components/**/*.tsx
+---
+
+# React & Firebase Sync Standards
+
+## 1. The "Double Optimism" Anti-Pattern
+**Anti-Pattern:** Using React 19's `useOptimistic` (or debounced local state) while simultaneously allowing `onSnapshot` listeners to process uncommitted local writes. This creates UI tearing or "Snapshot Beats the Fetch" bugs.
+**Resolved Pattern:** When managing local state independently (e.g., `useFirebaseSync`), you must ignore local echoes by adding `if (docSnap.metadata.hasPendingWrites) return;` at the top of your `onSnapshot` callback.
+
+## 2. The "Blind Transaction" Anti-Pattern (Offline Writes)
+**Anti-Pattern:** Using `runTransaction` for standard, decoupled UI writes. `runTransaction` fails immediately if the user is offline, breaking the optimistic-first experience.
+**Resolved Pattern:** Use `setDoc(docRef, data, { merge: true })` for standard decoupled writes. It natively queues offline and resolves gracefully in the background upon reconnection. Reserve `runTransaction` strictly for highly concurrent HITL merges.
+
+## 3. The Debounce Timer Race Condition
+**Anti-Pattern:** Storing a timeout ID in a ref (`syncTimeoutRef.current = setTimeout(...)`) but forgetting to clear it *inside* the callback. This leaves a stale integer in the ref, breaking conditional checks like `if (syncTimeoutRef.current)`.
+**Resolved Pattern:** Inside the `setTimeout` callback, explicitly set `syncTimeoutRef.current = null` before executing the debounced network request.
+
+## 4. The `JSON.stringify` Dependency Array Trap
+**Anti-Pattern:** Using `JSON.stringify(queryConstraints)` in a React `useEffect` dependency array where `queryConstraints` is an array of Firestore `QueryConstraint` objects (e.g., `where()`, `orderBy()`). Complex Firebase objects do not serialize cleanly, causing infinite loops or crashes.
+**Resolved Pattern:** Never stringify Firebase objects for deep equality. Consumers must pass stable references (e.g., using `useMemo` or falling back to a constant `EMPTY_ARRAY`), which can be safely placed directly in the dependency array.

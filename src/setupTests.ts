@@ -1,6 +1,9 @@
 import "@testing-library/jest-dom";
 import { teardownFirebase } from "./test-utils/firebase-setup"; // Import this first to set env vars
 import { expect, afterEach, beforeAll, afterAll, vi } from "vitest";
+
+// Provide required env vars
+process.env.LAKE_BUCKET_NAME = "test-bucket";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { server } from "./test-utils/server";

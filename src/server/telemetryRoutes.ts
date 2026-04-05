@@ -3,7 +3,7 @@ import express from "express";
 import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
 import { telemetryLimiter } from "./rateLimit";
 import { z } from "zod";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { requireSuperadmin } from "./superadminRoutes";
 import { GoogleGenAI } from "@google/genai";
 
@@ -81,13 +81,13 @@ telemetryRouter.post(
         compute_upgrades: computeUpgrades,
       };
 
-      const userContext = (req.body.context || "").replace(/[<>]/g, "");
+      const userContext = req.body.context ? String(req.body.context) : "";
 
       // 2. Format the Prompt
       const prompt = `
         You are a ruthless, highly opinionated AI Co-Founder and Product Strategist.
         Analyze the following application telemetry and provide a strategic summary.
-        User Context: ${userContext}
+        User Context: ${JSON.stringify(userContext)}
 
         <telemetry_data>
         ${JSON.stringify(aggregatedMetrics, null, 2)}

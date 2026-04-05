@@ -51,6 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Auth state changed! User:", user?.uid || "null");
       clearTimeout(safetyTimeout);
 
+      if (isMergingRef.current) {
+        console.log("Auth state change ignored due to isMergingRef lock.");
+        return;
+      }
+
       if (!user) {
         try {
           console.log("Attempting to sign in anonymously...");
@@ -59,15 +64,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log("Signed in anonymously!");
         } catch (error) {
           console.error("Failed to sign in anonymously:", error);
-          if (!isMergingRef.current && isMounted) {
+          if (isMounted) {
             setUser(null);
             setLoading(false);
           }
-        }
-        // Whether anonymous auth succeeds or fails, we should stop loading
-        // so the UI can be interactive instead of getting stuck on a blank screen.
-        if (!isMergingRef.current && isMounted) {
-          setLoading(false);
+        } finally {
+          // Whether anonymous auth succeeds or fails, we should stop loading
+          // so the UI can be interactive instead of getting stuck on a blank screen.
+          if (isMounted) {
+            setLoading(false);
+          }
         }
         return;
       }
@@ -110,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      if (!isMergingRef.current && isMounted) {
+      if (isMounted) {
         setUser(user);
         setLoading(false);
       }
@@ -126,7 +132,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    *
    */
   const loginWithGoogleFn = async () => {
-    await loginWithGoogle();
+    const abortController = new AbortController();
+    try {
+      await loginWithGoogle(isMergingRef);
+    } catch (e: any) {
+      if (!abortController.signal.aborted) {
+        console.error("Login failed:", e);
+      }
+    } finally {
+      abortController.abort();
+    }
   };
   /**
    *

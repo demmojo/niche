@@ -32,4 +32,11 @@ LLM outputs are inherently volatile. Defend against schema drift and injection s
 ## 5. Streaming JSON Safeties
 When streaming partial LLM responses back to the client, the boundary must be fault-tolerant.
 - **Partial JSON Parsing**: When yielding LLM JSON via SSE to the React UI, native `JSON.parse` will throw `SyntaxError` on every chunk until complete. You MUST implement a **partial JSON parser** (e.g., `partial-json` or Vercel AI SDK logic) to stream incomplete ASTs safely.
-- **Token Limits**: Always inspect the Gemini response metadata for `finishReason === 'MAX_TOKENS'` or `finishReason === 'SAFETY'`. If truncated, safely close the AST via the partial parser or explicitly trigger the Markdown fallback rather than throwing a fatal 500 error that crashes the UI.
+- **Token Limits**: Always inspect the Gemini response metadata for `finishReason === 'MAX_TOKENS'` or `finishReason === 'SAFETY'`. If truncated, safely close the AST via the partial parser or explicitly trigger the Markdown fallback rather than throwing a fatal 500 error that crashes the UI.## 1.5 Client-Side Streaming Security & Model Resolution
+- **Client-Side Streaming Security**: Explicitly reject client-side Gemini streaming (`generateContentStream`) to protect API keys. Always use backend Server-Sent Events (SSE) via Cloud Run.
+- **Dynamic Model Resolution**: Use Firebase Remote Config to dynamically resolve AI models (e.g., `gemini-flash-latest`) instead of hardcoding model names in the codebase.
+
+## 1.6 Advanced Orchestration & Scraping
+- **Direct VPC Egress**: For Cloud Run event-driven crawlers, configure Direct VPC Egress and Cloud NAT for a pool of static outbound IPs instead of legacy Serverless VPC connectors to avoid bot-bans. Use prefix hashing for GCS dumps to avoid hotspotting.
+- **Native Partitioned Queries**: Enforce strict `_PARTITIONTIME` filters for massive BigQuery public datasets (e.g., GitHub Archive, CrUX) to prevent runaway query costs.
+- **Batch API Orchestration**: Chunk `.jsonl` files for the Gemini Batch API by `_PARTITIONTIME` bucket + schema type (not just request count) to align batch boundaries with logical data freshness epochs. Use a Synchronous Zod Self-Correction Loop for parsing failures.

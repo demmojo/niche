@@ -1,6 +1,4 @@
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 import { Request, Response, NextFunction } from "express";
 import * as fs from "fs";
 import * as path from "path";
@@ -58,7 +56,7 @@ if (!admin.apps.length) {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: adminNamespace.auth.DecodedIdToken;
+  user?: admin.auth.DecodedIdToken;
 }
 
 /**
@@ -103,7 +101,7 @@ export const requireAuth = async (
     req.user = {
       uid: "test-user-123",
       email: "mo.hassaniv@gmail.com",
-    } as adminNamespace.auth.DecodedIdToken;
+    } as admin.auth.DecodedIdToken;
     return next();
   }
 

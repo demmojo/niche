@@ -1,6 +1,6 @@
 // We need to use firebase-admin here since this runs on the Express server
 // and needs privileged access to bypass client rules.
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 const DEFAULT_MONTHLY_CREDITS = 50;
 

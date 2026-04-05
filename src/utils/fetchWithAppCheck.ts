@@ -1,4 +1,5 @@
 import { getApp } from "firebase/app";
+import { auth } from "../firebase";
 import {
   getToken,
   initializeAppCheck,
@@ -44,11 +45,76 @@ export const fetchWithAppCheck = async (
   options: RequestInit = {},
 ): Promise<Response> => {
   const headers = new Headers(options.headers || {});
+  const signal = options.signal;
 
   if (process.env.NODE_ENV !== "test") {
     const appCheckToken = await getAppCheckToken();
     if (appCheckToken) {
       headers.set("X-Firebase-AppCheck", appCheckToken);
+    }
+
+    if (auth.currentUser) {
+      let idToken: string | null = null;
+      let attempt = 0;
+      const maxAttempts = 3;
+      const maxDuration = 5000;
+      const startTime = Date.now();
+
+      while (attempt < maxAttempts) {
+        if (!auth.currentUser) {
+          throw new Error("auth/unauthenticated");
+        }
+
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+
+        try {
+          idToken = await auth.currentUser.getIdToken(false);
+          break; // Success
+        } catch (authError: any) {
+          attempt++;
+
+          const isTransient =
+            authError?.code === "auth/network-request-failed" ||
+            authError?.code === "auth/internal-error" ||
+            authError?.message?.includes("network");
+
+          if (!isTransient) {
+            throw authError; // Hard error, bubble up immediately
+          }
+
+          if (attempt >= maxAttempts || Date.now() - startTime >= maxDuration) {
+            throw authError; // Circuit breaker tripped
+          }
+
+          const delayMs = 500 * Math.pow(2, attempt - 1);
+
+          await new Promise<void>((resolve, reject) => {
+            let timeoutId: any;
+
+            const onAbort = () => {
+              clearTimeout(timeoutId);
+              reject(new DOMException("Aborted", "AbortError"));
+            };
+
+            if (signal) {
+              signal.addEventListener("abort", onAbort, { once: true });
+            }
+
+            timeoutId = setTimeout(() => {
+              if (signal) {
+                signal.removeEventListener("abort", onAbort);
+              }
+              resolve();
+            }, delayMs);
+          });
+        }
+      }
+
+      if (idToken) {
+        headers.set("Authorization", `Bearer ${idToken}`);
+      }
     }
   }
 

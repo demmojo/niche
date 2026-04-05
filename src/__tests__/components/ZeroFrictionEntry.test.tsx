@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ZeroFrictionEntry } from "../../components/ZeroFrictionEntry";
 import * as fetchUtils from "../../utils/fetchWithAppCheck";
 import * as firebaseAuth from "firebase/auth";
+import { setDoc, doc } from "firebase/firestore";
+import { db, auth } from "../../firebase";
 
 vi.mock("firebase/auth", async () => {
   const actual = await vi.importActual("firebase/auth");
@@ -13,10 +15,20 @@ vi.mock("firebase/auth", async () => {
   };
 });
 
+vi.mock("firebase/firestore", async () => {
+  const actual = await vi.importActual("firebase/firestore");
+  return {
+    ...actual,
+    setDoc: vi.fn().mockResolvedValue(undefined),
+    doc: vi.fn((db, path, id) => ({ path, id })),
+  };
+});
+
 vi.mock("../../firebase", () => ({
   auth: {
     currentUser: null,
   },
+  db: {},
 }));
 
 describe("ZeroFrictionEntry", () => {
@@ -52,7 +64,7 @@ describe("ZeroFrictionEntry", () => {
     );
   });
 
-  it("renders the initial input form", async () => {
+  it("renders the initial Fork in the Road intent selection", async () => {
     const user = userEvent.setup();
     render(<ZeroFrictionEntry onComplete={vi.fn()} />);
 
@@ -60,67 +72,62 @@ describe("ZeroFrictionEntry", () => {
       screen.getByText("What is your primary goal today?"),
     ).toBeInTheDocument();
 
-    const validateBtn = screen.getByText("Validate an existing idea");
+    const founderBtn = screen.getByText("I'm a Founder");
+    const pmBtn = screen.getByText("I'm a Product Manager");
+
+    expect(founderBtn).toBeInTheDocument();
+    expect(pmBtn).toBeInTheDocument();
+  });
+
+  it("Path A (Founder): writes persona to Firestore anonymously before proceeding", async () => {
+    const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    const validateBtn = screen.getByText("I'm a Founder");
     await user.click(validateBtn);
+
+    // Should sign in anonymously and set the persona
+    await waitFor(() => {
+      expect(firebaseAuth.signInAnonymously).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(), // doc() ref
+        { persona: "solo_founder" },
+        { merge: true },
+      );
+    });
 
     expect(
       screen.getByPlaceholderText("What are you thinking of building?"),
     ).toBeInTheDocument();
   });
 
-  it("transitions to analyzing state and calls onComplete with pivoted idea", async () => {
-    const onCompleteMock = vi.fn();
-    render(<ZeroFrictionEntry onComplete={onCompleteMock} />);
-
+  it("Path B (PM): writes persona to Firestore anonymously before proceeding", async () => {
     const user = userEvent.setup();
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
 
-    // Select intent first
-    const validateBtn = screen.getByText("Validate an existing idea");
-    await user.click(validateBtn);
+    const analyzeBtn = screen.getByText("I'm a Product Manager");
+    await user.click(analyzeBtn);
 
-    const input = screen.getByPlaceholderText(
-      "What are you thinking of building?",
-    );
-
-    await user.type(input, "A basic CRM");
-    const form = input.closest("form")!;
-    fireEvent.submit(form);
-
-    // Should show analyzing state
+    // Should sign in anonymously and set the persona
     await waitFor(() => {
-      expect(
-        screen.getByText("Evaluating Market Viability..."),
-      ).toBeInTheDocument();
+      expect(firebaseAuth.signInAnonymously).toHaveBeenCalled();
     });
 
     await waitFor(() => {
-      expect(fetchUtils.fetchWithAppCheck).toHaveBeenCalledWith(
-        "/api/scoring/stream",
-        expect.any(Object),
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(), // doc() ref
+        { persona: "enterprise_pm" },
+        { merge: true },
       );
     });
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Your Validated Idea")).toBeInTheDocument();
-      },
-      { timeout: 4000 },
-    ); // timeout is long due to setTimeout in TrustBuilderScreen
-
-    expect(screen.getByText("A better niche CRM")).toBeInTheDocument();
-
-    const generateBtn = screen.getByRole("button", {
-      name: "Generate Full Campaign",
-    });
-    fireEvent.click(generateBtn);
-
-    await waitFor(() => {
-      expect(onCompleteMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: "A better niche CRM",
-          jobId: null,
-        }),
-      );
-    });
+    expect(
+      screen.getByPlaceholderText(
+        "Which competitor or market do you want to analyze?",
+      ),
+    ).toBeInTheDocument();
   });
 });

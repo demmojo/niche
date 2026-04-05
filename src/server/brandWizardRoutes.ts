@@ -1,8 +1,6 @@
 import { Router } from "express";
 import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 import { brandWizardLimiter } from "./rateLimit";
 import { brandWizardQueue } from "./queues";
 import { z } from "zod";

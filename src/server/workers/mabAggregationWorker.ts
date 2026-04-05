@@ -1,6 +1,4 @@
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 
 // Ensure app is initialized before calling firestore
 if (!admin.apps.length) {

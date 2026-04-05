@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import { authRouter } from "../../server/authRoutes";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 vi.mock("firebase-admin", () => {
   const batchMock = {
@@ -59,7 +59,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("merges data successfully and chunks iteratively when documents exist", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -101,7 +101,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("handles identical accounts or non-anonymous source accounts", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -145,7 +145,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("handles identical accounts or non-anonymous source accounts (part 2: spaces)", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -180,7 +180,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("covers workspace members array fallback", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -215,7 +215,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("handles mismatched anonymous token uid", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -236,7 +236,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("handles server errors gracefully", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()
@@ -256,7 +256,7 @@ describe("authRoutes merge-anonymous-data", () => {
   });
 
   it("handles deleteUser errors gracefully without failing the request", async () => {
-    const adminInstance = (admin as any).default;
+    const adminInstance = admin as any;
 
     adminInstance
       .auth()

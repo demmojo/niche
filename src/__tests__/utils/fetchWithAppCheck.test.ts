@@ -6,6 +6,11 @@ describe("fetchWithAppCheck", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.doMock("../../firebase", () => ({
+      auth: {
+        currentUser: null,
+      },
+    }));
   });
 
   afterEach(() => {
@@ -158,6 +163,193 @@ describe("fetchWithAppCheck", () => {
       expect(fetchMock).toHaveBeenCalled();
       const callArgs = (fetchMock as any).mock.calls[0][1];
       expect(callArgs.headers.get("X-Firebase-AppCheck")).toBe("prod-token");
+      vi.doUnmock("firebase/app");
+      vi.doUnmock("firebase/app-check");
+    });
+
+    it("retries getIdToken on network error with exponential backoff", async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = "production";
+
+      const networkError = new Error("Network Error");
+      (networkError as any).code = "auth/network-request-failed";
+
+      const getIdTokenMock = vi
+        .fn()
+        .mockRejectedValueOnce(networkError)
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce("success-token");
+
+      vi.doMock("../../firebase", () => ({
+        auth: {
+          currentUser: {
+            getIdToken: getIdTokenMock,
+          },
+        },
+      }));
+
+      vi.doMock("firebase/app", () => ({
+        getApp: vi.fn().mockReturnValue({}),
+      }));
+      vi.doMock("firebase/app-check", () => ({
+        initializeAppCheck: vi.fn(),
+        ReCaptchaV3Provider: vi.fn(),
+        getToken: vi.fn().mockResolvedValue({ token: "prod-token" }),
+      }));
+
+      const { fetchWithAppCheck } =
+        await import("../../utils/fetchWithAppCheck");
+
+      const fetchMock = vi.fn().mockResolvedValue(new Response());
+      vi.stubGlobal("fetch", fetchMock);
+
+      await fetchWithAppCheck("https://example.com");
+
+      expect(getIdTokenMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalled();
+      const callArgs = (fetchMock as any).mock.calls[0][1];
+      expect(callArgs.headers.get("Authorization")).toBe(
+        "Bearer success-token",
+      );
+
+      vi.doUnmock("../../firebase");
+      vi.doUnmock("firebase/app");
+      vi.doUnmock("firebase/app-check");
+    });
+
+    it("bubbles up error if getIdToken persistently fails (circuit breaker trips)", async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = "production";
+
+      const networkError = new Error("Persistent Network Error");
+      (networkError as any).code = "auth/network-request-failed";
+
+      const getIdTokenMock = vi.fn().mockRejectedValue(networkError);
+
+      vi.doMock("../../firebase", () => ({
+        auth: {
+          currentUser: {
+            getIdToken: getIdTokenMock,
+          },
+        },
+      }));
+
+      vi.doMock("firebase/app", () => ({
+        getApp: vi.fn().mockReturnValue({}),
+      }));
+      vi.doMock("firebase/app-check", () => ({
+        initializeAppCheck: vi.fn(),
+        ReCaptchaV3Provider: vi.fn(),
+        getToken: vi.fn().mockResolvedValue({ token: "prod-token" }),
+      }));
+
+      const { fetchWithAppCheck } =
+        await import("../../utils/fetchWithAppCheck");
+
+      const fetchMock = vi.fn().mockResolvedValue(new Response());
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(fetchWithAppCheck("https://example.com")).rejects.toThrow(
+        "Persistent Network Error",
+      );
+
+      expect(getIdTokenMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      vi.doUnmock("../../firebase");
+      vi.doUnmock("firebase/app");
+      vi.doUnmock("firebase/app-check");
+    });
+
+    it("does not retry and immediately throws on hard auth errors", async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = "production";
+
+      const hardError = new Error("Token Expired");
+      (hardError as any).code = "auth/user-token-expired";
+
+      const getIdTokenMock = vi.fn().mockRejectedValue(hardError);
+
+      vi.doMock("../../firebase", () => ({
+        auth: {
+          currentUser: {
+            getIdToken: getIdTokenMock,
+          },
+        },
+      }));
+
+      vi.doMock("firebase/app", () => ({
+        getApp: vi.fn().mockReturnValue({}),
+      }));
+      vi.doMock("firebase/app-check", () => ({
+        initializeAppCheck: vi.fn(),
+        ReCaptchaV3Provider: vi.fn(),
+        getToken: vi.fn().mockResolvedValue({ token: "prod-token" }),
+      }));
+
+      const { fetchWithAppCheck } =
+        await import("../../utils/fetchWithAppCheck");
+
+      const fetchMock = vi.fn().mockResolvedValue(new Response());
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(fetchWithAppCheck("https://example.com")).rejects.toThrow(
+        "Token Expired",
+      );
+
+      expect(getIdTokenMock).toHaveBeenCalledTimes(1); // Should only be called once
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      vi.doUnmock("../../firebase");
+      vi.doUnmock("firebase/app");
+      vi.doUnmock("firebase/app-check");
+    });
+
+    it("aborts retry loop immediately if AbortSignal is aborted", async () => {
+      vi.resetModules();
+      process.env.NODE_ENV = "production";
+
+      const networkError = new Error("Network Error");
+      (networkError as any).code = "auth/network-request-failed";
+
+      const getIdTokenMock = vi.fn().mockRejectedValue(networkError);
+
+      vi.doMock("../../firebase", () => ({
+        auth: {
+          currentUser: {
+            getIdToken: getIdTokenMock,
+          },
+        },
+      }));
+
+      vi.doMock("firebase/app", () => ({
+        getApp: vi.fn().mockReturnValue({}),
+      }));
+      vi.doMock("firebase/app-check", () => ({
+        initializeAppCheck: vi.fn(),
+        ReCaptchaV3Provider: vi.fn(),
+        getToken: vi.fn().mockResolvedValue({ token: "prod-token" }),
+      }));
+
+      const { fetchWithAppCheck } =
+        await import("../../utils/fetchWithAppCheck");
+
+      const fetchMock = vi.fn().mockResolvedValue(new Response());
+      vi.stubGlobal("fetch", fetchMock);
+
+      const controller = new AbortController();
+
+      // Abort after a short delay (during the first backoff sleep)
+      setTimeout(() => controller.abort(), 100);
+
+      await expect(
+        fetchWithAppCheck("https://example.com", { signal: controller.signal }),
+      ).rejects.toThrow("Aborted");
+
+      expect(getIdTokenMock).toHaveBeenCalledTimes(1); // Should only be called once before abortion
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      vi.doUnmock("../../firebase");
       vi.doUnmock("firebase/app");
       vi.doUnmock("firebase/app-check");
     });

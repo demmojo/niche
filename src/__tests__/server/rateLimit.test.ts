@@ -19,37 +19,12 @@ describe("rateLimit", () => {
     expect(createStore()).toBeUndefined();
   });
 
-  it("should return a RedisStore if process.env.REDIS_URL is set", async () => {
+  it("should return undefined if process.env.REDIS_URL is set", async () => {
     process.env.REDIS_URL = "redis://localhost:6379";
-
-    // Mock ioredis
-    vi.mock("ioredis", () => {
-      return {
-        default: vi.fn().mockImplementation(() => ({
-          call: vi.fn().mockReturnValue("mocked-call"),
-        })),
-      };
-    });
-
-    // Mock rate-limit-redis
-    vi.mock("rate-limit-redis", () => {
-      return {
-        default: class MockRedisStore {
-          constructor(public options: any) {}
-          sendCommand(...args: any[]) {
-            return this.options.sendCommand(...args);
-          }
-        },
-      };
-    });
 
     const { createStore } = await import("../../server/rateLimit");
     const store = createStore();
-    expect(store).toBeDefined();
-
-    // Test the sendCommand callback
-    const result = (store as any).sendCommand("PING", "arg1");
-    expect(result).toBe("mocked-call");
+    expect(store).toBeUndefined();
   });
 
   it("should have pass-through middleware functions", async () => {

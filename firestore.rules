@@ -225,6 +225,19 @@ service cloud.firestore {
       allow read, write: if false; // Only accessible via Admin SDK backend
     }
 
+    match /tenant_ideas/{ideaId} {
+      // Private to the creator
+      allow create: if isAuthenticated() && !isImpersonated() && request.resource.data.userId == request.auth.uid;
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && !isImpersonated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /global_market_facts/{factId} {
+      allow read: if isAuthenticated();
+      // Immutable from client
+      allow write: if false;
+    }
+
     match /workspaces/{workspaceId} {
       allow create: if isAuthenticated() && !isImpersonated() && request.auth.uid in request.resource.data.members;
       allow read, update: if isAuthenticated() && (

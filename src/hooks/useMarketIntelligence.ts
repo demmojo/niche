@@ -14,22 +14,27 @@ export type FetchState<T> =
   | { status: "success"; data: T }
   | { status: "error"; error: Error };
 
+const EMPTY_ARRAY: any[] = [];
+
 export function useMarketIntelligence<T>(
   collectionName: string,
-  queryConstraints: any[] = [],
+  queryConstraints: any[] = EMPTY_ARRAY,
 ) {
   const [state, setState] = useState<FetchState<T[]>>({ status: "idle" });
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setState({ status: "loading" });
+    const controller = new AbortController();
 
     try {
       const q = query(collection(db, collectionName), ...queryConstraints);
 
       const unsubscribe = onSnapshot(
         q,
+        { includeMetadataChanges: true },
         (snapshot) => {
+          if (controller.signal.aborted) return;
           const data = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
@@ -40,17 +45,25 @@ export function useMarketIntelligence<T>(
           });
         },
         (error) => {
+          if (controller.signal.aborted) return;
           startTransition(() => {
             setState({ status: "error", error });
           });
         },
       );
 
-      return () => unsubscribe();
+      return () => {
+        controller.abort();
+        unsubscribe();
+      };
     } catch (error: any) {
-      setState({ status: "error", error });
+      if (!controller.signal.aborted) {
+        startTransition(() => {
+          setState({ status: "error", error });
+        });
+      }
     }
-  }, [collectionName, JSON.stringify(queryConstraints)]);
+  }, [collectionName, queryConstraints]);
 
   return state;
 }

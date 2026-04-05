@@ -7,6 +7,7 @@ import {
 import {
   calculateTarpitScore,
   LLMExtractionSchema,
+  MarketRadarSchema,
   fastL2NormalizeInPlace,
 } from "../utils/scoringEngine";
 import Exa from "exa-js";
@@ -44,15 +45,18 @@ scoringRouter.post(
       const { checkAndIncrementAnonymousLimit } =
         await import("./utils/anonymousUsage");
 
+      const bypassLimits = process.env.BYPASS_ANONYMOUS_LIMITS === "true";
       const fingerprint = generateAnonymousFingerprint(req);
-      const isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+
+      let isAllowed = true;
+      if (!bypassLimits) {
+        isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+      }
 
       if (!isAllowed) {
-        return res
-          .status(429)
-          .json({
-            error: "PQL limit exceeded. Please create an account to continue.",
-          });
+        return res.status(429).json({
+          error: "PQL limit exceeded. Please create an account to continue.",
+        });
       }
     }
 
@@ -81,7 +85,14 @@ scoringRouter.post(
 
       // 2. Fetch the URL
       sendData("status", "Fetching page...");
-      const fetchRes = await fetch(url, { signal: abortController.signal });
+      let fetchRes;
+      try {
+        fetchRes = await fetch(url, { signal: abortController.signal });
+      } catch (fetchErr: any) {
+        sendData("error", `Failed to fetch URL: ${fetchErr.message}`);
+        return res.end();
+      }
+
       if (!fetchRes.ok) {
         sendData("error", `Failed to fetch URL: ${fetchRes.status}`);
         return res.end();
@@ -131,7 +142,10 @@ Then, suggest 2 orthogonal pivot directions that are hyper-niche and highly defe
         },
       };
 
-      const geminiRes = await ai.models.generateContent(callOptions);
+      const geminiRes = await ai.models.generateContent({
+        ...callOptions,
+        abortSignal: abortController.signal,
+      } as any);
       const llmOutputRaw = geminiRes.text;
       if (!llmOutputRaw) throw new Error("Empty response from LLM");
 
@@ -312,12 +326,18 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       fastL2NormalizeInPlace(vector);
 
       // Asynchronously insert into Tarpit Data Flywheel
-      import("../services/tarpitFlywheel").then(({ storeTarpitQuery }) => {
-        const userId = req.user?.uid || "anonymous-user-id";
-        storeTarpitQuery(userId, productDescription, Array.from(vector)).catch(
-          console.error,
-        );
-      });
+      const flywheelPromise = import("../services/tarpitFlywheel").then(
+        ({ storeTarpitQuery }) => {
+          const userId = req.user?.uid || "anonymous-user-id";
+          return storeTarpitQuery(
+            userId,
+            productDescription,
+            Array.from(vector),
+          ).catch(console.error);
+        },
+      );
+      // Await it to ensure Cloud Run doesn't kill the container early
+      await flywheelPromise;
 
       // 5 & 6. Niche Viability Score & False Positive Filter
       const vectorUniqueness = 1.0 - (llmParsed.wedge_metric ?? 0.5);
@@ -339,17 +359,44 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       isTarpit = scoreResult.isTarpit;
 
       if (isTarpit) {
-        // Fetch tarpit centroids to calculate Orthogonal Vector Distance
-        // For now, we simulate this since actual centroids require the clustering worker to run.
-        const mockCentroid = new Float32Array(768).fill(0.01);
-        fastL2NormalizeInPlace(mockCentroid);
+        // Query Firestore Vector Search for nearest tarpit centroid
+        const db = admin.firestore();
+        // Fallback safe distance if no centroids exist or query fails
+        let orthDistSq = 1.0;
+        let is_hyper_velocity_tarpit = false;
 
-        const { calculateSquaredOrthogonalDistance } =
-          await import("../utils/scoringEngine");
-        const orthDistSq = calculateSquaredOrthogonalDistance(
-          vector,
-          mockCentroid,
-        );
+        try {
+          const vectorQuery = db
+            .collection("tarpit_centroids")
+            .findNearest(
+              "embedding",
+              admin.firestore.FieldValue.vector(Array.from(vector)),
+              {
+                limit: 1,
+                distanceMeasure: "EUCLIDEAN",
+              },
+            );
+          const nearestDocs = await vectorQuery.get();
+
+          if (!nearestDocs.empty) {
+            const nearestDoc = nearestDocs.docs[0];
+            const centroidVector = nearestDoc.data().embedding.toArray();
+
+            const { calculateSquaredOrthogonalDistance } =
+              await import("../utils/scoringEngine");
+            orthDistSq = calculateSquaredOrthogonalDistance(
+              vector,
+              new Float32Array(centroidVector),
+            );
+            is_hyper_velocity_tarpit =
+              nearestDoc.data().is_hyper_velocity_tarpit === true;
+          }
+        } catch (dbErr) {
+          console.error(
+            "Vector search failed, falling back to heuristic safe distance",
+            dbErr,
+          );
+        }
 
         const localDensity = 0.1; // Mock sub-market HHI
         const globalDensity = 0.9;
@@ -362,6 +409,12 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
           finalScore = Math.max(0, finalScore - 40); // Penalty lifted
           llmParsed._reasoning +=
             " [SYSTEM OVERRIDE: Orthogonal Vector Distance indicates a defensible wedge despite semantic similarity to a tarpit.]";
+        }
+
+        if (is_hyper_velocity_tarpit) {
+          isTarpit = true;
+          llmParsed._reasoning +=
+            " [VELOCITY GUARDRAIL: This market is moving at hyper-velocity. High risk tarpit.]";
         }
       }
 
@@ -397,21 +450,25 @@ scoringRouter.post(
       const { checkAndIncrementAnonymousLimit } =
         await import("./utils/anonymousUsage");
 
+      const bypassLimits = process.env.BYPASS_ANONYMOUS_LIMITS === "true";
       const fingerprint = generateAnonymousFingerprint(req);
-      const isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+
+      let isAllowed = true;
+      if (!bypassLimits) {
+        isAllowed = await checkAndIncrementAnonymousLimit(fingerprint, 3);
+      }
 
       if (!isAllowed) {
-        return res
-          .status(429)
-          .json({
-            error: "PQL limit exceeded. Please create an account to continue.",
-          });
+        return res.status(429).json({
+          error: "PQL limit exceeded. Please create an account to continue.",
+        });
       }
     }
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
 
     const abortController = new AbortController();
     req.on("close", () => {
@@ -438,13 +495,37 @@ scoringRouter.post(
         return res.end();
       }
 
+      const db = admin.firestore();
+      let cachedState: any = null;
+      let isResumed = false;
+
+      // If they are not anonymous, check if they are resuming an old session
+      if (!isAnonymous) {
+        const stateRef = db.collection("pqlState").doc(req.user.uid);
+        const stateSnap = await stateRef.get();
+        if (stateSnap.exists) {
+          const data = stateSnap.data();
+          if (data && data.productDescription === productDescription) {
+            cachedState = data;
+            isResumed = true;
+            // Send immediate pre-computed states to bypass latency
+            sendData("competitor_count", cachedState.competitor_count);
+            // Assume they saw JTBD and gaps, so we skip directly to Tarpit Score
+            // DON'T delete the cache just yet in case the client refreshes
+            // await stateRef.delete();
+          }
+        }
+      }
+
       const exa = new Exa(exaApiKey);
       const exaQuery = `Competitors to ${productName}: ${productDescription}`;
 
       if (abortController.signal.aborted) throw new Error("AbortError");
-      // Exa fetch
+
       let exaTextLimit = 1000;
-      let selectedModel = "gemini-3.1-pro-preview";
+      let selectedModel = await import("./utils/remoteConfig").then((m) =>
+        m.getResolvedModel("gemini-3.1-pro-preview"),
+      );
 
       if (isAnonymous) {
         exaTextLimit = 500;
@@ -452,34 +533,86 @@ scoringRouter.post(
           await import("./utils/anonymousUsage");
         const hasGlobalQuota = await checkAndIncrementGlobalAnonymousLimit(30);
         if (!hasGlobalQuota) {
-          selectedModel = "gemini-3.1-flash";
+          selectedModel = await import("./utils/remoteConfig").then((m) =>
+            m.getResolvedModel("gemini-3.1-flash-lite-preview"),
+          );
         }
       }
 
-      const exaResponse = await exa.searchAndContents(exaQuery, {
-        type: "neural",
-        numResults: isAnonymous ? 3 : 15,
-        text: { maxCharacters: exaTextLimit },
-      });
+      let exaResponse = { results: [] as any[] };
+      const { isExaTripped, recordExaFailure } =
+        await import("../utils/circuitBreaker");
 
-      // Send competitor count immediately
-      sendData("competitor_count", exaResponse.results?.length || 0);
+      if (!isResumed) {
+        const isTripped = await isExaTripped();
+        if (isTripped) {
+          console.warn("Exa Circuit Breaker is tripped. Bypassing Exa search.");
+        } else {
+          try {
+            if (isAnonymous) {
+              exaResponse = await exa.search(exaQuery, {
+                type: "neural",
+                useAutoprompt: true,
+                numResults: 3,
+              });
+            } else {
+              exaResponse = await exa.searchAndContents(exaQuery, {
+                type: "neural",
+                numResults: 15,
+                text: { maxCharacters: exaTextLimit },
+              });
+            }
+          } catch (exaErr) {
+            console.error("Exa search failed:", exaErr);
+            await recordExaFailure();
+          }
+        }
+      }
 
-      const competitorContext = exaResponse.results
-        .slice(0, 3)
-        .map((r: any) => `URL: ${r.url}\nContent: ${r.text || r.title || ""}`)
-        .join("\n\n");
+      let llmParsed: any = {};
+      let oppScore = 0;
+      let ai;
+
+      const isPathB = productName === "Competitor Analysis";
 
       const geminiApiKey = process.env.GEMINI_API_KEY;
       if (!geminiApiKey) {
         sendData("error", "GEMINI_API_KEY is not configured");
         return res.end();
       }
+      ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+      if (isResumed && cachedState) {
+        // Skip Exa and extraction, use cached state
+        oppScore = cachedState.opportunityScore;
+        llmParsed.wedge_metric = cachedState.wedge_metric;
+        if (isPathB) {
+          llmParsed = cachedState.marketRadar || {};
+        } else {
+          llmParsed.market_gaps = [];
+          llmParsed._reasoning = "Resumed from cached analysis.";
+          llmParsed.exact_quote = "";
+          llmParsed.exa_url = "";
+        }
+      } else {
+        // Send competitor count immediately
+        sendData("competitor_count", exaResponse.results?.length || 0);
+        sendData(
+          "competitor_list",
+          exaResponse.results?.slice(0, 3).map((r: any) => ({
+            name: r.title || new URL(r.url).hostname,
+            domain: r.url,
+            description: (r.text || "").substring(0, 150) + "...",
+          })) || [],
+        );
 
-      // 2. Strict LLM JSON Parsing with _reasoning
-      const prompt = `
+        const competitorContext = exaResponse.results
+          .slice(0, 3)
+          .map((r: any) => `URL: ${r.url}\nContent: ${r.text || r.title || ""}`)
+          .join("\n\n");
+
+        // 2. Strict LLM JSON Parsing with _reasoning
+        const promptA = `
 Analyze the following product concept and the retrieved competitor data.
 Product Name: ${productName}
 Description: ${productDescription}
@@ -489,49 +622,113 @@ ${competitorContext}
 
 Determine if this product idea is a defensible niche or a highly saturated horizontal tarpit.
 Extract the reasoning, a verbatim exact quote from the competitor context that proves saturation or niche viability, the corresponding URL, and a wedge metric (0 to 1, where 1 is highly saturated, 0 is highly unique). If the idea is a tarpit, provide an array of 3 hyper-niche pivot suggestions (suggestedNiches) that are much more defensible.
-    `;
+      `;
 
-      const callOptions = {
-        model: selectedModel,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: LLMExtractionSchema.toJSONSchema() as any,
-          systemInstruction:
-            "You are an expert M&A due diligence AI. Analyze the competitor saturation.",
-        },
-      };
+        const promptB = `
+Analyze the following market/competitor and the retrieved competitor data.
+Market/Competitor: ${productDescription}
 
-      if (abortController.signal.aborted) throw new Error("AbortError");
-      const geminiRes = await ai.models.generateContent(callOptions);
-      const llmOutputRaw = geminiRes.text;
-      if (!llmOutputRaw) throw new Error("Empty response from LLM");
+Competitors context:
+${competitorContext}
 
-      let llmParsed;
-      try {
-        llmParsed = LLMExtractionSchema.parse(JSON.parse(llmOutputRaw));
-      } catch (parseError: any) {
-        throw parseError;
+Provide a Market Radar Summary including market velocity, dominant players, emerging threats, table-stakes features, and differentiation vectors.
+      `;
+
+        const callOptions = {
+          model: selectedModel,
+          contents: isPathB ? promptB : promptA,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: (isPathB
+              ? MarketRadarSchema
+              : LLMExtractionSchema
+            ).toJSONSchema() as any,
+            systemInstruction: isPathB
+              ? "You are an expert Enterprise Product Manager analyzing market dynamics."
+              : "You are an expert M&A due diligence AI. Analyze the competitor saturation.",
+          },
+        };
+
+        if (abortController.signal.aborted) throw new Error("AbortError");
+        const geminiRes = await ai.models.generateContent({
+          ...callOptions,
+          abortSignal: abortController.signal,
+        } as any);
+        const llmOutputRaw = geminiRes.text;
+        if (!llmOutputRaw) throw new Error("Empty response from LLM");
+
+        try {
+          llmParsed = isPathB
+            ? MarketRadarSchema.parse(JSON.parse(llmOutputRaw))
+            : LLMExtractionSchema.parse(JSON.parse(llmOutputRaw));
+        } catch (parseError: any) {
+          throw parseError;
+        }
+
+        if (!isPathB) {
+          const { calculateOpportunityScore } =
+            await import("../utils/scoringEngine");
+          oppScore = calculateOpportunityScore(
+            llmParsed.jtbd.importance,
+            llmParsed.jtbd.satisfaction,
+          );
+
+          // Emit JTBD State
+          sendData("jtbd_analysis", {
+            job: llmParsed.jtbd.job_statement,
+            opportunityScore: oppScore,
+          });
+        } else {
+          // Emit Market Radar State
+          sendData("market_radar", llmParsed);
+        }
       }
 
-      const { calculateOpportunityScore } =
-        await import("../utils/scoringEngine");
-      const oppScore = calculateOpportunityScore(
-        llmParsed.jtbd.importance,
-        llmParsed.jtbd.satisfaction,
-      );
-
-      // Emit JTBD State
-      sendData("jtbd_analysis", {
-        job: llmParsed.jtbd.job_statement,
-        opportunityScore: oppScore,
-      });
-
       // Emit Gaps State
-      sendData("gap_analysis", llmParsed.market_gaps);
+      if (!isResumed && !isPathB) {
+        sendData("gap_analysis", llmParsed.market_gaps);
+      }
 
       if (isAnonymous) {
+        // Cache intermediate state to Firestore for stateful resume
+        const db = admin.firestore();
+        const stateToCache: any = {
+          productDescription,
+          competitor_count: exaResponse.results?.length || 0,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        if (isPathB) {
+          stateToCache.marketRadar = llmParsed;
+        } else {
+          stateToCache.opportunityScore = oppScore;
+          stateToCache.wedge_metric = llmParsed.wedge_metric ?? 0.5;
+        }
+
+        await db
+          .collection("pqlState")
+          .doc(req.user.uid)
+          .set(stateToCache, { merge: true });
+
         sendData("pql_gate", true);
+        return;
+      }
+
+      if (isPathB) {
+        // For Path B, we stop after radar.
+        if (!isAnonymous && isResumed) {
+          try {
+            const stateRef = db.collection("pqlState").doc(req.user.uid);
+            await stateRef.delete();
+          } catch (e) {
+            console.error("Failed to delete cached pql state:", e);
+          }
+        }
+
+        sendData("final_radar", {
+          status: "success",
+          radar: llmParsed,
+        });
         return;
       }
 
@@ -549,10 +746,13 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
 
       // 4. Implement Gemini embedding integration
       const embedRes = await ai.models.embedContent({
-        model: "gemini-embedding-001",
-        contents: productDescription,
-        config: { outputDimensionality: 768 },
-      });
+        ...{
+          model: "gemini-embedding-001",
+          contents: productDescription,
+          config: { outputDimensionality: 768 },
+        },
+        abortSignal: abortController.signal,
+      } as any);
 
       const embeddingValues = embedRes.embeddings?.[0]?.values;
       if (!embeddingValues) throw new Error("Failed to generate embedding");
@@ -579,15 +779,39 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       let isTarpit = scoreResult.isTarpit;
 
       if (isTarpit) {
-        const mockCentroid = new Float32Array(768).fill(0.01);
-        fastL2NormalizeInPlace(mockCentroid);
+        const db = admin.firestore();
+        let orthDistSq = 1.0;
+        let is_hyper_velocity_tarpit = false;
 
-        const { calculateSquaredOrthogonalDistance } =
-          await import("../utils/scoringEngine");
-        const orthDistSq = calculateSquaredOrthogonalDistance(
-          vector,
-          mockCentroid,
-        );
+        try {
+          const vectorQuery = db
+            .collection("tarpit_centroids")
+            .findNearest(
+              "embedding",
+              admin.firestore.FieldValue.vector(Array.from(vector)),
+              {
+                limit: 1,
+                distanceMeasure: "EUCLIDEAN",
+              },
+            );
+          const nearestDocs = await vectorQuery.get();
+
+          if (!nearestDocs.empty) {
+            const nearestDoc = nearestDocs.docs[0];
+            const centroidVector = nearestDoc.data().embedding.toArray();
+
+            const { calculateSquaredOrthogonalDistance } =
+              await import("../utils/scoringEngine");
+            orthDistSq = calculateSquaredOrthogonalDistance(
+              vector,
+              new Float32Array(centroidVector),
+            );
+            is_hyper_velocity_tarpit =
+              nearestDoc.data().is_hyper_velocity_tarpit === true;
+          }
+        } catch (dbErr) {
+          console.error("Vector search stream failed", dbErr);
+        }
 
         const localDensity = 0.1;
 
@@ -598,6 +822,12 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
           llmParsed._reasoning +=
             " [SYSTEM OVERRIDE: Orthogonal Vector Distance indicates a defensible wedge despite semantic similarity to a tarpit.]";
         }
+
+        if (is_hyper_velocity_tarpit) {
+          isTarpit = true;
+          llmParsed._reasoning +=
+            " [VELOCITY GUARDRAIL: This market is moving at hyper-velocity. High risk tarpit.]";
+        }
       }
 
       // Send the final tarpit score after the override check
@@ -607,6 +837,16 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         uniqueness: scoreResult.uniqueness,
         saturationFactor: scoreResult.saturationFactor,
       });
+
+      // Now that the analysis is successfully delivered, we can clean up the resume cache
+      if (!isAnonymous && isResumed) {
+        try {
+          const stateRef = db.collection("pqlState").doc(req.user.uid);
+          await stateRef.delete();
+        } catch (e) {
+          console.error("Failed to delete cached pql state:", e);
+        }
+      }
 
       // 6. Send Final Object
       sendData("final", {

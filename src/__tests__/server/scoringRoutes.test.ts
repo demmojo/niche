@@ -4,6 +4,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { scoringRouter } from "../../server/scoringRoutes";
 import { requireAuth } from "../../server/authMiddleware";
 
+vi.mock("../../server/utils/remoteConfig", () => ({
+  getResolvedModel: vi.fn().mockResolvedValue("gemini-3.1-pro-preview"),
+}));
+
 // Mock scoring engine functions for deterministic testing
 vi.mock("../../utils/scoringEngine", async (importOriginal) => {
   const actual: any = await importOriginal();
@@ -110,21 +114,41 @@ vi.mock("@google/genai", async (importOriginal) => {
 });
 
 vi.mock("firebase-admin", () => {
-  return {
-    default: {
-      firestore: vi.fn().mockReturnValue({
+  const firestoreReturn = {
+    collection: vi.fn().mockReturnValue({
+      doc: vi.fn().mockReturnValue({
+        get: vi.fn().mockResolvedValue({ exists: false }),
+        set: vi.fn().mockResolvedValue(true),
+        delete: vi.fn().mockResolvedValue(true),
         collection: vi.fn().mockReturnValue({
           doc: vi.fn().mockReturnValue({
-            collection: vi.fn().mockReturnValue({
-              doc: vi.fn().mockReturnValue({
-                get: vi.fn().mockResolvedValue({ exists: false }),
-                set: vi.fn().mockResolvedValue(true),
-              }),
-            }),
+            get: vi.fn().mockResolvedValue({ exists: false }),
+            set: vi.fn().mockResolvedValue(true),
           }),
         }),
       }),
+    }),
+  };
+
+  const mockFirestore: any = vi.fn().mockReturnValue(firestoreReturn);
+
+  mockFirestore.FieldValue = {
+    serverTimestamp: vi.fn().mockReturnValue("mock-server-timestamp"),
+  };
+
+  return {
+    default: {
+      firestore: mockFirestore,
+      appCheck: vi.fn().mockReturnValue({
+        verifyToken: vi.fn().mockResolvedValue({}),
+      }),
+      auth: vi.fn().mockReturnValue({
+        verifyIdToken: vi
+          .fn()
+          .mockResolvedValue({ uid: "test-uid", email: "test@example.com" }),
+      }),
     },
+    firestore: mockFirestore,
   };
 });
 
@@ -349,8 +373,8 @@ describe("scoringRoutes", () => {
         .send({ productName: "Test", productDescription: "Desc" });
 
       const chunks = res.text.split("\n\n").filter(Boolean);
-      // first chunk is competitor_count
-      const data = JSON.parse(chunks[1].replace("data: ", ""));
+      // first chunk is error now
+      const data = JSON.parse(chunks[0].replace("data: ", ""));
       expect(data.type).toBe("error");
       expect(data.value).toContain("GEMINI_API_KEY");
     });
@@ -410,11 +434,11 @@ describe("scoringRoutes", () => {
         },
       );
 
-      const { checkAndIncrementGlobalAnonymousLimit } =
-        await import("../../server/utils/anonymousUsage");
-      vi.mocked(checkAndIncrementGlobalAnonymousLimit).mockResolvedValueOnce(
-        false,
-      ); // Global limit exhausted
+      const { getResolvedModel } =
+        await import("../../server/utils/remoteConfig");
+      vi.mocked(getResolvedModel).mockResolvedValueOnce(
+        "gemini-3.1-flash-lite-preview",
+      );
 
       const { GoogleGenAI } = await import("@google/genai");
       const mockGenerateContent = vi.fn().mockResolvedValue({
@@ -451,7 +475,7 @@ describe("scoringRoutes", () => {
       // Verify generateContent was called with the fallback model
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: "gemini-3.1-flash",
+          model: "gemini-3.1-flash-lite-preview",
         }),
       );
     });
@@ -478,6 +502,31 @@ describe("scoringRoutes", () => {
 
       expect(res.status).toBe(429);
       expect(res.body.error).toContain("PQL limit exceeded");
+    });
+
+    it("should bypass 429 limit when BYPASS_ANONYMOUS_LIMITS=true", async () => {
+      process.env.BYPASS_ANONYMOUS_LIMITS = "true";
+
+      vi.mocked(requireAuth as any).mockImplementationOnce(
+        (req: any, res: any, next: any) => {
+          req.user = {
+            uid: "anon-stream-limit-bypassed",
+            firebase: { sign_in_provider: "anonymous" },
+          };
+          next();
+        },
+      );
+
+      // We expect the request to go through, so it will hit the EXA_API_KEY check or proceed
+      const res = await request(app)
+        .post("/api/scoring/stream")
+        .send({ productName: "Test", productDescription: "Desc" });
+
+      // Clean up
+      delete process.env.BYPASS_ANONYMOUS_LIMITS;
+
+      // Status should NOT be 429.
+      expect(res.status).not.toBe(429);
     });
 
     it("should stream analysis progressively (tarpit = false)", async () => {
@@ -524,9 +573,9 @@ describe("scoringRoutes", () => {
       const firstData = JSON.parse(chunks[0].replace("data: ", ""));
       expect(firstData.type).toBe("competitor_count");
 
-      const fifthData = JSON.parse(chunks[4].replace("data: ", ""));
-      expect(fifthData.type).toBe("final");
-      expect(fifthData.value.isTarpit).toBe(false);
+      const sixthData = JSON.parse(chunks[5].replace("data: ", ""));
+      expect(sixthData.type).toBe("final");
+      expect(sixthData.value.isTarpit).toBe(false);
     });
 
     it("should stream analysis progressively (tarpit = true, override)", async () => {
@@ -559,9 +608,9 @@ describe("scoringRoutes", () => {
         .send({ productName: "Test", productDescription: "Desc" });
 
       const chunks = res.text.split("\n\n").filter(Boolean);
-      const fifthData = JSON.parse(chunks[4].replace("data: ", ""));
-      expect(fifthData.type).toBe("final");
-      expect(fifthData.value.reasoning).toContain("SYSTEM OVERRIDE");
+      const sixthData = JSON.parse(chunks[5].replace("data: ", ""));
+      expect(sixthData.type).toBe("final");
+      expect(sixthData.value.reasoning).toContain("SYSTEM OVERRIDE");
     });
   });
 
@@ -695,6 +744,29 @@ describe("scoringRoutes", () => {
 
       expect(res.status).toBe(429);
       expect(res.body.error).toContain("PQL limit exceeded");
+    });
+
+    it("should bypass 429 when BYPASS_ANONYMOUS_LIMITS is true", async () => {
+      process.env.BYPASS_ANONYMOUS_LIMITS = "true";
+
+      vi.mocked(requireAuth as any).mockImplementationOnce(
+        (req: any, res: any, next: any) => {
+          req.user = {
+            uid: "anon-limit-bypassed",
+            firebase: { sign_in_provider: "anonymous" },
+          };
+          next();
+        },
+      );
+
+      const res = await request(app)
+        .post("/api/scoring/url-teaser")
+        .send({ url: "https://example.com" });
+
+      delete process.env.BYPASS_ANONYMOUS_LIMITS;
+
+      // Status should NOT be 429
+      expect(res.status).not.toBe(429);
     });
 
     it("should successfully fetch URL, strip injection vectors, and stream results", async () => {

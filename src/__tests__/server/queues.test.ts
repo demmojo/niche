@@ -16,7 +16,7 @@ import {
   ConsentRequiredError,
   requestUserConsent,
 } from "../../server/queues";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 vi.mock("bullmq", () => ({
   Queue: vi.fn().mockImplementation(() => ({
@@ -131,18 +131,15 @@ describe("queues", () => {
     });
 
     it("starts distillation worker without crashing", () => {
-      const worker = startDistillationWorker();
-      expect(worker).toBeDefined();
+      expect(() => startDistillationWorker()).not.toThrow();
     });
 
     it("starts network io worker without crashing", () => {
-      const worker = startNetworkIoWorker();
-      expect(worker).toBeDefined();
+      expect(() => startNetworkIoWorker()).not.toThrow();
     });
 
     it("starts vision ml worker without crashing", () => {
-      const worker = startVisionMlWorker();
-      expect(worker).toBeDefined();
+      expect(() => startVisionMlWorker()).not.toThrow();
     });
   });
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, safeDisableNetwork } from "../firebase";
 import { useAuth } from "../components/AuthProvider";
 
@@ -35,8 +35,9 @@ export function useFirebaseSync<T>(
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
   const { user } = useAuth();
   const [storedValue, setStoredValue] = useState<T>(initialValue);
-  const isInitialLoad = useRef(true);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentValueRef = useRef<T | null>(null);
+  const stateRef = useRef<T>(storedValue);
 
   useEffect(() => {
     if (!user) {
@@ -44,42 +45,51 @@ export function useFirebaseSync<T>(
       return;
     }
 
+    const controller = new AbortController();
     const docRef = doc(db, "users", user.uid, "appData", key);
 
     const unsubscribe = onSnapshot(
       docRef,
+      { includeMetadataChanges: true },
       (docSnap) => {
+        if (controller.signal.aborted) return;
+
         // Ignore snapshots triggered by our own local uncommitted writes
+        // because we're debouncing and managing local state independently
         if (docSnap.metadata.hasPendingWrites) {
           return;
         }
 
         // If a remote update comes in, clear any pending local writes to prevent overwriting it with stale local data
+        const incomingData = docSnap.exists()
+          ? docSnap.data().value
+          : initialValue;
+
+        // Check if this snapshot is an echo of what we recently sent to the server
+        const isEchoOfLastSent =
+          lastSentValueRef.current !== null &&
+          JSON.stringify(incomingData) ===
+            JSON.stringify(lastSentValueRef.current);
+
+        // If it's a stale echo, but we have new local writes pending (syncTimeoutRef is active)
+        // or new state we've already set, we should IGNORE this echo to prevent "Snapshot Beats the Fetch" tearing.
+        if (
+          isEchoOfLastSent &&
+          (syncTimeoutRef.current !== null ||
+            JSON.stringify(incomingData) !== JSON.stringify(stateRef.current))
+        ) {
+          return;
+        }
+
         if (syncTimeoutRef.current) {
           clearTimeout(syncTimeoutRef.current);
           syncTimeoutRef.current = null;
         }
 
-        if (docSnap.exists()) {
-          setStoredValue(docSnap.data().value as T);
-        } else {
-          // Initialize if not exists
-          const firebaseValue =
-            initialValue === undefined
-              ? null
-              : JSON.parse(JSON.stringify(initialValue));
-          setDoc(docRef, { value: firebaseValue }, { merge: true }).catch(
-            (err) => {
-              if (err.code === "resource-exhausted") {
-                safeDisableNetwork();
-              }
-            },
-          );
-          setStoredValue(initialValue);
-        }
-        isInitialLoad.current = false;
+        setStoredValue(incomingData as T);
       },
       (error: any) => {
+        if (controller.signal.aborted) return;
         console.error(`Error syncing ${key} from Firebase:`, error);
         if (error.code === "resource-exhausted") {
           safeDisableNetwork();
@@ -88,12 +98,27 @@ export function useFirebaseSync<T>(
     );
 
     return () => {
+      controller.abort();
       unsubscribe();
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    };
-  }, [user, key]);
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
 
-  const stateRef = useRef<T>(storedValue);
+        // FLUSH pending write on unmount to prevent data loss!
+        const docRef = doc(db, "users", user.uid, "appData", key);
+        const firebaseValue =
+          stateRef.current === undefined
+            ? null
+            : JSON.parse(JSON.stringify(stateRef.current));
+        setDoc(docRef, { value: firebaseValue }, { merge: true }).catch(
+          (err) => {
+            console.error(`Error flushing ${key} to Firebase on unmount:`, err);
+          },
+        );
+      }
+    };
+  }, [user?.uid, key]);
+
   stateRef.current = storedValue;
 
   const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
@@ -106,9 +131,16 @@ export function useFirebaseSync<T>(
       }
 
       syncTimeoutRef.current = setTimeout(() => {
+        // Clear the ref when the timeout executes, so we know there's no active typing buffer
+        syncTimeoutRef.current = null;
+
         const docRef = doc(db, "users", user.uid, "appData", key);
         const firebaseValue =
           newValue === undefined ? null : JSON.parse(JSON.stringify(newValue));
+
+        // Track what we just sent to distinguish echoes from genuine remote updates
+        lastSentValueRef.current = firebaseValue;
+
         setDoc(docRef, { value: firebaseValue }, { merge: true }).catch(
           (err) => {
             console.error(`Error saving ${key} to Firebase:`, err);

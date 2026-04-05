@@ -347,6 +347,7 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
                   onClick={handleValidate}
                   disabled={validationState === STATE_MUTATING || !pastedCode}
                   className="bg-[#CCFF00] text-[#0C0C0C] font-bold py-3 rounded hover:bg-[#B3E600] disabled:opacity-50"
+                  aria-live="polite"
                 >
                   {validationState === STATE_MUTATING
                     ? "Validating Code..."

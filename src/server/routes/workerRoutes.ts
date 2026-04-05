@@ -1,15 +1,60 @@
 import { Router, Request, Response } from "express";
 import { requireInternalOidc } from "../internalAuthMiddleware";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 import Exa from "exa-js";
 import { GoogleGenAI } from "@google/genai";
 import { publishSseEvent } from "../sse";
-import { runDeepValidationCampaign } from "../campaignRoutes";
+import { runDeepValidationCampaign } from "../workers/validationCampaignWorker";
 
 export const workerRouter = Router();
 
 workerRouter.use(requireInternalOidc);
+
+// Validation Campaign Worker Route
+workerRouter.post(
+  "/run-validation-campaign",
+  async (req: Request, res: Response) => {
+    const jobData = req.body;
+    const jobId = jobData.jobId || "unknown";
+
+    try {
+      let payload = jobData;
+      // Check if heavy payload was offloaded to Firestore (Claim Check pattern)
+      if (jobData.payloadDocId) {
+        const doc = await admin
+          .firestore()
+          .collection("cloud_tasks_payloads")
+          .doc(jobData.payloadDocId)
+          .get();
+        if (doc.exists) {
+          payload = { ...payload, ...doc.data() };
+        }
+      }
+
+      await runDeepValidationCampaign(
+        jobId,
+        payload.userId,
+        payload.competitors || [],
+        payload.baseIdea,
+      );
+
+      // Cleanup heavy payload if applicable
+      if (jobData.payloadDocId) {
+        await admin
+          .firestore()
+          .collection("cloud_tasks_payloads")
+          .doc(jobData.payloadDocId)
+          .delete();
+      }
+
+      return res.status(200).json({ success: true });
+    } catch (error: any) {
+      console.error("Validation Campaign worker failed:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 // Network IO Worker Route
 workerRouter.post("/network-io", async (req: Request, res: Response) => {
@@ -22,19 +67,6 @@ workerRouter.post("/network-io", async (req: Request, res: Response) => {
   // We MUST NOT return res.status(202).json({}) immediately, we must await the result.
 
   try {
-    if (
-      jobData.action === "run-validation-campaign" ||
-      jobData.name === "run-validation-campaign"
-    ) {
-      await runDeepValidationCampaign(
-        jobId,
-        jobData.userId,
-        jobData.competitors,
-        jobData.baseIdea,
-      );
-      return res.status(200).json({ success: true });
-    }
-
     publishSseEvent(jobId, "progress", {
       status: "Scraping competitor via Exa...",
       progress: 20,
@@ -186,6 +218,25 @@ workerRouter.post("/vision-ml", async (req: Request, res: Response) => {
   }
 });
 
+import { processStaticCrawl } from "../workers/staticCrawlerWorker";
+
+workerRouter.post("/static-crawl", async (req: Request, res: Response) => {
+  try {
+    const result = await processStaticCrawl(req.body);
+    return res.status(200).json({ success: true, result });
+  } catch (error: any) {
+    // Explicitly return 429/403 to trigger Cloud Tasks backpressure and retry on Firecrawl Spot VM fleet
+    if (result.botWallDetected) {
+      return res
+        .status(429)
+        .json({ error: "Bot wall detected, triggering backpressure", result });
+    }
+
+    console.error("Static Crawler worker failed:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // Import other worker processing functions
 import { processMarketIntelligenceJob } from "../workers/marketIntelligenceWorker";
 import { processBrandWizardJob } from "../workers/brandWizardWorker";
@@ -288,13 +339,11 @@ workerRouter.post("/distillation", async (req: Request, res: Response) => {
           newWatermark: lastProcessedId,
         },
       });
-      return res
-        .status(200)
-        .json({
-          success: true,
-          recordsProcessed: 0,
-          newWatermark: lastProcessedId,
-        });
+      return res.status(200).json({
+        success: true,
+        recordsProcessed: 0,
+        newWatermark: lastProcessedId,
+      });
     }
   } catch (error: any) {
     console.error("Distillation worker failed:", error);

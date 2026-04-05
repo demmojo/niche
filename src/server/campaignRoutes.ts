@@ -358,28 +358,28 @@ campaignRouter.post(
       // #region agent log
       // #endregion
 
-      // 4. Enqueue to BullMQ (Durable Jobs)
+      // 4. Enqueue to Cloud Tasks worker endpoint via validationCampaignQueue
       const idempotencyKey = `campaign_${jobId}_${Date.now()}`;
       try {
         // #region agent log
         // #endregion
-        // Pass the job to the existing Network queue for processing
-        await networkIoQueue.add(
-          "run-validation-campaign",
-          {
-            jobId,
-            userId,
-            competitors,
-            baseIdea,
-            idempotencyKey,
-            costReserved: costPerCampaign,
-          },
-          {
-            jobId: idempotencyKey, // BullMQ native deduplication
-            attempts: 3,
-            backoff: { type: "exponential", delay: 1000 },
-          },
-        );
+
+        // Claim Check Pattern for large payload
+        const payloadRef = await db.collection("cloud_tasks_payloads").add({
+          competitors,
+          baseIdea, // Base idea can also be large if it's a huge string
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Pass the job to the existing queue for processing
+        const { validationCampaignQueue } = await import("./queues");
+        await validationCampaignQueue.add("run-validation-campaign", {
+          jobId,
+          userId,
+          payloadDocId: payloadRef.id,
+          idempotencyKey,
+          costReserved: costPerCampaign,
+        });
 
         // Return the jobId immediately so the frontend can poll / setup onSnapshot
         return res
@@ -421,213 +421,6 @@ campaignRouter.post(
     }
   },
 );
-
-/**
- * Exported for testing purposes
- */
-export async function runDeepValidationCampaign(
-  jobId: string,
-  userId: string,
-  competitors: any[],
-  baseIdea: any,
-) {
-  const db = admin.firestore();
-  const jobRef = db.collection("campaign_jobs").doc(jobId);
-
-  let activeCompetitors = [...competitors];
-
-  // #region agent log
-  // #endregion
-
-  // Hard cap to prevent asymmetric resource exhaustion
-  const safeCompetitors = activeCompetitors.slice(0, MAX_COMPETITORS);
-  let completedCount = 0;
-
-  // We use Gemini 768D dimensions for performance
-  const DIMENSIONS = 768;
-
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY is missing");
-  const ai = new GoogleGenAI({ apiKey: key });
-  if (!ai.models)
-    console.error(
-      "ai.models IS UNDEFINED! ai:",
-      ai,
-      "GoogleGenAI:",
-      GoogleGenAI,
-    );
-
-  // 3. Vector Search (Embeddings generation)
-  const enrichedResults = await pMap(
-    safeCompetitors,
-    async (comp: any) => {
-      try {
-        // Mock data extraction delay
-        // await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Generate real embedding using gemini-embedding-001
-        const embedText = `${comp.name || comp.domain}\n${comp.short_description || "Competitor"}`;
-        const embedRes = await ai.models.embedContent({
-          model: "gemini-embedding-001",
-          contents: embedText,
-        });
-
-        const rawValues = embedRes.embeddings?.[0]?.values;
-        if (!rawValues || rawValues.length !== DIMENSIONS) {
-          throw new Error("Invalid embedding returned from Gemini");
-        }
-
-        const realVector = new Float32Array(rawValues);
-        fastL2NormalizeInPlace(realVector);
-
-        // Mock LLM Extraction output using strict Zod boundary parsing and Grammar-Constrained Decoding format
-        const mockLlmExtraction = {
-          jtbd: {
-            job_statement: "test",
-            importance: 10,
-            satisfaction: 2,
-          },
-          market_gaps: [],
-          _reasoning: "Competitor focuses on general CRM features.",
-          exact_quote: "The all-in-one CRM for businesses.",
-          exa_url: "https://example.com/crm",
-          wedge_metric: 0.8,
-        };
-
-        // Zod validation boundary
-        console.log("LLMExtractionSchema:", LLMExtractionSchema);
-        const parsedExtraction =
-          LLMExtractionSchema.safeParse(mockLlmExtraction);
-        if (!parsedExtraction.success) {
-          throw new Error("LLM Extraction failed Zod validation");
-        }
-
-        if (!validateExaUrl(parsedExtraction.data.exa_url)) {
-          throw new Error(
-            "Stored XSS protection: Invalid URL protocol from LLM",
-          );
-        }
-
-        completedCount++;
-        if (
-          completedCount % 5 === 0 ||
-          completedCount === safeCompetitors.length
-        ) {
-          await jobRef.update({
-            progress: completedCount,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
-
-        return {
-          status: "success" as const,
-          data: {
-            ...comp,
-            vector: realVector,
-            features: ["Dashboard", "AI Chat"],
-            extraction: parsedExtraction.data,
-          },
-        };
-      } catch (error: any) {
-        console.log("TC_ERROR:", error.message);
-        return { status: "error" as const, domain: comp.domain, error };
-      }
-    },
-    {
-      concurrency: 10,
-      stopOnError: false, // Crucial: partial failures shouldn't kill the campaign
-    },
-  );
-
-  const successfulEnrichments = enrichedResults
-    .filter((res) => res.status === "success")
-    .map((res) => res.data);
-
-  // Base idea real vector
-  const baseIdeaText =
-    typeof baseIdea === "string" ? baseIdea : JSON.stringify(baseIdea);
-  const baseEmbedRes = await ai.models.embedContent({
-    model: "gemini-embedding-001",
-    contents: baseIdeaText || "Base Idea",
-  });
-  const baseRawValues = baseEmbedRes.embeddings?.[0]?.values;
-  const baseVector = new Float32Array(
-    baseRawValues || new Array(DIMENSIONS).fill(0.15),
-  );
-  fastL2NormalizeInPlace(baseVector);
-
-  let totalUniqueness = 0;
-  let maxWedge = 0;
-
-  const scoredCompetitors = successfulEnrichments.map((comp) => {
-    // Pure inner product calculation
-    let innerProduct = 0.0;
-    for (let i = 0; i < DIMENSIONS; i++) {
-      innerProduct += baseVector[i] * comp.vector[i];
-    }
-    const similarity = Math.max(-1, Math.min(1, innerProduct));
-    const uniqueness = 1.0 - similarity;
-    totalUniqueness += uniqueness;
-
-    // Wedge metric (Orthogonal distance)
-    const orthogonalDistanceSq = calculateSquaredOrthogonalDistance(
-      baseVector,
-      comp.vector,
-    );
-    const orthogonalDistance = Math.sqrt(orthogonalDistanceSq); // Take sqrt here since downstream expects the actual distance
-    maxWedge = Math.max(maxWedge, orthogonalDistance);
-
-    const jaccard = 0.5; // Mock jaccard
-    const trueCompetitorScore = 0.6 * similarity + 0.4 * jaccard;
-
-    // Fix: Object rest destructuring to omit undefined vector
-    const { vector, ...compWithoutVector } = comp;
-
-    return {
-      ...compWithoutVector,
-      trueCompetitorScore,
-      orthogonalDistance,
-    };
-  });
-
-  const averageUniqueness =
-    successfulEnrichments.length > 0
-      ? totalUniqueness / successfulEnrichments.length
-      : 1.0;
-
-  const totalCompetitorCount = competitors.length;
-
-  // Calculate final score using the new engine
-  const scoreResult: any = calculateTarpitScore({
-    vectorUniqueness: averageUniqueness,
-    apolloCount: totalCompetitorCount,
-  } as any);
-
-  // Apply Wedge Override (if the orthogonal distance is high enough, it's a defensible niche)
-  const WEDGE_THRESHOLD = 0.85;
-  if (
-    scoreResult.status === "success" &&
-    scoreResult.isTarpit &&
-    maxWedge > WEDGE_THRESHOLD
-  ) {
-    scoreResult.isTarpit = false;
-    scoreResult.message =
-      "Wedge metric overrides Tarpit score - Defensible Blue Ocean detected.";
-  }
-
-  // Complete the campaign, storing the score and execution context (Scoring Version Registry)
-  await jobRef.update({
-    status: "completed",
-    progress: safeCompetitors.length,
-    results: scoredCompetitors,
-    scoreResult,
-    scoring_version: 1, // Versioning for M&A audit trail
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  // Note: Action Credit already deducted synchronously before enqueueing.
-  // No need to deduct here.
-}
 
 /**
  * Exported for testing purposes
@@ -741,27 +534,6 @@ export async function runTaxonomyEvaluation(
     );
   }
 }
-
-// Endpoint for async evaluating taxonomy merges
-campaignRouter.post(
-  "/evaluate-taxonomy",
-  requireAuth,
-  async (req: AuthenticatedRequest, res: any) => {
-    const userId = req.user?.uid;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    const { featuresToMerge, customName, workspaceId } = req.body;
-    if (!featuresToMerge || featuresToMerge.length < 2 || !workspaceId) {
-      return res.status(400).json({ error: "Missing parameters" });
-    }
-
-    // We return 202 Accepted immediately as this is an async pipeline
-    res.status(202).json({ status: "evaluating" });
-
-    // Async evaluation process
-    runTaxonomyEvaluation(userId, featuresToMerge, workspaceId, customName);
-  },
-);
 
 // Secure endpoint for Fake Door telemetry ingestion
 campaignRouter.post(
@@ -1105,121 +877,15 @@ campaignRouter.post(
         return res.status(400).json({ error: "Invalid payload." });
       }
 
-      // We immediately send 202 Accepted, and process async.
-      res.status(202).json({ status: "evaluating" });
+      // We process async but await the response to ensure Cloud Run CPU allocation.
+      await runTaxonomyEvaluation(
+        userId,
+        featuresToMerge,
+        workspaceId,
+        customName,
+      );
 
-      const key = process.env.GEMINI_API_KEY;
-      if (!key) throw new Error("GEMINI_API_KEY is missing");
-      const ai = new GoogleGenAI({ apiKey: key });
-      const db = admin.firestore();
-
-      // 1. Generate embeddings
-      const embeddings: Float32Array[] = [];
-      const modelName = "gemini-embedding-001";
-      for (const feature of featuresToMerge) {
-        const embedRes = await ai.models.embedContent({
-          model: modelName,
-          contents: feature,
-        });
-        const vals = embedRes.embeddings?.[0]?.values;
-        if (!vals) throw new Error("Failed to embed feature");
-        const floatArr = new Float32Array(vals);
-        fastL2NormalizeInPlace(floatArr);
-        embeddings.push(floatArr);
-      }
-
-      // 2. Compute similarity (average pairwise)
-      let totalSim = 0;
-      let pairs = 0;
-      for (let i = 0; i < embeddings.length; i++) {
-        for (let j = i + 1; j < embeddings.length; j++) {
-          totalSim += calculateCosineSimilarity(embeddings[i], embeddings[j]);
-          pairs++;
-        }
-      }
-      const avgSim = totalSim / pairs;
-
-      const thresholds = getTaxonomyThresholds(modelName);
-
-      let decision: "objective" | "subjective" | "borderline" = "borderline";
-      if (avgSim >= thresholds.objective) decision = "objective";
-      else if (avgSim < thresholds.subjective) decision = "subjective";
-
-      if (decision === "borderline") {
-        // LLM as a judge with exponential backoff
-        let llmDecision = "subjective"; // fallback
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const prompt = `Are these features functionally identical (objective synonyms) or just subjectively grouped?
-Features to merge: ${JSON.stringify(featuresToMerge)}
-Proposed new name: ${customName}
-
-Provide chain-of-thought reasoning with keys: reasoning_feature_a, reasoning_feature_b, boundary_analysis.
-Then provide classification: OBJECTIVE_SYNONYM or SUBJECTIVE_GROUPING.
-Also provide confidence (0-1). Make sure the output is pure JSON matching this exact structure:
-{
-  "reasoning_feature_a": string,
-  "reasoning_feature_b": string,
-  "boundary_analysis": string,
-  "classification": "OBJECTIVE_SYNONYM" | "SUBJECTIVE_GROUPING",
-  "confidence": number
-}`;
-            const geminiRes = await ai.models.generateContent({
-              model: "gemini-3.1-flash",
-              contents: prompt,
-              config: {
-                responseMimeType: "application/json",
-              },
-            });
-            const responseText = geminiRes.text;
-            if (responseText) {
-              const parsed = JSON.parse(responseText);
-              if (
-                parsed.classification === "OBJECTIVE_SYNONYM" &&
-                parsed.confidence >= 0.9
-              ) {
-                llmDecision = "objective";
-              }
-              break; // success
-            }
-          } catch (e) {
-            console.warn(`LLM judge attempt ${attempt + 1} failed`, e);
-            await new Promise((r) =>
-              setTimeout(r, Math.pow(2, attempt) * 1000),
-            );
-          }
-        }
-        if (llmDecision === "objective") decision = "objective";
-        else decision = "subjective";
-      }
-
-      // 3. Handle outcomes
-      const userTaxRef = db.doc(`workspaces/${workspaceId}/appData/taxonomy`);
-
-      if (decision === "objective") {
-        // Queue for Superadmin
-        const proposalRef = db.collection("taxonomy_proposals").doc();
-        await proposalRef.set({
-          customName,
-          featuresToMerge,
-          workspaceId,
-          similarityScore: avgSim,
-          status: "pending_superadmin",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-
-      // For ALL outcomes, we approve the local merge so the user's optimistic UI solidifies
-      await db.runTransaction(async (t) => {
-        const snap = await t.get(userTaxRef);
-        if (!snap.exists) return;
-        const data = snap.data();
-        if (data?.evaluationStatus === "evaluating") {
-          t.update(userTaxRef, {
-            evaluationStatus: "success",
-          });
-        }
-      });
+      return res.status(200).json({ status: "success" });
     } catch (e: any) {
       console.error("Evaluate taxonomy failed:", e);
       // Even on failure, set it to success/idle locally to not break user's flow
@@ -1232,6 +898,7 @@ Also provide confidence (0-1). Make sure the output is pure JSON matching this e
           await userTaxRef.update({ evaluationStatus: "success" });
         }
       } catch (ignore) {}
+      return res.status(500).json({ error: "Taxonomy evaluation failed" });
     }
   },
 );

@@ -112,15 +112,14 @@ export function usePQLUpgrade() {
       setUpgradeState("STATE_ERRORED");
       return false;
     } finally {
-      if (!signal.aborted) {
-        if (isMergingRef) {
-          isMergingRef.current = false;
-        }
-        // Trigger update of user state
-        const auth = getAuth();
-        if (auth.currentUser) {
-          auth.updateCurrentUser(auth.currentUser);
-        }
+      if (isMergingRef) {
+        isMergingRef.current = false;
+      }
+      // Always trigger update of global user state, even if this specific
+      // component unmounted during the merge, to ensure AuthProvider is synced.
+      const auth = getAuth();
+      if (auth.currentUser) {
+        auth.updateCurrentUser(auth.currentUser);
       }
     }
   };

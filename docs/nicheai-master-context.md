@@ -6,12 +6,12 @@ This document serves as the ultimate source of truth for NicheAI's technical arc
 
 ## 1. Product Philosophy & Vision
 
-NicheAI is an autonomous market intelligence platform and AI product strategist built for founders, indie hackers, and small teams. It solves the problem of "tarpit" ideas (building generic tools for saturated markets) by providing real-time competitor data and guided validation workflows.
+NicheAI is an autonomous market intelligence platform and AI product strategist. It serves a bifurcated audience: Solo Founders/Indie Hackers seeking guided validation workflows, and Enterprise Product Managers (PMs) requiring data-dense analytical dashboards. It solves the problem of "tarpit" ideas by providing real-time competitor data.
 
 ### Core Tenets
 
 1.  **Niche over Horizontal:** Broad features are rejected. Every feature must force users into hyper-specific, defensible market segments.
-2.  **Guided Experience:** No blank canvases. Opinionated wizards and structured flows dictate the UX.
+2.  **Split UX Architecture:** NicheAI provides a "Pivot Simulator" (opinionated, guided wizards) for Solo Founders, and a "Command Center" (data-dense, analytical dashboards) for Enterprise PMs.
 3.  **Human-in-the-Loop (HITL):** AI features must fail gracefully. Users must easily correct, edit, or reject AI outputs. There are no fully autonomous destructive actions.
 4.  **Anti-Bloat MVP Budget:** Features must align with a lean timeline. Over-engineered meta-tooling is rejected.
 
@@ -19,7 +19,7 @@ NicheAI is an autonomous market intelligence platform and AI product strategist 
 
 ## 2. System Architecture & Boundaries
 
-NicheAI utilizes a modern, split-stack architecture optimized for asynchronous AI orchestration. The application relies on a dual-database layer to handle distinct data types.
+NicheAI utilizes a modern, split-stack architecture optimized for asynchronous AI orchestration. The application relies on a multi-tier data architecture to handle distinct data types.
 
 ### The Frontend (React 19 / Vite / Tailwind v4)
 
@@ -31,12 +31,13 @@ NicheAI utilizes a modern, split-stack architecture optimized for asynchronous A
 - The Node.js/Express server acts as a Backend-For-Frontend (BFF). It proxies external APIs, handles rate limiting, and streams data back to the client via Server-Sent Events (SSE).
 - **Controller Mandate:** Heavy handler logic, Apollo fetch loops, and LLM prompt mapping must be extracted out of the `server.ts` file and into isolated controllers inside `src/server/controllers/`.
 
-### The Dual-Database Boundary (Critical)
+### The Multi-Tier Data Architecture (Critical)
 
-NicheAI uses both Firebase and Supabase. The boundary is strictly enforced to prevent data orphans:
+NicheAI uses Firebase, BigQuery, and Vertex AI. The boundary is strictly enforced:
 
 1.  **Firebase Firestore (NoSQL):** The absolute Source of Truth for real-time state, user metadata, workspaces, and append-only taxonomies. All UI rendering relies on asynchronous `onSnapshot` listeners from Firestore.
-2.  **Supabase (PostgreSQL / pgvector):** The ephemeral cache and raw data layer. It handles perceptual hashing, deduplication logic, and relational/vector queries. **Never** write core user state exclusively to Supabase without a corresponding reference in Firestore.
+2.  **BigQuery (Lineage Layer):** Maintains SCD Type 2 historical data lineage for raw SaaS data and quarantined hallucinations.
+3.  **Vertex AI (Vector Layer):** Handles native vector search syncs. We explicitly do not use PostgreSQL/pgvector to avoid data silos.
 
 ---
 
@@ -44,12 +45,20 @@ NicheAI uses both Firebase and Supabase. The boundary is strictly enforced to pr
 
 Long-running LLM operations (e.g., market scraping or generating OpenSpecs) must not block the main thread or force the user to stare at a loading spinner.
 
-- **Asynchronous Job Queues:** Endpoints trigger background tasks (via BullMQ or Piscina worker threads) and immediately return an HTTP `202 Accepted` with a `jobId`. The frontend listens for completion via the database.
-- **Smart LLM Routing:** The system defaults to **Gemini 3.1 Pro** for deep reasoning tasks and **Gemini Flash-Lite** for fast data extraction. Legacy models (Gemini 1.5, 2.5) are strictly avoided. The AI client orchestrator handles API failovers (e.g., HTTP 429) automatically.
-- **Deterministic ML Execution:** In Node.js environments, avoid `SharedArrayBuffer` for synchronous logic. Rely on pre-allocated `Float32Array` scratchpads for deterministic execution when calculating similarity distances (e.g., SimHash).
+- **Asynchronous Job Queues:** Endpoints trigger background tasks explicitly via **GCP Cloud Tasks** and immediately return an HTTP `202 Accepted` with a `jobId`. The frontend listens for completion via the database.
+- **Smart LLM Routing:** The system defaults to **Gemini 3.1 Pro** for deep reasoning tasks and **Gemini 3.1 Flash** for fast data extraction. Legacy models (Gemini 1.5, 2.5) are strictly avoided. **Gemini Search Grounding** is the exclusive mechanism for fetching organic search metrics (replacing legacy Programmable Search APIs).
+- **Deterministic ML Execution:** In Node.js environments, avoid `SharedArrayBuffer` for synchronous logic. Rely on pre-allocated `Float32Array` scratchpads for deterministic execution when calculating similarity distances.
 
-### Security & Prompt Injection Defense
+### Data Moat & Scraping Pipeline
 
+NicheAI implements a Hyper-Scale SaaS Data Moat Pipeline with a strict two-tier hierarchy:
+
+1.  **Primary (Fast/Cheap):** Static HTTP crawlers running on Cloud Run, explicitly targeting high-signal routes (`/careers`, `/changelog`, `/integrations`).
+2.  **Fallback (Heavy/Costly):** Firecrawl via Cloud Tasks, triggered specifically when encountering 403/429 Bot Walls or SPAs.
+
+### Security, Prompt Injection & Semantic Defense
+
+- **LLM-as-a-Judge Pipeline:** Zod schemas validate syntax, but semantic hallucinations are caught by dedicated audits. We use Gemini 3.1 Pro to audit outputs and quarantine detected hallucinations directly into BigQuery before they reach the user or pollute the core databases.
 - Data entering the LLM pipeline must be sanitized. External API responses are wrapped in strict XML tags (e.g., `<market_data>`) to separate instructions from payload.
 - Outputs are strictly validated against Zod schemas (utilizing `z.discriminatedUnion`) to ensure the application does not crash on malformed JSON generated by the model.
 

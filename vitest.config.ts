@@ -26,7 +26,7 @@ export default defineConfig({
         "src/types.ts",
         "src/App.tsx",
         "src/components/**",
-        "src/hooks/**",
+
         "src/store/**",
         "src/server/workers/**",
         "src/workers/**",

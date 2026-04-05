@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import { telemetryRouter } from "../../server/telemetryRoutes";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 const mockGet = vi.fn();
 vi.mock("firebase-admin", () => {

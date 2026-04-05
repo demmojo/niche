@@ -12,29 +12,19 @@ import {
   WorkspaceProvider,
   useWorkspace,
   useWorkspaceDispatch,
-  useProducts,
-  useProductsDispatch,
   useWorkspaceLoading,
 } from "../../components/WorkspaceProvider";
 
 const TestComponent = () => {
   const workspaceId = useWorkspace();
   const setWorkspaceId = useWorkspaceDispatch();
-  const products = useProducts();
-  const setProducts = useProductsDispatch();
   const isLoading = useWorkspaceLoading();
 
   return (
     <div>
       <div data-testid="workspaceId">{workspaceId}</div>
-      <div data-testid="productsCount">{products.length}</div>
       <div data-testid="isLoading">{isLoading ? "true" : "false"}</div>
       <button onClick={() => setWorkspaceId("test-id-1")}>Set Workspace</button>
-      <button
-        onClick={() => setProducts([{ id: "test-id-1", name: "Test Product" }])}
-      >
-        Set Products
-      </button>
     </div>
   );
 };
@@ -58,7 +48,6 @@ describe("WorkspaceProvider", () => {
     );
 
     expect(screen.getByTestId("workspaceId")).toHaveTextContent("");
-    expect(screen.getByTestId("productsCount")).toHaveTextContent("0");
     expect(screen.getByTestId("isLoading")).toHaveTextContent("false"); // Default is false since it finishes loading immediately
   });
 
@@ -72,9 +61,6 @@ describe("WorkspaceProvider", () => {
 
     await user.click(screen.getByText("Set Workspace"));
     expect(screen.getByTestId("workspaceId")).toHaveTextContent("test-id-1");
-
-    await user.click(screen.getByText("Set Products"));
-    expect(screen.getByTestId("productsCount")).toHaveTextContent("1");
   });
 
   it("throws an error when used outside of WorkspaceProvider", () => {

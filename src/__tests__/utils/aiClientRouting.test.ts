@@ -9,7 +9,7 @@ describe("aiClient Routing & Resiliency", () => {
     vi.restoreAllMocks();
   });
 
-  it("should exponentially backoff on 429 and escalate capability tier to Fast", async () => {
+  it("should exponentially backoff on 429 and exhaust current tier without escalating", async () => {
     // Mock the setTimeout so tests run fast despite exponential backoff
     vi.useFakeTimers();
 
@@ -28,14 +28,6 @@ describe("aiClient Routing & Resiliency", () => {
             { error: "Rate limit exceeded" },
             { status: 429 },
           );
-        }
-
-        // Simulate Success for Fast Model
-        if (body.model === "gemini-3.1-flash") {
-          return HttpResponse.json({
-            usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 },
-            text: "Success from flash",
-          });
         }
 
         // Default Fallback Error
@@ -61,17 +53,24 @@ describe("aiClient Routing & Resiliency", () => {
       { capability: "extraction" },
     );
 
+    // Catch it so node doesn't complain about unhandled rejections
+    promise.catch(() => {});
+
     // Fast forward the backoff timers
     // 1st backoff ~1500ms
     await vi.runAllTimersAsync();
     // 2nd backoff ~2500ms
     await vi.runAllTimersAsync();
-    // 3rd backoff -> Exhausts Lite -> Escalates to Flash
+    // 3rd backoff
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
     await vi.runAllTimersAsync();
 
-    const result = await promise;
-
-    expect(result.text).toBe("Success from flash");
+    await expect(promise).rejects.toThrow("All configured models failed");
 
     // Verify the backoff logs were called multiple times for 429
     expect(warnSpy).toHaveBeenCalled();
@@ -79,7 +78,7 @@ describe("aiClient Routing & Resiliency", () => {
 
     // Ensure we saw at least one rate limit backoff warning
     const rateLimitLog = calls.find(
-      (c) => c.includes("429 Rate Limit") || c.includes("Error on model"),
+      (c) => c.includes("429 Rate Limit") || c.includes("Error with model"),
     );
     expect(rateLimitLog).toBeDefined();
 

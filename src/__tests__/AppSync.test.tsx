@@ -6,6 +6,8 @@ import { http, HttpResponse } from "msw";
 import App from "../App";
 import * as firestore from "firebase/firestore";
 
+import { useUserProfile } from "../hooks/useUserProfile";
+
 // Mock dependencies
 vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
@@ -63,8 +65,15 @@ vi.mock("../firebase", () => ({
   },
 }));
 
+vi.mock("../hooks/useUserProfile", () => ({
+  useUserProfile: vi.fn(() => ({
+    profile: { persona: "solo_founder" },
+    loading: false,
+  })),
+}));
+
 vi.mock("../components/AuthProvider", () => ({
-  useAuth: () => ({
+  useAuth: vi.fn(() => ({
     user: {
       uid: "test-user-id",
       email: "mo.hassaniv@gmail.com",
@@ -73,7 +82,7 @@ vi.mock("../components/AuthProvider", () => ({
     },
     loading: false,
     logout: vi.fn(),
-  }),
+  })),
 }));
 
 // Mock aiClient
@@ -97,15 +106,26 @@ vi.mock("../components/WorkspaceProvider", async (importOriginal) => {
   return {
     ...mod,
     useWorkspace: () => "prod-kageform",
-    useProducts: () => [{ id: "prod-kageform", name: "KageForm" }],
     useWorkspaceLoading: () => false,
-    useProductsDispatch: () => vi.fn(),
     useWorkspaceDispatch: () => vi.fn(),
+  };
+});
+
+vi.mock("../components/FounderProvider", () => {
+  return {
+    FounderProvider: ({ children }: any) => <>{children}</>,
+    useFounderProducts: () => [{ id: "prod-kageform", name: "KageForm" }],
+    useFounderActiveProductId: () => "prod-kageform",
+    useFounderActiveProductDispatch: () => vi.fn(),
   };
 });
 
 describe("App System/Integration Tests", () => {
   beforeEach(() => {
+    (useUserProfile as any).mockReturnValue({
+      profile: { persona: "solo_founder" },
+      loading: false,
+    });
     window.localStorage.clear();
     delete (window as any).location;
     window.location = new URL("http://localhost/?w=test-workspace") as any;
@@ -280,7 +300,9 @@ describe("App System/Integration Tests", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     });
-    expect(getByText("Dashboard", { selector: "h1" })).toBeInTheDocument();
+
+    // Wait for it to render
+    await screen.findByRole("heading", { name: "Dashboard" });
 
     // Click Sync Now
     const syncButtons = screen.getAllByRole("button", {

@@ -1,24 +1,56 @@
 import React, { useState } from "react";
 import { signInAnonymously } from "firebase/auth";
-import { auth } from "../firebase";
+import { setDoc, doc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { TrustBuilderScreen } from "./TrustBuilderScreen";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
-type IntentType = "validate" | "discover" | "analyze" | null;
+type IntentType = "validate" | "discover" | "analyze" | "url" | null;
+type PersonaType = "solo_founder" | "enterprise_pm" | null;
 
 export function ZeroFrictionEntry({
   onComplete,
+  onIntentSelected,
 }: {
   onComplete: (product: any) => void;
+  onIntentSelected?: () => void;
 }) {
   const [step, setStep] = useState<EntryStep>("intent");
   const [intent, setIntent] = useState<IntentType>(null);
+  const [persona, setPersona] = useState<PersonaType>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [ideaPayload, setIdeaPayload] = useState<any>(null);
   const [pivotedIdea, setPivotedIdea] = useState<string | null>(null);
 
-  const handleIntentSelection = (selectedIntent: IntentType) => {
+  const handleIntentSelection = async (selectedIntent: IntentType) => {
     setIntent(selectedIntent);
+
+    let selectedPersona: PersonaType = "solo_founder";
+    if (selectedIntent === "analyze") {
+      selectedPersona = "enterprise_pm";
+    }
+    setPersona(selectedPersona);
+    if (onIntentSelected) onIntentSelected();
+
+    try {
+      let user = auth.currentUser;
+      if (!user) {
+        const cred = await signInAnonymously(auth);
+        user = cred.user;
+      }
+
+      if (user) {
+        await setDoc(
+          doc(db, "users", user.uid),
+          { persona: selectedPersona },
+          { merge: true },
+        );
+      }
+    } catch (e: any) {
+      console.error("Failed to sign in anonymously and set persona:", e);
+      // We don't block the UI here, fallback to proceeding
+    }
+
     setStep("input");
   };
 
@@ -30,22 +62,29 @@ export function ZeroFrictionEntry({
       return;
     }
 
-    setStep("analyzing");
-
     // Adjust payload based on intent
     let finalIdea = inputValue;
-    if (intent === "discover") {
-      finalIdea = `I want to discover a niche in the ${inputValue} industry.`;
-    } else if (intent === "analyze") {
+    if (intent === "analyze") {
       finalIdea = `I want to analyze gaps left by ${inputValue}.`;
     }
-
-    setIdeaPayload({ productName: "AI Idea", productDescription: finalIdea });
 
     try {
       if (!auth.currentUser) {
         await signInAnonymously(auth);
       }
+
+      if (intent === "analyze") {
+        setIdeaPayload({
+          productName: "Competitor Analysis",
+          productDescription: finalIdea,
+        });
+      } else {
+        setIdeaPayload({
+          productName: "AI Idea",
+          productDescription: finalIdea,
+        });
+      }
+      setStep("analyzing");
     } catch (e: any) {
       console.error(e);
       setStep("error");
@@ -124,21 +163,24 @@ export function ZeroFrictionEntry({
               onClick={() => handleIntentSelection("validate")}
               className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
             >
-              <span>Validate an existing idea</span>
-              <span className="text-ink-dark/40">→</span>
-            </button>
-            <button
-              onClick={() => handleIntentSelection("discover")}
-              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
-            >
-              <span>Discover a new niche</span>
+              <div>
+                <span className="block font-bold">I'm a Founder</span>
+                <span className="block text-sm text-ink-dark/60 mt-1">
+                  Validate a startup idea or pivot
+                </span>
+              </div>
               <span className="text-ink-dark/40">→</span>
             </button>
             <button
               onClick={() => handleIntentSelection("analyze")}
               className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
             >
-              <span>Analyze a market gap</span>
+              <div>
+                <span className="block font-bold">I'm a Product Manager</span>
+                <span className="block text-sm text-ink-dark/60 mt-1">
+                  Analyze a market or competitor
+                </span>
+              </div>
               <span className="text-ink-dark/40">→</span>
             </button>
           </div>
@@ -159,9 +201,7 @@ export function ZeroFrictionEntry({
               placeholder={
                 intent === "validate"
                   ? "What are you thinking of building?"
-                  : intent === "discover"
-                    ? "What industry or topic interests you?"
-                    : "Which competitor do you want to analyze?"
+                  : "Which competitor or market do you want to analyze?"
               }
               className="w-full text-2xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark"
               autoFocus

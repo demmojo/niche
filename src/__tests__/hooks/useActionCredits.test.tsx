@@ -36,22 +36,26 @@ describe("useActionCredits", () => {
   it("sets credits to 50 if document does not exist initially", async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { uid: "test-uid" } } as any);
 
-    // Mock getDoc resolving with { exists: () => false }
-    vi.mocked(firestore.getDoc).mockResolvedValue({
-      /**
-       *
-       */
-      exists: () => false,
-    } as any);
-
-    // Mock onSnapshot doing nothing immediately
-    vi.mocked(firestore.onSnapshot).mockImplementation(() => {
-      return vi.fn(); // return an unsubscribe function
-    });
+    let snapshotCallback: Function;
+    vi.mocked(firestore.onSnapshot).mockImplementation(
+      (docRef, optionsOrCb: any, cbOrErr?: any) => {
+        if (typeof optionsOrCb === "function") {
+          snapshotCallback = optionsOrCb;
+        } else {
+          snapshotCallback = cbOrErr;
+        }
+        return vi.fn(); // unsubscribe
+      },
+    );
 
     const { result } = renderHook(() => useActionCredits());
 
-    // Should initially be 0, then immediately update to 50 when getDoc resolves
+    act(() => {
+      snapshotCallback!({
+        exists: () => false,
+      });
+    });
+
     await waitFor(() => {
       expect(result.current).toBe(50);
     });
@@ -68,10 +72,16 @@ describe("useActionCredits", () => {
     } as any);
 
     let snapshotCallback: Function;
-    vi.mocked(firestore.onSnapshot).mockImplementation((docRef, cb: any) => {
-      snapshotCallback = cb;
-      return vi.fn(); // unsubscribe
-    });
+    vi.mocked(firestore.onSnapshot).mockImplementation(
+      (docRef, optionsOrCb: any, cbOrErr?: any) => {
+        if (typeof optionsOrCb === "function") {
+          snapshotCallback = optionsOrCb;
+        } else {
+          snapshotCallback = cbOrErr;
+        }
+        return vi.fn(); // unsubscribe
+      },
+    );
 
     const { result } = renderHook(() => useActionCredits());
 
@@ -108,7 +118,7 @@ describe("useActionCredits", () => {
     expect(result.current).toBe(30);
   });
 
-  it("ignores snapshot update if document does not exist or missing field", () => {
+  it("sets credits to 50 if document does not exist, and ignores update if missing field", () => {
     vi.mocked(useAuth).mockReturnValue({ user: { uid: "test-uid" } } as any);
     vi.mocked(firestore.getDoc).mockResolvedValue({
       /**
@@ -118,10 +128,16 @@ describe("useActionCredits", () => {
     } as any);
 
     let snapshotCallback: Function;
-    vi.mocked(firestore.onSnapshot).mockImplementation((docRef, cb: any) => {
-      snapshotCallback = cb;
-      return vi.fn();
-    });
+    vi.mocked(firestore.onSnapshot).mockImplementation(
+      (docRef, optionsOrCb: any, cbOrErr?: any) => {
+        if (typeof optionsOrCb === "function") {
+          snapshotCallback = optionsOrCb;
+        } else {
+          snapshotCallback = cbOrErr;
+        }
+        return vi.fn();
+      },
+    );
 
     const { result } = renderHook(() => useActionCredits());
 
@@ -154,8 +170,8 @@ describe("useActionCredits", () => {
       });
     });
 
-    // Should still be 42
-    expect(result.current).toBe(42);
+    // Should be 50 now
+    expect(result.current).toBe(50);
 
     // Provide snapshot without actionCredits field
     act(() => {
@@ -171,8 +187,8 @@ describe("useActionCredits", () => {
       });
     });
 
-    // Should still be 42
-    expect(result.current).toBe(42);
+    // Should still be 50
+    expect(result.current).toBe(50);
   });
 
   it("cleans up onSnapshot listener on unmount", () => {
@@ -191,5 +207,71 @@ describe("useActionCredits", () => {
 
     unmount();
     expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles snapshot error", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "test-uid" } } as any);
+
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    let errorCallback: Function;
+    vi.mocked(firestore.onSnapshot).mockImplementation(
+      (docRef, optionsOrCb: any, cbOrErr?: any, errCb?: any) => {
+        if (typeof optionsOrCb === "function") {
+          errorCallback = cbOrErr;
+        } else {
+          errorCallback = errCb;
+        }
+        return vi.fn();
+      },
+    );
+
+    renderHook(() => useActionCredits());
+
+    errorCallback!(new Error("Test Error"));
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Snapshot error:",
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("ignores snapshot and error after unmount", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "test-uid" } } as any);
+
+    let snapshotCallback: Function;
+    let errorCallback: Function;
+    vi.mocked(firestore.onSnapshot).mockImplementation(
+      (docRef, optionsOrCb: any, cbOrErr?: any, errCb?: any) => {
+        if (typeof optionsOrCb === "function") {
+          snapshotCallback = optionsOrCb;
+          errorCallback = cbOrErr;
+        } else {
+          snapshotCallback = cbOrErr;
+          errorCallback = errCb;
+        }
+        return vi.fn();
+      },
+    );
+
+    const { unmount, result } = renderHook(() => useActionCredits());
+    unmount();
+
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    act(() => {
+      snapshotCallback!({ exists: () => false });
+      errorCallback!(new Error("Test Error"));
+    });
+
+    expect(result.current).toBe(0); // Never updated to 50
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });

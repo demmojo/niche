@@ -49,3 +49,8 @@ variable "redis_url" {
   sensitive   = true
   default     = ""
 }
+
+variable "image" {
+  type        = string
+  description = "Docker image URL to deploy"
+}

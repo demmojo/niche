@@ -30,10 +30,21 @@ vi.mock("../../utils/aiClient", () => ({
 }));
 
 vi.mock("@google/genai", () => {
+  const mockExtraction = {
+    jtbd: {
+      job_statement: "test",
+      importance: 10,
+      satisfaction: 2,
+    },
+    market_gaps: [],
+    _reasoning: "Competitor focuses on general CRM features.",
+    exact_quote: "The all-in-one CRM for businesses.",
+    exa_url: "https://example.com/crm",
+    wedge_metric: 0.8,
+  };
+
   const generateContentMock = vi.fn().mockResolvedValue({
-    text: JSON.stringify({
-      subNiches: [{ name: "foo" }, { name: "bar" }, { name: "baz" }],
-    }),
+    text: JSON.stringify(mockExtraction),
   });
   const embedContentMock = vi.fn().mockResolvedValue({
     embeddings: [{ values: new Array(768).fill(0.1) }],
@@ -148,10 +159,9 @@ vi.mock("../../server/rateLimit", () => ({
   fakeDoorSignalLimiter: (req: any, res: any, next: any) => next(),
 }));
 
-vi.mock("../../server/queues", () => ({
-  networkIoQueue: {
-    add: vi.fn().mockResolvedValue({}),
-  },
+vi.mock("../../server/cloudTasks", () => ({
+  enqueueTask: vi.fn().mockResolvedValue({}),
+  QUEUE_NAMES: { networkIo: "network-io-queue" },
 }));
 
 vi.mock("exa-js", () => {
@@ -199,9 +209,9 @@ vi.mock("../../utils/aiClient", () => ({
 // Import after mocking
 import {
   campaignRouter,
-  runDeepValidationCampaign,
   runTaxonomyEvaluation,
 } from "../../server/campaignRoutes";
+import { runDeepValidationCampaign } from "../../server/workers/validationCampaignWorker";
 import admin from "firebase-admin";
 import * as credits from "../../server/credits";
 
@@ -361,10 +371,8 @@ describe("campaignRoutes", () => {
           .mockResolvedValue({ id: "mock-job-id", update: mockUpdate }),
       } as any);
 
-      const { networkIoQueue } = await import("../../server/queues");
-      vi.mocked(networkIoQueue.add).mockRejectedValueOnce(
-        new Error("Queue Error"),
-      );
+      const { enqueueTask } = await import("../../server/cloudTasks");
+      vi.mocked(enqueueTask).mockRejectedValueOnce(new Error("Queue Error"));
 
       const response = await request(app)
         .post("/api/campaign/start")
@@ -397,10 +405,8 @@ describe("campaignRoutes", () => {
         add: vi.fn().mockResolvedValue({ id: "mock-job-id" }),
       } as any);
 
-      const { networkIoQueue } = await import("../../server/queues");
-      vi.mocked(networkIoQueue.add).mockRejectedValueOnce(
-        new Error("Queue Error"),
-      );
+      const { enqueueTask } = await import("../../server/cloudTasks");
+      vi.mocked(enqueueTask).mockRejectedValueOnce(new Error("Queue Error"));
 
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -457,21 +463,6 @@ describe("campaignRoutes", () => {
       expect(response.status).toBe(202);
       expect(response.body.jobId).toBe("mock-job-id");
       expect(response.body.message).toBe("Campaign queued successfully.");
-    });
-
-    it("returns 202 when competitors is empty but baseIdea is a valid object with a name", async () => {
-      vi.mocked(credits.getActionCredits).mockResolvedValueOnce(10);
-
-      const response = await request(app)
-        .post("/api/campaign/start")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({
-          competitors: [],
-          baseIdea: { name: "test idea" },
-        });
-
-      expect(response.status).toBe(202);
-      expect(response.body.jobId).toBe("mock-job-id");
     });
 
     it("handles TOCTOU correctly with 50 concurrent requests (TC-CREDIT-01)", async () => {
@@ -894,113 +885,27 @@ describe("campaignRoutes", () => {
       expect(response.status).toBe(200);
       expect(response.body.competitors).toEqual([]);
     });
-
-    it("returns valid competitors parsed from LLM", async () => {
-      const response = await request(app)
-        .post("/api/campaign/discover-competitors")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ baseIdea: "Idea" });
-
-      expect(response.status).toBe(200);
-      expect(response.body.competitors[0].name).toBe("Test");
-    });
-
-    it("handles array response from LLM wrapped manually", async () => {
-      withModelFallbackMock.mockImplementation(async (cb: any) => {
-        return await cb(
-          {
-            models: {
-              generateContent: vi.fn().mockResolvedValue({
-                text: JSON.stringify([
-                  {
-                    name: "Test2",
-                    domain: "test2.com",
-                    description: "Desc",
-                    similarityScore: 90,
-                    matchTier: "Direct",
-                    matchRationale: "Rationale",
-                  },
-                ]),
-              }),
-            },
-          },
-          "gemini-3.1-flash",
-        );
-      });
-
-      const response = await request(app)
-        .post("/api/campaign/discover-competitors")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ baseIdea: "Idea" });
-
-      expect(response.status).toBe(200);
-      expect(response.body.competitors[0].name).toBe("Test2");
-    });
-
-    it("falls back to exa results gracefully if LLM output fails to parse", async () => {
-      withModelFallbackMock.mockImplementation(async (cb: any) => {
-        return await cb(
-          {
-            models: {
-              generateContent: vi.fn().mockResolvedValue({
-                text: "INVALID JSON",
-              }),
-            },
-          },
-          "gemini-3.1-flash",
-        );
-      });
-
-      const response = await request(app)
-        .post("/api/campaign/discover-competitors")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ baseIdea: "Idea" });
-
-      expect(response.status).toBe(200);
-      expect(response.body.competitors[0].domain).toBe("https://example.com");
-      expect(response.body.competitors[0].name).toBe("Example"); // title was "Example"
-    });
-
-    it("returns 500 if unhandled error occurs in the route", async () => {
-      const aiClient = await import("../../utils/aiClient");
-      vi.mocked(aiClient.withModelFallback).mockRejectedValueOnce(
-        new Error("Unexpected"),
-      );
-
-      const response = await request(app)
-        .post("/api/campaign/discover-competitors")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ baseIdea: "Idea" });
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe(
-        "Internal server error during discovery",
-      );
-    });
-
-    it("instantiates its own GoogleGenAI if models are missing in the ai callback", async () => {
-      const genai = await import("@google/genai");
-      (genai as any).__generateContentMock.mockResolvedValueOnce({
-        text: JSON.stringify({
-          competitors: [{ name: "Example Fallback" }],
-        }),
-      });
-
-      withModelFallbackMock.mockImplementation(async (cb: any) => {
-        return await cb({}, "gemini-3.1-flash");
-      });
-
-      const response = await request(app)
-        .post("/api/campaign/discover-competitors")
-        .set("Authorization", "Bearer VALID_TOKEN")
-        .send({ baseIdea: "Idea" });
-
-      expect(response.status).toBe(200);
-      expect(response.body.competitors[0].name).toBe("Example Fallback");
-    });
   });
 
   describe("runDeepValidationCampaign (Background worker)", () => {
+    beforeEach(async () => {
+      const genai = await import("@google/genai");
+      (genai as any).__generateContentMock.mockResolvedValue({
+        text: JSON.stringify({
+          jtbd: {
+            job_statement: "test",
+            importance: 10,
+            satisfaction: 2,
+          },
+          market_gaps: [],
+          _reasoning: "Competitor focuses on general CRM features.",
+          exact_quote: "The all-in-one CRM for businesses.",
+          exa_url: "https://example.com/crm",
+          wedge_metric: 0.8,
+        }),
+      });
+    });
+
     it("handles invalid embeddings properly (lines 267-268)", async () => {
       const genai = await import("@google/genai");
       (genai as any).__embedContentMock.mockResolvedValueOnce({
@@ -1009,8 +914,6 @@ describe("campaignRoutes", () => {
 
       const competitors = [{ domain: "comp0.com" }];
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign("job-inv", "user", competitors, "base");
 
       const admin = await import("firebase-admin");
@@ -1036,8 +939,6 @@ describe("campaignRoutes", () => {
 
       const competitors = [{ domain: "compZod.com" }];
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign("job-zod", "user", competitors, "base");
 
       const admin = await import("firebase-admin");
@@ -1058,8 +959,6 @@ describe("campaignRoutes", () => {
 
       const competitors = [{ domain: "compExa.com" }];
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign("job-exa", "user", competitors, "base");
 
       const admin = await import("firebase-admin");
@@ -1084,8 +983,6 @@ describe("campaignRoutes", () => {
         mockEmbedContent,
       );
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign(
         "job-miss",
         "user",
@@ -1119,8 +1016,6 @@ describe("campaignRoutes", () => {
         isTarpit: true,
       });
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign(
         "job-wedge",
         "user",
@@ -1160,8 +1055,6 @@ describe("campaignRoutes", () => {
         mockEmbedContent,
       );
 
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
       await runDeepValidationCampaign(
         "job-none",
         "user",
@@ -1216,9 +1109,6 @@ describe("campaignRoutes", () => {
       });
 
       const genai = await import("@google/genai");
-      (genai as any).__generateContentMock.mockResolvedValueOnce({
-        text: JSON.stringify({ subNiches: [{ name: "foo" }] }),
-      });
       (genai as any).__embedContentMock.mockImplementation(mockEmbedContent);
 
       const competitors = Array.from({ length: 10 }).map((_, i) => ({
@@ -1716,7 +1606,7 @@ describe("campaignRoutes", () => {
       expect(response.status).toBe(400);
     });
 
-    it("returns 202 and starts evaluation", async () => {
+    it("returns 200 and finishes evaluation", async () => {
       const response = await request(app)
         .post("/api/campaign/evaluate-taxonomy")
         .set("Authorization", "Bearer VALID_TOKEN")
@@ -1726,10 +1616,8 @@ describe("campaignRoutes", () => {
           workspaceId: "ws-1",
         });
 
-      expect(response.status).toBe(202);
-
-      // Await pending background promises
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe("success");
     });
   });
 
@@ -1940,10 +1828,10 @@ describe("campaignRoutes", () => {
         .set("Authorization", "Bearer VALID_TOKEN")
         .send({});
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Missing parameters");
+      expect(response.body.error).toBe("Invalid payload.");
     });
 
-    it("returns 202 and processes async if payload is valid", async () => {
+    it("returns 200 and processes sync if payload is valid", async () => {
       const admin = await import("firebase-admin");
       const mockSet = vi.fn().mockResolvedValue(true);
       const mockUpdate = vi.fn().mockResolvedValue(true);
@@ -1983,9 +1871,8 @@ describe("campaignRoutes", () => {
           workspaceId: "ws-1",
         });
 
-      expect(response.status).toBe(202);
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe("success");
       vi.mocked(admin.firestore).mockRestore();
     });
 
@@ -2006,8 +1893,7 @@ describe("campaignRoutes", () => {
           workspaceId: "ws-1",
         });
 
-      expect(response1.status).toBe(202);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(response1.status).toBe(200);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Taxonomy evaluation failed",
         expect.any(Error),
@@ -2030,9 +1916,6 @@ describe("campaignRoutes", () => {
       const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-
-      const { runDeepValidationCampaign } =
-        await import("../../server/campaignRoutes");
 
       await expect(
         runDeepValidationCampaign("job-id", "user", [{ name: "test" }], "base"),

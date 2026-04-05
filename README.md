@@ -1,12 +1,6 @@
-<div align="center">
-  <img width="1200" height="475" alt="NicheAI Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-  <h1>NicheAI</h1>
-  <p>An advanced, AI-driven Competitive Intelligence & Market Analysis tool</p>
+# NicheAI
 
-  <p>
-    <a href="https://github.com/your-org/nicheai/actions"><img src="https://img.shields.io/github/actions/workflow/status/your-org/nicheai/ci.yml?branch=main" alt="CI Status" /></a>
-  </p>
-</div>
+An advanced, AI-driven Competitive Intelligence & Market Analysis tool
 
 ---
 
@@ -21,6 +15,8 @@
 - [Recent Momentum](#-recent-momentum)
 - [Sprint Insights & Tech Debt](#-sprint-insights--tech-debt)
 - [Local Development Setup (Quick Start)](#-local-development-setup-quick-start)
+- [Deployment: Core Application](#️-deployment-core-application)
+- [Deployment: Hyper-Scale Data Moat](#-deployment-hyper-scale-data-moat)
 - [Available Scripts](#-available-scripts)
 - [AI Agent Benchmarking (SWE-Bench)](#-ai-agent-benchmarking-swe-bench)
 - [Testing](#-testing)
@@ -85,8 +81,6 @@ This project uses Spec-Driven Development via OpenSpec. Below is the live status
 
 > **Note:** For a deep dive into our product philosophy, business model, and architectural constraints, please review our [Master Context Document](docs/nicheai-master-context.md) and the `docs/strategy/` directory.
 
-<!-- OPENSPEC_TABLE_START -->
-
 | Feature                                | Summary                                                                                                                            | Status      | Link                                                                 |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------- |
 | ast-driven-drift-healing               | We will transform documentation drift detection into a proactive, self-healing Strategic Sprint Engine.                            | draft       | [View Spec](openspec/changes/ast-driven-drift-healing)               |
@@ -150,26 +144,17 @@ This project uses Spec-Driven Development via OpenSpec. Below is the live status
 | test-coverage-expansion-phase2         | We are introducing new unit and integration tests for various hooks, utility functions, and React components.                      | draft       | [View Spec](openspec/changes/test-coverage-expansion-phase2)         |
 | testing-architecture-modernization     | We are modernizing the testing architecture by shifting to the Testing Trophy methodology.                                         | draft       | [View Spec](openspec/changes/testing-architecture-modernization)     |
 
-<!-- OPENSPEC_TABLE_END -->
-
 ## 📈 Recent Momentum
-
-<!-- GIT_HISTORY_START -->
 
 - **Feature**: Implemented Unified Ideation Engine and scaffolded workflows.
 - **Feature**: Built ML-powered doc drift detector and roadmap extractor, upgraded to `gemini-3.1-pro-preview`.
 - **Feature**: Implemented strategy toolbox components and ML updates.
 - **Fix**: Integrated roadmap extractor into Lefthook pre-commit hooks.
 - **Docs**: Comprehensive UX/DX documentation review and OpenSpec updates.
-<!-- GIT_HISTORY_END -->
 
 ## 🎯 Sprint Insights & Tech Debt
 
-<!-- TECH_DEBT_START -->
-
 No outstanding technical debt or scope creep.
-
-<!-- TECH_DEBT_END -->
 
 ## 💻 Local Development Setup (Quick Start)
 
@@ -192,7 +177,7 @@ cd nicheai
 npm install
 ```
 
-2. Set up your environment variables:
+1. Set up your environment variables:
 
 ```bash
 cp .env.example .env
@@ -200,7 +185,7 @@ cp .env.example .env
 
 > **Note on Local Simulation:** By default, `.env.example` sets `SIMULATE_CLOUD_TASKS=true` and `VITE_USE_FIREBASE_EMULATOR=true`. This ensures your local environment runs completely sandboxed against local Firebase emulators and a mocked Cloud Tasks queue.
 
-3. Configure your API keys in the `.env` file:
+1. Configure your API keys in the `.env` file:
 
 ```env
 # Google Gemini API key for generating insights
@@ -212,20 +197,17 @@ APP_URL="http://localhost:3000"
 # Apollo.io API key for fetching company firmographics
 APOLLO_API_KEY="your_apollo_api_key_here"
 
-# Google Custom Search API for competitor news
-GOOGLE_SEARCH_API_KEY="your_google_search_api_key_here"
-GOOGLE_SEARCH_ENGINE_ID="your_google_search_engine_id_here"
 ```
 
 _(Note: The app will boot with dummy keys, but data enrichment and AI features require valid API keys.)_
 
-4. Start the local Firebase emulators (in a separate terminal):
+1. Start the local Firebase emulators (in a separate terminal):
 
 ```bash
 npm run emulators:start
 ```
 
-5. Start the development server:
+1. Start the development server:
 
 ```bash
 npm run dev
@@ -253,9 +235,9 @@ The application will be available at **[http://localhost:3000](http://localhost:
 
 ---
 
-## ☁️ Deployment (Cloud Run & Serverless)
+## ☁️ Deployment: Core Application
 
-The application is fully containerized and uses Terraform (Infrastructure as Code) for a strict **Scale-to-Zero** ($0 idle cost) architecture on Google Cloud Run. Background ML tasks use Google Cloud Tasks and a dedicated worker service.
+The main NicheAI application (frontend and BFF API) is fully containerized and uses Terraform (Infrastructure as Code) for a strict **Scale-to-Zero** ($0 idle cost) architecture on Google Cloud Run.
 
 ### Phase 1: Local Prerequisites & GCP Bootstrapping
 
@@ -264,50 +246,59 @@ The application is fully containerized and uses Terraform (Infrastructure as Cod
 3. **Enable Billing**: **CRITICAL:** You must attach an active billing account to the GCP project. Scale-to-zero is virtually free, but the APIs require a billing method.
 4. **Firebase Configuration**: Create a Firebase project and enable **Firestore in Native Mode** (Warning: This choice is permanent).
 5. **Enable APIs**:
-   ```bash
-   gcloud services enable run.googleapis.com \
-     artifactregistry.googleapis.com \
-     cloudtasks.googleapis.com \
-     cloudscheduler.googleapis.com \
-     secretmanager.googleapis.com \
-     cloudbuild.googleapis.com
-   ```
+
+```bash
+ gcloud services enable run.googleapis.com \
+   artifactregistry.googleapis.com \
+   cloudtasks.googleapis.com \
+   cloudscheduler.googleapis.com \
+   secretmanager.googleapis.com \
+   cloudbuild.googleapis.com
+```
 
 ### Phase 2: Authentication & Local Config
 
 1. **Authenticate gcloud**:
-   ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   gcloud config set project YOUR_PROJECT_ID
-   ```
+
+```bash
+ gcloud auth login
+ gcloud auth application-default login
+ gcloud config set project YOUR_PROJECT_ID
+```
+
 2. **Environment Variables**: Create your local `.env` and `terraform/terraform.tfvars`:
-   - Obtain your Firebase Admin SDK service account JSON. **Encode it in base64** to prevent Terraform parsing errors: `cat service-account.json | base64`
-   - Set `terraform.tfvars`:
-     ```hcl
-     project_id                      = "YOUR_PROJECT_ID"
-     region                          = "us-central1"
-     gemini_api_key                  = "YOUR_GEMINI_API_KEY"
-     firebase_project_id             = "YOUR_FIREBASE_PROJECT_ID"
-     firebase_service_account_base64 = "YOUR_BASE64_ENCODED_JSON"
-     ```
+
+- Obtain your Firebase Admin SDK service account JSON. **Encode it in base64** to prevent Terraform parsing errors: `cat service-account.json | base64`
+- Set `terraform.tfvars`:
+  ```hcl
+  project_id                      = "YOUR_PROJECT_ID"
+  region                          = "us-central1"
+  gemini_api_key                  = "YOUR_GEMINI_API_KEY"
+  firebase_project_id             = "YOUR_FIREBASE_PROJECT_ID"
+  firebase_service_account_base64 = "YOUR_BASE64_ENCODED_JSON"
+  ```
 
 ### Phase 3: Containerization
 
 1. **Create Artifact Registry Repo**:
-   ```bash
-   gcloud artifacts repositories create nicheai-repo --repository-format=docker --location=us-central1
-   ```
+
+```bash
+ gcloud artifacts repositories create core-app-repo --repository-format=docker --location=us-central1
+```
+
 2. **Authenticate Docker**:
-   ```bash
-   gcloud auth configure-docker us-central1-docker.pkg.dev
-   ```
+
+```bash
+ gcloud auth configure-docker us-central1-docker.pkg.dev
+```
+
 3. **Build & Push**:
    > **🛑 APPLE SILICON WARNING:** If you are on an M-series Mac, you _must_ include `--platform linux/amd64` or Cloud Run will crash with an `exec format error`.
-   ```bash
-   docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/nicheai-repo/nicheai-app:latest .
-   docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/nicheai-repo/nicheai-app:latest
-   ```
+
+```bash
+ docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/core-app-repo/core-app:latest .
+ docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/core-app-repo/core-app:latest
+```
 
 ### Phase 4: Infrastructure as Code (Terraform)
 
@@ -321,14 +312,61 @@ terraform plan
 terraform apply
 ```
 
+---
+
+## 🚀 CI/CD Pipeline (GitHub Actions)
+
+NicheAI utilizes an automated CI/CD pipeline via GitHub Actions (`.github/workflows/ci.yml`). Every push to `main` or `master` triggers a deployment of **both** the Core Application and the Data Moat.
+
+### Setting up CI/CD Secrets
+
+To enable automated deployments, configure the following secrets in your GitHub repository (`Settings > Secrets and variables > Actions`):
+
+1. **GCP_PROJECT_ID**: Your target GCP Project ID.
+2. **GCP_REGION**: e.g., `us-central1`.
+3. **LAKE_BUCKET_NAME**: e.g., `my-company-lake-bucket`.
+4. **GCP_WORKLOAD_IDENTITY_PROVIDER**: The resource name of your Workload Identity Pool Provider (e.g., `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider`).
+5. **GCP_SERVICE_ACCOUNT**: The email address of the GCP service account associated with the Workload Identity (must have permissions for Cloud Run, Artifact Registry, BigQuery, GCS, Cloud Tasks, and IAM).
+
+> **Note**: Workload Identity Federation is the secure, best-practice way to authenticate GitHub Actions to GCP without using long-lived JSON service account keys.
+
+---
+
+## 🌊 Deployment: Hyper-Scale Data Moat
+
+The Data Moat is an independent, asynchronous background pipeline comprised of GCS buckets, BigQuery datasets, Cloud Tasks, and dedicated Cloud Run worker nodes (crawlers and ML normalizers). It is deployed separately from the Core Application.
+
+It is **highly recommended** to authenticate and run the deployment scripts locally from your terminal (rather than the GCP Cloud Shell). This ensures the deployment scripts have access to your local source code, BigQuery schemas, and `.env` variables.
+
+1. **Local Authentication**:
+   Authenticate your `gcloud` CLI with your Google Cloud account:
+2. **Verify Environment Variables**:
+   Ensure the following are set in your `.env` file (the scripts will automatically load them for you):
+
+- `GEMINI_API_KEY` (Required for LLM extraction and Proxy metrics)
+- `GCP_PROJECT_ID` (Your GCP Project ID)
+- `GCP_REGION` (e.g., `us-central1`)
+- `LAKE_BUCKET_NAME` (Must be **globally unique** across all of GCP, e.g., `data-lake-yourname`)
+  **Proxy Metrics Setup:**
+- Note: Google Programmable Search Engine "Search the entire web" was deprecated in early 2026.
+- We now rely exclusively on `GEMINI_API_KEY` using Vertex AI / Gemini Search Grounding natively to proxy SEO metrics.
+- This approach is 100% GCP-credit burnable and requires zero extra setup!
+
+3. **Provision VPC Egress & Cloud NAT** (For IP Rotation):
+   Run the setup script to configure the network for the crawler. This allows your Cloud Run workers to use static IPs, avoiding bot-blocking.
+4. **Deploy the Infrastructure & Workers**:
+   Run the deployment script to create the GCS bucket, BigQuery datasets/tables, Cloud Tasks queue, and build/deploy the worker functions to Cloud Run.
+5. **Start the Data Moat Pipeline**:
+   After deployment, trigger the ingestion process. This will parse sitemaps and seed the Cloud Tasks queue.
+
 ### Appendix: Security & Architecture Patterns
 
 To maintain a zero-friction, highly secure serverless architecture, NicheAI enforces the following rules:
 
-- **OIDC Internal Routes**: The `worker` Cloud Run service is NOT public. Cloud Tasks attaches an OIDC token matching the `nicheai-cloudrun-sa` service account, which the worker verifies before executing any background job.
+- **OIDC Internal Routes**: The `worker` Cloud Run service is NOT public. Cloud Tasks attaches an OIDC token matching the `core-cloudrun-sa` service account, which the worker verifies before executing any background job.
 - **CPU Allocation Guarantee**: Cloud Run throttles CPU to 0 immediately upon returning a response. Internal worker endpoints **MUST `await` the entire background process and hold the HTTP request open**. Do not return `202 Accepted` early from a worker route.
 - **The Claim Check Pattern**: Cloud Tasks enforces a strict 100KB payload limit. For heavy ML payloads (e.g., base64 images), the system offloads data to the `cloud_tasks_payloads` Firestore collection and passes `{ jobId, isHeavyPayload: true }` through the queue.
-- **IAM Least Privilege**: The custom `nicheai-cloudrun-sa` service account acts strictly as an invoker and secret accessor.
+- **IAM Least Privilege**: The custom `core-cloudrun-sa` service account acts strictly as an invoker and secret accessor.
 
 ## 🛠 Available Scripts
 
@@ -395,9 +433,9 @@ npm run test
 
 ### Test Coverage Highlights
 
-- **`useLocalStorage.test.tsx`**: Validates custom hook side-effects, cache synchronization, and correct behavior without violating React state mutations.
-- **`pagination.test.ts`**: Verifies zero-index boundaries and edge cases for data grids.
-- **`App.test.tsx`**: Mounts the full application, testing navigation consistency and ensuring global components (like the Background Sync Engine) don't duplicate across tabs.
+- `**useLocalStorage.test.tsx**`: Validates custom hook side-effects, cache synchronization, and correct behavior without violating React state mutations.
+- `**pagination.test.ts**`: Verifies zero-index boundaries and edge cases for data grids.
+- `**App.test.tsx**`: Mounts the full application, testing navigation consistency and ensuring global components (like the Background Sync Engine) don't duplicate across tabs.
 
 ---
 

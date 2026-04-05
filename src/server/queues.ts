@@ -1,8 +1,5 @@
 import { enqueueTask, QUEUE_NAMES } from "./cloudTasks";
-import * as adminNamespace from "firebase-admin";
-
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 
 export class ConsentRequiredError extends Error {
   constructor(message: string) {
@@ -76,6 +73,10 @@ class QueueMock {
 export const networkIoQueue = new QueueMock(
   QUEUE_NAMES.networkIo,
   "/api/internal/worker/network-io",
+);
+export const validationCampaignQueue = new QueueMock(
+  QUEUE_NAMES.networkIo,
+  "/api/internal/worker/run-validation-campaign",
 );
 export const visionMlQueue = new QueueMock(
   QUEUE_NAMES.visionMl,

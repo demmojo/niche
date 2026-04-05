@@ -2,36 +2,37 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   runLensDeepAnalysis,
   generateLensChatResponse,
-  LensContext,
 } from "../../services/lensAiService";
 import { withModelFallback } from "../../utils/aiClient";
+import { LensContext } from "../../services/lensAiService";
 
 vi.mock("../../utils/aiClient", () => ({
   withModelFallback: vi.fn(),
 }));
 
 describe("lensAiService", () => {
-  const mockContext: LensContext = {
-    stats: {
-      tracked: 10,
-      pricingChanges: 2,
-      featuresIndexed: 100,
-      topIntegrations: "Slack, Salesforce",
-    },
-    competitors: [],
-    insights: [],
-    rawData: [],
-    rejectedSuggestions: [],
-    chatHistory: [],
-  };
+  let mockContext: LensContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockContext = {
+      stats: {
+        tracked: 10,
+        pricingChanges: 2,
+        featuresIndexed: 50,
+        topIntegrations: "Slack, Teams",
+      },
+      competitors: [],
+      insights: [],
+      rawData: [],
+      rejectedSuggestions: [],
+      chatHistory: [],
+    };
   });
 
   describe("runLensDeepAnalysis", () => {
-    it("should successfully parse valid JSON response", async () => {
-      const mockResponse = {
+    it("should parse valid JSON response successfully", async () => {
+      const validResponse = {
         message: "Analysis complete.",
         options: ["Option 1"],
         suggestions: [
@@ -45,23 +46,37 @@ describe("lensAiService", () => {
         ],
       };
 
-      vi.mocked(withModelFallback).mockResolvedValue({
-        text: JSON.stringify(mockResponse),
-      });
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: JSON.stringify(validResponse),
+      } as any);
 
       const result = await runLensDeepAnalysis(mockContext);
-
-      expect(result).toEqual(mockResponse);
-      expect(withModelFallback).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(validResponse);
+      expect(withModelFallback).toHaveBeenCalled();
     });
 
-    it("should handle invalid JSON and return fallback response", async () => {
-      vi.mocked(withModelFallback).mockResolvedValue({
-        text: "invalid json string",
-      });
+    it("should handle markdown code blocks in JSON response", async () => {
+      const validResponse = {
+        message: "Analysis complete.",
+        options: ["Option 1"],
+        suggestions: [],
+      };
+
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: `\`\`\`json\n${JSON.stringify(validResponse)}\n\`\`\``,
+      } as any);
 
       const result = await runLensDeepAnalysis(mockContext);
+      expect(result).toEqual(validResponse);
+    });
 
+    it("should handle parsing errors gracefully", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: "Invalid JSON",
+      } as any);
+
+      const result = await runLensDeepAnalysis(mockContext);
       expect(result.message).toBe(
         "An error occurred while processing the market data.",
       );
@@ -69,13 +84,13 @@ describe("lensAiService", () => {
       expect(result.suggestions).toEqual([]);
     });
 
-    it("should handle empty text response", async () => {
-      vi.mocked(withModelFallback).mockResolvedValue({
-        text: undefined,
+    it("should handle missing text in response gracefully", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: "",
       } as any);
 
       const result = await runLensDeepAnalysis(mockContext);
-
       expect(result.message).toBe(
         "An error occurred while processing the market data.",
       );
@@ -83,21 +98,55 @@ describe("lensAiService", () => {
   });
 
   describe("generateLensChatResponse", () => {
-    it("should successfully parse valid JSON response based on user prompt", async () => {
-      const mockResponse = {
-        message: "Got your input.",
-        options: ["Yes", "No"],
+    it("should parse valid JSON response successfully", async () => {
+      const validResponse = {
+        message: "Here is your answer.",
+        options: ["Follow up 1"],
         suggestions: [],
       };
 
-      vi.mocked(withModelFallback).mockResolvedValue({
-        text: JSON.stringify(mockResponse),
-      });
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: JSON.stringify(validResponse),
+      } as any);
 
       const result = await generateLensChatResponse(mockContext, "Hello Lens");
+      expect(result).toEqual(validResponse);
+      expect(withModelFallback).toHaveBeenCalled();
+    });
 
-      expect(result).toEqual(mockResponse);
-      expect(withModelFallback).toHaveBeenCalledTimes(1);
+    it("should construct prompt with rejected history and chat history", async () => {
+      mockContext.rejectedSuggestions = [
+        {
+          itemTitle: "Bad Feature",
+          reason: "Too expensive",
+          timestamp: 0,
+        },
+      ];
+      mockContext.chatHistory = [
+        { id: "1", role: "user", text: "Hello" },
+        { id: "2", role: "lens", text: "Hi" },
+      ];
+
+      vi.mocked(withModelFallback).mockResolvedValueOnce({
+        text: `{"message":"ok","options":[]}`,
+      } as any);
+
+      await generateLensChatResponse(mockContext, "What about X?");
+
+      const callArgs = vi.mocked(withModelFallback).mock.calls[0][0] as any;
+
+      // withModelFallback takes (ai, model) => Promise
+      // We can intercept the inner call by executing the callback with a mock AI
+      const mockGenerateContent = vi.fn().mockResolvedValue({ text: "{}" });
+      const mockAi = { generateContent: mockGenerateContent };
+      await callArgs(mockAi, "model-name");
+
+      const promptArg = mockGenerateContent.mock.calls[0][1].contents;
+      expect(promptArg).toContain(
+        "- Rejected 'Bad Feature' because: Too expensive",
+      );
+      expect(promptArg).toContain("USER: Hello");
+      expect(promptArg).toContain("LENS: Hi");
     });
   });
 });

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import express from "express";
 import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 export const superadminRouter = Router();
 

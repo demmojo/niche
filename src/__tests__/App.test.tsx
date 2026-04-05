@@ -63,7 +63,7 @@ vi.mock("../firebase", () => ({
 }));
 
 vi.mock("../components/AuthProvider", () => ({
-  useAuth: () => ({
+  useAuth: vi.fn(() => ({
     user: {
       getIdToken: vi.fn().mockResolvedValue("test-token"),
       uid: "test-user-id",
@@ -72,13 +72,22 @@ vi.mock("../components/AuthProvider", () => ({
     },
     loading: false,
     logout: vi.fn(),
-  }),
+  })),
 }));
+
+import { useUserProfile } from "../hooks/useUserProfile";
 
 vi.mock("../components/ZeroFrictionEntry", () => ({
   ZeroFrictionEntry: () => (
     <div data-testid="zero-friction-entry">Mock Zero Friction Entry</div>
   ),
+}));
+
+vi.mock("../hooks/useUserProfile", () => ({
+  useUserProfile: vi.fn(() => ({
+    profile: { persona: "solo_founder" },
+    loading: false,
+  })),
 }));
 
 const { mockUseProducts, mockUseWorkspace } = vi.hoisted(() => ({
@@ -94,10 +103,17 @@ vi.mock("../components/WorkspaceProvider", async (importOriginal) => {
   return {
     ...mod,
     useWorkspace: () => mockUseWorkspace(),
-    useProducts: () => mockUseProducts(),
     useWorkspaceLoading: () => false,
-    useProductsDispatch: () => vi.fn(),
     useWorkspaceDispatch: () => vi.fn(),
+  };
+});
+
+vi.mock("../components/FounderProvider", () => {
+  return {
+    FounderProvider: ({ children }: any) => <>{children}</>,
+    useFounderProducts: () => mockUseProducts(),
+    useFounderActiveProductId: () => mockUseWorkspace(),
+    useFounderActiveProductDispatch: () => vi.fn(),
   };
 });
 
@@ -142,6 +158,11 @@ describe("App Integration", () => {
   });
 
   it("intercepts standard users with 0 products and shows ZeroFrictionEntry", async () => {
+    (useUserProfile as any).mockReturnValue({
+      profile: null,
+      loading: false,
+    });
+
     mockUseProducts.mockReturnValue([]);
     mockUseWorkspace.mockReturnValue(null);
     window.localStorage.clear(); // Ensure 0 products
@@ -154,6 +175,11 @@ describe("App Integration", () => {
   });
 
   it("renders App and verifies tab navigation and SyncNowButton deduplication", async () => {
+    (useUserProfile as any).mockReturnValue({
+      profile: { persona: "solo_founder" },
+      loading: false,
+    });
+
     let getByText: any, getAllByText: any;
 
     await act(async () => {

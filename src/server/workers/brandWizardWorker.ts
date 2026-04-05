@@ -1,4 +1,4 @@
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import pLimit from "p-limit";
 
 import { z } from "zod";

@@ -7,14 +7,18 @@ import { Product } from "../types/product";
 export function useProductsSync() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<"STATE_LOADING" | "STATE_IDLE">(
+    "STATE_LOADING",
+  );
 
   useEffect(() => {
     if (!user) {
       setProducts([]);
-      setLoading(false);
+      setStatus("STATE_IDLE");
       return;
     }
+
+    const controller = new AbortController();
 
     // Only get active variants (not superseded, not archived)
     const productsRef = collection(db, "products");
@@ -26,7 +30,10 @@ export function useProductsSync() {
 
     const unsubscribe = onSnapshot(
       q,
+      { includeMetadataChanges: true },
       (snapshot) => {
+        if (controller.signal.aborted) return;
+
         const fetchedProducts: Product[] = [];
         snapshot.forEach((doc) => {
           fetchedProducts.push(doc.data() as Product);
@@ -42,16 +49,20 @@ export function useProductsSync() {
         });
 
         setProducts(fetchedProducts);
-        setLoading(false);
+        setStatus("STATE_IDLE");
       },
       (error) => {
+        if (controller.signal.aborted) return;
         console.error("Error fetching products:", error);
-        setLoading(false);
+        setStatus("STATE_IDLE");
       },
     );
 
-    return () => unsubscribe();
-  }, [user]);
+    return () => {
+      controller.abort();
+      unsubscribe();
+    };
+  }, [user?.uid]);
 
-  return { products, loading };
+  return { products, status, loading: status === "STATE_LOADING" }; // Keep loading for backward compatibility if needed, but expose status
 }

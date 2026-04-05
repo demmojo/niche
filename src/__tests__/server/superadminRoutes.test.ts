@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import { superadminRouter } from "../../../src/server/superadminRoutes";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { requireAuth } from "../../../src/server/authMiddleware";
 
 // Mock auth middleware to easily simulate authenticated users

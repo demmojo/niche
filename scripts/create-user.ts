@@ -1,9 +1,6 @@
-import * as adminNamespace from "firebase-admin";
+import admin from "firebase-admin";
 import * as dotenv from "dotenv";
 dotenv.config();
-
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
 
 if (!admin.apps.length) {
   try {

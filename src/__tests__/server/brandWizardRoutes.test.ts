@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import { brandWizardRouter } from "../../server/brandWizardRoutes";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 // Mock Firebase Admin
 vi.mock("firebase-admin", async (importOriginal) => {

@@ -83,9 +83,16 @@ These features are to be prominently displayed on the landing page and detailed 
 ### 10. Reverse Demo Hook (Product-Led Growth)
 
 - **Value Prop:** "Experience the 'Aha!' moment before ever signing up."
-- **Description:** Escape the hard authentication wall. With our Zero-Friction Entry, simply type what you want to build and watch as our ML orchestration engine instantly builds a full, shareable strategy dashboard. Discover lucrative sub-niches, assess market saturation, and experience true value—only creating an account when you're ready to save, edit, or deploy.
+- **Description:** Escape the hard authentication wall. With our Zero-Friction Entry, simply type what you want to build or paste a competitor's URL. Watch as our ML orchestration engine instantly scrapes the site using premium AI models, builds an Explainable State loading UI with progressive skeletons, and generates a shareable strategy teaser. Discover lucrative sub-niches, assess market saturation through a "Blur Tease", and experience true value—only creating an account when you're ready to save, edit, or deploy the full strategy. Secured by privacy-preserving device fingerprinting to ensure fair usage.
 - **Visuals:**
   - _Demo Video:_ `<video src="/videos/reverse-demo-hook.webm" autoplay loop muted playsinline></video>`
+
+### 11. Hyper-Scale SaaS Data Moat & Endowment Effect
+
+- **Value Prop:** "Proprietary market intelligence without the enterprise price tag."
+- **Description:** Access a massive, continuously updated database of SaaS competitors, enriched with elite alternative data signals (hiring velocity, integration footprints, and organic dominance) synthesized through our proprietary GCP proxy stack. Shape this raw intelligence into your own "Proprietary Threat Model" using our Endowment Effect UI—selectively curating insights and applying personal threat ratings to transform public data into your most valuable strategic asset.
+- **Visuals:**
+  - _Demo Video:_ `<video src="/videos/saas-data-moat.webm" autoplay loop muted playsinline></video>`
 
 ---
 

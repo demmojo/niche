@@ -1,6 +1,4 @@
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 import PQueue from "p-queue";
 
 // Ensure app is initialized before calling firestore
@@ -21,13 +19,14 @@ export interface MLConfigVersion {
       | "gemini-3.1-flash-lite-preview"
       | "gemini-3.1-flash"
       | "gemini-3.1-pro-preview";
+    embeddingModel?: string;
     temperature: number;
     topP: number;
   };
   promptTemplate: any; // CO-STAR template
   mabWeight?: number; // Contextual Queueing Bandits dynamic weight
-  validFrom: adminNamespace.firestore.Timestamp;
-  validTo: adminNamespace.firestore.Timestamp | null;
+  validFrom: admin.firestore.Timestamp;
+  validTo: admin.firestore.Timestamp | null;
 }
 
 export interface TelemetryEvent {
@@ -36,7 +35,7 @@ export interface TelemetryEvent {
   durationMs: number;
   inputLength: number;
   success: boolean;
-  timestamp: adminNamespace.firestore.FieldValue;
+  timestamp: admin.firestore.FieldValue;
 }
 
 /**
@@ -46,8 +45,8 @@ export interface TelemetryEvent {
  */
 class MLConfigCache {
   private static instance: MLConfigCache;
-  private unsubscribe: (() => void) | null = null;
-  private isInitialized = false;
+  private cacheExpiry = 0;
+  private readonly CACHE_TTL_MS = 60000; // 60 seconds
 
   // In-memory CQB routing weights mapping
   // configId -> variantId -> weight
@@ -55,9 +54,6 @@ class MLConfigCache {
 
   // Fast path memory cache for routing decisions
   public activeChampions: Map<string, MLConfigVersion[]> = new Map();
-
-  // Async Buffer for telemetry events, protecting V8
-  public telemetryQueue = new PQueue({ concurrency: 10, timeout: 5000 });
 
   private constructor() {}
 
@@ -69,95 +65,75 @@ class MLConfigCache {
   }
 
   /**
-   * Initializes the memory cache by subscribing to the `ml_configs` collection.
+   * Refreshes the memory cache by querying the `ml_configs` collection.
    * STRICTLY bounded to `status == 'champion'` to prevent memory bloat (SCD Type 2).
    */
-  public initialize() {
-    if (this.isInitialized) return;
-
+  private async refreshCache() {
     const db = admin.firestore();
 
-    // The Bounded Query: only pulling active champions
-    const query = db.collection("ml_configs").where("status", "==", "champion");
+    try {
+      const snapshot = await db
+        .collection("ml_configs")
+        .where("status", "==", "champion")
+        .get();
 
-    this.unsubscribe = query.onSnapshot(
-      (snapshot) => {
-        // Rebuild the Maps immutably
-        const newChampions = new Map<string, MLConfigVersion[]>();
-        const newWeights = new Map<string, Map<string, number>>();
+      const newChampions = new Map<string, MLConfigVersion[]>();
+      const newWeights = new Map<string, Map<string, number>>();
 
-        snapshot.forEach((doc) => {
-          const data = doc.data() as MLConfigVersion;
-          const id = doc.id; // We use doc.id as the variantId
+      snapshot.forEach((doc) => {
+        const data = doc.data() as MLConfigVersion;
+        const id = doc.id; // We use doc.id as the variantId
 
-          if (!newChampions.has(data.configId)) {
-            newChampions.set(data.configId, []);
-          }
-          newChampions.get(data.configId)?.push({ ...data, configId: id });
+        if (!newChampions.has(data.configId)) {
+          newChampions.set(data.configId, []);
+        }
+        newChampions.get(data.configId)?.push({ ...data, configId: id });
 
-          if (!newWeights.has(data.configId)) {
-            newWeights.set(data.configId, new Map());
-          }
+        if (!newWeights.has(data.configId)) {
+          newWeights.set(data.configId, new Map());
+        }
 
-          // Setup initial MAB weight (fallback to uniform distribution if missing)
-          newWeights.get(data.configId)?.set(id, data.mabWeight ?? 1.0);
-        });
+        // Setup initial MAB weight (fallback to uniform distribution if missing)
+        newWeights.get(data.configId)?.set(id, data.mabWeight ?? 1.0);
+      });
 
-        this.activeChampions = newChampions;
-        this.mabWeightsCache = newWeights;
-        console.log(
-          `[MLConfigCache] Refreshed: ${snapshot.docs.length} active champions cached.`,
-        );
-      },
-      (error) => {
-        console.error("[MLConfigCache] Snapshot listener error:", error);
-      },
-    );
+      this.activeChampions = newChampions;
+      this.mabWeightsCache = newWeights;
+      this.cacheExpiry = Date.now() + this.CACHE_TTL_MS;
 
-    this.isInitialized = true;
-
-    // Explicit SIGTERM hook to kill the listener and avoid zombie connections
-    process.on("SIGTERM", () => this.shutdown());
-    process.on("SIGINT", () => this.shutdown());
-  }
-
-  /**
-   * Shuts down the singleton and unbinds listeners
-   */
-  public shutdown() {
-    console.log("[MLConfigCache] Shutting down listeners...");
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+      console.log(
+        `[MLConfigCache] Refreshed: ${snapshot.docs.length} active champions cached.`,
+      );
+    } catch (error) {
+      console.error("[MLConfigCache] Cache refresh error:", error);
     }
-    this.telemetryQueue.pause();
-    this.telemetryQueue.clear();
-    this.isInitialized = false;
   }
 
   /**
-   * Emit an async telemetry event for CQB weight updates.
-   * Completely non-blocking (Fire-and-forget).
+   * Emit a telemetry event for CQB weight updates.
+   * MUST be awaited by callers in serverless environments.
    */
-  public emitTelemetry(event: Omit<TelemetryEvent, "timestamp">) {
-    this.telemetryQueue.add(async () => {
-      try {
-        const db = admin.firestore();
-        await db.collection("mab_telemetry_buffer").add({
-          ...event,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } catch (err) {
-        console.error("[MLConfigCache] Failed to emit telemetry", err);
-      }
-    });
+  public async emitTelemetry(event: Omit<TelemetryEvent, "timestamp">) {
+    try {
+      const db = admin.firestore();
+      await db.collection("mab_telemetry_buffer").add({
+        ...event,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("[MLConfigCache] Failed to emit telemetry", err);
+    }
   }
 
   /**
    * Sample the Multi-Armed Bandit using Thompson Sampling weights
-   * Provides O(1) synchronous model routing using the fast path memory cache.
+   * Uses an async read-through cache with TTL to support scale-to-zero Cloud Run environments.
    */
-  public route(configId: string): MLConfigVersion | null {
+  public async route(configId: string): Promise<MLConfigVersion | null> {
+    if (Date.now() > this.cacheExpiry) {
+      await this.refreshCache();
+    }
+
     const variants = this.activeChampions.get(configId);
     if (!variants || variants.length === 0) return null;
 

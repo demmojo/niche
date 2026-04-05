@@ -115,3 +115,66 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 14
+
+  deploy:
+    name: Deploy to GCP
+    needs: [unit-tests, e2e-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write' # Required for Workload Identity Federation
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup GCP Auth
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Deploy Core App using Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Build Core App Docker Image
+        run: |
+          docker buildx build --platform linux/amd64 -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/core-app-repo/core-app:${{ github.sha }} .
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+          docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/core-app-repo/core-app:${{ github.sha }}
+
+      - name: Create Terraform State Bucket
+        run: |
+          gcloud storage buckets create gs://${{ secrets.GCP_PROJECT_ID }}-tfstate --location=${{ secrets.GCP_REGION }} --project=${{ secrets.GCP_PROJECT_ID }} || true
+
+      - name: Configure Terraform Backend
+        run: |
+          sed -i s/PLACEHOLDER_BUCKET/${{ secrets.GCP_PROJECT_ID }}-tfstate/g main.tf
+        working-directory: ./terraform
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+
+      - name: Terraform Apply (Core App)
+        run: terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT_ID }}" -var="region=${{ secrets.GCP_REGION }}" -var="image=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/core-app-repo/core-app:${{ github.sha }}" -var="gemini_api_key=${{ secrets.GEMINI_API_KEY }}"
+        working-directory: ./terraform
+
+      # Deploy Data Moat
+      - name: Deploy Data Moat Infrastructure & Workers
+        run: |
+          chmod +x scripts/deploy_data_moat.sh
+          # Set env vars expected by the script
+          export GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+          export GCP_REGION=${{ secrets.GCP_REGION }}
+          export LAKE_BUCKET_NAME=${{ secrets.LAKE_BUCKET_NAME }}
+          export GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          ./scripts/deploy_data_moat.sh

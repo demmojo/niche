@@ -32,8 +32,14 @@ When invoking the OpenSpec CLI:
 
 ## Phase Constraints
 - **Plan/Propose:** You are **FORBIDDEN** from directly executing code (e.g., via `/workflows:work`) from a `openspec/plans/` markdown file. You MUST propose it into the DAG and pass validation first.
-- **Supersede Specs:** If a spec is superseded:
-   - Update its `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
-   - Add `> **NOTICE:** This spec has been **superseded** by [new-spec].` to the top of its `proposal.md`.
-- **Apply (Halt and Update Protocol):** If you encounter a technical constraint requiring a deviation from `design.md` or `spec.md`, you **MUST HALT** coding. Update `design.md` or `spec.md` to reflect the new reality, present the diff, and run `npm run openspec start <feature> --auto-fix --force --non-interactive` to re-validate the DAG hash.
+- **Spec Evolution Relationships (The DAG):** Features evolve via `.openspec.yaml` relationship tags. When writing a new plan/spec that touches existing functionality, you MUST define one of the following relationships:
+   - `depends_on: [spec]`: Execution order dependency (must build X before Y).
+   - `extends: [spec]`: Additive change (e.g., adding video to photo upload). AI must read BOTH specs.
+   - `refactors: [spec]`: Technical overhaul, no product change. 
+   - `supersedes: [spec]`: Consolidation or complete replacement. You MUST tombstone the old spec (see below).
+   - `reverts: [spec]`: Downgrade or removal of an implemented feature.
+- **Superseding Specs:** If a spec completely replaces or deprecates an older one:
+   - Update the old spec's `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
+   - Add `> **NOTICE:** This spec has been **superseded** by [new-spec].` to the top of its `proposal.md` or plan file.
+- **Apply (Halt and Update Protocol):** If you encounter a technical constraint or architectural shift requiring a deviation from `design.md` or `spec.md`, you **MUST HALT** coding. Update `design.md` or `spec.md` directly to reflect the new reality, present the diff, and run `npm run openspec start <feature> --auto-fix --force --non-interactive` to re-validate the DAG hash. **NEVER use generic planning tools (like `ce-plan`) to create new iteration files in `.cursor/plans/`.** This causes a "split-brain" state invisible to the OpenSpec CLI.
 - **Extract & Archive:** Archiving is blocked unless `learnings_extracted` is `true` in `.openspec.yaml`. Use the `@extract-lessons` skill to update `AGENTS.md` before attempting archival.

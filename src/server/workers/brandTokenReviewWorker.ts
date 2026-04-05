@@ -1,4 +1,4 @@
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 import { z } from "zod";
 import { GoogleGenAI, Type, Schema } from "@google/genai";

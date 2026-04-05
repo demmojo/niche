@@ -192,10 +192,13 @@ export const withModelFallback = async <T>(
       break;
   }
 
-  const allCandidateModels = Array.from(new Set(tierProgression.flat()));
-  let modelsToTry =
-    mainModel === "default-pro" ? allCandidateModels : [mainModel];
-  if (modelsToTry.length === 0) modelsToTry = tierProgression[0];
+  const targetTier = tierProgression[0] || fastModels;
+
+  let modelsToTry = mainModel === "default-pro" ? targetTier : [mainModel];
+
+  // Rate Limiting Safety: Ensure NO cross-tier escalation
+  // If a specific tier is requested, we only fallback within that tier.
+  if (modelsToTry.length === 0) modelsToTry = targetTier;
 
   const aiClient = new AIClient();
 

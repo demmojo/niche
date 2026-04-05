@@ -6,7 +6,7 @@ Welcome! This document outlines our standard development, testing, and release w
 
 Before writing _any_ code for new features, we use a structured documentation process called **OpenSpec**, acting as a State Machine designed for Human and AI collaboration.
 
-### The 8-Step Lifecycle
+### The 9-Step Lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -25,10 +25,11 @@ stateDiagram-v2
         Apply --> Verify : TDD Complete
         Verify --> Extract : Continual Learning
         Extract --> Archive : Clean Workspace
+        Archive --> Ship : Review and PR
     }
 
     [*] --> Plan
-    Archive --> [*]
+    Ship --> [*]
 ```
 
 ### Phase 1: Definition
@@ -62,6 +63,9 @@ stateDiagram-v2
 - **8. Archive / Supersede:** Cleanup and state resolution.
   - _Actor:_ AI Agent (`@archive-openspec`).
   - _Output:_ Spec moved to `openspec/archive/changes/`.
+- **9. Ship:** Pre-flight checks and PR.
+  - _Actor:_ AI Agent (`@review-and-ship`).
+  - _Output:_ Architecturally dense commit, pre-flight linting, and PR creation.
 
 > **For AI Agents:** Always use the `--non-interactive`, `--json`, `--force`, and `--dry-run` flags when interacting with the CLI to prevent hangs and enable structured parsing.
 

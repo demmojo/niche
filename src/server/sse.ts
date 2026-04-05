@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 /**
  * Publishes SSE events by writing them to Firestore.
@@ -29,9 +29,7 @@ export const publishSseEvent = async (
  * Clients must migrate to Firestore onSnapshot listeners.
  */
 export const sseEndpoint = async (req: Request, res: Response) => {
-  res
-    .status(410)
-    .json({
-      error: "SSE is deprecated in Serverless mode. Use Firestore onSnapshot.",
-    });
+  res.status(410).json({
+    error: "SSE is deprecated in Serverless mode. Use Firestore onSnapshot.",
+  });
 };

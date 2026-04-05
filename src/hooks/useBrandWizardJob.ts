@@ -50,30 +50,34 @@ export function useBrandWizardJob(jobId: string | null) {
       return;
     }
 
+    const controller = new AbortController();
     const docRef = doc(db, "brand_wizard_jobs", jobId);
 
     const unsubscribe = onSnapshot(
       docRef,
       { includeMetadataChanges: true },
       (snapshot) => {
-        // Prevent optimistic UI split-brain issues by ignoring snapshot if there are pending local writes
-        if (snapshot.metadata.hasPendingWrites) {
-          return;
-        }
+        if (controller.signal.aborted) return;
 
+        // ALLOW Firebase native latency compensation (hasPendingWrites)
         if (snapshot.exists()) {
           setJob({ id: snapshot.id, ...snapshot.data() } as BrandWizardJob);
         } else {
+          setJob(null); // Prevent Zombie States on remote deletion
           setError("Job not found.");
         }
       },
       (err) => {
+        if (controller.signal.aborted) return;
         console.error("Firestore onSnapshot error:", err);
         setError(err.message);
       },
     );
 
-    return () => unsubscribe();
+    return () => {
+      controller.abort();
+      unsubscribe();
+    };
   }, [jobId]);
 
   return { job, error };

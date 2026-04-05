@@ -26,6 +26,39 @@ export const LLMExtractionSchema = z.object({
   exact_quote: z.string().optional(),
   exa_url: z.string().optional(),
   suggestedNiches: z.array(z.string()).optional(),
+  wedge_metric: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("0 to 1, where 1 is highly saturated, 0 is highly unique"),
+});
+
+export const MarketRadarSchema = z.object({
+  market_velocity: z
+    .enum(["hyper_growth", "stable", "declining", "nascent"])
+    .describe("The current momentum of this market"),
+  dominant_players: z
+    .array(z.string())
+    .max(3)
+    .describe("The 1-3 established incumbents"),
+  emerging_threats: z
+    .array(z.string())
+    .max(3)
+    .describe("The 1-3 fastest growing new entrants"),
+  key_feature_table_stakes: z
+    .array(z.string())
+    .max(5)
+    .describe("Features that every competitor must have"),
+  differentiation_vectors: z
+    .array(z.string())
+    .max(3)
+    .describe(
+      "The main axes competitors are using to stand out (e.g., 'Developer Experience', 'Enterprise Security')",
+    ),
+  _reasoning: z.string().optional(),
+  exact_quote: z.string().optional(),
+  exa_url: z.string().optional(),
 });
 
 export function calculateOpportunityScore(

@@ -1,4 +1,8 @@
 terraform {
+  backend "gcs" {
+    bucket = "PLACEHOLDER_BUCKET"
+    prefix = "terraform/state"
+  }
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -15,15 +19,15 @@ provider "google" {
 # Artifact Registry to store the Docker image
 resource "google_artifact_registry_repository" "repo" {
   location      = var.region
-  repository_id = "nicheai-repo"
-  description   = "Docker repository for NicheAI"
+  repository_id = "core-app-repo"
+  description   = "Docker repository for Core App"
   format        = "DOCKER"
 }
 
 # Dedicated Service Account for Cloud Run with least privilege
 resource "google_service_account" "cloudrun_sa" {
-  account_id   = "nicheai-cloudrun-sa"
-  display_name = "NicheAI Cloud Run Service Account"
+  account_id   = "core-cloudrun-sa"
+  display_name = "Core App Cloud Run Service Account"
 }
 
 # Secret Manager Secrets
@@ -57,18 +61,19 @@ resource "google_secret_manager_secret_iam_member" "firebase_sa_access" {
 
 # Common environment variables and secrets to be reused
 locals {
-  common_env = [
+  common_env = [confidential
     { name = "NODE_ENV", value = "production" },
     { name = "FIREBASE_PROJECT_ID", value = var.firebase_project_id },
     { name = "CLOUD_RUN_SA_EMAIL", value = google_service_account.cloudrun_sa.email },
     { name = "GOOGLE_CLOUD_PROJECT", value = var.project_id },
-    { name = "GOOGLE_CLOUD_REGION", value = var.region }
+    { name = "GOOGLE_CLOUD_REGION", value = var.region },
+    { name = "LAKE_BUCKET_NAME", value = google_storage_bucket.data_lake.name }
   ]
 }
 
 # Web Service (High Concurrency, 5m timeout)
 resource "google_cloud_run_v2_service" "web" {
-  name     = "nicheai-web"
+  name     = "core-web-svc"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -82,7 +87,7 @@ resource "google_cloud_run_v2_service" "web" {
     timeout                          = "300s"
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/nicheai-app:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/core-app:latest"
 
       resources {
         limits = { cpu = "1000m", memory = "1024Mi" }
@@ -137,8 +142,16 @@ resource "google_cloud_run_v2_service" "worker" {
     max_instance_request_concurrency = 4
     timeout                          = "1800s" # 30 minutes limit for heavy ML
 
+    vpc_access {
+      network_interfaces {
+        network    = google_compute_network.crawler_vpc.name
+        subnetwork = google_compute_subnetwork.crawler_subnet.name
+      }
+      egress = "ALL_TRAFFIC"
+    }
+
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/nicheai-app:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}/core-app:latest"
 
       resources {
         limits = { cpu = "1000m", memory = "2048Mi" } # 2GB baseline memory
@@ -257,4 +270,64 @@ resource "google_cloud_scheduler_job" "taxonomy_merge" {
       audience              = google_cloud_run_v2_service.worker.uri
     }
   }
+}
+
+# -----------------------------------------------------------------------------
+# Static Crawler Direct VPC Egress & Cloud NAT
+# -----------------------------------------------------------------------------
+
+resource "google_compute_network" "crawler_vpc" {
+  name                    = "crawler-vpc"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "crawler_subnet" {
+  name          = "crawler-subnet"
+  ip_cidr_range = "10.0.0.0/28"
+  region        = var.region
+  network       = google_compute_network.crawler_vpc.id
+  purpose       = "PRIVATE"
+}
+
+resource "google_compute_router" "crawler_router" {
+  name    = "crawler-router"
+  region  = var.region
+  network = google_compute_network.crawler_vpc.id
+}
+
+# Pool of 50 static IPs for the crawler to prevent bot-bans
+resource "google_compute_address" "crawler_ips" {
+  count  = 50
+  name   = "crawler-ip-${count.index}"
+  region = var.region
+}
+
+resource "google_compute_router_nat" "crawler_nat" {
+  name                               = "crawler-nat"
+  router                             = google_compute_router.crawler_router.name
+  region                             = google_compute_router.crawler_router.region
+  nat_ip_allocate_option             = "MANUAL_ONLY"
+  nat_ips                            = google_compute_address.crawler_ips[*].self_link
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
+
+# -----------------------------------------------------------------------------
+# Data Lake Bucket
+# -----------------------------------------------------------------------------
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "google_storage_bucket" "data_lake" {
+  name          = "nicheai-data-lake-${random_id.bucket_suffix.hex}"
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+}
+
+resource "google_storage_bucket_iam_member" "cloudrun_lake_access" {
+  bucket = google_storage_bucket.data_lake.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.cloudrun_sa.email}"
 }

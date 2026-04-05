@@ -208,13 +208,44 @@ export const safeDisableNetwork = async () => {
 /**
  *
  */
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (
+  isMergingRef?: React.MutableRefObject<boolean>,
+) => {
   const provider = new GoogleAuthProvider();
   try {
-    await signInWithPopup(auth, provider);
+    if (auth.currentUser?.isAnonymous) {
+      if (isMergingRef) isMergingRef.current = true;
+      try {
+        const { linkWithPopup } = await import("firebase/auth");
+        await linkWithPopup(auth.currentUser, provider);
+        await auth.currentUser?.reload();
+        await auth.currentUser?.getIdToken(true);
+      } catch (linkError: any) {
+        console.warn("Linking failed, falling back to sign in:", linkError);
+        if (linkError.code === "auth/credential-already-in-use") {
+          const { OAuthProvider, signInWithCredential } =
+            await import("firebase/auth");
+          const credential = OAuthProvider.credentialFromError(linkError);
+          if (credential) {
+            await signInWithCredential(auth, credential);
+          } else {
+            await signInWithPopup(auth, provider);
+          }
+        } else {
+          await signInWithPopup(auth, provider);
+        }
+        await auth.currentUser?.getIdToken(true);
+      }
+    } else {
+      await signInWithPopup(auth, provider);
+      await auth.currentUser?.getIdToken(true);
+    }
   } catch (error) {
+    if (isMergingRef) isMergingRef.current = false;
     console.error("Error signing in with Google", error);
     throw error;
+  } finally {
+    if (isMergingRef) isMergingRef.current = false;
   }
 };
 

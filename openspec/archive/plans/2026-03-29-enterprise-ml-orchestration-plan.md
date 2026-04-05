@@ -15,11 +15,11 @@ supersedes: ["ml-orchestration-and-routing"]
 
 ### Key Improvements
 
-1. **Hardened Redis/BullMQ Asynchronous Architecture:** Upgraded from the fragile in-memory `p-queue` to a distributed, persistent queuing system (BullMQ) using Sandboxed Processors to protect the V8 event loop. Enforces the HTTP 202 Accepted pattern for long-running Pro-tier tasks.
+1. **Hardened Cloud Tasks Asynchronous Architecture:** Upgraded from fragile in-memory `p-queue` to serverless **Google Cloud Tasks**. Enforces the HTTP 202 Accepted pattern on the client-facing API while worker endpoints hold the HTTP request open to guarantee Cloud Run CPU allocation. Workers are secured with `requireInternalOidc` IAM tokens.
 2. **Advanced ML Versioning & Data Governance:** Maintained Append-Only SCD (Slowly Changing Dimensions) Type 2 architecture in Firestore with bounded subscriptions to prevent OOM errors.
-3. **Adaptive Routing (Multi-Armed Bandits):** Retained dynamic routing using Thompson Sampling, enhanced with Redis atomic counters to prevent Firestore write contention, mathematical decay for model drift, and a forced exploration threshold for the "Cold Start" problem.
+3. **Adaptive Routing (Multi-Armed Bandits) & Rate Limit Safety:** Retained dynamic routing, enhanced with a degraded Redis fail-open logic to prevent unlimited DoS. Added a dual-threshold rate limit (Flash fallback on Pro quota exhaustion, 429 on hard cap) segregated by App Check.
 4. **Gold Standard Validation Engine:** Tri-Modal scoring pipeline is now a "Short-Circuit Waterfall" to save API costs, using `gemini-embedding-001` (deprecating `004`), and Pairwise Dueling Bandits with randomized positioning for the LLM Judge to prevent verbosity/position bias.
-5. **Product-Led Growth (PLG) & Data Flywheel:** Implemented the "Reverse Demo Hook" (PQL gate mapped to the Pro tier) and updated telemetry to track the "Delta" (AI output vs. User Edits) with PII-scrubbing hooks (to be reviewed by legal).
+5. **Product-Led Growth (PLG) & Data Flywheel:** Implemented the "Reverse Demo Hook" using **Exa highlights API** (rather than naive truncation) to preserve semantic signal. Updated telemetry to track the "Delta" (AI output vs. User Edits).
 
 ---
 
@@ -37,8 +37,8 @@ We need an enterprise-grade self-learning system that utilizes real-world teleme
 
 1. **Capability-Driven Smart Routing:** Semantic routing (`Capability`) mapping tasks to model tiers (Lite, Fast, Pro) using Multi-Armed Bandits (MAB) for adaptive traffic distribution between prompt variants.
 2. **CO-STAR Prompt Standardization:** Enforce the CO-STAR framework for all prompt generation.
-3. **Structured Outputs & AST Sanitization:** Mandate native Zod JSON schemas for extraction using `z.discriminatedUnion` and AST-based sanitization for fallbacks.
-4. **Enterprise Asynchronous Orchestration:** Enforce the HTTP 202 Accepted pattern using a Redis-backed **BullMQ** queue with Sandboxed Processors for heavy ML tasks, preventing V8 thread blocking and memory exhaustion.
+3. **Structured Outputs & Semantic Slicing:** Mandate native Zod JSON schemas for extraction. Use Exa's native `highlights` API (with `maxCharacters`) to summarize scraped websites rather than naive substring truncation.
+4. **Enterprise Asynchronous Orchestration:** Enforce the HTTP 202 Accepted pattern using **Cloud Tasks**. Cloud Run worker endpoints must be secured by `requireInternalOidc` IAM validation and hold the HTTP request open to ensure CPU is allocated for the full ML run.
 5. **Mathematically Validated Self-Learning System:** Implement a Champion-Challenger architecture where proposed ML configurations must pass a Paired Student's t-test (`@stdlib/stats-ttest`) against a curated Gold Standard dataset.
 6. **Immutable ML Versioning:** Use Firestore Append-Only SCD Type 2 to track every prompt, schema, and routing rule configuration perfectly.
 7. **PII-Scrubbed Telemetry Flywheel:** Implement an automated telemetry pipeline that scrubs Personally Identifiable Information before adding high-quality user deltas to the evaluation dataset.
@@ -55,7 +55,8 @@ Models are categorized into three tiers based on capability, using abstract alia
 - **Fast Tier (`gemini-3.1-flash`)**: Standard interactions, balanced speed/reasoning. The default workhorse.
 - **Pro Tier (`gemini-3.1-pro-preview`)**: Complex problem-solving, multi-step agentic reasoning, and **LLM-as-a-Judge evaluations**.
 
-*Adaptive Routing (MAB)*: 
+_Adaptive Routing (MAB)_:
+
 - Extracts Thompson Sampling and routing logic into a separate `PromptBanditOptimizer` to preserve Separation of Concerns.
 - Uses Redis atomic `INCR` to track success/failure weights in real-time, flushing to Firestore via a CRON job every 5 minutes to prevent Firestore write contention.
 - Implements a mathematical decay factor to handle model drift and a forced exploration threshold for new prompts (Cold Start).
@@ -75,6 +76,7 @@ We use an Append-Only SCD Type 2 design for ML assets to guarantee auditability 
 #### 4. Asynchronous Execution (BullMQ & Redis)
 
 Long-running LLM workflows (especially Pro tier multi-step reasoning) must not block the main Node.js event loop.
+
 - Incoming heavy requests respond immediately with `202 Accepted` and a `jobId`.
 - The task is pushed to a Redis-backed BullMQ queue.
 - **Sandboxed Processors** running in separate child processes execute the LLM calls, emitting granular `job.updateProgress()` updates.
@@ -87,6 +89,7 @@ To prevent regressions, async background workers run Challenger configs against 
 
 **Tri-Modal Short-Circuit Waterfall:**
 Every output is scored sequentially to save API costs:
+
 1.  **Deterministic (Syntax):** Parsed via Zod `z.discriminatedUnion`. If failed, score 0 and abort.
 2.  **Semantic (Embedding Similarity):** Uses the `gemini-embedding-001` model to calculate Cosine Similarity against the expected output using `Float32Array` scratchpads. If below threshold, abort.
 3.  **Heuristic (Pairwise Dueling Bandit LLM-Judge):** `gemini-3.1-pro-preview` compares Champion vs Challenger ("Which is better?") with randomized positioning to neutralize Position/Verbosity bias.
@@ -98,26 +101,30 @@ A Paired Student's t-test (`@stdlib/stats-ttest`) runs to prove the Challenger i
 
 - **Reverse Demo Hook & PQL Gates:** Auto-routing provides instant value via Lite/Fast tiers for unauthenticated users. Deep analysis requiring the Pro Tier async queue acts as a Product Qualified Lead (PQL) gate.
 - **Superadmin Validation Arena:** Built into the dashboard, this surface allows superadmins to view side-by-side anonymized outputs using **am-ELO (Annotator-Modified ELO)** weighting.
-- **Data Flywheel (Tracking the Delta):** Instead of implicit acceptance, the system tracks the *diff* between the AI's generation and the user's manual edits. This delta triggers an async job that scrubs the data of PII via regex heuristics (to be reviewed by Legal) before promoting the real-life example into the `gold_standard_evals` Firestore collection.
+- **Data Flywheel (Tracking the Delta):** Instead of implicit acceptance, the system tracks the _diff_ between the AI's generation and the user's manual edits. This delta triggers an async job that scrubs the data of PII via regex heuristics (to be reviewed by Legal) before promoting the real-life example into the `gold_standard_evals` Firestore collection.
 
 ## Acceptance Criteria
 
 ### Phase 1: Infrastructure & Queuing
+
 - [ ] Redis/BullMQ infrastructure is provisioned with Sandboxed Processors (`concurrency: 5`), `lockDuration: 120000`, and `removeOnComplete: true`.
 - [ ] HTTP 202 async endpoints implemented, ensuring graceful degradation for UI fallbacks.
 - [ ] BullMQ `on('failed')` terminal states are explicitly written to Firestore to prevent client-side hanging.
 
 ### Phase 2: Database & Routing (MAB)
+
 - [ ] `ml_configs` Firestore collection implemented with SCD Type 2 versioning and bounded `onSnapshot` queries.
 - [ ] `PromptBanditOptimizer` separated from `aiClient.ts`, using Redis atomic `INCR` for Thompson Sampling weights, mathematical decay, and forced exploration logic.
 - [ ] Zod `z.discriminatedUnion` implemented for deterministic JSON extraction.
 
 ### Phase 3: Validation, Promotion & Telemetry
+
 - [ ] Tri-Modal Short-Circuit Waterfall implemented utilizing `gemini-embedding-001` and Pairwise Dueling Bandits.
 - [ ] `@stdlib/stats-ttest` Paired Student's t-test utility implemented for Challenger promotion gating via `runTransaction`.
 - [ ] Telemetry pipeline implemented to track User/AI Deltas with a PII-scrubbing middleware hook.
 
 ### Quality Gates
+
 - [ ] **Test Coverage (>80%)**: Intent-based tests written using MSW to verify fallback chains, 429 exponential backoff, BullMQ job enqueuing, and legacy synchronous endpoint backward compatibility.
 - [ ] Transactional safety (`runTransaction`) confirmed for Champion promotion.
 - [ ] BullMQ workers demonstrate successful parallel processing without V8 thread starvation.

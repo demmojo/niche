@@ -115,8 +115,14 @@ export function useTaxonomySync(): {
             customName,
             workspaceId: WORKSPACE_ID,
           }),
-        }).catch((e) => console.error("Validation trigger failed", e));
+        }).catch((e) => {
+          // We intentionally do not throw here to allow the transaction to succeed
+          // The backend should ideally trigger this via a Firestore onWrite function
+          // but we are mocking it via fetch for now.
+          console.error("Validation trigger failed", e);
+        });
       } catch (err) {
+        // Log transaction failures
         console.error("Merge transaction failed", err);
       }
     });

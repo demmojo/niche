@@ -1,8 +1,6 @@
 import { Router, Request, Response } from "express";
 import { requireAppCheck } from "./authMiddleware";
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 
 export const authRouter = Router();
 

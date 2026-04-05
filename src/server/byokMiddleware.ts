@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
 import crypto from "crypto";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 
 // Use a strong, rotated server-side secret for cookie encryption

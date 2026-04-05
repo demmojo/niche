@@ -24,20 +24,20 @@ describe("TrustBuilderScreen", () => {
     });
 
     (fetchUtils.fetchWithAppCheck as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
       body: { getReader: () => mockStream.getReader() },
     });
 
     await act(async () => {
       render(
-        <Suspense fallback={<div>Loading Trust Builder...</div>}>
-          <TrustBuilderScreen
-            ideaPayload={{
-              productName: "Test",
-              productDescription: "Test Idea",
-            }}
-            onComplete={() => {}}
-          />
-        </Suspense>,
+        <TrustBuilderScreen
+          ideaPayload={{
+            productName: "Test",
+            productDescription: "Test Idea",
+          }}
+          onComplete={() => {}}
+        />,
       );
     });
 

@@ -14,10 +14,10 @@ date: 2026-03-29
 
 ### Key Improvements
 
-1. **PQL Compute Gate:** Enforces "Denial of Wallet" protection by breaking the automatic Pro-Tier API chain in the frontend and moving the heavy BullMQ workflow exclusively behind an authenticated account upgrade.
+1. **PQL Compute Gate:** Enforces "Denial of Wallet" protection by breaking the automatic Pro-Tier API chain in the frontend and moving the heavy Cloud Tasks workflow exclusively behind an authenticated account upgrade.
 2. **Auth Race Condition Resolution:** Implements a strict "State Freeze" (`isMergingRef`) to prevent React 19's "Snapshot Beats the Fetch" crashes during anonymous-to-permanent account merging.
 3. **Firestore Safety:** Replaces the monolithic `runTransaction` with iterative `limit(500)` batching for data reparenting to prevent hard-crashes.
-4. **Worker Concurrency Safety:** Mandates strict `FieldPath` partial updates (`.update()`) for BullMQ workers to prevent overwriting backend reparenting transactions.
+4. **Worker Concurrency Safety:** Mandates strict `FieldPath` partial updates (`.update()`) for Cloud Tasks workers to prevent overwriting backend reparenting transactions.
 5. **MSW 202 Async Mocking:** Upgrades intent-based tests to handle the HTTP 202 Accepted pattern natively using floating promises against the local Firebase Emulator.
 
 ---
@@ -30,9 +30,9 @@ This specification resolves critical architectural conflicts between the existin
 
 The current PLG integration contains several high-risk boundaries:
 
-1. **Pro-Tier Compute Bypass:** `ZeroFrictionEntry.tsx` automatically chains a call to `/api/campaign/start` (which uses the expensive Pro Tier BullMQ workers) right after the initial fast analysis. Anonymous users can drain API credits.
+1. **Pro-Tier Compute Bypass:** `ZeroFrictionEntry.tsx` automatically chains a call to `/api/campaign/start` (which uses the expensive Pro Tier Cloud Tasks workers) right after the initial fast analysis. Anonymous users can drain API credits.
 2. **"Snapshot Beats the Fetch" Auth Race Condition:** In `usePQLUpgrade.ts`, `signInWithPopup` succeeds and instantly updates the local `currentUser`. The UI eagerly subscribes to a Firestore document owned by the old anonymous UID, triggering a fatal permission-denied crash before the backend `/merge-anonymous-data` transaction finishes reparenting the document.
-3. **BullMQ Worker Overwrite Race:** Background workers writing via `.set()` will overwrite the `userId` back to the anonymous UID during the exact millisecond the backend is reparenting the document.
+3. **Cloud Tasks Worker Overwrite Race:** Background workers writing via `.set()` will overwrite the `userId` back to the anonymous UID during the exact millisecond the backend is reparenting the document.
 4. **Unbounded Firestore Transactions:** The backend merge transaction queries all jobs without limits, which will hard-crash if a user exceeds Firestore's 500-write transaction limit.
 5. **Missing App Check:** Frontend requests lack the `X-Firebase-AppCheck` header, breaking in production.
 

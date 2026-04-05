@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getActionCredits, deductActionCredit } from "../../server/credits";
 
 // Mock firebase-admin
-vi.mock("firebase-admin", () => {
+vi.mock("firebase-admin", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("firebase-admin")>();
   const getMock = vi.fn();
   const setMock = vi.fn();
   const updateMock = vi.fn();
@@ -20,21 +21,29 @@ vi.mock("firebase-admin", () => {
   /**
    *
    */
-  const firestoreMock = () => ({
-    collection: collectionMock,
-    runTransaction: runTransactionMock,
-  });
-
-  firestoreMock.FieldValue = {
-    increment: vi.fn((val) => `INCREMENT_BY_${val}`),
-  };
+  const firestoreMock = Object.assign(
+    () => ({
+      collection: collectionMock,
+      runTransaction: runTransactionMock,
+    }),
+    {
+      FieldValue: {
+        increment: vi.fn((val) => `INCREMENT_BY_${val}`),
+      },
+    },
+  );
 
   return {
+    ...actual,
+    default: {
+      ...(actual as any).default,
+      firestore: firestoreMock,
+    },
     firestore: firestoreMock,
   };
 });
 
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 describe("credits.ts", () => {
   let mockDb: any;

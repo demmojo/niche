@@ -1,8 +1,6 @@
 import Exa from "exa-js";
 import { GoogleGenAI } from "@google/genai";
-import * as adminNamespace from "firebase-admin";
-const admin: typeof adminNamespace =
-  (adminNamespace as any).default || adminNamespace;
+import admin from "firebase-admin";
 import {
   CompetitorExtractionSchema,
   DerivedInsightExtractionSchema,

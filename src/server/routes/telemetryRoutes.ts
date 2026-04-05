@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import express from "express";
 import { TelemetryEventSchema } from "../../types/telemetry";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { requireAuth } from "../authMiddleware";
 import { requireSuperadmin } from "../superadminRoutes";
 import { GoogleGenAI } from "@google/genai";
