@@ -65,7 +65,7 @@ resource "google_secret_manager_secret_iam_member" "firebase_sa_access" {
 
 # Common environment variables and secrets to be reused
 locals {
-  common_env = [confidential
+  common_env = [
     { name = "NODE_ENV", value = "production" },
     { name = "FIREBASE_PROJECT_ID", value = var.firebase_project_id },
     { name = "CLOUD_RUN_SA_EMAIL", value = google_service_account.cloudrun_sa.email },
