@@ -25,15 +25,28 @@ export type InsightAction =
   | { type: "REMOVE_INSIGHT"; id: string }
   | { type: "SET_INSIGHTS"; insights: Insight[] };
 
-const WorkspaceStateContext = createContext<string | null>(null);
-const WorkspaceDispatchContext = createContext<((id: string) => void) | null>(
-  null,
-);
-const WorkspaceLoadingContext = createContext<boolean | null>(null);
+function createSafeContext<T>(name: string) {
+  const Context = createContext<T | null>(null);
+  function useSafeContext() {
+    const context = use(Context);
+    if (context === null) {
+      throw new Error(`use${name} must be used within a WorkspaceProvider`);
+    }
+    return context;
+  }
+  return [Context, useSafeContext] as const;
+}
 
-const InsightsStateContext = createContext<Insight[] | null>(null);
-const InsightsDispatchContext =
-  createContext<React.Dispatch<InsightAction> | null>(null);
+export const [WorkspaceStateContext, useWorkspace] =
+  createSafeContext<string>("Workspace");
+export const [WorkspaceDispatchContext, useWorkspaceDispatch] =
+  createSafeContext<(id: string) => void>("WorkspaceDispatch");
+export const [WorkspaceLoadingContext, useWorkspaceLoading] =
+  createSafeContext<boolean>("WorkspaceLoading");
+export const [InsightsStateContext, useInsights] =
+  createSafeContext<Insight[]>("Insights");
+export const [InsightsDispatchContext, useInsightsDispatch] =
+  createSafeContext<React.Dispatch<InsightAction>>("InsightsDispatch");
 
 function insightsReducer(state: Insight[], action: InsightAction): Insight[] {
   switch (action.type) {
@@ -49,29 +62,36 @@ function insightsReducer(state: Insight[], action: InsightAction): Insight[] {
   }
 }
 
-function getWorkspaceId() {
+function safeStorageSet(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`localStorage setItem failed for key: ${key}`, e);
+  }
+}
+
+function safeStorageGet(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch (e) {
+    console.warn(`localStorage getItem failed for key: ${key}`, e);
+    return null;
+  }
+}
+
+export function getWorkspaceId() {
   if (typeof window === "undefined") return "ssr-workspace";
   const urlParams = new URLSearchParams(window.location.search);
   let wid = urlParams.get("w");
   if (wid) {
-    try {
-      window.localStorage.setItem("nicheai_workspace_id", wid);
-    } catch (e) {
-      console.warn("localStorage setItem failed", e);
-    }
+    safeStorageSet("nicheai_workspace_id", wid);
   } else {
-    try {
-      wid = window.localStorage.getItem("nicheai_workspace_id");
-    } catch (e) {
-      console.warn("localStorage getItem failed", e);
-    }
+    wid = safeStorageGet("nicheai_workspace_id");
     if (!wid) {
       wid = `ws-${Math.random().toString(36).substring(2, 9)}`;
-      try {
-        window.localStorage.setItem("nicheai_workspace_id", wid);
-      } catch (e) {
-        console.warn("localStorage setItem failed", e);
-      }
+      safeStorageSet("nicheai_workspace_id", wid);
     }
     urlParams.set("w", wid);
     window.history.replaceState(
@@ -83,8 +103,6 @@ function getWorkspaceId() {
   return wid;
 }
 
-export const WORKSPACE_ID = getWorkspaceId();
-
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [workspaceId, setWorkspaceIdState] = useState<string>("");
@@ -92,34 +110,36 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [insights, dispatchInsights] = useReducer(insightsReducer, []);
 
   useEffect(() => {
+    // Only fetch on client-side and after auth loads
     if (!user?.uid) {
       setIsLoading(false);
       return;
     }
-    try {
-      const storedActiveId = window.localStorage.getItem(
-        `${WORKSPACE_ID}_active_product_id_${user.uid}`,
-      );
-      if (storedActiveId) {
+
+    // Now getWorkspaceId is executed only in the browser context, preventing SSR module-side-effects
+    const wid = getWorkspaceId();
+    const storedActiveId = safeStorageGet(
+      `${wid}_active_product_id_${user.uid}`,
+    );
+
+    if (storedActiveId) {
+      try {
         setWorkspaceIdState(JSON.parse(storedActiveId));
+      } catch (e) {
+        console.error("Failed to parse workspace data from local storage", e);
       }
-    } catch (e) {
-      console.error("Failed to load workspace data from local storage", e);
     }
     setIsLoading(false);
   }, [user?.uid]);
 
   const setWorkspaceId = (id: string) => {
     setWorkspaceIdState(id);
-    if (user?.uid && typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(
-          `${WORKSPACE_ID}_active_product_id_${user.uid}`,
-          JSON.stringify(id),
-        );
-      } catch (e) {
-        console.warn("localStorage setItem failed", e);
-      }
+    if (user?.uid) {
+      const wid = getWorkspaceId();
+      safeStorageSet(
+        `${wid}_active_product_id_${user.uid}`,
+        JSON.stringify(id),
+      );
     }
   };
 
@@ -136,50 +156,4 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       </WorkspaceDispatchContext>
     </WorkspaceStateContext>
   );
-}
-
-export function useWorkspace() {
-  const context = use(WorkspaceStateContext);
-  if (context === null) {
-    throw new Error("useWorkspace must be used within a WorkspaceProvider");
-  }
-  return context;
-}
-
-export function useWorkspaceDispatch() {
-  const context = use(WorkspaceDispatchContext);
-  if (context === null) {
-    throw new Error(
-      "useWorkspaceDispatch must be used within a WorkspaceProvider",
-    );
-  }
-  return context;
-}
-
-export function useWorkspaceLoading() {
-  const context = use(WorkspaceLoadingContext);
-  if (context === null) {
-    throw new Error(
-      "useWorkspaceLoading must be used within a WorkspaceProvider",
-    );
-  }
-  return context;
-}
-
-export function useInsights() {
-  const context = use(InsightsStateContext);
-  if (context === null) {
-    throw new Error("useInsights must be used within a WorkspaceProvider");
-  }
-  return context;
-}
-
-export function useInsightsDispatch() {
-  const context = use(InsightsDispatchContext);
-  if (context === null) {
-    throw new Error(
-      "useInsightsDispatch must be used within a WorkspaceProvider",
-    );
-  }
-  return context;
 }

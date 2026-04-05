@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NodeGraphPipeline } from "../NodeGraphPipeline";
 
@@ -58,9 +58,20 @@ describe("NodeGraphPipeline", () => {
     await user.type(input, "Change email to username");
 
     expect(reviseBtn).not.toBeDisabled();
-    await user.click(reviseBtn);
 
-    // Should clear the input
-    expect(input).toHaveValue("");
+    await user.click(reviseBtn);
+    expect(reviseBtn).toHaveTextContent("Revising...");
+    expect(input).toBeDisabled();
+
+    // Use waitFor to wait for the timer to finish
+    const { waitFor } = await import("@testing-library/react");
+    await waitFor(
+      () => {
+        expect(input).toHaveValue("");
+      },
+      { timeout: 2500 },
+    );
+
+    expect(reviseBtn).toHaveTextContent("Revise");
   });
 });

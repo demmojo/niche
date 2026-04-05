@@ -233,7 +233,7 @@ describe("ZeroFrictionEntry", () => {
     expect(await screen.findByText("Your Validated Idea")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Generate Full Campaign" }),
+      screen.getByRole("button", { name: "Enter Strategy Canvas" }),
     );
 
     expect(onComplete).toHaveBeenCalled();

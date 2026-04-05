@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -10,21 +10,68 @@ type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
 type PersonaType = "solo_founder" | "enterprise_pm" | null;
 
+export interface IdeaPayload {
+  url?: string;
+  productName?: string;
+  productDescription?: string;
+}
+
+export interface CompletePayload {
+  name: string;
+  description: string;
+  targetRegions: string[];
+  features: any[];
+  strategy: any[];
+  jobId: string | null;
+  visibility: string;
+}
+
+function IntentButton({
+  title,
+  description,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
+    >
+      <div>
+        <span className="block font-bold">{title}</span>
+        <span className="block text-sm text-ink-dark/60 mt-1">
+          {description}
+        </span>
+      </div>
+      <span className="text-ink-dark/40">→</span>
+    </button>
+  );
+}
+
 export function ZeroFrictionEntry({
   onComplete,
   onIntentSelected,
 }: {
-  onComplete: (product: any) => void;
+  onComplete: (product: CompletePayload) => void;
   onIntentSelected?: () => void;
 }) {
   const [step, setStep] = useState<EntryStep>("intent");
   const [intent, setIntent] = useState<IntentType>(null);
   const [persona, setPersona] = useState<PersonaType>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [ideaPayload, setIdeaPayload] = useState<any>(null);
+  const [ideaPayload, setIdeaPayload] = useState<IdeaPayload | null>(null);
   const [pivotedIdea, setPivotedIdea] = useState<string | null>(null);
-
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const ensureAnonymousUser = async (selectedPersona?: PersonaType) => {
     let user = auth.currentUser;
@@ -35,8 +82,9 @@ export function ZeroFrictionEntry({
         setIsAuthenticating(true);
         try {
           // Use AbortController for circuit breaker pattern (timeout)
+          let timeoutId: ReturnType<typeof setTimeout>;
           const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(
+            timeoutId = setTimeout(
               () => reject(new Error("Auth timeout circuit breaker tripped")),
               5000,
             );
@@ -45,9 +93,12 @@ export function ZeroFrictionEntry({
             signInAnonymously(auth),
             timeoutPromise,
           ])) as any;
+          clearTimeout(timeoutId!);
           user = cred.user;
         } finally {
-          setIsAuthenticating(false);
+          if (isMounted.current) {
+            setIsAuthenticating(false);
+          }
         }
       }
     }
@@ -86,14 +137,23 @@ export function ZeroFrictionEntry({
   };
 
   const handleAction = async (formData: FormData) => {
-    const inputValue = formData.get("idea") as string;
+    let inputValue = formData.get("idea") as string;
+
+    if (intent === "validate") {
+      const category = formData.get("category") as string;
+      const audience = formData.get("audience") as string;
+      const problem = formData.get("problem") as string;
+      if (category && audience && problem) {
+        inputValue = `I want to build a ${category} for ${audience} that solves ${problem}.`;
+      }
+    }
+
     if (!inputValue) {
       setStep("error");
       setErrorMessage("Please enter some text.");
       return;
     }
 
-    // Adjust payload based on intent
     let finalIdea = inputValue;
     if (intent === "analyze") {
       finalIdea = `I want to analyze gaps left by ${inputValue}.`;
@@ -152,12 +212,12 @@ export function ZeroFrictionEntry({
   };
 
   if (step === "analyzing" && ideaPayload) {
-    if (intent === "url") {
+    if (intent === "url" && ideaPayload.url) {
       return (
         <URLTeaserScreen
           url={ideaPayload.url}
           onComplete={(data) => {
-            let finalIdea = ideaPayload.url;
+            let finalIdea = ideaPayload.url!;
             if (data.orthogonal_pivots && data.orthogonal_pivots.length > 0) {
               finalIdea = data.orthogonal_pivots[0];
             }
@@ -187,6 +247,9 @@ export function ZeroFrictionEntry({
               {pivotedIdea}
             </p>
           </div>
+          <p className="text-sm text-ink-dark/60 mb-4 animate-pulse">
+            Connecting to your workspace canvas...
+          </p>
           <button
             onClick={() => {
               onComplete({
@@ -201,7 +264,7 @@ export function ZeroFrictionEntry({
             }}
             className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg"
           >
-            Generate Full Campaign
+            Enter Strategy Canvas
           </button>
         </div>
       </div>
@@ -220,60 +283,27 @@ export function ZeroFrictionEntry({
             <h2 className="text-2xl font-serif font-bold text-ink-dark/80 mb-6">
               What is your primary goal today?
             </h2>
-            <button
+            <IntentButton
+              title="I'm a Founder"
+              description="Validate a startup idea or pivot"
               onClick={() => handleIntentSelection("validate")}
-              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
-            >
-              <div>
-                <span className="block font-bold">I'm a Founder</span>
-                <span className="block text-sm text-ink-dark/60 mt-1">
-                  Validate a startup idea or pivot
-                </span>
-              </div>
-              <span className="text-ink-dark/40">→</span>
-            </button>
-            <button
+            />
+            <IntentButton
+              title="I'm a Product Manager"
+              description="Analyze a market or competitor"
               onClick={() => handleIntentSelection("analyze")}
-              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
-            >
-              <div>
-                <span className="block font-bold">I'm a Product Manager</span>
-                <span className="block text-sm text-ink-dark/60 mt-1">
-                  Analyze a market or competitor
-                </span>
-              </div>
-              <span className="text-ink-dark/40">→</span>
-            </button>
-            <button
+            />
+            <IntentButton
+              title="I have a Website"
+              description="Extract and pivot from a URL"
               onClick={() => handleIntentSelection("url")}
-              className="w-full text-xl p-6 bg-white border-2 border-ink-dark/20 rounded-2xl outline-none hover:border-ink-dark transition-colors shadow-sm text-ink-dark font-medium text-left flex justify-between items-center"
-            >
-              <div>
-                <span className="block font-bold">I have a Website</span>
-                <span className="block text-sm text-ink-dark/60 mt-1">
-                  Extract and pivot from a URL
-                </span>
-              </div>
-              <span className="text-ink-dark/40">→</span>
-            </button>
+            />
           </div>
         )}
 
         {(step === "input" || step === "error") && intent === "validate" && (
           <form
             action={handleAction}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const category = formData.get("category") as string;
-              const audience = formData.get("audience") as string;
-              const problem = formData.get("problem") as string;
-              const combinedIdea = `I want to build a ${category} for ${audience} that solves ${problem}.`;
-
-              // We'll mutate the FormData to pass our combined idea down
-              formData.set("idea", combinedIdea);
-              handleAction(formData);
-            }}
             className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-2xl shadow-xl border border-slate-200"
           >
             <div className="text-2xl text-ink-dark leading-loose font-medium text-left">
@@ -320,7 +350,15 @@ export function ZeroFrictionEntry({
               </p>
             )}
 
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex justify-between">
+              <button
+                type="button"
+                onClick={() => setStep("intent")}
+                disabled={isAuthenticating}
+                className="px-6 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50"
+              >
+                ← Back
+              </button>
               <button
                 type="submit"
                 disabled={isAuthenticating}
@@ -335,10 +373,6 @@ export function ZeroFrictionEntry({
         {(step === "input" || step === "error") && intent !== "validate" && (
           <form
             action={handleAction}
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAction(new FormData(e.currentTarget));
-            }}
             className="w-full relative animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <input
@@ -360,17 +394,34 @@ export function ZeroFrictionEntry({
               disabled={isAuthenticating}
             />
             {step === "error" && (
-              <p className="text-rose-500 mt-4 font-medium" role="alert">
+              <p
+                className="text-rose-500 mt-4 font-medium text-left"
+                role="alert"
+              >
                 {errorMessage}
               </p>
             )}
-            <button
-              type="submit"
-              className="hidden"
-              disabled={isAuthenticating}
-            >
-              Submit
-            </button>
+            <div className="mt-4 flex justify-between">
+              <button
+                type="button"
+                onClick={() => setStep("intent")}
+                disabled={isAuthenticating}
+                className="px-6 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50"
+              >
+                ← Back
+              </button>
+              <button
+                type="submit"
+                disabled={isAuthenticating}
+                className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAuthenticating
+                  ? "Loading..."
+                  : intent === "analyze"
+                    ? "Analyze"
+                    : "Extract URL"}
+              </button>
+            </div>
           </form>
         )}
       </div>

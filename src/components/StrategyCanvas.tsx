@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "../lib/utils";
 import { Lock } from "lucide-react";
 
@@ -9,6 +9,18 @@ interface Props {
 }
 
 export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
+  const [isPending, setIsPending] = useState(false);
+
+  const handleUnlockClick = async () => {
+    if (!onUnlockClick) return;
+    setIsPending(true);
+    try {
+      await Promise.resolve(onUnlockClick());
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   return (
     <div className="relative w-full h-full min-h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-white">
       <div
@@ -39,10 +51,15 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
             execution.
           </p>
           <button
-            onClick={onUnlockClick}
-            className="mt-6 px-6 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors rounded"
+            onClick={handleUnlockClick}
+            disabled={isPending}
+            className="mt-6 px-6 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
           >
-            Unlock Canvas
+            {isPending ? (
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              "Unlock Canvas"
+            )}
           </button>
         </div>
       )}
