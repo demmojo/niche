@@ -1,6 +1,11 @@
 output "cloud_run_url" {
   description = "The public URL of the deployed Cloud Run service."
-  value       = google_cloud_run_v2_service.app.uri
+  value       = google_cloud_run_v2_service.web.uri
+}
+
+output "worker_url" {
+  description = "The internal URL of the worker Cloud Run service."
+  value       = google_cloud_run_v2_service.worker.uri
 }
 
 output "artifact_registry_repo" {

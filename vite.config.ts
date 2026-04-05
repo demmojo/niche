@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "."),
       },
+      dedupe: ["react", "react-dom", "use-sync-external-store"],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
@@ -44,14 +45,11 @@ export default defineConfig(({ mode }) => {
               if (
                 id.includes("react/") ||
                 id.includes("react-dom/") ||
-                id.match(/node_modules\/react$/)
+                id.match(/node_modules\/react$/) ||
+                id.includes("use-sync-external-store") ||
+                id.includes("scheduler")
               )
                 return "react";
-              return id
-                .toString()
-                .split("node_modules/")[1]
-                .split("/")[0]
-                .toString();
             }
           },
         },
