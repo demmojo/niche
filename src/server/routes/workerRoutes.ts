@@ -236,12 +236,13 @@ workerRouter.post("/vision-ml", async (req: Request, res: Response) => {
 import { processStaticCrawl } from "../workers/staticCrawlerWorker";
 
 workerRouter.post("/static-crawl", async (req: Request, res: Response) => {
+  let result: any;
   try {
-    const result = await processStaticCrawl(req.body);
+    result = await processStaticCrawl(req.body);
     return res.status(200).json({ success: true, result });
   } catch (error: any) {
     // Explicitly return 429/403 to trigger Cloud Tasks backpressure and retry on Firecrawl Spot VM fleet
-    if (result.botWallDetected) {
+    if (result && result.botWallDetected) {
       return res
         .status(429)
         .json({ error: "Bot wall detected, triggering backpressure", result });

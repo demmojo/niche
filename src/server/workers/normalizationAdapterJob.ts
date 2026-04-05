@@ -76,7 +76,7 @@ export async function processNormalizationAdapterJob(
   let activeJobs = 0;
   if (ai.batches && typeof ai.batches.list === "function") {
     try {
-      const batchList = await ai.batches.list();
+      const batchList: any = await ai.batches.list();
       activeJobs =
         batchList.batches?.filter(
           (b: any) => b.state === "IN_PROGRESS" || b.state === "ENQUEUED",

@@ -42,7 +42,7 @@ export async function fetchCustomSearchMetrics(
       config: {
         tools: [{ googleSearch: {} }], // Enable native Google Search Grounding
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(MetricsSchema) as any, // Enforce shape per ml-engineering-standards
+        responseSchema: zodToJsonSchema(MetricsSchema as any) as any, // Enforce shape per ml-engineering-standards
       },
     });
 
