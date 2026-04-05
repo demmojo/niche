@@ -101,10 +101,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
-    }
-
     function uidUnchanged() {
       return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
     }
