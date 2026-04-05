@@ -5,8 +5,7 @@ import {
   requireAppCheck,
   AuthenticatedRequest,
 } from "./authMiddleware";
-import * as adminNamespace from "firebase-admin";
-const admin = adminNamespace;
+import admin from "firebase-admin";
 import pMap from "p-map";
 import { getActionCredits, deductActionCredit } from "./credits";
 import {

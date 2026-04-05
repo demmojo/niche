@@ -1,5 +1,5 @@
 import { BigQuery } from "@google-cloud/bigquery";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 
 const bq = new BigQuery();
 

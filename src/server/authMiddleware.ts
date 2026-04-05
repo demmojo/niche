@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Initialize Firebase Admin
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   try {
     const base64Credentials = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
     let projectId = process.env.FIREBASE_PROJECT_ID;

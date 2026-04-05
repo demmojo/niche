@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 
 // Ensure app is initialized before calling firestore
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   admin.initializeApp();
 }
 

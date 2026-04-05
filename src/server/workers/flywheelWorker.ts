@@ -2,7 +2,7 @@ import admin from "firebase-admin";
 import { getGeminiClient } from "../../utils/geminiClient";
 import { regexScrub } from "../../utils/piiScrubber";
 
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   admin.initializeApp();
 }
 

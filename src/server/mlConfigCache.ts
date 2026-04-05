@@ -2,7 +2,7 @@ import admin from "firebase-admin";
 import PQueue from "p-queue";
 
 // Ensure app is initialized before calling firestore
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   admin.initializeApp();
 }
 

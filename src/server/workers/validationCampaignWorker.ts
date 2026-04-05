@@ -1,5 +1,4 @@
-import * as adminNamespace from "firebase-admin";
-const admin = adminNamespace;
+import admin from "firebase-admin";
 import { GoogleGenAI } from "@google/genai";
 import { mlConfigCache } from "../mlConfigCache";
 import pMap from "p-map";

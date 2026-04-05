@@ -8,7 +8,7 @@ import {
   calculateCosineSimilarity,
 } from "../../utils/scoringEngine";
 
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
   admin.initializeApp();
 }
 
