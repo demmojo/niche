@@ -92,7 +92,11 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
     );
   }
 
-  if (!metrics || metrics.pageViews === 0) {
+  if (
+    !metrics ||
+    typeof metrics.pageViews !== "number" ||
+    metrics.pageViews === 0
+  ) {
     return (
       <div className="bg-paper-card border border-ink-dark/20 p-12 rounded-xl flex flex-col items-center justify-center text-center">
         <div className="relative flex items-center justify-center mb-6">

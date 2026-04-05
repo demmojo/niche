@@ -6,6 +6,8 @@ test.describe("Dashboard and Main Navigation Flow", () => {
   const wid = "test-workspace-" + Date.now();
 
   test.beforeEach(async ({ page }) => {
+    page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
+    page.on("pageerror", (err) => console.log("PAGE ERROR:", err.message));
     // Attempt to bypass firebase auth calls entirely
     await page.route(
       "https://identitytoolkit.googleapis.com/**",
@@ -28,11 +30,13 @@ test.describe("Dashboard and Main Navigation Flow", () => {
     );
 
     // Start with blank page to prevent invalid URL navigations during rapid testing
-    await page.goto(`http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder`);
+    await page.goto(
+      `http://localhost:3000/?w=${wid}&mock_auth=true&persona=solo_founder`,
+    );
 
     // Wait for the app container to load instead of text
     await page.waitForSelector("#root", { state: "visible", timeout: 15000 });
-    
+
     // Attempt to dismiss onboarding modal if it appears
     try {
       const getStarted = page.getByRole("button", { name: "Get Started" });
@@ -44,7 +48,10 @@ test.describe("Dashboard and Main Navigation Flow", () => {
   });
 
   test("user can navigate through all primary tabs", async ({ page }) => {
-    // 1. Dashboard is active by default
+    await page.screenshot({ path: "screenshot1.png", fullPage: true });
+    // 1. Click Dashboard explicitly (default is now Ideation)
+    await page.getByRole("button", { name: "Dashboard" }).first().click();
+    await page.screenshot({ path: "screenshot2.png", fullPage: true });
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
@@ -70,10 +77,13 @@ test.describe("Dashboard and Main Navigation Flow", () => {
       page.getByRole("heading", { name: "Insight Library" }),
     ).toBeVisible();
 
-    // 5. Navigate to Market Analysis
-    await page.getByRole("button", { name: "Market Analysis" }).first().click();
+    // 5. Navigate to Market Intelligence
+    await page
+      .getByRole("button", { name: "Market Intelligence" })
+      .first()
+      .click();
     await expect(
-      page.getByRole("heading", { name: "Market Analysis" }),
+      page.getByRole("heading", { name: /Strategy Console/i }),
     ).toBeVisible();
 
     // 6. Navigate to Settings
@@ -83,6 +93,7 @@ test.describe("Dashboard and Main Navigation Flow", () => {
 
   test("user can interact with page guide", async ({ page }) => {
     // Ensure dashboard is active
+    await page.getByRole("button", { name: "Dashboard" }).first().click();
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();

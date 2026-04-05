@@ -1017,36 +1017,26 @@ import { WorkspaceShell } from "./components/WorkspaceShell";
 export default function App() {
   const { user, loading, logout } = useAuth();
 
-  // For Playwright E2E tests
-  if (
-    window.name === "playwright-test" ||
-    window.location.search.includes("mock_auth=true")
-  ) {
-    const isUserRole = window.location.search.includes("role=user");
-    const mockEmail = isUserRole ? "user@example.com" : "mo.hassaniv@gmail.com";
-    
-    // We can also mock a profile load via localstorage for E2E testing
-    const mockProfilePersona = window.location.search.includes("persona=enterprise") ? "enterprise_pm" : "solo_founder";
-    if (typeof window !== "undefined") {
-      (window as any).__mock_profile_persona = mockProfilePersona;
-    }
-    
-    return (
-      <WorkspaceProvider>
-        <WorkspaceRouter
-          user={{ email: mockEmail, uid: "test-user-123" }}
-          logout={() => {}}
-        />
-      </WorkspaceProvider>
-    );
-  }
-
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
+
+  // E2E testing mock logic
+  if (
+    typeof window !== "undefined" &&
+    (window.name === "playwright-test" ||
+      window.location.search.includes("mock_auth=true"))
+  ) {
+    const mockProfilePersona = window.location.search.includes(
+      "persona=enterprise",
+    )
+      ? "enterprise_pm"
+      : "solo_founder";
+    (window as any).__mock_profile_persona = mockProfilePersona;
+  }
 
   // Viral Loop Support
   const pathname = window.location.pathname;

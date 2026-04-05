@@ -63,6 +63,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ) {
           console.log("mock_auth=true detected, bypassing anonymous sign-in.");
           if (isMounted) {
+            const isUserRole = window.location.search.includes("role=user");
+            const mockEmail = isUserRole
+              ? "user@example.com"
+              : "mo.hassaniv@gmail.com";
+            setUser({
+              uid: "test-user-123",
+              email: mockEmail,
+              isAnonymous: false,
+            } as any);
             setLoading(false);
           }
           return;

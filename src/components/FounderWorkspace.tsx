@@ -5249,8 +5249,8 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
                 </div>
               )}
 
-            {/* MARKET ANALYSIS TAB */}
-            {activeTab === "market-analysis" && (
+            {/* MARKET INTELLIGENCE TAB */}
+            {activeTab === "market-intelligence" && (
               <LensStrategyConsole
                 stats={stats}
                 competitors={competitors}
