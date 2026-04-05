@@ -6,7 +6,7 @@ describe("NodeGraphPipeline", () => {
   it("renders pre-gate locked state with blur and grayscale", () => {
     render(<NodeGraphPipeline isLocked={true} />);
     const container = screen.getByTestId("node-graph-container");
-    expect(container).toHaveClass("blur-sm");
+    expect(container).toHaveClass("blur-md");
     expect(container).toHaveClass("grayscale");
     expect(screen.getByTestId("lock-overlay")).toBeInTheDocument();
   });

@@ -373,3 +373,54 @@ resource "google_storage_bucket_iam_member" "cloudrun_lake_access" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.cloudrun_sa.email}"
 }
+
+# -----------------------------------------------------------------------------
+# Deny Policy for DevOps Engineers on Core Resources
+# -----------------------------------------------------------------------------
+
+resource "google_iam_deny_policy" "lockdown_terraform_resources" {
+  provider     = google-beta
+  name         = "lockdown-terraform-resources"
+  parent       = urlencode("projects/${var.project_id}")
+  display_name = "Deny DevOps access to core application resources"
+
+  rules {
+    description = "Block access to NicheAI secrets, buckets, and Cloud Run"
+    
+    deny_rule {
+      denied_principals = [
+        "principal://goog/subject/arda.bilgin@blok-z.com",
+        "principal://goog/subject/gokhan.taskan@blok-z.com",
+        "principal://goog/subject/aws@blok-z.com"
+      ]
+
+      denied_permissions = [
+        "run.services.get",
+        "run.services.update",
+        "run.services.delete",
+        "secretmanager.secrets.get",
+        "secretmanager.secrets.update",
+        "secretmanager.secrets.delete",
+        "secretmanager.versions.access",
+        "storage.buckets.get",
+        "storage.objects.get",
+        "storage.objects.create",
+        "storage.objects.delete"
+      ]
+
+      denial_condition {
+        title       = "Target NicheAI Terraform Resources"
+        description = "Only deny access to specific NicheAI resources managed by this module"
+        expression  = <<EOT
+          resource.matchName("projects/${var.project_id}/locations/${var.region}/services/core-web-svc") ||
+          resource.matchName("projects/${var.project_id}/locations/${var.region}/services/nicheai-worker") ||
+          resource.matchName("projects/${var.project_id}/secrets/gemini-api-key") ||
+          resource.matchName("projects/${var.project_id}/secrets/exa-api-key") ||
+          resource.matchName("projects/${var.project_id}/secrets/firebase-service-account") ||
+          resource.matchName("projects/_/buckets/${google_storage_bucket.data_lake.name}")
+        EOT
+      }
+    }
+  }
+}
+
