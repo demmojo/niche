@@ -11,6 +11,8 @@ on:
 jobs:
   update-docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,7 +31,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          npx tsx scripts/openspec-cli/roadmap-extractor.ts
+          npx tsx scripts/openspec-cli/roadmap-extractor.ts $(git diff --name-only HEAD~1 HEAD)
           npx tsx scripts/openspec-cli/index.ts generate-docs
           
       - name: Auto-Commit Documentation Updates
