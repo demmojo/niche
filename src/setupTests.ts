@@ -95,6 +95,34 @@ if (typeof window !== "undefined") {
   window.ResizeObserver = ResizeObserver;
 }
 
+// Ensure forks die if the parent process (Cursor/Vitest runner) crashes or is killed
+// PPID Polling combined with SIGKILL is the most robust zombie killer on Linux
+if (process.send) {
+  const originalPpid = process.ppid;
+
+  const zombieWatcher = setInterval(() => {
+    // If the parent process ID changes to 1 (init), or isn't what it started as,
+    // the parent (Cursor/Terminal) has died abruptly.
+    if (
+      process.ppid !== originalPpid ||
+      process.ppid === 1 ||
+      !process.connected
+    ) {
+      console.error(
+        `[Vitest Worker] Parent process died. Terminating zombie worker ${process.pid}.`,
+      );
+
+      // Use process.kill with SIGKILL to bypass the event loop entirely.
+      // Do NOT use process.exit() as it can be blocked.
+      process.kill(process.pid, "SIGKILL");
+    }
+  }, 1000);
+
+  // unref() prevents this setInterval from keeping the test process alive
+  // after tests naturally finish.
+  zombieWatcher.unref();
+}
+
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 

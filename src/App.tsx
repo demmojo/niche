@@ -609,6 +609,130 @@ const initialCompetitors: Competitor[] = [
 ];
 
 // --- Components ---
+
+function OnboardingWizard({
+  setProductData,
+}: {
+  setProductData: React.Dispatch<React.SetStateAction<MyProductData>>;
+}) {
+  const [step, setStep] = useState(1);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [regions, setRegions] = useState("");
+  const [features, setFeatures] = useState("");
+
+  const handleFinish = () => {
+    setProductData({
+      name,
+      description,
+      targetRegions: regions
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean),
+      features: features
+        .split(",")
+        .map((f) => ({
+          id: Math.random().toString(36).substring(2, 9),
+          name: f.trim(),
+          description: "",
+          status: "planned",
+        }))
+        .filter((f) => f.name),
+      strategy: [],
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F5F3ED] flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-ink-dark/20 max-w-2xl w-full">
+        <h2 className="text-3xl font-serif font-bold text-ink-dark mb-2">
+          Welcome to NicheAI
+        </h2>
+        <p className="text-ink-dark/70 mb-8">
+          Let's set up your product intelligence workspace.
+        </p>
+
+        {step === 1 && (
+          <div className="space-y-4 animate-in fade-in">
+            <h3 className="text-xl font-bold">1. Company & Product Profile</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Product Name
+              </label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full p-2 border rounded-lg"
+                placeholder="e.g. Acme Analytics"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                One-Liner / Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full p-2 border rounded-lg h-24"
+                placeholder="What does it do? Who is it for?"
+              />
+            </div>
+            <button
+              onClick={() => setStep(2)}
+              disabled={!name}
+              className="px-6 py-2 bg-ink-dark text-white rounded-lg disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4 animate-in fade-in">
+            <h3 className="text-xl font-bold">2. Target Market & Features</h3>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Target Regions (comma separated)
+              </label>
+              <input
+                value={regions}
+                onChange={(e) => setRegions(e.target.value)}
+                className="w-full p-2 border rounded-lg"
+                placeholder="e.g. North America, EU"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Core Features (comma separated)
+              </label>
+              <input
+                value={features}
+                onChange={(e) => setFeatures(e.target.value)}
+                className="w-full p-2 border rounded-lg"
+                placeholder="e.g. API Access, Real-time dashboards"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep(1)}
+                className="px-6 py-2 border rounded-lg"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleFinish}
+                className="px-6 py-2 bg-ink-dark text-white rounded-lg"
+              >
+                Complete Setup
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DeepValidationButton({
   isSyncing,
   syncProgress,
@@ -931,7 +1055,7 @@ export function useMigratedFirestoreDoc<T>(
   legacyKey: string,
   newKey: string,
   initialValue: T,
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+): [T, React.Dispatch<React.SetStateAction<T>>, boolean] {
   const [migratedInitialValue] = useState<T>(() => {
     try {
       const legacyItem = window.localStorage.getItem(
@@ -957,9 +1081,10 @@ export function useMigratedFirestoreDoc<T>(
 export function useFirestoreDoc<T>(
   key: string,
   initialValue: T,
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+): [T, React.Dispatch<React.SetStateAction<T>>, boolean] {
   const [data, setData] = useState<T>(initialValue);
   const dataRef = useRef<T>(initialValue);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Debounce timeout ref to batch rapid writes and save quota
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -971,6 +1096,7 @@ export function useFirestoreDoc<T>(
       window.name === "playwright-test" ||
       window.location.search.includes("mock_auth=true")
     ) {
+      setIsInitialized(true);
       return;
     }
 
@@ -982,6 +1108,7 @@ export function useFirestoreDoc<T>(
       { includeMetadataChanges: true },
       (docSnap) => {
         if (controller.signal.aborted) return;
+        setIsInitialized(true);
 
         // Protect Optimistic UI:
         // Ignore incoming server snapshots if we are currently debouncing a local write,
@@ -1047,7 +1174,7 @@ export function useFirestoreDoc<T>(
     }, 2000);
   };
 
-  return [data, setValue];
+  return [data, setValue, isInitialized];
 }
 
 import { AuthDialogProvider } from "./components/AuthDialogProvider";
@@ -1135,7 +1262,10 @@ function WorkspaceRouter({ user, logout, sharedCampaignId }: any) {
   const [isRedeeming, setIsRedeeming] = useState(false);
 
   const isSuperadmin =
-    user?.email === "mo.hassaniv@gmail.com" || user?.email === "admin@test.com";
+    user?.email === "mo.hassaniv@gmail.com" ||
+    user?.email === "admin@test.com" ||
+    user?.email === "mo@nicheai.com" ||
+    user?.email === "erdemunal89@gmail.com";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

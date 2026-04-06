@@ -6,7 +6,8 @@ import { SyncReviewModal } from "./SyncReviewModal";
 import { DashboardExtensions } from "./DashboardExtensions";
 import { InsightEngineChat } from "./InsightEngineChat";
 import { CompetitorDiscoveryModal } from "./CompetitorDiscoveryModal";
-import { ZeroFrictionEntry } from "./ZeroFrictionEntry";
+import { OnboardingWizard } from "./OnboardingWizard";
+import { useUserProfile } from "../hooks/useUserProfile";
 import { JsonViewer } from "./JsonViewer";
 import { DataSourceCard } from "./DataSourceCard";
 import { dictionary, tMessage } from "../content/dictionary";
@@ -1053,8 +1054,12 @@ export function useFirestoreDoc<T>(
 }
 
 export function FounderWorkspace({ user, isSuperadmin }: any) {
-  const productId = useFounderActiveProductId();
-  const products = useFounderProducts();
+  const activeProductId = useFounderActiveProductId();
+  const setActiveProductId = useFounderActiveProductDispatch();
+  const { products, isInitialized: isProductsInitialized } =
+    useFounderProducts();
+  const { profileLoading } = useUserProfile();
+  const productId = activeProductId;
 
   const defaultCompetitors =
     isSuperadmin && productId === "prod-kageform" ? initialCompetitors : [];
@@ -1092,12 +1097,43 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
   const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
   const [rateLimitError, setRateLimitError] = useState<string | null>(null);
   const [isRateLimitModalOpen, setIsRateLimitModalOpen] = useState(false);
-  const [myProductData, setMyProductData] =
-    useMigratedFirestoreDoc<MyProductData>(
-      `my_product_data_${user.uid}_${productId}`,
-      `my_product_data_${productId}`,
-      defaultProductData,
-    );
+  const [myProductData, setMyProductDataState] =
+    useState<MyProductData>(defaultProductData);
+
+  useEffect(() => {
+    const product = products.find((p) => p.id === activeProductId);
+    if (product) {
+      setMyProductDataState(product as any);
+    } else if (products.length > 0) {
+      setMyProductDataState(products[0] as any);
+    }
+  }, [products, activeProductId]);
+
+  const setMyProductData = (
+    newDataOrUpdater:
+      | Partial<MyProductData>
+      | ((prev: MyProductData) => Partial<MyProductData>),
+  ) => {
+    const targetId =
+      activeProductId || (products.length > 0 ? products[0].id : null);
+    if (!targetId) return;
+
+    setMyProductDataState((prev) => {
+      const newData =
+        typeof newDataOrUpdater === "function"
+          ? newDataOrUpdater(prev)
+          : newDataOrUpdater;
+
+      import("firebase/firestore").then(({ doc, setDoc }) => {
+        const docRef = doc(db, "products", targetId);
+        setDoc(docRef, newData, { merge: true }).catch(console.error);
+      });
+
+      return { ...prev, ...newData };
+    });
+  };
+
+  const isProductDataInitialized = isProductsInitialized;
 
   const [rawCompetitors, setCompetitors] = useMigratedFirestoreDoc<
     Competitor[]
@@ -2951,6 +2987,42 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
         .catch(console.error);
     }
   }, [setInitialData]);
+
+  if (!isProductsInitialized && !forceInitialized) {
+    return (
+      <div
+        className="flex h-screen items-center justify-center bg-[#F5F3ED]"
+        aria-live="polite"
+      >
+        <div className="w-8 h-8 rounded-full border-4 border-ink-dark/20 border-t-ink-dark animate-spin" />
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="flex h-screen bg-[#F5F3ED] overflow-y-auto w-full">
+        <OnboardingWizard
+          onComplete={(data) => {
+            import("firebase/firestore").then(
+              ({ collection, addDoc, serverTimestamp }) => {
+                addDoc(collection(db, "products"), {
+                  ...data,
+                  userId: user.uid,
+                  status: "draft",
+                  createdAt: serverTimestamp(),
+                })
+                  .then((docRef) => {
+                    setActiveProductId(docRef.id);
+                  })
+                  .catch(console.error);
+              },
+            );
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#F5F3ED] text-[#2C2C2C] font-sans overflow-hidden selection:bg-[#2C2C2C]/10 relative">

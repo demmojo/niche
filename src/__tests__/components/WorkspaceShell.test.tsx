@@ -103,6 +103,9 @@ describe("WorkspaceShell", () => {
   });
 
   it("renders ZeroFrictionEntry if no effective persona", () => {
+    (AuthProvider.useAuth as any).mockReturnValue({
+      user: { uid: "anon", isAnonymous: true },
+    });
     (useUserProfileHook.useUserProfile as any).mockReturnValue({
       profile: null,
       loading: false,
@@ -112,6 +115,9 @@ describe("WorkspaceShell", () => {
   });
 
   it("locks into ZeroFrictionEntry when intent is selected and unlocks on complete", () => {
+    (AuthProvider.useAuth as any).mockReturnValue({
+      user: { uid: "anon", isAnonymous: true },
+    });
     render(<WorkspaceShell logout={mockLogout} />);
     // Initial state: profile has persona solo_founder, so shell renders
     expect(screen.queryByTestId("zero-friction")).not.toBeInTheDocument();
@@ -249,6 +255,9 @@ describe("WorkspaceShell", () => {
   });
 
   it("handles onClose from AuthModal when triggered in ZeroFrictionEntry", () => {
+    (AuthProvider.useAuth as any).mockReturnValue({
+      user: { uid: "anon", isAnonymous: true },
+    });
     (useUserProfileHook.useUserProfile as any).mockReturnValue({
       profile: null,
       loading: false,

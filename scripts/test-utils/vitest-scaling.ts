@@ -20,8 +20,10 @@ export function getSafePoolOptions(): UserConfig["test"] {
       forks: {
         minForks: 1,
         maxForks,
-        isolate: true, // Requires --expose-gc flag down below to not leak memory
-        execArgv: ["--expose-gc"],
+        isolate: true,
+        // Force V8 to Garbage Collect aggressively by shrinking the heap
+        // 512MB is usually plenty for a single test file's JSDOM.
+        execArgv: ["--max-old-space-size=512", "--expose-gc"],
       },
     },
   };

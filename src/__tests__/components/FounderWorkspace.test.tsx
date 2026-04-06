@@ -2,12 +2,36 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FounderWorkspace } from "../../components/FounderWorkspace";
-import { useFounderActiveProductId } from "../../components/FounderProvider";
+import {
+  useFounderActiveProductId,
+  useFounderProducts,
+} from "../../components/FounderProvider";
+
+const mockProducts = [
+  {
+    id: "prod-kageform",
+    name: "KageForm",
+    description: "BaaS",
+    targetRegions: [],
+    features: [],
+    strategy: [],
+  },
+];
 
 vi.mock("../../components/FounderProvider", () => ({
   useFounderActiveProductId: vi.fn(() => "test-product-id"),
-  useFounderProducts: vi.fn(() => []),
+  useFounderProducts: vi.fn(() => ({
+    products: mockProducts,
+    isInitialized: true,
+  })),
   useFounderActiveProductDispatch: vi.fn(() => vi.fn()),
+}));
+
+vi.mock("../../hooks/useUserProfile", () => ({
+  useUserProfile: vi.fn(() => ({
+    profile: { persona: "solo_founder" },
+    loading: false,
+  })),
 }));
 
 vi.mock("../../components/AuthProvider", () => ({
@@ -40,6 +64,28 @@ vi.mock("../../hooks/useSafeAITask", () => ({
   })),
 }));
 
+// Provide a mock for useMigratedFirestoreDoc that returns isInitialized = true
+import * as FounderWorkspaceModule from "../../components/FounderWorkspace";
+vi.spyOn(FounderWorkspaceModule, "useMigratedFirestoreDoc").mockImplementation(
+  (legacyKey, newKey, initialValue) => {
+    if (newKey && newKey.includes("my_product_data")) {
+      const val = (initialValue as any)?.name
+        ? initialValue
+        : {
+            name: "KageForm",
+            description: "BaaS",
+            targetRegions: [],
+            features: [],
+            strategy: [],
+          };
+      // Pass isInitialized=true as the 3rd element
+      return [val, vi.fn(), true];
+    }
+    // For others, also pass true
+    return [initialValue as any, vi.fn(), true];
+  },
+);
+
 vi.mock("../../hooks/useActionCredits", () => ({
   useActionCredits: vi.fn(() => ({
     actionCredits: 100,
@@ -67,6 +113,9 @@ vi.mock("../../firebase", () => ({
 // Mock all child components to avoid huge rendering trees
 vi.mock("../../components/DashboardExtensions", () => ({
   DashboardExtensions: () => <div data-testid="dashboard-extensions" />,
+}));
+vi.mock("../../components/OnboardingWizard", () => ({
+  OnboardingWizard: () => <div data-testid="onboarding-wizard" />,
 }));
 vi.mock("../../components/InsightEngineChat", () => ({
   InsightEngineChat: () => <div data-testid="insight-engine-chat" />,
@@ -229,6 +278,32 @@ describe("FounderWorkspace", () => {
 
   it("covers the huge hardcoded data by rendering as superadmin for prod-kageform", () => {
     (useFounderActiveProductId as any).mockReturnValue("prod-kageform");
+
+    // We must manually spy on the hook inside FounderWorkspace to inject the product data
+    // because the default value falls back to empty if we don't.
+    vi.spyOn(
+      FounderWorkspaceModule,
+      "useMigratedFirestoreDoc",
+    ).mockImplementation((legacyKey, newKey, initialValue) => {
+      if (
+        legacyKey === "my_product_data" ||
+        newKey?.includes("my_product_data")
+      ) {
+        return [
+          {
+            name: "KageForm",
+            description: "BaaS",
+            targetRegions: [],
+            features: [],
+            strategy: [],
+          },
+          vi.fn(),
+          true,
+        ];
+      }
+      return [initialValue as any, vi.fn(), true];
+    });
+
     render(
       <FounderWorkspace
         user={{ uid: "123", email: "mo.hassaniv@gmail.com" }}
@@ -236,12 +311,35 @@ describe("FounderWorkspace", () => {
       />,
     );
 
+    // Default product name doesn't matter because it renders the wrapper that shows NicheAI in the sidebar
     expect(screen.getByText("NicheAI")).toBeInTheDocument();
   });
 
   it("switches tabs correctly", () => {
     const { fireEvent } = require("@testing-library/react");
-    render(<FounderWorkspace user={{ uid: "123" }} isSuperadmin={false} />);
+    (useFounderActiveProductId as any).mockReturnValue("prod-kageform");
+
+    vi.spyOn(
+      FounderWorkspaceModule,
+      "useMigratedFirestoreDoc",
+    ).mockImplementation((legacyKey, newKey, initialValue) => {
+      if (newKey === "my_product_data_prod-kageform") {
+        return [
+          {
+            name: "KageForm",
+            description: "BaaS",
+            targetRegions: [],
+            features: [],
+            strategy: [],
+          },
+          vi.fn(),
+          true,
+        ];
+      }
+      return [initialValue as any, vi.fn(), true];
+    });
+
+    render(<FounderWorkspace user={{ uid: "123" }} isSuperadmin={true} />);
 
     expect(screen.getByTestId("pivot-simulator")).toBeInTheDocument();
 
@@ -250,5 +348,16 @@ describe("FounderWorkspace", () => {
     fireEvent.click(pdlcTab);
 
     expect(screen.getByTestId("rapid-pdlc-workflow")).toBeInTheDocument();
+  });
+
+  it("renders OnboardingWizard when products list is empty", () => {
+    (useFounderProducts as any).mockReturnValue({
+      products: [],
+      isInitialized: true,
+    });
+
+    render(<FounderWorkspace user={{ uid: "123" }} isSuperadmin={false} />);
+
+    expect(screen.getByTestId("onboarding-wizard")).toBeInTheDocument();
   });
 });

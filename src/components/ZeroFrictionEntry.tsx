@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
+import { useAuth } from "../components/AuthProvider";
 import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -143,11 +144,14 @@ export function ZeroFrictionEntry({
   onComplete,
   onIntentSelected,
   onLoginClick,
+  isEmbedded = false,
 }: {
   onComplete: (product: CompletePayload) => void;
   onIntentSelected?: () => void;
   onLoginClick?: () => void;
+  isEmbedded?: boolean;
 }) {
+  const { user: authUser } = useAuth();
   const [step, setStep] = useState<EntryStep>("intent");
   const [intent, setIntent] = useState<IntentType>(null);
   const [persona, setPersona] = useState<PersonaType>(null);
@@ -537,11 +541,20 @@ export function ZeroFrictionEntry({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F3ED]">
+    <div
+      className={cn(
+        "flex flex-col items-center",
+        isEmbedded
+          ? "w-full py-12"
+          : "justify-center min-h-screen bg-[#F5F3ED]",
+      )}
+    >
       <div className="w-full max-w-2xl px-4 text-center">
-        <h1 className="text-4xl font-serif font-bold text-ink-dark mb-12">
-          NicheAI
-        </h1>
+        {!isEmbedded && (
+          <h1 className="text-4xl font-serif font-bold text-ink-dark mb-12">
+            NicheAI
+          </h1>
+        )}
 
         {step === "intent" && (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -564,18 +577,20 @@ export function ZeroFrictionEntry({
               onClick={() => handleIntentSelection("url")}
             />
 
-            <div className="mt-6 text-sm text-ink-dark/60">
-              Already have an account?{" "}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (onLoginClick) onLoginClick();
-                }}
-                className="font-bold underline hover:text-ink-dark transition-colors"
-              >
-                Log in
-              </button>
-            </div>
+            {(!authUser || authUser.isAnonymous) && (
+              <div className="mt-6 text-sm text-ink-dark/60">
+                Already have an account?{" "}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (onLoginClick) onLoginClick();
+                  }}
+                  className="font-bold underline hover:text-ink-dark transition-colors"
+                >
+                  Log in
+                </button>
+              </div>
+            )}
           </div>
         )}
 

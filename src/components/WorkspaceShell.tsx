@@ -18,13 +18,27 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
   const [impersonatedPersona, setImpersonatedPersona] = useState<string | null>(
     null,
   );
-  const [isEntryFlowActive, setIsEntryFlowActive] = useState(false);
+  const [isEntryFlowActive, setIsEntryFlowActive] = useState(() => {
+    // Check global mock flag if available (used in tests)
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__MOCK_ENTRY_FLOW_ACTIVE__ !== undefined
+    ) {
+      return (window as any).__MOCK_ENTRY_FLOW_ACTIVE__;
+    }
+    return false;
+  });
   const { openModal } = useAuthDialogDispatch();
 
-  // Background migration for legacy users
+  // Background migration for legacy users who already have a profile but no persona
   useEffect(() => {
-    if (user && !user.isAnonymous && profile && !profile.persona) {
-      // Legacy user without a persona
+    if (
+      !profileLoading &&
+      user &&
+      !user.isAnonymous &&
+      profile &&
+      !profile.persona
+    ) {
       import("firebase/firestore").then(({ doc, setDoc }) => {
         setDoc(
           doc(db, "users", user.uid),
@@ -33,7 +47,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
         );
       });
     }
-  }, [user, profile]);
+  }, [user, profile, profileLoading]);
 
   if (profileLoading) {
     return (
@@ -52,11 +66,20 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
 
   // Effective persona considers superadmin impersonation
   const isSuperadmin =
-    user?.email === "mo.hassaniv@gmail.com" || user?.email === "admin@test.com";
+    user?.email === "mo.hassaniv@gmail.com" ||
+    user?.email === "admin@test.com" ||
+    user?.email === "mo@nicheai.com" ||
+    user?.email === "erdemunal89@gmail.com";
   let effectivePersona = profile?.persona;
 
   if (isSuperadmin && impersonatedPersona) {
     effectivePersona = impersonatedPersona as any;
+  }
+
+  // If authenticated (permanent account) but no persona is set yet, default to solo_founder temporarily.
+  // The OnboardingWizard inside FounderWorkspace will capture their actual persona.
+  if (user && !user.isAnonymous && !effectivePersona) {
+    effectivePersona = "solo_founder";
   }
 
   // Account settings toggle
@@ -72,14 +95,41 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
     });
   };
 
-  // If no persona is set (and no product/idea yet), we show the Zero Friction Entry
-  // We use `isEntryFlowActive` to lock them in the entry flow even after persona is set mid-flow
-  if (!effectivePersona || isEntryFlowActive) {
+  // We only show the full-screen ZeroFrictionEntry for unauthenticated/anonymous users.
+  // Authenticated users will skip this and see it embedded inside FounderWorkspace if they need it.
+  const isDemoOrMock = window.location.search.includes("mock_auth=true");
+  const forceBypass =
+    typeof window !== "undefined" &&
+    (window as any).__MOCK_ENTRY_FLOW_ACTIVE__ === false;
+  const showZeroFriction =
+    !forceBypass &&
+    !isDemoOrMock &&
+    (!user || user.isAnonymous) &&
+    (!effectivePersona || isEntryFlowActive);
+  if (showZeroFriction) {
     return (
       <>
         <ZeroFrictionEntry
           onIntentSelected={() => setIsEntryFlowActive(true)}
           onComplete={(data) => {
+            if (user) {
+              const params = new URLSearchParams(window.location.search);
+              const wid = params.get("w");
+              if (wid) {
+                import("firebase/firestore").then(({ doc, setDoc }) => {
+                  const docRef = doc(
+                    db,
+                    "workspaces",
+                    wid,
+                    "appData",
+                    "my_product_data_",
+                  );
+                  setDoc(docRef, { value: data }, { merge: true }).catch(
+                    console.error,
+                  );
+                });
+              }
+            }
             setIsEntryFlowActive(false);
           }}
           onLoginClick={openModal}

@@ -111,10 +111,21 @@ vi.mock("../components/WorkspaceProvider", async (importOriginal) => {
   };
 });
 
+const mockProducts = [
+  {
+    id: "prod-kageform",
+    name: "KageForm",
+    description: "BaaS",
+    targetRegions: [],
+    features: [],
+    strategy: [],
+  },
+];
+
 vi.mock("../components/FounderProvider", () => {
   return {
     FounderProvider: ({ children }: any) => <>{children}</>,
-    useFounderProducts: () => [{ id: "prod-kageform", name: "KageForm" }],
+    useFounderProducts: () => ({ products: mockProducts, isInitialized: true }),
     useFounderActiveProductId: () => "prod-kageform",
     useFounderActiveProductDispatch: () => vi.fn(),
   };

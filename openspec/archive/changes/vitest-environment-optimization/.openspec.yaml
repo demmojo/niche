@@ -1,0 +1,8 @@
+name: vitest-environment-optimization
+status: archived
+depends_on: []
+extends: []
+refactors: []
+supersedes: []
+reverts: []
+learnings_extracted: true

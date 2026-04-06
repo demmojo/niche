@@ -1,10 +1,23 @@
 import React, { createContext, use, useState, useEffect } from "react";
 import { Product } from "./WorkspaceProvider";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { useWorkspace } from "./WorkspaceProvider";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  getDoc,
+  doc,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./AuthProvider";
 
-const FounderProductsContext = createContext<Product[] | null>(null);
+const FounderProductsContext = createContext<{
+  products: Product[];
+  isInitialized: boolean;
+} | null>(null);
 const FounderActiveProductContext = createContext<string | null>(null);
 const FounderActiveProductDispatchContext = createContext<
   ((id: string) => void) | null
@@ -12,7 +25,10 @@ const FounderActiveProductDispatchContext = createContext<
 
 export function FounderProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const workspace = useWorkspace();
   const [products, setProducts] = useState<Product[]>([]);
+  const [isProductsInitialized, setIsProductsInitialized] =
+    useState<boolean>(false);
   const [activeProductId, setActiveProductId] = useState<string>("");
 
   useEffect(() => {
@@ -22,6 +38,7 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
         (window.name === "playwright-test" ||
           window.location.search.includes("mock_auth=true")))
     ) {
+      setIsProductsInitialized(true);
       return;
     }
 
@@ -35,12 +52,60 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
+      async (snapshot) => {
         if (controller.signal.aborted) return;
-        const fetchedProducts: Product[] = [];
-        snapshot.forEach((doc) => {
-          fetchedProducts.push(doc.data() as Product);
+        let fetchedProducts: Product[] = [];
+        snapshot.forEach((d) => {
+          fetchedProducts.push({ id: d.id, ...d.data() } as Product);
         });
+
+        // Legacy Data Migration
+        if (fetchedProducts.length === 0 && workspace?.id) {
+          try {
+            const legacyDocRef = doc(
+              db,
+              "workspaces",
+              workspace.id,
+              "appData",
+              "my_product_data_",
+            );
+            const legacyDoc = await getDoc(legacyDocRef);
+
+            if (legacyDoc.exists() && legacyDoc.data().value?.name) {
+              const legacyData = legacyDoc.data().value;
+              const batch = writeBatch(db);
+
+              const newProductRef = doc(collection(db, "products"));
+              batch.set(newProductRef, {
+                userId: user.uid,
+                name: legacyData.name || "My Legacy Product",
+                status: "draft",
+                createdAt: serverTimestamp(),
+              });
+
+              const newProductDataRef = doc(
+                db,
+                "workspaces",
+                workspace.id,
+                "appData",
+                `my_product_data_${newProductRef.id}`,
+              );
+              batch.set(
+                newProductDataRef,
+                { value: legacyData },
+                { merge: true },
+              );
+
+              batch.set(legacyDocRef, { value: null }, { merge: true });
+
+              await batch.commit();
+
+              return; // Do not set isInitialized yet, wait for the next snapshot
+            }
+          } catch (err) {
+            console.error("Migration failed", err);
+          }
+        }
 
         fetchedProducts.sort((a, b) => {
           if (!a.createdAt) return 1;
@@ -51,10 +116,12 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
         });
 
         setProducts(fetchedProducts);
+        setIsProductsInitialized(true);
       },
       (error) => {
         if (controller.signal.aborted) return;
         console.error("Error fetching founder products:", error);
+        setIsProductsInitialized(true);
       },
     );
 
@@ -65,7 +132,9 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
   }, [user?.uid]);
 
   return (
-    <FounderProductsContext value={products}>
+    <FounderProductsContext
+      value={{ products, isInitialized: isProductsInitialized }}
+    >
       <FounderActiveProductContext value={activeProductId}>
         <FounderActiveProductDispatchContext value={setActiveProductId}>
           {children}

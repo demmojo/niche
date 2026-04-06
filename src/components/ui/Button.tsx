@@ -32,8 +32,7 @@ export function Button({
   // If used inside a form as type submit, react to form status
   const isPending =
     controlledIsPending ??
-    internalIsPending ??
-    (type === "submit" && formPending);
+    (internalIsPending || (type === "submit" && formPending));
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled || isPending) {
@@ -47,7 +46,9 @@ export function Button({
       const result = onClick(e);
       if ((result as any) instanceof Promise) {
         setInternalIsPending(true);
-        await result;
+        await (result as Promise<any>).catch((err) => {
+          console.error("Button onClick promise rejected:", err);
+        });
       }
     } finally {
       setInternalIsPending(false);

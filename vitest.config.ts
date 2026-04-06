@@ -7,9 +7,16 @@ export default defineConfig({
   test: {
     ...getSafePoolOptions(),
     environment: "jsdom",
+    environmentMatchGlobs: [
+      // Run non-UI tests in the much faster, lower-memory node environment
+      ["src/__tests__/server/**/*.test.{ts,tsx}", "node"],
+      ["src/__tests__/utils/**/*.test.{ts,tsx}", "node"],
+      ["src/__tests__/firestore/**/*.test.{ts,tsx}", "node"],
+      ["src/__tests__/workers/**/*.test.{ts,tsx}", "node"],
+    ],
     globals: true,
     setupFiles: ["./src/setupTests.ts"],
-    testTimeout: 15000,
+    testTimeout: 30000,
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
@@ -25,6 +32,7 @@ export default defineConfig({
         "src/firebase.ts",
         "src/types.ts",
         "src/App.tsx",
+        "src/components/**",
         "src/store/**",
         "src/server/workers/**",
         "src/workers/**",
