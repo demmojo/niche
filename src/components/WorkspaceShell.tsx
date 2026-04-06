@@ -10,6 +10,7 @@ import { ZeroFrictionEntry } from "./ZeroFrictionEntry";
 // These will be defined separately
 import { FounderWorkspace } from "./FounderWorkspace";
 import { EnterpriseWorkspace } from "./EnterpriseWorkspace";
+import { AuthModal } from "./AuthModal";
 
 export function WorkspaceShell({ logout }: { logout: () => void }) {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
     null,
   );
   const [isEntryFlowActive, setIsEntryFlowActive] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Background migration for legacy users
   useEffect(() => {
@@ -74,12 +76,19 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
   // We use `isEntryFlowActive` to lock them in the entry flow even after persona is set mid-flow
   if (!effectivePersona || isEntryFlowActive) {
     return (
-      <ZeroFrictionEntry
-        onIntentSelected={() => setIsEntryFlowActive(true)}
-        onComplete={(data) => {
-          setIsEntryFlowActive(false);
-        }}
-      />
+      <>
+        <ZeroFrictionEntry
+          onIntentSelected={() => setIsEntryFlowActive(true)}
+          onComplete={(data) => {
+            setIsEntryFlowActive(false);
+          }}
+          onLoginClick={() => setIsAuthModalOpen(true)}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+        />
+      </>
     );
   }
 
@@ -149,7 +158,16 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
             <span>{user?.email || "Anonymous"}</span>
           </div>
 
-          {user?.email && (
+          {user?.isAnonymous && (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="hover:text-ink-dark transition-colors ml-4 text-ink-dark/50 hover:text-ink-dark/80 underline font-medium"
+            >
+              Log In
+            </button>
+          )}
+
+          {!user?.isAnonymous && user?.email && (
             <button
               onClick={logout}
               className="hover:text-ink-dark transition-colors ml-4 text-ink-dark/50 hover:text-ink-dark/80"
@@ -172,6 +190,11 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
           </FounderProvider>
         )}
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }
