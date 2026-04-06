@@ -173,18 +173,22 @@ const mockInsights: any[] = [];
 /**
  *
  */
+import { AuthDialogProvider } from "../../../src/components/AuthDialogProvider";
+
 const MyProductWrapper = ({ initialData = mockInitialData }) => {
   const [data, setData] = useState(initialData);
   return (
-    <AuthProvider>
-      <MyProduct
-        projectId="test-project"
-        productData={data}
-        setProductData={setData}
-        competitors={mockCompetitors}
-        insights={mockInsights}
-      />
-    </AuthProvider>
+    <AuthDialogProvider>
+      <AuthProvider>
+        <MyProduct
+          projectId="test-project"
+          productData={data}
+          setProductData={setData}
+          competitors={mockCompetitors}
+          insights={mockInsights}
+        />
+      </AuthProvider>
+    </AuthDialogProvider>
   );
 };
 

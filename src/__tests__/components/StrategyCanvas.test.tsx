@@ -16,8 +16,8 @@ describe("StrategyCanvas", () => {
     expect(screen.queryByTestId("lock-overlay")).not.toBeInTheDocument();
 
     const contentContainer = screen.getByTestId("canvas-content");
-    expect(contentContainer.className).not.toMatch(/blur/);
-    expect(contentContainer.className).not.toMatch(/grayscale/);
+    expect(contentContainer.className).not.toMatch(/opacity-50/);
+    expect(contentContainer.hasAttribute("inert")).toBe(false);
   });
 
   it("renders lock overlay and blurs content when isLocked is true", async () => {
@@ -34,8 +34,8 @@ describe("StrategyCanvas", () => {
     expect(screen.getByText("Strategy Locked")).toBeInTheDocument();
 
     const contentContainer = screen.getByTestId("canvas-content");
-    expect(contentContainer.className).not.toMatch(/opacity-50/); // Changed from toMatch
-    expect(contentContainer.className).toMatch(/mask-gradient-to-b/);
+    expect(contentContainer.className).toMatch(/opacity-50/);
+    expect(contentContainer.hasAttribute("inert")).toBe(true);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Unlock Canvas" }));

@@ -25,6 +25,7 @@ Introduce a global, in-context authentication overlay that prioritizes "Silent C
 ### 3. Merge vs. Discard Error Recovery
 
 - **Requirement:** If `linkWithPopup` throws `auth/credential-already-in-use` (Google) or `auth/email-already-in-use` (Email), transition to a resolution view.
+  - **Extract Credential:** For Google, use `GoogleAuthProvider.credentialFromError`. For Email, recreate it with `EmailAuthProvider.credential(email, password)`.
   - **Dirty State Check:** If the current anonymous session has NO generated data (empty workspace), skip the prompt entirely, call `signInWithCredential` (Discard), and log them in.
   - If dirty data exists, show options: "Merge into my account" or "Discard unsaved work".
   - If Discard: call `signInWithCredential`.

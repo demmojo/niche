@@ -4,6 +4,8 @@ import { URLTeaserScreen } from "../../components/URLTeaserScreen";
 import React from "react";
 import * as fetchUtils from "../../utils/fetchWithAppCheck";
 
+import { AuthDialogProvider } from "../../components/AuthDialogProvider";
+
 describe("URLTeaserScreen", () => {
   beforeEach(() => {
     vi.spyOn(fetchUtils, "fetchWithAppCheck");
@@ -31,7 +33,9 @@ describe("URLTeaserScreen", () => {
 
     await act(async () => {
       render(
-        <URLTeaserScreen url="https://example.com" onComplete={() => {}} />,
+        <AuthDialogProvider>
+          <URLTeaserScreen url="https://example.com" onComplete={() => {}} />
+        </AuthDialogProvider>,
       );
     });
 
@@ -79,7 +83,9 @@ describe("URLTeaserScreen", () => {
 
     await act(async () => {
       render(
-        <URLTeaserScreen url="https://example.com" onComplete={() => {}} />,
+        <AuthDialogProvider>
+          <URLTeaserScreen url="https://example.com" onComplete={() => {}} />
+        </AuthDialogProvider>,
       );
     });
 

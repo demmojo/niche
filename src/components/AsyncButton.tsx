@@ -15,10 +15,12 @@ export function AsyncButton({
   children,
   className,
   disabled,
+  type = "button",
   ...props
 }: AsyncButtonProps) {
   return (
     <button
+      type={type}
       disabled={isPending || disabled}
       className={cn(
         "flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",

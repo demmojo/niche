@@ -1,12 +1,25 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NodeGraphPipeline } from "../NodeGraphPipeline";
 
 describe("NodeGraphPipeline", () => {
+  const mockOnComplete = vi.fn();
+  const mockOnUnlockClick = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders Phase 01 freely but locks Phase 02 when reached", async () => {
     const { userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
-    render(<NodeGraphPipeline isLocked={true} />);
+    render(
+      <NodeGraphPipeline
+        isLocked={true}
+        onComplete={mockOnComplete}
+        onUnlockClick={mockOnUnlockClick}
+      />,
+    );
 
     // Phase 1 is not blurred
     const container = screen.getByTestId("node-graph-container");
@@ -23,7 +36,13 @@ describe("NodeGraphPipeline", () => {
   });
 
   it("renders post-gate unlocked state with Acid Yellow buttons", () => {
-    render(<NodeGraphPipeline isLocked={false} />);
+    render(
+      <NodeGraphPipeline
+        isLocked={false}
+        onComplete={mockOnComplete}
+        onUnlockClick={mockOnUnlockClick}
+      />,
+    );
     const container = screen.getByTestId("node-graph-container");
     expect(container).not.toHaveClass("blur-sm");
     expect(container).not.toHaveClass("grayscale");
@@ -42,7 +61,13 @@ describe("NodeGraphPipeline", () => {
   it("transitions to MASTER state when Approve is clicked", async () => {
     const { userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
-    render(<NodeGraphPipeline isLocked={false} />);
+    render(
+      <NodeGraphPipeline
+        isLocked={false}
+        onComplete={mockOnComplete}
+        onUnlockClick={mockOnUnlockClick}
+      />,
+    );
 
     expect(
       screen.getByText(/The AI breaks features into atomic phases/i),
@@ -60,7 +85,13 @@ describe("NodeGraphPipeline", () => {
   it("handles Revise button logic", async () => {
     const { userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
-    render(<NodeGraphPipeline isLocked={false} />);
+    render(
+      <NodeGraphPipeline
+        isLocked={false}
+        onComplete={mockOnComplete}
+        onUnlockClick={mockOnUnlockClick}
+      />,
+    );
 
     const reviseBtn = screen.getByText("Revise");
     expect(reviseBtn).toBeDisabled();

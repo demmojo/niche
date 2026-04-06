@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import * as AuthProvider from "../../components/AuthProvider";
+import * as AuthDialogProvider from "../../components/AuthDialogProvider";
 import * as useUserProfileHook from "../../hooks/useUserProfile";
 import * as firestore from "firebase/firestore";
 
@@ -25,6 +26,10 @@ vi.mock("firebase/firestore", async () => {
 
 vi.mock("../../firebase", () => ({
   db: {},
+}));
+
+vi.mock("../../components/AuthDialogProvider", () => ({
+  useAuthDialogDispatch: vi.fn(() => ({ openModal: vi.fn() })),
 }));
 
 vi.mock("../../components/ZeroFrictionEntry", () => ({
@@ -218,60 +223,29 @@ describe("WorkspaceShell", () => {
   });
 
   it("renders AuthModal correctly when closed", () => {
-    (AuthProvider.useAuth as any).mockReturnValue({
-      user: { uid: "123", email: "test@test.com", isAnonymous: false },
-    });
-    render(<WorkspaceShell logout={mockLogout} />);
-
-    // AuthModal should not show its content
-    expect(
-      screen.queryByText(/Log in to save your current workspace/i),
-    ).not.toBeInTheDocument();
+    // This test is obsolete since AuthModal is managed externally by AuthDialogProvider
   });
 
   it("opens AuthModal when Log In is clicked from shell nav", () => {
     (AuthProvider.useAuth as any).mockReturnValue({
       user: { uid: "123", email: null, isAnonymous: true },
     });
-    render(<WorkspaceShell logout={mockLogout} />);
 
-    // AuthModal is initially closed/hidden (it returns null if not open, but let's check for its content if mocked, or the lack of it)
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); // assuming default AuthModal renders nothing when closed
+    const mockOpenModal = vi.fn();
+    (AuthDialogProvider.useAuthDialogDispatch as any).mockReturnValue({
+      openModal: mockOpenModal,
+    });
+
+    render(<WorkspaceShell logout={mockLogout} />);
 
     const loginBtn = screen.getByText("Log In");
     fireEvent.click(loginBtn);
 
-    // Verify modal logic is triggered (e.g., state changed). Since AuthModal is an actual component now, we can check for its text
-    expect(
-      screen.getByText(/Log in to save your current workspace/i),
-    ).toBeInTheDocument();
+    expect(mockOpenModal).toHaveBeenCalled();
   });
 
   it("closes AuthModal when onClose is called", () => {
-    (AuthProvider.useAuth as any).mockReturnValue({
-      user: { uid: "123", email: null, isAnonymous: true },
-    });
-    render(<WorkspaceShell logout={mockLogout} />);
-
-    // Open the modal first
-    const loginBtn = screen.getByText("Log In");
-    fireEvent.click(loginBtn);
-    expect(
-      screen.getByText(/Log in to save your current workspace/i),
-    ).toBeInTheDocument();
-
-    // Now close it by clicking the X button in AuthModal (assuming it has aria-label="Close" or similar,
-    // or just find the X icon button). Let's find the button by its role or structure if possible.
-    // AuthModal has a button with lucide-react X icon. Let's find it.
-    const closeBtn = document.querySelector(".lucide-x")?.closest("button");
-    if (closeBtn) {
-      fireEvent.click(closeBtn);
-    }
-
-    // Check that it's closed (the text should be gone)
-    expect(
-      screen.queryByText(/Log in to save your current workspace/i),
-    ).not.toBeInTheDocument();
+    // This test is obsolete since AuthModal state is managed externally
   });
 
   it("handles onClose from AuthModal when triggered in ZeroFrictionEntry", () => {
@@ -279,24 +253,18 @@ describe("WorkspaceShell", () => {
       profile: null,
       loading: false,
     });
+
+    const mockOpenModal = vi.fn();
+    (AuthDialogProvider.useAuthDialogDispatch as any).mockReturnValue({
+      openModal: mockOpenModal,
+    });
+
     render(<WorkspaceShell logout={mockLogout} />);
 
     // Simulate clicking the login button passed to ZeroFrictionEntry
     const loginBtn = screen.getByTestId("login-btn");
     fireEvent.click(loginBtn);
 
-    // AuthModal should now be rendered and visible
-    expect(
-      screen.getByText(/Log in to save your current workspace/i),
-    ).toBeInTheDocument();
-
-    const closeBtn = document.querySelector(".lucide-x")?.closest("button");
-    if (closeBtn) {
-      fireEvent.click(closeBtn);
-    }
-
-    expect(
-      screen.queryByText(/Log in to save your current workspace/i),
-    ).not.toBeInTheDocument();
+    expect(mockOpenModal).toHaveBeenCalled();
   });
 });

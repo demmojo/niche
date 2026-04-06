@@ -10,7 +10,7 @@ import { ZeroFrictionEntry } from "./ZeroFrictionEntry";
 // These will be defined separately
 import { FounderWorkspace } from "./FounderWorkspace";
 import { EnterpriseWorkspace } from "./EnterpriseWorkspace";
-import { AuthModal } from "./AuthModal";
+import { useAuthDialogDispatch } from "./AuthDialogProvider";
 
 export function WorkspaceShell({ logout }: { logout: () => void }) {
   const { user } = useAuth();
@@ -19,7 +19,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
     null,
   );
   const [isEntryFlowActive, setIsEntryFlowActive] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { openModal } = useAuthDialogDispatch();
 
   // Background migration for legacy users
   useEffect(() => {
@@ -82,11 +82,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
           onComplete={(data) => {
             setIsEntryFlowActive(false);
           }}
-          onLoginClick={() => setIsAuthModalOpen(true)}
-        />
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
+          onLoginClick={openModal}
         />
       </>
     );
@@ -160,7 +156,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
 
           {user?.isAnonymous && (
             <button
-              onClick={() => setIsAuthModalOpen(true)}
+              onClick={openModal}
               className="hover:text-ink-dark transition-colors ml-4 text-ink-dark/50 hover:text-ink-dark/80 underline font-medium"
             >
               Log In
@@ -190,11 +186,6 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
           </FounderProvider>
         )}
       </div>
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
     </div>
   );
 }

@@ -184,7 +184,7 @@ describe("ZeroFrictionEntry", () => {
     fireEvent.submit(form!);
 
     expect(
-      await screen.findByText("Please enter some text."),
+      await screen.findByText("Please fill out all required fields."),
     ).toBeInTheDocument();
   });
 

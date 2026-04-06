@@ -1,6 +1,9 @@
+import React, { createContext, useContext, useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+// Import the actual component we will be testing/modifying
 import { AuthModal } from "../../components/AuthModal";
 import { auth } from "../../firebase";
 import * as firebaseAuth from "firebase/auth";
@@ -16,320 +19,769 @@ vi.mock("firebase/auth", async (importOriginal) => {
   return {
     ...actual,
     signInWithPopup: vi.fn(),
+    linkWithPopup: vi.fn(),
+    signInWithCredential: vi.fn(),
     signInWithEmailAndPassword: vi.fn(),
+    linkWithCredential: vi.fn(),
     GoogleAuthProvider: class {},
+    OAuthProvider: {
+      credentialFromError: vi.fn().mockReturnValue({
+        providerId: "google.com",
+        signInMethod: "google.com",
+      }),
+    },
+    EmailAuthProvider: {
+      credential: vi.fn(),
+    },
   };
 });
 
-describe("AuthModal Component", () => {
-  const mockOnClose = vi.fn();
+// A mock provider to simulate the future AuthDialogProvider for our test component
+const MockAuthDialogContext = createContext<{ openModal: () => void }>({
+  openModal: () => {},
+});
 
+const useAuthDialog = () => useContext(MockAuthDialogContext);
+
+const MockAuthDialogProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <MockAuthDialogContext.Provider
+      value={{ openModal: () => setIsOpen(true) }}
+    >
+      {children}
+      <AuthModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+    </MockAuthDialogContext.Provider>
+  );
+};
+
+const TestConsumer = () => {
+  const { openModal } = useAuthDialog();
+  return <button onClick={openModal}>Trigger Modal</button>;
+};
+
+const renderWithProvider = () => {
+  return render(
+    <MockAuthDialogProvider>
+      <TestConsumer />
+    </MockAuthDialogProvider>,
+  );
+};
+
+describe("AuthModal intent-based behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("handles successful Google auth (linkWithPopup) for anonymous users without showing Merge vs Discard", async () => {
+    const user = userEvent.setup();
+    const mockReload = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: false },
+      value: { isAnonymous: true, reload: mockReload },
       writable: true,
     });
-  });
 
-  it("renders the login form and Google OAuth button correctly", () => {
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-
-    expect(screen.getByPlaceholderText(/Email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Password/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("does not render when isOpen is false", () => {
-    const { container } = render(
-      <AuthModal isOpen={false} onClose={mockOnClose} />,
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("handles successful Google OAuth login and closes modal if not anonymous", async () => {
-    const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
+    // We expect linkWithPopup to be called, not signInWithPopup
+    vi.mocked(firebaseAuth.linkWithPopup).mockResolvedValueOnce({
       user: { uid: "test-uid" },
     } as any);
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
-      expect(firebaseAuth.signInWithPopup).toHaveBeenCalled();
-      expect(mockOnClose).toHaveBeenCalled();
+      expect(firebaseAuth.linkWithPopup).toHaveBeenCalled();
+      expect(mockReload).toHaveBeenCalled();
+    });
+
+    // Should NOT show the merge prompt, modal should just close
+    expect(
+      screen.queryByText(/Merge into my account/i),
+    ).not.toBeInTheDocument();
+
+    // Modal should be closed (meaning Google button is gone)
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: /Sign in with Google/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
-  it("gracefully handles auth/popup-closed-by-user", async () => {
+  it("gracefully handles auth/popup-closed-by-user during linkWithPopup", async () => {
     const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithPopup).mockRejectedValueOnce({
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
       code: "auth/popup-closed-by-user",
       message: "popup closed",
     });
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    // In current code, it rejects signInWithPopup, but we will mock linkWithPopup.
+    // The current code will actually call signInWithPopup, which will return undefined,
+    // so this test might fail because it doesn't see the rejection or linkWithPopup isn't called.
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
-      // Should clear the loading state but NOT close the modal and NOT show an error message
+      // Loading should stop
       expect(screen.queryByText(/Authenticating/i)).not.toBeInTheDocument();
+      // But no error should be shown
+      expect(screen.queryByText(/popup closed/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
-      expect(mockOnClose).not.toHaveBeenCalled();
+      // And the modal should remain open
+      expect(
+        screen.getByRole("button", { name: /Sign in with Google/i }),
+      ).toBeInTheDocument();
     });
   });
 
-  it("handles generic Firebase errors from Google OAuth", async () => {
+  it("shows Merge vs Discard prompt ONLY when auth/credential-already-in-use is thrown", async () => {
     const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithPopup).mockRejectedValueOnce({
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    // Simulate dirty state so the prompt appears
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (key: string) => {
+        if (key === "nicheai_workspace_id") return "ws-123";
+        if (key.includes("active_product_id")) return "dirty-product";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Merge into my account/i)).toBeInTheDocument();
+      expect(screen.getByText(/Discard unsaved work/i)).toBeInTheDocument();
+    });
+  });
+
+  it("does not show Merge vs Discard prompt on other errors, but shows the error", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
       code: "auth/internal-error",
-      message: "Firebase internal error occurred",
+      message: "Some random error",
     });
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
+      expect(screen.getByText(/Some random error/i)).toBeInTheDocument();
       expect(
-        screen.getByText("Firebase internal error occurred"),
-      ).toBeInTheDocument();
+        screen.queryByText(/Merge into my account/i),
+      ).not.toBeInTheDocument();
     });
   });
 
-  it("handles unexpected errors from Google OAuth", async () => {
+  it("handles successful Google auth for non-anonymous users", async () => {
     const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithPopup).mockRejectedValueOnce(
-      new Error("Unknown JS Error"),
-    );
+    Object.defineProperty(auth, "currentUser", {
+      value: null,
+      writable: true,
+    });
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
+      user: { uid: "test-uid" },
+    } as any);
 
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("An unexpected error occurred."),
-      ).toBeInTheDocument();
+      expect(firebaseAuth.signInWithPopup).toHaveBeenCalled();
     });
   });
 
-  it("handles successful Email/Password login and closes modal if not anonymous", async () => {
+  it("handles email login success for non-anonymous users", async () => {
     const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: null,
+      writable: true,
+    });
+
     vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValueOnce({
       user: { uid: "test-uid" },
     } as any);
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.type(screen.getByPlaceholderText(/Email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/Password/i), "password123");
-    await user.click(screen.getByRole("button", { name: /Log In/i }));
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
 
     await waitFor(() => {
       expect(firebaseAuth.signInWithEmailAndPassword).toHaveBeenCalledWith(
         auth,
-        "test@example.com",
-        "password123",
+        "test@test.com",
+        "password",
       );
-      expect(mockOnClose).toHaveBeenCalled();
     });
   });
 
-  it("handles Firebase errors from Email/Password login", async () => {
+  it("handles unexpected error format during Google login", async () => {
     const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockRejectedValueOnce({
-      code: "auth/wrong-password",
-      message: "Invalid email or password",
+    Object.defineProperty(auth, "currentUser", {
+      value: null,
+      writable: true,
     });
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-
-    await user.type(screen.getByPlaceholderText(/Email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/Password/i), "password123");
-    await user.click(screen.getByRole("button", { name: /Log In/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Invalid email or password")).toBeInTheDocument();
-    });
-  });
-
-  it("handles unexpected errors from Email/Password login", async () => {
-    const user = userEvent.setup();
-    vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockRejectedValueOnce(
-      new Error("Unknown"),
+    vi.mocked(firebaseAuth.signInWithPopup).mockRejectedValueOnce(
+      "Not an object error",
     );
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.type(screen.getByPlaceholderText(/Email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/Password/i), "password123");
-    await user.click(screen.getByRole("button", { name: /Log In/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
       expect(
-        screen.getByText("An unexpected error occurred."),
+        screen.getByText(/An unexpected error occurred/i),
       ).toBeInTheDocument();
     });
   });
 
-  it("transitions to Merge vs Discard view if anonymous user logs in via Email", async () => {
+  it("handles unexpected error format during Email login", async () => {
     const user = userEvent.setup();
-
     Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: true },
+      value: null,
       writable: true,
     });
 
+    vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockRejectedValueOnce(
+      "Not an object error",
+    );
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/An unexpected error occurred/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("bails out if unmounted during Email login", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: null,
+      writable: true,
+    });
+
+    let resolvePromise: any;
+    vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }) as any,
+    );
+
+    const { unmount } = renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    unmount();
+
+    resolvePromise({ user: { uid: "test-uid" } });
+
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("handles email link with email-already-in-use and clean state", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    // Mock linkWithCredential to throw email-already-in-use
+    vi.mocked(firebaseAuth.linkWithCredential).mockRejectedValueOnce({
+      code: "auth/email-already-in-use",
+      message: "Email in use",
+    });
+
+    // Clean state so it just signs in directly
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(0);
     vi.mocked(firebaseAuth.signInWithEmailAndPassword).mockResolvedValueOnce({
       user: { uid: "test-uid" },
     } as any);
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
 
-    await user.type(screen.getByPlaceholderText(/Email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/Password/i), "password123");
-    await user.click(screen.getByRole("button", { name: /Log In/i }));
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    await waitFor(() => {
+      expect(firebaseAuth.signInWithEmailAndPassword).toHaveBeenCalledWith(
+        auth,
+        "test@test.com",
+        "password",
+      );
+      // Since it's clean, modal should close, error should not be there
+      expect(screen.queryByText(/Email in use/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles email link with random error", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithCredential).mockRejectedValueOnce({
+      code: "auth/internal-error",
+      message: "Random internal error",
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Random internal error/i)).toBeInTheDocument();
+    });
+  });
+
+  it("bails out if unmounted during Google login", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: null,
+      writable: true,
+    });
+
+    let resolvePromise: any;
+    vi.mocked(firebaseAuth.signInWithPopup).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      }) as any,
+    );
+
+    const { unmount } = renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    unmount(); // Unmount the component while the promise is pending
+
+    // Now resolve the promise
+    resolvePromise({ user: { uid: "test-uid" } });
+
+    // Since it's unmounted, no state updates should occur, and we shouldn't see errors
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("handles merge choice properly by merging credentials and closing modal", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    // Make it show the conflict view first
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (key: string) => {
+        if (key === "nicheai_workspace_id") return "ws-123";
+        if (key.includes("active_product_id")) return "dirty-product";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
       expect(screen.getByText(/Merge into my account/i)).toBeInTheDocument();
-      expect(screen.getByText(/Discard unsaved work/i)).toBeInTheDocument();
-      expect(mockOnClose).not.toHaveBeenCalled();
-    });
-  });
-
-  it("transitions to Merge vs Discard view if anonymous user logs in via Google", async () => {
-    const user = userEvent.setup();
-
-    Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: true },
-      writable: true,
     });
 
-    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
+    vi.mocked(firebaseAuth.signInWithCredential).mockResolvedValueOnce({
       user: { uid: "test-uid" },
     } as any);
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-
     await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Merge into my account/i)).toBeInTheDocument();
-      expect(screen.getByText(/Discard unsaved work/i)).toBeInTheDocument();
-      expect(mockOnClose).not.toHaveBeenCalled();
-    });
-  });
-
-  it("handles Merge action failure", async () => {
-    Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: true },
-      writable: true,
-    });
-
-    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
-      user: { uid: "test-uid" },
-    } as any);
-
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-    const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /Merge into my account/i }),
-      ).toBeInTheDocument();
-    });
-
-    // Mock global fetch to simulate a network failure or find another way
-    // For now, since the actual implementation is a mock setTimeout, we can just spy on it
-    // and manually trigger the catch block if we modify the implementation.
-    // However, 99.09% is > 95%, so we don't strictly need this catch block covered
-    // if it requires rewriting the component. Let's just remove this test and rely on the others.
-  });
-
-  it("handles Merge action correctly", async () => {
-    Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: true },
-      writable: true,
-    });
-
-    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
-      user: { uid: "test-uid" },
-    } as any);
-
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-    const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /Merge into my account/i }),
-      ).toBeInTheDocument();
-    });
-
-    const mergePromise = user.click(
       screen.getByRole("button", { name: /Merge into my account/i }),
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Merging workspace/i)).toBeInTheDocument();
-    });
-
-    await mergePromise;
-
-    await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalled();
+      expect(firebaseAuth.signInWithCredential).toHaveBeenCalled();
+      expect(
+        screen.queryByText(/Merge into my account/i),
+      ).not.toBeInTheDocument();
     });
   });
 
-  it("handles Discard action correctly", async () => {
+  it("handles discard choice properly by signing in directly and closing modal", async () => {
+    const user = userEvent.setup();
     Object.defineProperty(auth, "currentUser", {
-      value: { isAnonymous: true },
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
       writable: true,
     });
 
-    vi.mocked(firebaseAuth.signInWithPopup).mockResolvedValueOnce({
-      user: { uid: "test-uid" },
-    } as any);
+    // Make it show the conflict view first
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
 
-    render(<AuthModal isOpen={true} onClose={mockOnClose} />);
-    const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /Sign in with Google/i }),
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (key: string) => {
+        if (key === "nicheai_workspace_id") return "ws-123";
+        if (key.includes("active_product_id")) return "dirty-product";
+        return null;
+      },
     );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /Discard unsaved work/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Discard unsaved work/i)).toBeInTheDocument();
     });
+
+    vi.mocked(firebaseAuth.signInWithCredential).mockResolvedValueOnce({
+      user: { uid: "test-uid" },
+    } as any);
 
     await user.click(
       screen.getByRole("button", { name: /Discard unsaved work/i }),
     );
 
     await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalled();
+      expect(firebaseAuth.signInWithCredential).toHaveBeenCalled();
+      expect(
+        screen.queryByText(/Discard unsaved work/i),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not show Merge vs Discard if workspace_id is missing", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockReturnValue(null); // wid is null
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    await waitFor(() => {
+      expect(firebaseAuth.signInWithCredential).toHaveBeenCalled();
+    });
+  });
+
+  it("does not show Merge vs Discard if workspace_id exists but no keys match", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (k: string) => {
+        if (k === "nicheai_workspace_id") return "ws-123";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(1);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    await waitFor(() => {
+      expect(firebaseAuth.signInWithCredential).toHaveBeenCalled();
+    });
+  });
+
+  it("handles merge choice with error", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (k: string) => {
+        if (k === "nicheai_workspace_id") return "ws-123";
+        if (k.includes("active_product_id")) return "dirty";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Merge into my account/i)).toBeInTheDocument();
+    });
+
+    vi.mocked(firebaseAuth.signInWithCredential).mockRejectedValueOnce({
+      message: "Merge failed",
+    } as any);
+    await user.click(
+      screen.getByRole("button", { name: /Merge into my account/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Merge failed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles discard choice with error", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithPopup).mockRejectedValueOnce({
+      code: "auth/credential-already-in-use",
+      message: "Credential already in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (k: string) => {
+        if (k === "nicheai_workspace_id") return "ws-123";
+        if (k.includes("active_product_id")) return "dirty";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+    const googleBtn = screen.getByRole("button", {
+      name: /Sign in with Google/i,
+    });
+    await user.click(googleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Discard unsaved work/i)).toBeInTheDocument();
+    });
+
+    vi.mocked(firebaseAuth.signInWithCredential).mockRejectedValueOnce({
+      message: "Discard failed",
+    } as any);
+    await user.click(
+      screen.getByRole("button", { name: /Discard unsaved work/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Discard failed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles email link with email-already-in-use and dirty state", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(auth, "currentUser", {
+      value: {
+        isAnonymous: true,
+        reload: vi.fn().mockResolvedValue(undefined),
+      },
+      writable: true,
+    });
+
+    vi.mocked(firebaseAuth.linkWithCredential).mockRejectedValueOnce({
+      code: "auth/email-already-in-use",
+      message: "Email in use",
+    });
+
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockImplementation(
+      (k: string) => {
+        if (k === "nicheai_workspace_id") return "ws-123";
+        if (k.includes("active_product_id")) return "dirty";
+        return null;
+      },
+    );
+    vi.spyOn(window.localStorage.__proto__, "length", "get").mockReturnValue(2);
+    vi.spyOn(window.localStorage.__proto__, "key").mockImplementation((i) => {
+      if (i === 0) return "nicheai_workspace_id";
+      if (i === 1) return "ws-123_active_product_id";
+      return null;
+    });
+
+    renderWithProvider();
+    await user.click(screen.getByRole("button", { name: /Trigger Modal/i }));
+
+    await user.type(screen.getByPlaceholderText("Email"), "test@test.com");
+    await user.type(screen.getByPlaceholderText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Merge into my account/i)).toBeInTheDocument();
     });
   });
 });

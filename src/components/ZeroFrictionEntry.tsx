@@ -4,10 +4,11 @@ import { signInAnonymously } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { TrustBuilderScreen } from "./TrustBuilderScreen";
-import { URLTeaserScreen } from "./URLTeaserScreen";
+import { URLTeaserScreen, type TeaserData } from "./URLTeaserScreen";
 import { isMockAuthEnabled } from "../utils/testEnv";
 import { useIsMounted } from "../hooks/useIsMounted";
 import { AsyncButton } from "./AsyncButton";
+import { safeSessionStorageGet, safeSessionStorageSet } from "../utils/storage";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
 type IntentType = "validate" | "discover" | "analyze" | "url" | null;
@@ -90,12 +91,62 @@ function EntryActionButtons({
   );
 }
 
+import { cn } from "../lib/utils";
+
+function InlineInput({
+  name,
+  label,
+  placeholder,
+  defaultValue,
+  widthClass,
+  isAuthenticating,
+  autoFocus,
+  hasError,
+}: {
+  name: string;
+  label: string;
+  placeholder: string;
+  defaultValue?: string;
+  widthClass: string;
+  isAuthenticating: boolean;
+  autoFocus?: boolean;
+  hasError?: boolean;
+}) {
+  return (
+    <>
+      <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
+        {label}
+      </label>
+      <input
+        type="text"
+        name={name}
+        aria-label={label}
+        aria-invalid={hasError ? "true" : undefined}
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        className={cn(
+          "block sm:inline-block w-full sm:text-center border-b-2 outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2",
+          widthClass,
+          hasError
+            ? "border-rose-500 focus:border-rose-600 text-rose-900 bg-rose-50/50"
+            : "border-slate-200 focus:border-ink-dark text-ink-dark",
+        )}
+        required
+        disabled={isAuthenticating}
+        autoFocus={autoFocus}
+      />
+    </>
+  );
+}
+
 export function ZeroFrictionEntry({
   onComplete,
   onIntentSelected,
+  onLoginClick,
 }: {
   onComplete: (product: CompletePayload) => void;
   onIntentSelected?: () => void;
+  onLoginClick?: () => void;
 }) {
   const [step, setStep] = useState<EntryStep>("intent");
   const [intent, setIntent] = useState<IntentType>(null);
@@ -110,6 +161,20 @@ export function ZeroFrictionEntry({
   } | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isProceeding, setIsProceeding] = useState(false);
+  const [formDataCache, setFormDataCache] = useState<{
+    category?: string;
+    audience?: string;
+    problem?: string;
+    channel?: string;
+    idea?: string;
+  }>(() => {
+    try {
+      const cached = safeSessionStorageGet("zf_form_data");
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {};
+  });
+  const [formErrors, setFormErrors] = useState<{ [key: string]: boolean }>({});
 
   const isMounted = useIsMounted();
 
@@ -182,20 +247,60 @@ export function ZeroFrictionEntry({
 
   const handleAction = async (formData: FormData) => {
     let inputValue = formData.get("idea") as string;
+    setFormErrors({});
+    let hasError = false;
+    let newErrors: { [key: string]: boolean } = {};
 
     if (intent === "validate") {
       const category = formData.get("category") as string;
       const audience = formData.get("audience") as string;
       const problem = formData.get("problem") as string;
       const channel = formData.get("channel") as string;
+
+      if (!category) {
+        newErrors.category = true;
+        hasError = true;
+      }
+      if (!audience) {
+        newErrors.audience = true;
+        hasError = true;
+      }
+      if (!problem) {
+        newErrors.problem = true;
+        hasError = true;
+      }
+      if (!channel) {
+        newErrors.channel = true;
+        hasError = true;
+      }
+
+      const newCache = {
+        ...formDataCache,
+        category,
+        audience,
+        problem,
+        channel,
+      };
+      setFormDataCache(newCache);
+      safeSessionStorageSet("zf_form_data", JSON.stringify(newCache));
+
       if (category && audience && problem && channel) {
         inputValue = `I want to build a ${category} for ${audience} that solves ${problem}, reaching them through ${channel}.`;
       }
+    } else {
+      if (!inputValue) {
+        newErrors.idea = true;
+        hasError = true;
+      }
+      const newCache = { ...formDataCache, idea: inputValue };
+      setFormDataCache(newCache);
+      safeSessionStorageSet("zf_form_data", JSON.stringify(newCache));
     }
 
-    if (!inputValue) {
+    if (hasError || !inputValue) {
       setStep("error");
-      setErrorMessage("Please enter some text.");
+      setErrorMessage("Please fill out all required fields.");
+      setFormErrors(newErrors);
       return;
     }
 
@@ -224,26 +329,31 @@ export function ZeroFrictionEntry({
         });
       }
       setStep("analyzing");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
       if (!isMounted.current) return;
       setStep("error");
 
-      let errorMsg = e.message || "Failed to sign in.";
-      if (
-        e.code === "auth/api-key-not-valid" ||
-        errorMsg.includes("mock-api-key")
-      ) {
-        errorMsg =
-          "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
-      } else if (
-        e.code === "auth/operation-not-allowed" ||
-        errorMsg.includes("auth/operation-not-allowed")
-      ) {
-        errorMsg =
-          "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
+      let errorMsg = "Failed to sign in.";
+      if (e instanceof Error) {
+        errorMsg = e.message;
+        if ("code" in e && typeof (e as any).code === "string") {
+          const code = (e as any).code;
+          if (
+            code === "auth/api-key-not-valid" ||
+            errorMsg.includes("mock-api-key")
+          ) {
+            errorMsg =
+              "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
+          } else if (
+            code === "auth/operation-not-allowed" ||
+            errorMsg.includes("auth/operation-not-allowed")
+          ) {
+            errorMsg =
+              "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
+          }
+        }
       }
-
       setErrorMessage(errorMsg);
     }
   };
@@ -288,7 +398,7 @@ export function ZeroFrictionEntry({
         <URLTeaserScreen
           url={ideaPayload.url}
           onCancel={handleCancel}
-          onComplete={(data) => {
+          onComplete={(data: TeaserData) => {
             let finalIdea = ideaPayload.url!;
             if (data.orthogonal_pivots && data.orthogonal_pivots.length > 0) {
               finalIdea = data.orthogonal_pivots[0];
@@ -340,39 +450,51 @@ export function ZeroFrictionEntry({
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
             {tarpitData?.isTarpit && (
-              <button
-                disabled={isProceeding}
-                onClick={() => {
+              <AsyncButton
+                isPending={isProceeding}
+                onClick={async () => {
                   setIsProceeding(true);
-                  onComplete({
-                    name: "My Original Idea",
-                    description: originalIdea || "",
-                    targetRegions: ["Global"],
-                    features: [],
-                    strategy: [],
-                    jobId: null,
-                    visibility: "shared",
-                  });
+                  try {
+                    await Promise.resolve(
+                      onComplete({
+                        name: "My Original Idea",
+                        description: originalIdea || "",
+                        targetRegions: ["Global"],
+                        features: [],
+                        strategy: [],
+                        jobId: null,
+                        visibility: "shared",
+                      }),
+                    );
+                  } finally {
+                    setIsProceeding(false);
+                  }
                 }}
-                className="px-6 py-3 text-ink-dark bg-white border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50 w-full sm:w-auto"
+                className="px-6 py-3 text-ink-dark bg-white border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-colors w-full sm:w-auto"
               >
                 Proceed with Original Idea
-              </button>
+              </AsyncButton>
             )}
             <AsyncButton
               isPending={isProceeding}
               loadingText="Connecting to Canvas..."
-              onClick={() => {
+              onClick={async () => {
                 setIsProceeding(true);
-                onComplete({
-                  name: "My AI Idea",
-                  description: pivotedIdea,
-                  targetRegions: ["Global"],
-                  features: [],
-                  strategy: [],
-                  jobId: null,
-                  visibility: "shared",
-                });
+                try {
+                  await Promise.resolve(
+                    onComplete({
+                      name: "My AI Idea",
+                      description: pivotedIdea,
+                      targetRegions: ["Global"],
+                      features: [],
+                      strategy: [],
+                      jobId: null,
+                      visibility: "shared",
+                    }),
+                  );
+                } finally {
+                  setIsProceeding(false);
+                }
               }}
               className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black shadow-lg w-full sm:w-auto"
             >
@@ -386,12 +508,25 @@ export function ZeroFrictionEntry({
             <button
               disabled={isProceeding}
               onClick={() => {
-                setStep("intent");
+                setStep("input");
                 setPivotedIdea(null);
                 setOriginalIdea(null);
                 setTarpitData(null);
               }}
               className="px-4 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50 text-sm"
+            >
+              Edit my inputs
+            </button>
+            <button
+              disabled={isProceeding}
+              onClick={() => {
+                setStep("intent");
+                setPivotedIdea(null);
+                setOriginalIdea(null);
+                setTarpitData(null);
+                setFormDataCache({});
+              }}
+              className="px-4 py-2 text-ink-dark/60 hover:text-ink-dark font-medium transition-colors disabled:opacity-50 text-sm ml-4"
             >
               Start Over
             </button>
@@ -431,12 +566,15 @@ export function ZeroFrictionEntry({
 
             <div className="mt-6 text-sm text-ink-dark/60">
               Already have an account?{" "}
-              <a
-                href="/login"
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onLoginClick) onLoginClick();
+                }}
                 className="font-bold underline hover:text-ink-dark transition-colors"
               >
                 Log in
-              </a>
+              </button>
             </div>
           </div>
         )}
@@ -448,57 +586,45 @@ export function ZeroFrictionEntry({
           >
             <div className="flex flex-col sm:block text-lg sm:text-2xl text-ink-dark leading-loose font-medium text-left gap-4 sm:gap-0">
               <span className="sm:inline hidden">I want to build a </span>
-              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px]">
-                Product Category
-              </label>
-              <input
-                type="text"
+              <InlineInput
                 name="category"
-                aria-label="Category"
+                label="Product Category"
                 placeholder="Category (e.g. CRM)"
-                className="block sm:inline-block w-full sm:w-48 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
-                required
-                disabled={isAuthenticating}
+                defaultValue={formDataCache.category}
+                widthClass="sm:w-48"
+                isAuthenticating={isAuthenticating}
                 autoFocus
+                hasError={formErrors.category}
               />
               <span className="sm:inline hidden"> for </span>
-              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
-                Target Audience
-              </label>
-              <input
-                type="text"
+              <InlineInput
                 name="audience"
-                aria-label="Target Audience"
+                label="Target Audience"
                 placeholder="Audience (e.g. Plumbers)"
-                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
-                required
-                disabled={isAuthenticating}
+                defaultValue={formDataCache.audience}
+                widthClass="sm:w-64"
+                isAuthenticating={isAuthenticating}
+                hasError={formErrors.audience}
               />
               <span className="sm:inline hidden"> that solves </span>
-              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
-                Core Problem
-              </label>
-              <input
-                type="text"
+              <InlineInput
                 name="problem"
-                aria-label="Core Problem"
+                label="Core Problem"
                 placeholder="Problem (e.g. scheduling)"
-                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
-                required
-                disabled={isAuthenticating}
+                defaultValue={formDataCache.problem}
+                widthClass="sm:w-64"
+                isAuthenticating={isAuthenticating}
+                hasError={formErrors.problem}
               />
               <span className="sm:inline hidden">, reaching them through </span>
-              <label className="sm:hidden text-sm font-bold text-ink-dark/60 uppercase tracking-wider mb-[-8px] mt-2">
-                Distribution Channel
-              </label>
-              <input
-                type="text"
+              <InlineInput
                 name="channel"
-                aria-label="Distribution Channel"
+                label="Distribution Channel"
                 placeholder="Channel (e.g. cold email)"
-                className="block sm:inline-block w-full sm:w-64 sm:text-center border-b-2 border-slate-200 focus:border-ink-dark outline-none bg-transparent placeholder:text-ink-dark/30 transition-colors sm:px-2 py-1 sm:mx-2"
-                required
-                disabled={isAuthenticating}
+                defaultValue={formDataCache.channel}
+                widthClass="sm:w-64"
+                isAuthenticating={isAuthenticating}
+                hasError={formErrors.channel}
               />
               <span className="sm:inline hidden">.</span>
             </div>
@@ -533,12 +659,19 @@ export function ZeroFrictionEntry({
                   ? "Competitor or market to analyze"
                   : "Website URL"
               }
+              aria-invalid={formErrors.idea ? "true" : undefined}
               placeholder={
                 intent === "analyze"
                   ? "Which competitor or market do you want to analyze?"
                   : "Paste a website URL (e.g. https://...)"
               }
-              className="w-full text-2xl p-6 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-ink-dark transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark disabled:opacity-50"
+              defaultValue={formDataCache.idea}
+              className={cn(
+                "w-full text-2xl p-6 border-2 rounded-2xl outline-none transition-colors shadow-xl placeholder:text-ink-dark/30 text-ink-dark disabled:opacity-50",
+                formErrors.idea
+                  ? "border-rose-500 focus:border-rose-600 bg-rose-50/50"
+                  : "bg-white border-slate-200 focus:border-ink-dark",
+              )}
               autoFocus
               required
               disabled={isAuthenticating}

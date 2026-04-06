@@ -2,12 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PQLGateModal } from "../PQLGateModal";
 
-vi.mock("../hooks/usePQLUpgrade", () => ({
-  usePQLUpgrade: () => ({
-    upgradeAccount: vi.fn(),
-    isPending: false,
-    error: null,
-  }),
+vi.mock("../AuthDialogProvider", () => ({
+  useAuthDialogDispatch: vi.fn(() => ({ openModal: vi.fn() })),
 }));
 
 describe("PQLGateModal", () => {

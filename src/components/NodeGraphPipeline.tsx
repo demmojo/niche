@@ -38,14 +38,15 @@ const REVISED_SCHEMA = `Features:
 - Role-based Access Control (RBAC)
 - Stripe Integration (Billing)`;
 
-const DRAFT_LOGS = [
-  "Analyzing target audience...",
-  "Drafting high-converting headlines...",
-  "Structuring value propositions...",
-  "Generating landing page copy...",
-];
-
-export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
+export function NodeGraphPipeline({
+  isLocked,
+  onUnlockClick,
+  onComplete,
+}: {
+  isLocked: boolean;
+  onUnlockClick: () => void | Promise<void>;
+  onComplete: () => void;
+}) {
   const [pipelineState, setPipelineState] = useState<PipelineState>(
     PipelineState.NOVICE,
   );
@@ -55,6 +56,8 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
   const [isRevising, startReviseTransition] = useTransition();
   const [isDrafting, startDraftTransition] = useTransition();
+  const [isUnlocking, startUnlockTransition] = useTransition();
+  const [isCompleting, startCompleteTransition] = useTransition();
 
   const isMounted = useIsMounted();
 
@@ -64,22 +67,12 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
   const [revisionHistory, setRevisionHistory] = useState<string[]>([]);
   const currentSchema = schemaVersion === 0 ? INITIAL_SCHEMA : REVISED_SCHEMA;
 
-  // Phase 02: Staggered Logs state
-  const [currentLogIndex, setCurrentLogIndex] = useState(0);
-
+  // Phase 02
   const [revisionError, setRevisionError] = useState<string | null>(null);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isDrafting) {
-      setCurrentLogIndex(0);
-      interval = setInterval(() => {
-        setCurrentLogIndex((prev) => Math.min(prev + 1, DRAFT_LOGS.length - 1));
-      }, 500);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    // Component handles isDrafting with useTransition natively,
+    // avoiding hallucinated setInterval logs.
   }, [isDrafting]);
 
   const handleRevise = () => {
@@ -112,8 +105,25 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
 
     startDraftTransition(async () => {
       try {
-        // Simulate drafting Phase 2
-        await new Promise((res) => setTimeout(res, 2500));
+        const controller = new AbortController();
+        const timeoutId = setTimeout(
+          () => controller.abort(new Error("Timeout")),
+          10000,
+        );
+
+        await new Promise<void>((res, rej) => {
+          const timer = setTimeout(res, 2500);
+          controller.signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              rej(controller.signal.reason);
+            },
+            { once: true },
+          );
+        });
+
+        clearTimeout(timeoutId);
         if (!isMounted.current) return;
         setPipelineState(PipelineState.COMPLETED);
       } catch (err: unknown) {
@@ -474,35 +484,17 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
             <div className="h-32 bg-slate-50 rounded border border-slate-200"></div>
           ) : isDrafting ? (
             <div
-              className="bg-white rounded-lg p-4 font-sans text-sm text-ink-dark border border-slate-200 shadow-sm flex flex-col gap-3 h-40 overflow-y-auto relative"
+              className="bg-white rounded-lg p-8 font-sans text-sm text-ink-dark border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-4 h-40 relative"
               aria-live="polite"
-              aria-relevant="additions"
+              aria-busy="true"
             >
-              <div className="font-bold text-ink-dark/60 text-xs uppercase mb-1">
-                Generating Landing Page Copy
+              <RefreshCw
+                className="w-6 h-6 text-ink-dark/40 animate-spin"
+                aria-hidden="true"
+              />
+              <div className="font-medium text-ink-dark/70 text-center animate-pulse">
+                Synthesizing market positioning...
               </div>
-              {DRAFT_LOGS.slice(0, currentLogIndex + 1).map((log, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 animate-[fadeIn_0.3s_ease-out_forwards]"
-                >
-                  <div className="mt-0.5 rounded-full bg-slate-100 p-1">
-                    <Check className="w-3 h-3 text-ink-dark/40" />
-                  </div>
-                  <span className="leading-relaxed font-medium">{log}</span>
-                </div>
-              ))}
-              {currentLogIndex < DRAFT_LOGS.length && (
-                <div className="flex items-start gap-3 mt-1">
-                  <div className="mt-0.5 rounded-full bg-slate-50 p-1 border border-slate-100">
-                    <RefreshCw className="w-3 h-3 text-ink-dark/20 animate-spin" />
-                  </div>
-                  <div
-                    className="h-4 w-32 bg-slate-100 animate-pulse rounded"
-                    aria-hidden="true"
-                  ></div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -526,9 +518,18 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                 <p className="text-ink-dark">Start Free Trial →</p>
               </div>
               {pipelineState === PipelineState.COMPLETED && (
-                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors w-full mt-2">
+                <AsyncButton
+                  onClick={() => {
+                    startCompleteTransition(async () => {
+                      await Promise.resolve(onComplete());
+                    });
+                  }}
+                  isPending={isCompleting}
+                  loadingText="Proceeding..."
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors w-full mt-2"
+                >
                   Proceed to Workspace <ArrowRight className="w-4 h-4" />
-                </button>
+                </AsyncButton>
               )}
             </div>
           )}
@@ -553,9 +554,19 @@ export function NodeGraphPipeline({ isLocked }: { isLocked: boolean }) {
                 Save your validated features to unlock the Director execution
                 phase. The AI is ready to generate your market experiments.
               </p>
-              <button className="bg-ink-dark text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-black transition-colors w-full flex items-center justify-center gap-2">
-                <Lock className="w-4 h-4" /> Unlock Director Phase
-              </button>
+              <AsyncButton
+                onClick={() => {
+                  startUnlockTransition(async () => {
+                    await Promise.resolve(onUnlockClick());
+                  });
+                }}
+                isPending={isUnlocking}
+                loadingText="Unlocking..."
+                className="bg-ink-dark text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-black w-full"
+                icon={<Lock className="w-4 h-4" />}
+              >
+                Unlock Director Phase
+              </AsyncButton>
             </div>
           </div>
         )}

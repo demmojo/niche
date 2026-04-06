@@ -1,7 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { fetchWithAppCheck } from "../utils/fetchWithAppCheck";
 import { Loader2, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
+import { parseSSEStream } from "../utils/sse";
+import { AsyncButton } from "./AsyncButton";
+import { useAuth } from "./AuthProvider";
+import {
+  useAuthDialogDispatch,
+  useAuthDialogState,
+} from "./AuthDialogProvider";
+
+export interface TeaserMetadata {
+  title?: string;
+  description?: string;
+  domain?: string;
+}
+
+export interface TeaserData {
+  summary?: string;
+  key_findings?: string[];
+  orthogonal_pivots?: string[];
+  jtbd?: {
+    job_statement?: string;
+  };
+}
 
 export function URLTeaserScreen({
   url,
@@ -9,18 +31,38 @@ export function URLTeaserScreen({
   onCancel,
 }: {
   url: string;
-  onComplete: (data: any) => void;
+  onComplete: (data: TeaserData) => void;
   onCancel?: () => void;
 }) {
   const [status, setStatus] = useState<string>("Initializing...");
-  const [metadata, setMetadata] = useState<any>(null);
-  const [teaser, setTeaser] = useState<any>(null);
+  const [metadata, setMetadata] = useState<TeaserMetadata | null>(null);
+  const [teaser, setTeaser] = useState<TeaserData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const { user } = useAuth();
+  const { openModal } = useAuthDialogDispatch();
+  const { isOpen } = useAuthDialogState();
 
   useEffect(() => {
-    const abortController = new AbortController();
+    if (isSigningUp && !isOpen) {
+      const timeout = setTimeout(() => {
+        if (!user || user.isAnonymous) {
+          setIsSigningUp(false);
+        }
+      }, 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [isOpen, isSigningUp, user]);
 
-    async function streamTeaser() {
+  useEffect(() => {
+    if (user && !user.isAnonymous && teaser && isSigningUp) {
+      setIsSigningUp(false);
+      onComplete(teaser);
+    }
+  }, [user, teaser, isSigningUp, onComplete]);
+
+  const streamTeaser = useCallback(
+    async (abortController: AbortController) => {
       try {
         const response = await fetchWithAppCheck("/api/scoring/url-teaser", {
           method: "POST",
@@ -37,50 +79,35 @@ export function URLTeaserScreen({
           throw new Error(body.error || `Server returned ${response.status}`);
         }
 
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader!.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() || "";
-
-          for (const chunk of parts) {
-            if (chunk.trim() === "") continue;
-            try {
-              const data = JSON.parse(chunk.replace(/^data:\s*/, ""));
-
-              if (data.type === "status") {
-                setStatus(data.value);
-              } else if (data.type === "metadata") {
-                setMetadata(data.value);
-                setStatus(`Reading: ${data.value.title}`);
-              } else if (data.type === "teaser") {
-                setTeaser(data.value);
-                setStatus("Complete");
-              } else if (data.type === "error") {
-                setError(data.value);
-                return;
-              }
-            } catch (e) {
-              console.error("Parse error on chunk", chunk, e);
-            }
+        await parseSSEStream(response, (data) => {
+          if (data.type === "status") {
+            setStatus(data.value);
+          } else if (data.type === "metadata") {
+            setMetadata(data.value);
+            setStatus(`Reading: ${data.value.title}`);
+          } else if (data.type === "teaser") {
+            setTeaser(data.value);
+            setStatus("Complete");
+          } else if (data.type === "error") {
+            setError(data.value);
+            return true; // Halt
           }
-        }
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
           setError(err.message);
         }
       }
-    }
+    },
+    [url],
+  );
 
-    streamTeaser();
+  useEffect(() => {
+    const abortController = new AbortController();
+    streamTeaser(abortController);
+
     return () => abortController.abort();
-  }, [url]);
+  }, [streamTeaser]);
 
   if (error) {
     return (
@@ -129,7 +156,7 @@ export function URLTeaserScreen({
                 Identified Core Job
               </h3>
               <p className="text-lg text-ink-dark font-medium leading-relaxed">
-                "{teaser.jtbd.job_statement}"
+                "{teaser.jtbd?.job_statement}"
               </p>
             </div>
 
@@ -138,7 +165,7 @@ export function URLTeaserScreen({
                 Orthogonal Pivot Opportunities
               </h3>
               <ul className="space-y-3">
-                {teaser.orthogonal_pivots.map((pivot: string, i: number) => (
+                {teaser.orthogonal_pivots?.map((pivot: string, i: number) => (
                   <li
                     key={i}
                     className="flex items-start gap-3 p-3 bg-emerald-50 text-emerald-900 rounded-lg border border-emerald-100"
@@ -151,12 +178,22 @@ export function URLTeaserScreen({
             </div>
 
             <div className="pt-6 border-t border-ink-dark/10">
-              <button
-                onClick={() => onComplete(teaser)}
-                className="w-full py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-md"
+              <AsyncButton
+                isPending={isSigningUp}
+                loadingText="Signing up..."
+                onClick={async () => {
+                  if (!teaser) return;
+                  setIsSigningUp(true);
+                  try {
+                    openModal();
+                  } catch (e: unknown) {
+                    console.error(e);
+                  }
+                }}
+                className="w-full py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black shadow-md"
               >
                 Sign Up to Generate Full Strategy
-              </button>
+              </AsyncButton>
             </div>
           </motion.div>
         )}

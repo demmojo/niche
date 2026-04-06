@@ -1,6 +1,6 @@
 import React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { usePQLUpgrade } from "../hooks/usePQLUpgrade";
+import { useAuthDialogDispatch } from "./AuthDialogProvider";
 
 export function PQLGateModal({
   isOpen,
@@ -9,13 +9,11 @@ export function PQLGateModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { upgradeAccount, isPending, error } = usePQLUpgrade();
+  const { openModal } = useAuthDialogDispatch();
 
-  const handleUpgrade = async () => {
-    const success = await upgradeAccount();
-    if (success) {
-      onClose();
-    }
+  const handleUpgrade = () => {
+    onClose();
+    openModal();
   };
 
   return (
@@ -50,26 +48,12 @@ export function PQLGateModal({
             your highlights and enter the Execution Phase.
           </Dialog.Description>
 
-          {error && (
-            <div className="text-rose-500 bg-rose-50 p-3 rounded-lg text-sm font-medium mb-4 text-center">
-              {error}
-            </div>
-          )}
-
           <div className="flex flex-col gap-3 mt-4">
             <button
               onClick={handleUpgrade}
-              disabled={isPending}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors disabled:opacity-50 shadow-md hover:shadow-lg"
             >
-              {isPending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Unlocking...
-                </>
-              ) : (
-                "Continue with Google"
-              )}
+              Continue with Google
             </button>
             <Dialog.Close asChild>
               <button className="w-full py-2 px-4 text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors mt-2">

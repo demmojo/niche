@@ -1050,6 +1050,7 @@ export function useFirestoreDoc<T>(
   return [data, setValue];
 }
 
+import { AuthDialogProvider } from "./components/AuthDialogProvider";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 
 export default function App() {
@@ -1080,18 +1081,20 @@ export default function App() {
     (window as any).__mock_profile_persona = mockProfilePersona;
 
     return (
-      <WorkspaceProvider>
-        <WorkspaceRouter
-          user={
-            {
-              email: mockEmail,
-              uid: "test-user-123",
-              getIdToken: async () => "MOCK_TOKEN",
-            } as any
-          }
-          logout={() => {}}
-        />
-      </WorkspaceProvider>
+      <AuthDialogProvider>
+        <WorkspaceProvider>
+          <WorkspaceRouter
+            user={
+              {
+                email: mockEmail,
+                uid: "test-user-123",
+                getIdToken: async () => "MOCK_TOKEN",
+              } as any
+            }
+            logout={() => {}}
+          />
+        </WorkspaceProvider>
+      </AuthDialogProvider>
     );
   }
 
@@ -1105,20 +1108,24 @@ export default function App() {
   if (sharedCampaignId) {
     // If it's a shared campaign, mount WorkspaceRouter with that campaign ID
     return (
-      <WorkspaceProvider>
-        <WorkspaceRouter
-          user={user || { isAnonymous: true, uid: "visitor" }}
-          logout={logout}
-          sharedCampaignId={sharedCampaignId}
-        />
-      </WorkspaceProvider>
+      <AuthDialogProvider>
+        <WorkspaceProvider>
+          <WorkspaceRouter
+            user={user || { isAnonymous: true, uid: "visitor" }}
+            logout={logout}
+            sharedCampaignId={sharedCampaignId}
+          />
+        </WorkspaceProvider>
+      </AuthDialogProvider>
     );
   }
 
   return (
-    <WorkspaceProvider>
-      <WorkspaceRouter user={user} logout={logout} />
-    </WorkspaceProvider>
+    <AuthDialogProvider>
+      <WorkspaceProvider>
+        <WorkspaceRouter user={user} logout={logout} />
+      </WorkspaceProvider>
+    </AuthDialogProvider>
   );
 }
 

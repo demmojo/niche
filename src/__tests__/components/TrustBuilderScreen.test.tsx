@@ -4,6 +4,8 @@ import { TrustBuilderScreen } from "../../components/TrustBuilderScreen";
 import React, { Suspense } from "react";
 import * as fetchUtils from "../../utils/fetchWithAppCheck";
 
+import { AuthDialogProvider } from "../../components/AuthDialogProvider";
+
 describe("TrustBuilderScreen", () => {
   beforeEach(() => {
     vi.spyOn(fetchUtils, "fetchWithAppCheck");
@@ -31,13 +33,15 @@ describe("TrustBuilderScreen", () => {
 
     await act(async () => {
       render(
-        <TrustBuilderScreen
-          ideaPayload={{
-            productName: "Test",
-            productDescription: "Test Idea",
-          }}
-          onComplete={() => {}}
-        />,
+        <AuthDialogProvider>
+          <TrustBuilderScreen
+            ideaPayload={{
+              productName: "Test",
+              productDescription: "Test Idea",
+            }}
+            onComplete={() => {}}
+          />
+        </AuthDialogProvider>,
       );
     });
 
