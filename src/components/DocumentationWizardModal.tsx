@@ -119,7 +119,7 @@ export const DocumentationWizardModal: React.FC<
 \`\`\`tsx
 // pages/index.tsx (Optimized for Cloudflare Pages)
 import Head from 'next/head';
-import { Button } from '@/components/ui/button';
+import { Button } from "./ui/Button";
 
 export default function Landing() {
   return (

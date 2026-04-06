@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { cn } from "../lib/utils";
 import { Lock } from "lucide-react";
-import { AsyncButton } from "./AsyncButton";
+import { Button } from "./ui/Button";
 
 interface Props {
   isLocked: boolean;
@@ -76,14 +76,14 @@ export function StrategyCanvas({ isLocked, children, onUnlockClick }: Props) {
               {error}
             </p>
           )}
-          <AsyncButton
+          <Button
             onClick={handleUnlockClick}
             isPending={isPending}
             loadingText="Unlocking Canvas..."
             className="mt-6 px-6 py-2 bg-black text-white font-medium hover:bg-gray-800 rounded min-w-[160px] pointer-events-auto"
           >
             Unlock Canvas
-          </AsyncButton>
+          </Button>
         </div>
       )}
     </div>

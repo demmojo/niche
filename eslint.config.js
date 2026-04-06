@@ -21,6 +21,14 @@ export default tseslint.config(
       jsdoc,
     },
     rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message:
+            "Raw HTML <button> elements are banned. Use the unified <Button> component from 'src/components/ui/Button.tsx' to ensure consistent ARIA, loading states, and Radix compatibility.",
+        },
+      ],
       // Focus on codebase documentation
       "jsdoc/require-jsdoc": [
         "error",

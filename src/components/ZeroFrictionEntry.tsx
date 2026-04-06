@@ -7,7 +7,7 @@ import { TrustBuilderScreen } from "./TrustBuilderScreen";
 import { URLTeaserScreen, type TeaserData } from "./URLTeaserScreen";
 import { isMockAuthEnabled } from "../utils/testEnv";
 import { useIsMounted } from "../hooks/useIsMounted";
-import { AsyncButton } from "./AsyncButton";
+import { Button } from "./ui/Button";
 import { safeSessionStorageGet, safeSessionStorageSet } from "../utils/storage";
 
 type EntryStep = "intent" | "input" | "analyzing" | "success" | "error";
@@ -77,7 +77,7 @@ function EntryActionButtons({
       >
         ← Back
       </button>
-      <AsyncButton
+      <Button
         type="submit"
         isPending={pending || isAuthenticating}
         loadingText={
@@ -86,7 +86,7 @@ function EntryActionButtons({
         className="px-8 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black shadow-md"
       >
         {submitLabel}
-      </AsyncButton>
+      </Button>
     </div>
   );
 }
@@ -450,7 +450,7 @@ export function ZeroFrictionEntry({
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
             {tarpitData?.isTarpit && (
-              <AsyncButton
+              <Button
                 isPending={isProceeding}
                 onClick={async () => {
                   setIsProceeding(true);
@@ -473,9 +473,9 @@ export function ZeroFrictionEntry({
                 className="px-6 py-3 text-ink-dark bg-white border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-colors w-full sm:w-auto"
               >
                 Proceed with Original Idea
-              </AsyncButton>
+              </Button>
             )}
-            <AsyncButton
+            <Button
               isPending={isProceeding}
               loadingText="Connecting to Canvas..."
               onClick={async () => {
@@ -501,7 +501,7 @@ export function ZeroFrictionEntry({
               {tarpitData?.isTarpit
                 ? "Proceed with Pivot"
                 : "Enter Strategy Canvas"}
-            </AsyncButton>
+            </Button>
           </div>
 
           <div className="mt-8 flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500 fill-mode-both">

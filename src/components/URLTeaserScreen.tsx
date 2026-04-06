@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { fetchWithAppCheck } from "../utils/fetchWithAppCheck";
 import { Loader2, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { parseSSEStream } from "../utils/sse";
-import { AsyncButton } from "./AsyncButton";
+import { Button } from "./ui/Button";
 import { useAuth } from "./AuthProvider";
 import {
   useAuthDialogDispatch,
@@ -178,7 +178,7 @@ export function URLTeaserScreen({
             </div>
 
             <div className="pt-6 border-t border-ink-dark/10">
-              <AsyncButton
+              <Button
                 isPending={isSigningUp}
                 loadingText="Signing up..."
                 onClick={async () => {
@@ -193,7 +193,7 @@ export function URLTeaserScreen({
                 className="w-full py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black shadow-md"
               >
                 Sign Up to Generate Full Strategy
-              </AsyncButton>
+              </Button>
             </div>
           </motion.div>
         )}

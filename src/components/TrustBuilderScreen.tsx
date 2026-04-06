@@ -10,7 +10,7 @@ import {
 } from "./AuthDialogProvider";
 
 import { parseSSEStream } from "../utils/sse";
-import { AsyncButton } from "./AsyncButton";
+import { Button } from "./ui/Button";
 import {
   safeSessionStorageGet,
   safeSessionStorageSet,
@@ -339,7 +339,7 @@ export function TrustBuilderScreen({
             animate={{ opacity: 1, y: 0 }}
             className="mt-8 flex justify-center"
           >
-            <AsyncButton
+            <Button
               isPending={isProceeding}
               loadingText="Proceeding..."
               onClick={async () => {
@@ -358,7 +358,7 @@ export function TrustBuilderScreen({
               className="px-8 py-4 bg-ink-dark text-white rounded-xl font-bold text-lg hover:bg-black transition-colors shadow-lg"
             >
               View Validated Idea
-            </AsyncButton>
+            </Button>
           </motion.div>
         )}
 
@@ -467,14 +467,14 @@ function PqlGate({
             {error}
           </div>
         )}
-        <AsyncButton
+        <Button
           onClick={handleLoginToUnlock}
           isPending={isLoggingIn}
           loadingText="Unlocking..."
           className="px-6 py-3 bg-ink-dark text-white rounded-xl font-bold hover:bg-black shadow-lg"
         >
           Unlock Analysis
-        </AsyncButton>
+        </Button>
       </div>
     </motion.div>
   );

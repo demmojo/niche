@@ -1,6 +1,7 @@
 import React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useAuthDialogDispatch } from "./AuthDialogProvider";
+import { Button } from "./ui/Button";
 
 export function PQLGateModal({
   isOpen,
@@ -49,16 +50,19 @@ export function PQLGateModal({
           </Dialog.Description>
 
           <div className="flex flex-col gap-3 mt-4">
-            <button
+            <Button
               onClick={handleUpgrade}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors disabled:opacity-50 shadow-md hover:shadow-lg"
+              className="w-full py-3 px-4 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors shadow-md hover:shadow-lg"
             >
               Continue with Google
-            </button>
+            </Button>
             <Dialog.Close asChild>
-              <button className="w-full py-2 px-4 text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors mt-2">
+              <Button
+                variant="ghost"
+                className="w-full py-2 px-4 text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors mt-2"
+              >
                 Discard analysis
-              </button>
+              </Button>
             </Dialog.Close>
           </div>
         </Dialog.Content>

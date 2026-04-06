@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useIsMounted } from "../hooks/useIsMounted";
-import { AsyncButton } from "./AsyncButton";
+import { Button } from "./ui/Button";
 
 enum PipelineState {
   NOVICE,
@@ -403,7 +403,7 @@ export function NodeGraphPipeline({
                   >
                     <X className="w-4 h-4" /> Reject
                   </button>
-                  <AsyncButton
+                  <Button
                     isPending={isRevising}
                     onClick={handleRevise}
                     disabled={!revisionText}
@@ -412,15 +412,15 @@ export function NodeGraphPipeline({
                     className="px-4 py-2 border border-slate-200 rounded hover:bg-slate-100 text-ink-dark/70"
                   >
                     Revise
-                  </AsyncButton>
-                  <AsyncButton
+                  </Button>
+                  <Button
                     isPending={isDrafting} // Add drafting state if you want, but handleApprovePhase1 is an async transition
                     onClick={handleApprovePhase1}
                     icon={<Check className="w-4 h-4" />}
                     className="px-6 py-2 bg-ink-dark text-white font-bold rounded hover:bg-black"
                   >
                     Approve
-                  </AsyncButton>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -518,7 +518,7 @@ export function NodeGraphPipeline({
                 <p className="text-ink-dark">Start Free Trial →</p>
               </div>
               {pipelineState === PipelineState.COMPLETED && (
-                <AsyncButton
+                <Button
                   onClick={() => {
                     startCompleteTransition(async () => {
                       await Promise.resolve(onComplete());
@@ -529,7 +529,7 @@ export function NodeGraphPipeline({
                   className="flex items-center justify-center gap-2 px-6 py-3 bg-ink-dark text-white font-bold rounded-lg hover:bg-black transition-colors w-full mt-2"
                 >
                   Proceed to Workspace <ArrowRight className="w-4 h-4" />
-                </AsyncButton>
+                </Button>
               )}
             </div>
           )}
@@ -554,7 +554,7 @@ export function NodeGraphPipeline({
                 Save your validated features to unlock the Director execution
                 phase. The AI is ready to generate your market experiments.
               </p>
-              <AsyncButton
+              <Button
                 onClick={() => {
                   startUnlockTransition(async () => {
                     await Promise.resolve(onUnlockClick());
@@ -566,7 +566,7 @@ export function NodeGraphPipeline({
                 icon={<Lock className="w-4 h-4" />}
               >
                 Unlock Director Phase
-              </AsyncButton>
+              </Button>
             </div>
           </div>
         )}
