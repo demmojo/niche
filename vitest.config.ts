@@ -20,6 +20,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
+      all: true,
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
         ...coverageConfigDefaults.exclude,
@@ -43,7 +44,6 @@ export default defineConfig({
         "src/components/FhibliUI.tsx",
       ],
       reporter: ["text", "json-summary"],
-      ignoreEmptyLines: true,
       thresholds: {
         lines: 80,
         functions: 80,

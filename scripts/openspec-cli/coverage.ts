@@ -80,12 +80,12 @@ export async function checkCoverage(
     if (passed) {
       presenter.success(
         { metrics, passed: true },
-        `${featureName} passes the mechanical coverage check.`,
+        `Global codebase passes the mechanical coverage check (>= ${threshold}%).`,
       );
       return true;
     } else {
       presenter.fail(
-        `Mechanical Check Failed. Intent-Based Testing mandates ${threshold}% coverage across all metrics.`,
+        `Mechanical Check Failed. Intent-Based Testing mandates ${threshold}% global coverage across all metrics.`,
         "coverage_failed",
         `npm run test -- --coverage`,
       );
