@@ -11,6 +11,7 @@ import { useUserProfile } from "../hooks/useUserProfile";
 // Mock dependencies
 vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
+  arrayUnion: vi.fn((v) => [v]),
   getDoc: vi.fn().mockResolvedValue({
     exists: () => true,
     data: () => ({ actionCredits: 50 }),

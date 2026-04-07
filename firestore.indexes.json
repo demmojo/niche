@@ -12,6 +12,12 @@
       "fieldPath": "serverTimestamp",
       "indexes": [],
       "ttl": true
+    },
+    {
+      "collectionGroup": "cloud_tasks_payloads",
+      "fieldPath": "timestamp",
+      "indexes": [],
+      "ttl": true
     }
   ]
 }

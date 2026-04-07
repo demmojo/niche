@@ -1,119 +1,118 @@
 import admin from "firebase-admin";
-import { getGeminiClient } from "../../utils/geminiClient";
-import { regexScrub } from "../../utils/piiScrubber";
 
-if (!admin.apps?.length) {
-  admin.initializeApp();
+/**
+ * Normalizes a URL or domain string to a clean domain key.
+ * e.g. "https://www.LegalAi.com/foo" -> "legalai.com"
+ * e.g. "www.example.co.uk" -> "example.co.uk"
+ */
+function normalizeDomain(input: string): string {
+  try {
+    let urlString = input.trim();
+    if (!urlString.startsWith("http://") && !urlString.startsWith("https://")) {
+      urlString = "https://" + urlString;
+    }
+    const url = new URL(urlString);
+    let hostname = url.hostname.toLowerCase();
+    if (hostname.startsWith("www.")) {
+      hostname = hostname.substring(4);
+    }
+    // Prevent empty document IDs
+    if (!hostname) return "unknown-domain-" + Date.now();
+    return hostname;
+  } catch {
+    // Fallback for invalid URLs
+    const fallback = input
+      .toLowerCase()
+      .trim()
+      .replace(/^www\./, "")
+      .replace(/[^a-z0-9.-]/g, "");
+    return fallback || "invalid-domain-" + Date.now();
+  }
 }
 
-/**
- * The Hybrid Tokenization Pipeline
- * Uses gemini-3.1-flash-lite-preview to semantically replace names and organizations
- * with generic tokens like [PERSON_1] or [ORG_1] to preserve embedding structure
- * without leaking GDPR/PII data.
- */
-const semanticTokenization = async (text: string): Promise<string> => {
-  const ai = getGeminiClient();
-  const prompt = `
-You are a Zero-Trust PII Scrubber. 
-Rewrite the input by replacing:
-- Names with [PERSON_N]
-- Companies with [ORG_N]
-- Contact info with [CONTACT_N]
-- Any other sensitive proprietary identifiers with [SENSITIVE_N]
-
-DO NOT summarize. Preserve exact grammatical structure and spacing.
-Input:
-${text}
-`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
-      contents: prompt,
-    });
-
-    return response.text || text; // Fallback to raw if extraction fails
-  } catch (error) {
-    console.error("[FlywheelWorker] Semantic tokenization failed", error);
-    return text; // Fallback
+export async function processFlywheelCacheJitJob(jobData: any) {
+  if (!jobData.payloadDocId) {
+    return { status: "skipped", reason: "No payloadDocId provided" };
   }
-};
 
-/**
- * Worker to process items from `raw_eval_staging`, run the Hybrid Tokenization
- * pipeline, and insert them safely into `gold_standard_evals`.
- */
-export const runFlywheelTokenization = async () => {
   const db = admin.firestore();
-  console.log(
-    "[FlywheelWorker] Starting PII Scrubbing and Flywheel Promotion.",
-  );
+  const payloadRef = db
+    .collection("cloud_tasks_payloads")
+    .doc(jobData.payloadDocId);
 
-  try {
-    // 1. Fetch raw staged telemetry (Limit to prevent worker timeouts)
-    const stagingQuery = await db
-      .collection("raw_eval_staging")
-      .limit(50)
-      .get();
-
-    if (stagingQuery.empty) {
-      console.log("[FlywheelWorker] No staged items to process.");
-      return;
-    }
-
-    const batch = db.batch();
-    let processedCount = 0;
-
-    for (const doc of stagingQuery.docs) {
-      const data = doc.data();
-      const rawInput = data.input || "";
-      const rawOutput = data.output || "";
-
-      // Skip empty
-      if (!rawInput && !rawOutput) {
-        batch.delete(doc.ref);
-        continue;
-      }
-
-      // 2. Fast Regex Pre-filter
-      const regexInput = regexScrub(rawInput);
-      const regexOutput = regexScrub(rawOutput);
-
-      // 3. Semantic Tokenization (LLM Pass)
-      // Only run semantic scrub if the text is substantive to save tokens
-      const finalInput =
-        regexInput.length > 20
-          ? await semanticTokenization(regexInput)
-          : regexInput;
-      const finalOutput =
-        regexOutput.length > 20
-          ? await semanticTokenization(regexOutput)
-          : regexOutput;
-
-      // 4. Promote to Gold Standard
-      const goldRef = db.collection("gold_standard_evals").doc();
-      batch.set(goldRef, {
-        inputPayload: finalInput,
-        expectedOutput: finalOutput,
-        evaluationCriteria: data.evaluationCriteria || "Standard Criteria",
-        originalTokenCount: rawInput.length + rawOutput.length,
-        promotedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // 5. Delete from staging
-      batch.delete(doc.ref);
-      processedCount++;
-    }
-
-    // Commit promotion transaction
-    if (processedCount > 0) {
-      await batch.commit();
-      console.log(
-        `[FlywheelWorker] Successfully promoted ${processedCount} items to Gold Standard.`,
-      );
-    }
-  } catch (error) {
-    console.error("[FlywheelWorker] Error processing flywheel batch:", error);
+  // 1. Claim Check Idempotency
+  const payloadDoc = await payloadRef.get();
+  if (!payloadDoc.exists) {
+    return {
+      status: "completed",
+      reason: "Payload already processed or deleted",
+    };
   }
-};
+
+  const payload = payloadDoc.data();
+  if (!payload || !payload.competitors) {
+    return { status: "skipped", reason: "Invalid payload format" };
+  }
+
+  const batch = db.batch();
+
+  // 2. Save the raw user query to founder_demand_queries
+  const queryRef = db.collection("founder_demand_queries").doc();
+  batch.set(queryRef, {
+    idea: payload.idea,
+    user_id: payload.userId,
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+    competitors_uncovered: payload.competitors.length,
+    cached_result: { idea: payload.idea, competitors: payload.competitors },
+  });
+
+  // 3. Process competitors and apply Distributed Counters
+  const shardId = Math.floor(Math.random() * 10).toString();
+
+  for (const comp of payload.competitors) {
+    const cleanDomain = normalizeDomain(comp.domain);
+
+    // Update main centroid document (merge to not overwrite offline baseline)
+    const centroidRef = db.collection("tarpit_centroids").doc(cleanDomain);
+    batch.set(
+      centroidRef,
+      {
+        domain: cleanDomain,
+        core_features: comp.core_features || [],
+        target_audience: comp.target_audience || [],
+        is_hyper_velocity_tarpit: comp.is_hyper_velocity_tarpit || false,
+        engineering_to_sales_ratio: comp.engineering_to_sales_ratio || 0,
+        integration_count: comp.integration_count || 0,
+        indexation_size: comp.indexation_size || 0,
+        sponsored_presence: comp.sponsored_presence || false,
+        provenance: {
+          source: "user_demand",
+          demand_score: 1, // Base value for new entries
+          user_id: payload.userId,
+          generated_at: new Date().toISOString(),
+        },
+      },
+      { merge: true }, // Crucial: merges with existing offline data if present
+    );
+
+    // Distributed Counter for demand_score
+    const counterShardRef = centroidRef
+      .collection("demand_shards")
+      .doc(shardId);
+    batch.set(
+      counterShardRef,
+      {
+        count: admin.firestore.FieldValue.increment(1),
+        last_updated: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+
+  // 4. Delete payload document (atomic cleanup)
+  batch.delete(payloadRef);
+
+  await batch.commit();
+
+  return { status: "completed" };
+}

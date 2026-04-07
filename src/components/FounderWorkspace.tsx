@@ -2733,12 +2733,12 @@ Goal: Help the founders get their first customers, secure grants/investment, red
 Important Instruction: If the user shares a valuable insight or makes a profound realization during the discussion, ask them if they want to save it to the Insight Library. If they explicitly agree, use the \`save_brainstorm_insight\` tool to store it.
 Respond in Markdown. Be concise, highly technical, and actionable.`;
 
-      const saveInsightFunctionDeclaration: FunctionDeclaration = {
+      const saveInsightFunctionDeclaration = {
         name: "save_brainstorm_insight",
+        description:
+          "Save a valuable insight generated during the discussion to the Insight Library.",
         parameters: {
           type: Type.OBJECT,
-          description:
-            "Save a valuable insight generated during the discussion to the Insight Library.",
           properties: {
             title: {
               type: Type.STRING,
@@ -2763,6 +2763,23 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
         },
       };
 
+      const saveNegativeConstraintDeclaration = {
+        name: "save_negative_constraint",
+        description:
+          "Save an explicit user correction or negative constraint (e.g. 'do not focus on enterprise', 'ignore AI summary apps') to prevent the AI from making the same mistake.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            constraint: {
+              type: Type.STRING,
+              description:
+                "The negative constraint or correction provided by the user.",
+            },
+          },
+          required: ["constraint"],
+        },
+      };
+
       // Format chat history for the model
       const formattedHistory = chatHistory
         .map(
@@ -2783,7 +2800,12 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
             contents: `${systemPrompt}${mentionContext}\n\nChat History:\n${formattedHistory}\n\nUser: ${messageText}`,
             config: {
               tools: [
-                { functionDeclarations: [saveInsightFunctionDeclaration] },
+                {
+                  functionDeclarations: [
+                    saveInsightFunctionDeclaration,
+                    saveNegativeConstraintDeclaration,
+                  ],
+                },
               ],
             },
           });
@@ -2794,6 +2816,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
       let fullText = "";
       let hasFunctionCall = false;
       let finalInsightArgs: any = null;
+      let finalConstraintArgs: any = null;
 
       for await (const chunk of responseStream) {
         if (chunk.functionCalls && chunk.functionCalls.length > 0) {
@@ -2801,6 +2824,8 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
           const call = chunk.functionCalls[0];
           if (call.name === "save_brainstorm_insight") {
             finalInsightArgs = call.args;
+          } else if (call.name === "save_negative_constraint") {
+            finalConstraintArgs = call.args;
           }
         }
 
@@ -2841,6 +2866,40 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
               ? {
                   ...msg,
                   content: `I've saved that insight to the library: **${finalInsightArgs.title}**`,
+                }
+              : msg,
+          ),
+        );
+      }
+
+      if (hasFunctionCall && finalConstraintArgs) {
+        const constraint = finalConstraintArgs.constraint;
+        if (constraint && activeProductId && user) {
+          import("firebase/firestore").then(
+            async ({ doc, setDoc, arrayUnion }) => {
+              try {
+                await setDoc(
+                  doc(db, "tenant_ideas", activeProductId),
+                  {
+                    userId: user.uid,
+                    negativeConstraints: arrayUnion(constraint),
+                  },
+                  { merge: true },
+                );
+                addToast("Correction saved", "success");
+              } catch (err) {
+                console.error("Failed to save negative constraint", err);
+              }
+            },
+          );
+        }
+
+        setChatHistory((prev) =>
+          prev.map((msg, idx) =>
+            idx === prev.length - 1
+              ? {
+                  ...msg,
+                  content: `I've noted your correction: **${constraint}**. I will keep this in mind.`,
                 }
               : msg,
           ),

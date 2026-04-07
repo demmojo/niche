@@ -57,6 +57,8 @@ export async function processVectorSync() {
         integration_count: record.integration_count || 0,
         indexation_size: record.indexation_size || 0,
         sponsored_presence: record.sponsored_presence === true,
+        provenance: { source: "batch_baseline" },
+        last_batch_sync_at: FieldValue.serverTimestamp(),
       };
 
       // In production, we don't recalculate embeddings in the sync job,

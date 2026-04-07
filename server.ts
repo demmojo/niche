@@ -299,10 +299,12 @@ async function startServer() {
 
   // Tarpit Analyzer Endpoint
   const { scoringRouter } = await import("./src/server/scoringRoutes");
+  const { nicheRouter } = await import("./src/server/routes/nicheRoutes");
   const { workerRouter } = await import("./src/server/routes/workerRoutes");
   const { cronRouter } = await import("./src/server/routes/cronRoutes");
 
   app.use("/api/scoring", scoringRouter);
+  app.use("/api/niche", nicheRouter);
   app.use("/api/internal/worker", workerRouter);
   app.use("/api/internal/cron", cronRouter);
 

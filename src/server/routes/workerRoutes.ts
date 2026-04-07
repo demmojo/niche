@@ -367,3 +367,20 @@ workerRouter.post("/distillation", async (req: Request, res: Response) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
+import { processFlywheelCacheJitJob } from "../workers/flywheelWorker";
+
+workerRouter.post(
+  "/flywheel-cache-jit",
+  async (req: Request, res: Response) => {
+    try {
+      const result = await processFlywheelCacheJitJob(req.body);
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error("Flywheel Cache JIT worker failed:", error);
+      // Return 200 even on error for idempotent claim check, unless it's a transient failure?
+      // According to Cloud Tasks rules, if we throw 500 it retries. So we return 500 for true failures.
+      return res.status(500).json({ error: error.message });
+    }
+  },
+);

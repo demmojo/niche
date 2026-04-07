@@ -42,13 +42,33 @@ export function PivotSimulator() {
   const [rejectedPivots, setRejectedPivots] = useState<any[]>([]);
   const [shimmerIndex, setShimmerIndex] = useState<number | null>(null);
 
-  const handleAccept = (card: any) => {
+  const handleAccept = async (card: any) => {
     setCards(cards.filter((c) => c.id !== card.id));
     setAcceptedPivots([...acceptedPivots, card.title]);
 
     // Trigger shimmer in the right pane
     setShimmerIndex(acceptedPivots.length);
     setTimeout(() => setShimmerIndex(null), 1500);
+
+    if (user?.uid && activeProductId) {
+      try {
+        const pivotRef = doc(
+          db,
+          "pivot_decisions",
+          `${activeProductId}_${Date.now()}`,
+        );
+        await setDoc(pivotRef, {
+          userId: user.uid,
+          productId: activeProductId,
+          pivotTitle: card.title,
+          pivotDescription: card.description,
+          action: "accepted",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error("Failed to save pivot decision", err);
+      }
+    }
   };
 
   const handleReject = async (card: any) => {
@@ -65,6 +85,20 @@ export function PivotSimulator() {
           },
           { merge: true },
         );
+
+        const pivotRef = doc(
+          db,
+          "pivot_decisions",
+          `${activeProductId}_${Date.now()}`,
+        );
+        await setDoc(pivotRef, {
+          userId: user.uid,
+          productId: activeProductId,
+          pivotTitle: card.title,
+          pivotDescription: card.description,
+          action: "rejected",
+          timestamp: new Date().toISOString(),
+        });
       } catch (err) {
         console.error("Failed to save negative constraint", err);
       }

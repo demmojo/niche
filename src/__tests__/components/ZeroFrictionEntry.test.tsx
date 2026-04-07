@@ -4,37 +4,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ZeroFrictionEntry } from "../../components/ZeroFrictionEntry";
 import * as fetchUtils from "../../utils/fetchWithAppCheck";
 import * as firebaseAuth from "firebase/auth";
-import { setDoc, doc } from "firebase/firestore";
-import { db, auth } from "../../firebase";
-
-vi.mock("../../components/TrustBuilderScreen", () => ({
-  TrustBuilderScreen: ({ ideaPayload, onComplete }: any) => (
-    <div data-testid="mock-trust-builder">
-      <button
-        onClick={() =>
-          onComplete({
-            isTarpit: true,
-            suggestedNiches: ["A better niche CRM"],
-          })
-        }
-      >
-        Complete Trust Builder
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock("../../components/URLTeaserScreen", () => ({
-  URLTeaserScreen: ({ url, onComplete }: any) => (
-    <div data-testid="url-teaser-screen">
-      <button
-        onClick={() => onComplete({ orthogonal_pivots: ["Pivot from URL"] })}
-      >
-        Complete URL Teaser
-      </button>
-    </div>
-  ),
-}));
 
 vi.mock("firebase/auth", async () => {
   const actual = await vi.importActual("firebase/auth");
@@ -44,34 +13,18 @@ vi.mock("firebase/auth", async () => {
   };
 });
 
-vi.mock("firebase/firestore", async () => {
-  const actual = await vi.importActual("firebase/firestore");
-  return {
-    ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    doc: vi.fn((db, path, id) => ({ path, id })),
-  };
-});
-
-vi.mock("../../firebase", () => ({
-  auth: {
-    currentUser: null,
-  },
-  db: {},
-}));
-
-describe("ZeroFrictionEntry", () => {
+describe("ZeroFrictionEntry (JIT Flywheel)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(fetchUtils, "fetchWithAppCheck").mockImplementation(
       (url: string) => {
-        if (url === "/api/scoring/stream") {
+        if (url === "/api/niche/validate-jit") {
           const encoder = new TextEncoder();
           const mockStream = new ReadableStream({
             start(controller) {
               controller.enqueue(
                 encoder.encode(
-                  'data: {"type": "final", "value": {"reasoning": "Test", "suggestedNiches": ["A better niche CRM"], "isTarpit": true}}\n\n',
+                  'data: {"type": "complete", "value": {"competitors": [{"domain":"tarpit1.com", "is_hyper_velocity_tarpit": true}]}}\n\n',
                 ),
               );
               controller.close();
@@ -93,199 +46,49 @@ describe("ZeroFrictionEntry", () => {
     );
   });
 
-  it("renders the initial Fork in the Road intent selection", async () => {
-    const user = userEvent.setup();
+  it("renders the single input for idea/URL", () => {
     render(<ZeroFrictionEntry onComplete={vi.fn()} />);
 
+    expect(screen.getByText("Don't build in a Tarpit.")).toBeInTheDocument();
     expect(
-      screen.getByText("What is your primary goal today?"),
-    ).toBeInTheDocument();
-
-    const founderBtn = screen.getByText("I'm a Founder");
-    const pmBtn = screen.getByText("I'm a Product Manager");
-
-    expect(founderBtn).toBeInTheDocument();
-    expect(pmBtn).toBeInTheDocument();
-  });
-
-  it("Path A (Founder): writes persona to Firestore anonymously before proceeding", async () => {
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    const validateBtn = screen.getByText("I'm a Founder");
-    await user.click(validateBtn);
-
-    // Should sign in anonymously and set the persona
-    await waitFor(() => {
-      expect(firebaseAuth.signInAnonymously).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
-      expect(setDoc).toHaveBeenCalledWith(
-        expect.anything(), // doc() ref
-        { persona: "solo_founder" },
-        { merge: true },
-      );
-    });
-
-    expect(
-      screen.getByPlaceholderText("Category (e.g. CRM)"),
+      screen.getByPlaceholderText(/e\.g\. AI for contract review/),
     ).toBeInTheDocument();
   });
 
-  it("Path B (PM): writes persona to Firestore anonymously before proceeding", async () => {
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    const analyzeBtn = screen.getByText("I'm a Product Manager");
-    await user.click(analyzeBtn);
-
-    // Should sign in anonymously and set the persona
-    await waitFor(() => {
-      expect(firebaseAuth.signInAnonymously).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
-      expect(setDoc).toHaveBeenCalledWith(
-        expect.anything(), // doc() ref
-        { persona: "enterprise_pm" },
-        { merge: true },
-      );
-    });
-
-    expect(
-      screen.getByPlaceholderText(
-        "Which competitor or market do you want to analyze?",
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("Path C (URL): selects url intent and proceeds", async () => {
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    const urlBtn = screen.getByText("I have a Website");
-    await user.click(urlBtn);
-
-    expect(
-      screen.getByPlaceholderText("Paste a website URL (e.g. https://...)"),
-    ).toBeInTheDocument();
-  });
-
-  it("shows error if form is submitted empty", async () => {
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    await user.click(screen.getByText("I have a Website"));
-    // Try to submit the empty form by firing submit directly on the input if hidden button
-    const form = screen
-      .getByPlaceholderText("Paste a website URL (e.g. https://...)")
-      .closest("form");
-    fireEvent.submit(form!);
-
-    expect(
-      await screen.findByText("Please fill out all required fields."),
-    ).toBeInTheDocument();
-  });
-
-  it("submits the URL form successfully", async () => {
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    await user.click(screen.getByText("I have a Website"));
-    const input = screen.getByPlaceholderText(
-      "Paste a website URL (e.g. https://...)",
-    );
-    await user.type(input, "https://example.com");
-    const form = input.closest("form");
-    fireEvent.submit(form!);
-
-    // Should move to analyzing step, which renders URLTeaserScreen
-    const teaser = await screen.findByTestId("url-teaser-screen");
-    expect(teaser).toBeInTheDocument();
-
-    await user.click(screen.getByText("Complete URL Teaser"));
-    expect(await screen.findByText("Your Validated Idea")).toBeInTheDocument();
-  });
-
-  it("submits the Founder form successfully and completes flow", async () => {
+  it("submits the idea, hits JIT API, and shows Market Gravity results", async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     render(<ZeroFrictionEntry onComplete={onComplete} />);
 
-    await user.click(screen.getByText("I'm a Founder"));
-
-    const catInput = screen.getByPlaceholderText("Category (e.g. CRM)");
-    const audInput = screen.getByPlaceholderText("Audience (e.g. Plumbers)");
-    const probInput = screen.getByPlaceholderText("Problem (e.g. scheduling)");
-    const chanInput = screen.getByPlaceholderText("Channel (e.g. cold email)");
-
-    await user.type(catInput, "App");
-    await user.type(audInput, "Users");
-    await user.type(probInput, "Issues");
-    await user.type(chanInput, "Ads");
-
-    await user.click(screen.getByRole("button", { name: "Validate Niche" }));
-
-    const builder = await screen.findByTestId("mock-trust-builder");
-    expect(builder).toBeInTheDocument();
-
-    await user.click(screen.getByText("Complete Trust Builder"));
-
-    expect(
-      await screen.findByText("Tarpit Detected: Pivot Recommended"),
-    ).toBeInTheDocument();
+    const input = screen.getByPlaceholderText(/e\.g\. AI for contract review/);
+    await user.type(input, "AI legal app");
 
     await user.click(
-      screen.getByRole("button", { name: "Proceed with Pivot" }),
+      screen.getByRole("button", { name: /Analyze Market Gravity/i }),
     );
 
-    expect(onComplete).toHaveBeenCalled();
-  });
+    // Should sign in anonymously
+    await waitFor(() => {
+      expect(firebaseAuth.signInAnonymously).toHaveBeenCalled();
+    });
 
-  it("shows error when auth fails", async () => {
-    vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
-      Object.assign(new Error("auth/operation-not-allowed"), {
-        code: "auth/operation-not-allowed",
+    // Should show results
+    expect(
+      await screen.findByText("Market Gravity Detected"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("tarpit1.com")).toBeInTheDocument();
+    expect(screen.getByText("TARPIT")).toBeInTheDocument();
+
+    // Proceed
+    await user.click(
+      screen.getByRole("button", { name: /Refine & Protect This Idea/i }),
+    );
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "AI Idea",
+        description: "AI legal app",
       }),
     );
-
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    await user.click(screen.getByText("I have a Website"));
-    const input = screen.getByPlaceholderText(
-      "Paste a website URL (e.g. https://...)",
-    );
-    await user.type(input, "https://example.com");
-    const form = input.closest("form");
-    fireEvent.submit(form!);
-
-    expect(
-      await screen.findByText(/Anonymous Authentication is not enabled/),
-    ).toBeInTheDocument();
-  });
-
-  it("shows API key error when auth fails with api-key-not-valid", async () => {
-    vi.spyOn(firebaseAuth, "signInAnonymously").mockRejectedValue(
-      Object.assign(new Error("auth/api-key-not-valid"), {
-        code: "auth/api-key-not-valid",
-      }),
-    );
-
-    const user = userEvent.setup();
-    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
-
-    await user.click(screen.getByText("I have a Website"));
-    const input = screen.getByPlaceholderText(
-      "Paste a website URL (e.g. https://...)",
-    );
-    await user.type(input, "https://example.com");
-    const form = input.closest("form");
-    fireEvent.submit(form!);
-
-    expect(
-      await screen.findByText(/Firebase API Key is missing or invalid/),
-    ).toBeInTheDocument();
   });
 });

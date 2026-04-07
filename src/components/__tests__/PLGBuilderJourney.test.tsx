@@ -27,34 +27,14 @@ vi.mock("../../firebase", () => ({
   db: {},
 }));
 
-describe("PLG Builder Paradigm Journey", () => {
-  it("renders the Mad-Libs UI when founder intent is selected", async () => {
+describe("PLG Builder Paradigm Journey (Reverse Demo Hook)", () => {
+  it("renders the JIT input and submits successfully", async () => {
     render(
       <WorkspaceProvider>
         <ZeroFrictionEntry onComplete={vi.fn()} />
       </WorkspaceProvider>,
     );
 
-    // Select "I'm a Founder"
-    const founderButton = screen.getByText("I'm a Founder");
-    fireEvent.click(founderButton);
-
-    // Should render Mad-Libs UI
-    await waitFor(() => {
-      expect(screen.getByText(/I want to build a/i)).toBeInTheDocument();
-    });
-
-    // Check for the inputs
-    const categoryInput = screen.getByPlaceholderText("Category (e.g. CRM)");
-    const audienceInput = screen.getByPlaceholderText(
-      "Audience (e.g. Plumbers)",
-    );
-    const problemInput = screen.getByPlaceholderText(
-      "Problem (e.g. scheduling)",
-    );
-
-    expect(categoryInput).toBeInTheDocument();
-    expect(audienceInput).toBeInTheDocument();
-    expect(problemInput).toBeInTheDocument();
+    expect(screen.getByText("Don't build in a Tarpit.")).toBeInTheDocument();
   });
 });

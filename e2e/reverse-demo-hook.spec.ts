@@ -1,18 +1,15 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Reverse Demo Hook PLG Journey", () => {
-  test("User enters idea, sees optimistic state, and hits PQL gate", async ({
+test.describe("Reverse Demo Hook PLG Journey (JIT Flywheel)", () => {
+  test("User enters idea, sees JIT Market Gravity, and proceeds", async ({
     page,
   }) => {
     // Mock the SSE validation stream
-    await page.route("**/api/scoring/stream", async (route) => {
+    await page.route("**/api/niche/validate-jit", async (route) => {
       const sseContent = [
-        'data: {"type": "competitor_count", "value": 5}\n\n',
-        'data: {"type": "competitor_list", "value": [{"name": "Mock Comp", "domain": "https://mock.com", "threatLevel": "High"}]}\n\n',
-        'data: {"type": "jtbd_analysis", "value": {"job": "Help local bakeries manage orders", "opportunityScore": 15}}\n\n',
-        'data: {"type": "gap_analysis", "value": [{"feature": "Local delivery", "competitor_deficit": "No competitor offers this"}]}\n\n',
-        'data: {"type": "tarpit_score", "value": {"score": 80, "isTarpit": true}}\n\n',
-        'data: {"type": "final", "value": {"reasoning": "Market is saturated but niche exists", "exact_quote": "Local bakeries need better tools", "isTarpit": true, "suggestedNiches": ["A better niche CRM"]}}\n\n',
+        'data: {"message":"Searching market..."}\n\n',
+        'event: chunk\ndata: {"text":"{\\"idea\\":\\"AI legal app\\",\\"competitors\\":[\\"tarpit1.com\\",\\"tarpit2.com\\"]}"}\n\n',
+        'event: complete\ndata: {"competitors":[{"domain":"tarpit1.com","is_hyper_velocity_tarpit":true}]}\n\n',
       ].join("");
 
       await route.fulfill({
@@ -39,44 +36,31 @@ test.describe("Reverse Demo Hook PLG Journey", () => {
     await page.goto("/?mock_auth=true&e2e_entry=true");
     await page.locator("#root").waitFor({ state: "visible", timeout: 15000 });
 
-    // Dismiss PageGuide if it appears
-    try {
-      const getStarted = page.getByRole("button", { name: "Get Started" });
-      await getStarted.waitFor({ state: "visible", timeout: 3000 });
-      await getStarted.click();
-    } catch {
-      // Guide didn't appear
-    }
-
-    // 1. Zero Friction Entry - select "I'm a Founder"
-    await expect(
-      page.getByRole("button", { name: /I'm a Founder/i }),
-    ).toBeVisible({ timeout: 10000 });
-    await page.getByRole("button", { name: /I'm a Founder/i }).click();
-
-    const input = page.getByPlaceholder("What are you thinking of building?");
+    // 1. Zero Friction Entry - single input
+    const input = page.getByPlaceholder(
+      "e.g. AI for contract review, or notion.so",
+    );
     await expect(input).toBeVisible({ timeout: 10000 });
 
     // Fill in an idea
-    await input.fill("A CRM for local bakeries");
-    await page.keyboard.press("Enter");
+    await input.fill("AI legal app");
+    await page.getByRole("button", { name: /Analyze Market Gravity/i }).click();
 
-    // 2. TrustBuilderScreen renders — stream may complete instantly in mock,
-    // so assert on the final state rather than the transient loading text
-    await expect(
-      page.getByRole("heading", { name: "Analysis Complete", exact: true }),
-    ).toBeVisible({ timeout: 15000 });
+    // 2. JIT Stream processing
+    await expect(page.getByText("Market Gravity Detected")).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByText("tarpit1.com")).toBeVisible();
+    await expect(page.getByText("TARPIT")).toBeVisible();
 
-    // Verify stream data rendered correctly
-    await expect(page.getByText("Market Analysis Complete")).toBeVisible();
-    await expect(page.getByText("Tarpit Risk Evaluated")).toBeVisible();
+    // Click "Refine & Protect This Idea"
+    await page
+      .getByRole("button", { name: /Refine & Protect This Idea/i })
+      .click();
 
-    // Click "View Validated Idea"
-    await page.getByRole("button", { name: "View Validated Idea" }).click();
-
-    // Should see validated idea
-    await expect(
-      page.getByRole("heading", { name: "Your Validated Idea" }),
-    ).toBeVisible({ timeout: 10000 });
+    // Should proceed to Workspace
+    await expect(page.getByText("My Active Products")).toBeVisible({
+      timeout: 10000,
+    });
   });
 });
