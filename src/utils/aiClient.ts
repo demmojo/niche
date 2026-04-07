@@ -35,15 +35,32 @@ export const proModels = [
  *
  */
 export const getMainModel = (): string => {
-  const data = localStorage.getItem("ai_main_model");
-  return data || "default-pro";
+  if (
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined"
+  ) {
+    try {
+      const data = window.localStorage.getItem("ai_main_model");
+      return data || "default-pro";
+    } catch (e) {
+      return "default-pro";
+    }
+  }
+  return "default-pro";
 };
 
 /**
  *
  */
 export const setMainModel = (model: string) => {
-  localStorage.setItem("ai_main_model", model);
+  if (
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined"
+  ) {
+    try {
+      window.localStorage.setItem("ai_main_model", model);
+    } catch (e) {}
+  }
 };
 
 export interface AIModel {

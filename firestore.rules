@@ -210,6 +210,13 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /products/{productId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && !isImpersonated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && !isImpersonated() && resource.data.userId == request.auth.uid;
+    }
+
     match /campaign_jobs/{jobId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       // Clients cannot create/update/delete campaign jobs directly, 

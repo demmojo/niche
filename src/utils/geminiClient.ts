@@ -30,11 +30,13 @@ export const removeGeminiKey = (key: string) => {
   // No-op: API keys are managed by the platform
 };
 
+import { safeStorageGet, safeStorageSet } from "./storage";
+
 /**
  *
  */
 export const getSelectedModel = (): string => {
-  return localStorage.getItem("gemini_selected_model") || "gemini-3.1-flash";
+  return safeStorageGet("gemini_selected_model") || "gemini-3.1-flash";
 };
 
 /**
@@ -42,7 +44,7 @@ export const getSelectedModel = (): string => {
  * @param model
  */
 export const setSelectedModel = (model: string) => {
-  localStorage.setItem("gemini_selected_model", model);
+  safeStorageSet("gemini_selected_model", model);
 };
 
 /**

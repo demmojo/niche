@@ -21,6 +21,8 @@ export interface ServiceUsageStats {
   rateLimit?: RateLimitData;
 }
 
+import { safeStorageGet, safeStorageSet } from "./storage";
+
 export interface UsageStats {
   date: string;
   services: {
@@ -64,10 +66,10 @@ let flushTimeout: any = null;
  */
 const flushToStorage = () => {
   if (cachedUsageStats) {
-    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(cachedUsageStats));
+    safeStorageSet(USAGE_STORAGE_KEY, JSON.stringify(cachedUsageStats));
   }
   if (cachedKeyUsage) {
-    localStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(cachedKeyUsage));
+    safeStorageSet(KEYS_STORAGE_KEY, JSON.stringify(cachedKeyUsage));
   }
   flushTimeout = null;
 };
@@ -90,7 +92,7 @@ export const getUsageStats = (): UsageStats => {
     return cachedUsageStats;
   }
 
-  const data = localStorage.getItem(USAGE_STORAGE_KEY);
+  const data = safeStorageGet(USAGE_STORAGE_KEY);
   let parsed: any = null;
   if (data) {
     try {
@@ -129,7 +131,7 @@ export const getUsageStats = (): UsageStats => {
 export const getKeyUsage = (): Record<string, KeyUsage> => {
   if (cachedKeyUsage) return cachedKeyUsage;
 
-  const data = localStorage.getItem(KEYS_STORAGE_KEY);
+  const data = safeStorageGet(KEYS_STORAGE_KEY);
   if (data) {
     try {
       cachedKeyUsage = JSON.parse(data);

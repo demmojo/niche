@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthProvider";
 import { safeStorageGet, safeStorageSet } from "../utils/storage";
+import { doc, setDoc, arrayUnion } from "firebase/firestore";
+import { db } from "../firebase";
 
 export interface Product {
   id: string;
@@ -110,6 +112,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         "",
         `${window.location.pathname}?${newUrlParams.toString()}`,
       );
+    }
+
+    // Ensure workspace document exists in Firestore
+    if (user?.uid && wid && !wid.startsWith("ssr-")) {
+      const workspaceRef = doc(db, "workspaces", wid);
+      setDoc(
+        workspaceRef,
+        { members: arrayUnion(user.uid) },
+        { merge: true },
+      ).catch((e) => {
+        // Ignore permission-denied errors (means it exists and we aren't a member, which is fine)
+        if (e.code !== "permission-denied") {
+          console.error("Failed to initialize workspace:", e);
+        }
+      });
     }
 
     setIsLoading(false);

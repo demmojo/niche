@@ -1,3 +1,5 @@
+import { safeStorageGet, safeStorageSet } from "./storage";
+
 const ALPHA_LIMIT_KEY = "nicheai_alpha_usage";
 
 /**
@@ -5,7 +7,7 @@ const ALPHA_LIMIT_KEY = "nicheai_alpha_usage";
  */
 export const checkAlphaLimit = (): boolean => {
   const today = new Date().toISOString().split("T")[0];
-  const data = localStorage.getItem(ALPHA_LIMIT_KEY);
+  const data = safeStorageGet(ALPHA_LIMIT_KEY);
 
   if (data) {
     try {
@@ -25,9 +27,8 @@ export const checkAlphaLimit = (): boolean => {
  */
 export const recordAlphaUsage = () => {
   const today = new Date().toISOString().split("T")[0];
-  localStorage.getItem(ALPHA_LIMIT_KEY);
   let count = 0;
-  const data = localStorage.getItem(ALPHA_LIMIT_KEY);
+  const data = safeStorageGet(ALPHA_LIMIT_KEY);
   if (data) {
     try {
       const parsed = JSON.parse(data);
@@ -37,7 +38,7 @@ export const recordAlphaUsage = () => {
     } catch (e) {}
   }
 
-  localStorage.setItem(
+  safeStorageSet(
     ALPHA_LIMIT_KEY,
     JSON.stringify({
       date: today,

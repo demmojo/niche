@@ -43,6 +43,15 @@ export function safeStorageGet(key: string): string | null {
   }
 }
 
+export function safeStorageRemove(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch (e) {
+    console.warn(`localStorage removeItem failed for key: ${key}`, e);
+  }
+}
+
 export function safeSessionStorageSet(key: string, value: string) {
   if (typeof window === "undefined") return;
   try {
