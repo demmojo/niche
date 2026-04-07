@@ -60,47 +60,49 @@ export function FounderProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Legacy Data Migration
-        if (fetchedProducts.length === 0 && workspace?.id) {
+        if (fetchedProducts.length === 0 && workspace) {
           try {
-            const legacyDocRef = doc(
-              db,
-              "workspaces",
-              workspace.id,
-              "appData",
-              "my_product_data_",
-            );
-            const legacyDoc = await getDoc(legacyDocRef);
-
-            if (legacyDoc.exists() && legacyDoc.data().value?.name) {
-              const legacyData = legacyDoc.data().value;
-              const batch = writeBatch(db);
-
-              const newProductRef = doc(collection(db, "products"));
-              batch.set(newProductRef, {
-                userId: user.uid,
-                name: legacyData.name || "My Legacy Product",
-                status: "draft",
-                createdAt: serverTimestamp(),
-              });
-
-              const newProductDataRef = doc(
+            if (workspace) {
+              const legacyDocRef = doc(
                 db,
                 "workspaces",
-                workspace.id,
+                workspace,
                 "appData",
-                `my_product_data_${newProductRef.id}`,
+                "my_product_data_",
               );
-              batch.set(
-                newProductDataRef,
-                { value: legacyData },
-                { merge: true },
-              );
+              const legacyDoc = await getDoc(legacyDocRef);
 
-              batch.set(legacyDocRef, { value: null }, { merge: true });
+              if (legacyDoc.exists() && legacyDoc.data().value?.name) {
+                const legacyData = legacyDoc.data().value;
+                const batch = writeBatch(db);
 
-              await batch.commit();
+                const newProductRef = doc(collection(db, "products"));
+                batch.set(newProductRef, {
+                  userId: user.uid,
+                  name: legacyData.name || "My Legacy Product",
+                  status: "draft",
+                  createdAt: serverTimestamp(),
+                });
 
-              return; // Do not set isInitialized yet, wait for the next snapshot
+                const newProductDataRef = doc(
+                  db,
+                  "workspaces",
+                  workspace,
+                  "appData",
+                  `my_product_data_${newProductRef.id}`,
+                );
+                batch.set(
+                  newProductDataRef,
+                  { value: legacyData },
+                  { merge: true },
+                );
+
+                batch.set(legacyDocRef, { value: null }, { merge: true });
+
+                await batch.commit();
+
+                return; // Do not set isInitialized yet, wait for the next snapshot
+              }
             }
           } catch (err) {
             console.error("Migration failed", err);

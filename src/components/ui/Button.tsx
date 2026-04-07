@@ -10,6 +10,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";
   size?: "sm" | "md" | "lg" | "icon";
   ref?: React.Ref<HTMLButtonElement>;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<any>;
 }
 
 export function Button({
@@ -44,9 +45,12 @@ export function Button({
 
     try {
       const result = onClick(e);
-      if ((result as any) instanceof Promise) {
+      if (
+        result &&
+        typeof (result as unknown as Promise<any>).then === "function"
+      ) {
         setInternalIsPending(true);
-        await (result as Promise<any>).catch((err) => {
+        await (result as unknown as Promise<any>).catch((err) => {
           console.error("Button onClick promise rejected:", err);
         });
       }

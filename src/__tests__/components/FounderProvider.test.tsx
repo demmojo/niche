@@ -142,4 +142,139 @@ describe("FounderProvider", () => {
       expect(screen.getByTestId("active-id")).toHaveTextContent("new-id");
     });
   });
+
+  it("throws when hooks are used outside of FounderProvider", () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const HookTestProducts = () => {
+      useFounderProducts();
+      return null;
+    };
+    const HookTestActiveId = () => {
+      useFounderActiveProductId();
+      return null;
+    };
+    const HookTestActiveDispatch = () => {
+      useFounderActiveProductDispatch();
+      return null;
+    };
+
+    expect(() => render(<HookTestProducts />)).toThrow(
+      "useFounderProducts must be used within FounderProvider",
+    );
+    expect(() => render(<HookTestActiveId />)).toThrow(
+      "useFounderActiveProductId must be used within FounderProvider",
+    );
+    expect(() => render(<HookTestActiveDispatch />)).toThrow(
+      "useFounderActiveProductDispatch must be used within FounderProvider",
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("logs error if migration fails", async () => {
+    (getDoc as any).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ value: { name: "Legacy Startup" } }),
+    });
+    const mockBatch = writeBatch({} as any);
+    (mockBatch.commit as any).mockRejectedValueOnce(new Error("Commit failed"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(
+      <FounderProvider>
+        <TestComponent />
+      </FounderProvider>,
+    );
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Migration failed",
+        expect.any(Error),
+      );
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("returns early if user is not available", async () => {
+    (useAuth as any).mockReturnValue({
+      user: null,
+    });
+
+    render(
+      <FounderProvider>
+        <TestComponent />
+      </FounderProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("products-length")).toHaveTextContent("0");
+    });
+    expect(onSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("handles error in onSnapshot", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    (onSnapshot as any).mockImplementation(
+      (query: any, callback: any, errorCb: any) => {
+        setTimeout(() => {
+          errorCb(new Error("Firestore snapshot failed"));
+        }, 0);
+        return vi.fn();
+      },
+    );
+
+    render(
+      <FounderProvider>
+        <TestComponent />
+      </FounderProvider>,
+    );
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Error fetching founder products:",
+        expect.any(Error),
+      );
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("sorts fetched products correctly including those without createdAt", async () => {
+    (onSnapshot as any).mockImplementation((query: any, callback: any) => {
+      setTimeout(() => {
+        callback({
+          forEach: (cb: any) => {
+            cb({ id: "p1", data: () => ({ name: "No Date 1" }) });
+            cb({
+              id: "p2",
+              data: () => ({ name: "Date Old", createdAt: "2023-01-01" }),
+            });
+            cb({ id: "p3", data: () => ({ name: "No Date 2" }) });
+            cb({
+              id: "p4",
+              data: () => ({ name: "Date New", createdAt: "2023-12-31" }),
+            });
+          },
+        });
+      }, 0);
+      return vi.fn();
+    });
+
+    render(
+      <FounderProvider>
+        <TestComponent />
+      </FounderProvider>,
+    );
+
+    await waitFor(() => {
+      const items = screen.getAllByTestId("product-item");
+      expect(items.map((i) => i.textContent)).toEqual([
+        "Date New",
+        "Date Old",
+        "No Date 1",
+        "No Date 2",
+      ]);
+    });
+  });
 });

@@ -618,7 +618,7 @@ const initialCompetitors: Competitor[] = [
 ];
 
 // --- Components ---
-function DeepValidationButton({
+export function DeepValidationButton({
   isSyncing,
   syncProgress,
   handleGlobalSync,
@@ -930,11 +930,12 @@ export function useLocalStorage<T>(
   return [storedValue, setValue];
 }
 
+// Allow mocking of useMigratedFirestoreDoc
 export function useMigratedFirestoreDoc<T>(
   legacyKey: string,
   newKey: string,
   initialValue: T,
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+): [T, React.Dispatch<React.SetStateAction<T>>, boolean] {
   const [migratedInitialValue] = useState<T>(() => {
     try {
       const legacyItem = window.localStorage.getItem(
@@ -960,9 +961,10 @@ export function useMigratedFirestoreDoc<T>(
 export function useFirestoreDoc<T>(
   key: string,
   initialValue: T,
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+): [T, React.Dispatch<React.SetStateAction<T>>, boolean] {
   const [data, setData] = useState<T>(initialValue);
   const dataRef = useRef<T>(initialValue);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Debounce timeout ref to batch rapid writes and save quota
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -972,8 +974,10 @@ export function useFirestoreDoc<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      window.location.search.includes("mock_auth=true") ||
+      process.env.NODE_ENV === "test"
     ) {
+      setIsInitialized(true);
       return;
     }
 
@@ -985,6 +989,7 @@ export function useFirestoreDoc<T>(
       { includeMetadataChanges: true },
       (docSnap) => {
         if (controller.signal.aborted) return;
+        setIsInitialized(true);
 
         // Protect Optimistic UI:
         // Ignore incoming server snapshots if we are currently debouncing a local write,
@@ -1050,7 +1055,7 @@ export function useFirestoreDoc<T>(
     }, 2000);
   };
 
-  return [data, setValue];
+  return [data, setValue, isInitialized];
 }
 
 export function FounderWorkspace({ user, isSuperadmin }: any) {
@@ -1058,7 +1063,7 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
   const setActiveProductId = useFounderActiveProductDispatch();
   const { products, isInitialized: isProductsInitialized } =
     useFounderProducts();
-  const { profileLoading } = useUserProfile();
+  const { loading: profileLoading } = useUserProfile();
   const productId = activeProductId;
 
   const defaultCompetitors =
@@ -1135,13 +1140,12 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
 
   const isProductDataInitialized = isProductsInitialized;
 
-  const [rawCompetitors, setCompetitors] = useMigratedFirestoreDoc<
-    Competitor[]
-  >(
-    `competitors_${user.uid}_${productId}`,
-    `competitors_${productId}`,
-    defaultCompetitors,
-  );
+  const [rawCompetitors, setCompetitors, isCompetitorsInitialized] =
+    useMigratedFirestoreDoc<Competitor[]>(
+      `competitors_${user.uid}_${productId}`,
+      `competitors_${productId}`,
+      defaultCompetitors,
+    );
 
   const { displayTaxonomy, evaluationStatus, mergeFeatures } =
     useTaxonomySync();
@@ -2988,7 +2992,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
     }
   }, [setInitialData]);
 
-  if (!isProductsInitialized && !forceInitialized) {
+  if (!isProductsInitialized) {
     return (
       <div
         className="flex h-screen items-center justify-center bg-[#F5F3ED]"
@@ -5774,7 +5778,7 @@ Respond in Markdown. Be concise, highly technical, and actionable.`;
 
 // --- Subcomponents ---
 
-function ScoutPage({
+export function ScoutPage({
   competitor,
   onBack,
   sources,
@@ -6387,7 +6391,7 @@ function ScoutPage({
   );
 }
 
-function NavItem({
+export function NavItem({
   icon,
   label,
   active = false,
@@ -6417,7 +6421,7 @@ function NavItem({
   );
 }
 
-function SummaryCard({
+export function SummaryCard({
   title,
   value,
   subtitle,
@@ -6494,7 +6498,7 @@ function SummaryCard({
   );
 }
 
-function SortableHeader({
+export function SortableHeader({
   label,
   field,
   currentSort,
@@ -6533,7 +6537,7 @@ function SortableHeader({
   );
 }
 
-function QuickPromptButton({
+export function QuickPromptButton({
   icon,
   label,
   onClick,
@@ -6556,7 +6560,7 @@ function QuickPromptButton({
   );
 }
 
-function SovereigntyBadge({
+export function SovereigntyBadge({
   status,
   score,
 }: {
@@ -6579,7 +6583,7 @@ function SovereigntyBadge({
   );
 }
 
-function SourcePage({
+export function SourcePage({
   source,
   competitorName,
   linkedInsights,
@@ -6886,7 +6890,7 @@ function SourcePage({
   );
 }
 
-function SummaryPage({
+export function SummaryPage({
   productContext,
   title,
   value,

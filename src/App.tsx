@@ -635,7 +635,7 @@ function OnboardingWizard({
           id: Math.random().toString(36).substring(2, 9),
           name: f.trim(),
           description: "",
-          status: "planned",
+          status: "planned" as const,
         }))
         .filter((f) => f.name),
       strategy: [],

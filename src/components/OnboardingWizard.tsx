@@ -201,13 +201,22 @@ export function OnboardingWizard({
     }
     setPersona(selectedPersona);
 
-    await setPersonaForUser(selectedPersona);
+    // We do NOT set the persona in Firestore yet. Setting it now would trigger a
+    // global state update and immediately unmount the OnboardingWizard if the user
+    // chose "enterprise_pm" (due to WorkspaceShell switching to EnterpriseWorkspace).
+    // The persona will be saved at the end of the flow.
 
     setStep("input");
   };
 
   const handleAction = async (formData: FormData) => {
     let inputValue = formData.get("idea") as string;
+    console.log(
+      "handleAction called with intent:",
+      intent,
+      "inputValue:",
+      inputValue,
+    );
     setFormErrors({});
     let hasError = false;
     let newErrors: { [key: string]: boolean } = {};
@@ -270,52 +279,22 @@ export function OnboardingWizard({
       finalIdea = `I want to analyze gaps left by ${inputValue}.`;
     }
 
-    try {
-      if (!isMounted.current) return;
-
-      if (intent === "url") {
-        setIdeaPayload({
-          url: finalIdea,
-        });
-      } else if (intent === "analyze") {
-        setIdeaPayload({
-          productName: "Competitor Analysis",
-          productDescription: finalIdea,
-        });
-      } else {
-        setIdeaPayload({
-          productName: "AI Idea",
-          productDescription: finalIdea,
-        });
-      }
-      setStep("analyzing");
-    } catch (e: unknown) {
-      console.error(e);
-      if (!isMounted.current) return;
-      setStep("error");
-
-      let errorMsg = "Failed to sign in.";
-      if (e instanceof Error) {
-        errorMsg = e.message;
-        if ("code" in e && typeof (e as any).code === "string") {
-          const code = (e as any).code;
-          if (
-            code === "auth/api-key-not-valid" ||
-            errorMsg.includes("mock-api-key")
-          ) {
-            errorMsg =
-              "Firebase API Key is missing or invalid. Please add VITE_FIREBASE_API_KEY to your .env.local file.";
-          } else if (
-            code === "auth/operation-not-allowed" ||
-            errorMsg.includes("auth/operation-not-allowed")
-          ) {
-            errorMsg =
-              "Anonymous Authentication is not enabled. Please enable it in your Firebase Console (Authentication > Sign-in method).";
-          }
-        }
-      }
-      setErrorMessage(errorMsg);
+    if (intent === "url") {
+      setIdeaPayload({
+        url: finalIdea,
+      });
+    } else if (intent === "analyze") {
+      setIdeaPayload({
+        productName: "Competitor Analysis",
+        productDescription: finalIdea,
+      });
+    } else {
+      setIdeaPayload({
+        productName: "AI Idea",
+        productDescription: finalIdea,
+      });
     }
+    setStep("analyzing");
   };
 
   const handleValidationComplete = (
@@ -326,6 +305,9 @@ export function OnboardingWizard({
     },
     currentPayload: IdeaPayload,
   ) => {
+    // Prevent ghost transitions if the user cancelled the analysis
+    if (step !== "analyzing") return;
+
     let finalIdea = currentPayload.productDescription || "";
     setOriginalIdea(finalIdea);
     if (
@@ -415,6 +397,7 @@ export function OnboardingWizard({
                 onClick={async () => {
                   setIsProceeding(true);
                   try {
+                    if (persona) await setPersonaForUser(persona);
                     await Promise.resolve(
                       onComplete({
                         name: "My Original Idea",
@@ -441,6 +424,7 @@ export function OnboardingWizard({
               onClick={async () => {
                 setIsProceeding(true);
                 try {
+                  if (persona) await setPersonaForUser(persona);
                   await Promise.resolve(
                     onComplete({
                       name: "My AI Idea",

@@ -254,26 +254,97 @@ describe("WorkspaceShell", () => {
     // This test is obsolete since AuthModal state is managed externally
   });
 
-  it("handles onClose from AuthModal when triggered in ZeroFrictionEntry", () => {
+  it("uses __MOCK_ENTRY_FLOW_ACTIVE__ window variable", async () => {
+    (window as any).__MOCK_ENTRY_FLOW_ACTIVE__ = true;
     (AuthProvider.useAuth as any).mockReturnValue({
-      user: { uid: "anon", isAnonymous: true },
+      user: { uid: "user-123", isAnonymous: true },
+    });
+    (useUserProfileHook.useUserProfile as any).mockReturnValue({
+      profile: { persona: "solo_founder" },
+      loading: false,
+    });
+
+    render(<WorkspaceShell logout={mockLogout} />);
+
+    // Even though persona is set, mock entry active forces it to show for anonymous
+    expect(await screen.findByTestId("zero-friction")).toBeInTheDocument();
+
+    delete (window as any).__MOCK_ENTRY_FLOW_ACTIVE__;
+  });
+
+  it("handles onComplete with workspace id in url", async () => {
+    (AuthProvider.useAuth as any).mockReturnValue({
+      user: { uid: "user-123", isAnonymous: true },
     });
     (useUserProfileHook.useUserProfile as any).mockReturnValue({
       profile: null,
       loading: false,
     });
 
-    const mockOpenModal = vi.fn();
-    (AuthDialogProvider.useAuthDialogDispatch as any).mockReturnValue({
-      openModal: mockOpenModal,
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { ...originalLocation, search: "?w=workspace-123" },
+      writable: true,
+      configurable: true,
     });
+
+    const mockSetDoc = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(firestore.setDoc).mockImplementation(mockSetDoc);
 
     render(<WorkspaceShell logout={mockLogout} />);
 
-    // Simulate clicking the login button passed to ZeroFrictionEntry
-    const loginBtn = screen.getByTestId("login-btn");
-    fireEvent.click(loginBtn);
+    const entry = await screen.findByTestId("zero-friction");
+    expect(entry).toBeInTheDocument();
 
-    expect(mockOpenModal).toHaveBeenCalled();
+    const completeBtn = screen.getByText("Complete");
+    fireEvent.click(completeBtn);
+
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalled();
+    });
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("safely ignores onComplete if workspace id is missing from url", async () => {
+    (AuthProvider.useAuth as any).mockReturnValue({
+      user: { uid: "user-123", isAnonymous: true },
+    });
+    (useUserProfileHook.useUserProfile as any).mockReturnValue({
+      profile: null,
+      loading: false,
+    });
+
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { ...originalLocation, search: "" },
+      writable: true,
+      configurable: true,
+    }); // No ?w= parameter
+
+    const mockSetDoc = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(firestore.setDoc).mockImplementation(mockSetDoc);
+
+    render(<WorkspaceShell logout={mockLogout} />);
+
+    const entry = await screen.findByTestId("zero-friction");
+    expect(entry).toBeInTheDocument();
+
+    const completeBtn = screen.getByText("Complete");
+    fireEvent.click(completeBtn);
+
+    // Give it a tick to ensure no setDoc is called
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockSetDoc).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
   });
 });
