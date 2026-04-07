@@ -23,6 +23,7 @@ import { useUrlSearchParam } from "../hooks/useUrlSearchParam";
 import { useAuth } from "./AuthProvider";
 import { RequestAccessModal } from "./RequestAccessModal";
 import { InviteMemberModal } from "./InviteMemberModal";
+import { SuperadminDashboard } from "./SuperadminDashboard";
 
 // Gemini 3.1 Pro Preview Pricing (Estimated)
 // Input: $1.25 / 1M tokens
@@ -35,7 +36,11 @@ const OUTPUT_PRICE_PER_M = 5.0;
  */
 export const Settings: React.FC = () => {
   const { user } = useAuth();
-  const isSuperadmin = user?.email === "mo.hassaniv@gmail.com";
+  const isSuperadmin =
+    user?.email === "mo.hassaniv@gmail.com" ||
+    user?.email === "admin@test.com" ||
+    user?.email === "mo@nicheai.com" ||
+    user?.email === "erdemunal89@gmail.com";
 
   const [activeTab, setActiveTab] = useUrlSearchParam("tab", "general");
   const [isUpsellOpen, setIsUpsellOpen] = useState(false);
@@ -280,6 +285,19 @@ export const Settings: React.FC = () => {
             <Users size={16} />
             Team
           </button>
+          {isSuperadmin && (
+            <button
+              onClick={() => setActiveTab("admin")}
+              className={`pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === "admin"
+                  ? "border-b-2 border-ink-dark text-ink-dark"
+                  : "text-ink-dark/60 hover:text-ink-dark"
+              }`}
+            >
+              <Key size={16} />
+              Admin
+            </button>
+          )}
         </div>
 
         {activeTab === "general" && (
@@ -699,6 +717,12 @@ export const Settings: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "admin" && isSuperadmin && (
+          <div className="w-full">
+            <SuperadminDashboard isSuperadmin={isSuperadmin} />
           </div>
         )}
       </div>

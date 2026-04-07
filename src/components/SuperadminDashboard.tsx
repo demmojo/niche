@@ -11,6 +11,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { DataMoatControlTab } from "./superadmin/DataMoatControlTab";
+import { DLQViewer } from "./DLQViewer";
 
 /**
  * Superadmin Dashboard
@@ -22,9 +23,9 @@ export function SuperadminDashboard({
 }) {
   const [feedback, setFeedback] = useState<FeedbackMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"feedback" | "data_quality">(
-    "data_quality",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "feedback" | "data_quality" | "dlq"
+  >("data_quality");
 
   useEffect(() => {
     if (!isSuperadmin) return;
@@ -114,10 +115,30 @@ export function SuperadminDashboard({
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink-dark rounded-t-full" />
           )}
         </button>
+        <button
+          onClick={() => setActiveTab("dlq")}
+          className={`pb-4 px-2 font-semibold text-sm transition-colors relative ${
+            activeTab === "dlq"
+              ? "text-ink-dark"
+              : "text-ink-dark/50 hover:text-ink-dark/80"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Dead Letter Queue
+          </div>
+          {activeTab === "dlq" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink-dark rounded-t-full" />
+          )}
+        </button>
       </div>
 
       {activeTab === "data_quality" ? (
         <DataMoatControlTab />
+      ) : activeTab === "dlq" ? (
+        <div className="bg-paper-light border border-ink-dark/20 rounded-2xl p-6 shadow-sm">
+          <DLQViewer />
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {feedback.length === 0 ? (
