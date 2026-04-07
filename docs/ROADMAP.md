@@ -2705,3 +2705,111 @@ Replaces Express TOCTOU concurrency bottlenecks and standard transaction seriali
 - **Source:** `openspec/changes/test-coverage-quality/specs/test-coverage-quality/spec.md`
 
 Productizes the intent-based UI testing and MSW interception into an autonomous agent swarm. PMs define raw business intent and the swarm dynamically writes maintains and mutates React 19 testing suites and Supertest API contracts.
+
+### Zero-Friction Multiplayer AI Sandboxes
+
+- **Domain:** Product
+- **Strategic Value:** Drives viral Product-Led Growth (PLG) by entirely removing the login barrier for network effects, capitalizing on the 2026 trend of ephemeral, agent-integrated collaborative swarms.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/design.md`
+
+Building on the Claim-Check Auth pattern, this feature enables instant, unauthenticated multi-user and multi-agent collaboration. Users can share temporary workspace URLs where colleagues and specialized autonomous AI agents can co-create in real-time. Upon eventual OAuth login, the entire distributed session history and state cryptographically merge into an enterprise workspace without data loss.
+
+### Probabilistic Provenance Visualizations
+
+- **Domain:** Design
+- **Strategic Value:** Reduces cognitive load and builds extreme user trust. In the 2026 AI landscape, where hallucination anxiety is high, natively visualizing data confidence rather than just relying on text tags is a massive competitive differentiator.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/design.md`
+
+Evolving the basic radar charts and 'provenance tagging', this UX paradigm introduces confidence-weighted data visualizations. When falling back to LLM 'Heuristic Inference', radar charts and UI elements dynamically alter their visual states (e.g., gradient boundaries or motion-blurred data points) to instinctively communicate the AI's certainty level versus verified ground-truth data.
+
+### Edge-Native Agent State Mesh
+
+- **Domain:** Architecture
+- **Strategic Value:** Slashes latency for global users and creates a highly defensible, hyper-scalable infrastructure. Prevents external LLM integration financial exhaustion at the network edge, crucial for scaling cost-intensive agentic workflows.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/design.md`
+
+Transitioning away from centralized Firestore batch writes and monolithic SSE AbortControllers to a globally distributed edge architecture. This mesh instantly hydrates workspace state closer to the user, managing autonomous agent (Gemini/Exa) lifecycles, real-time syncs, and early SSE terminations directly at the network edge to prevent centralized compute exhaustion and race conditions.
+
+### Multi-Modal Visual Crawler Bypass
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Ensures a highly resilient data extraction success rate, creating a profound data moat. As web defenses increasingly block text-based AI bots in 2026, visual-AI data extraction guarantees uninterrupted user flow and high-fidelity insights.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/design.md`
+
+Replacing basic try/catch crawler fallbacks with a headless, vision-capable SLM (Small Language Model) pipeline. When standard HTTP requests face Cloudflare 403s, this system routes the target URL through a fast, edge-hosted headless browser and uses vision-transformers to visually read and extract competitor data directly from the rendered UI, bypassing traditional anti-bot scraping blocks.
+
+### Edge-Native Ephemeral State Wallets for Zero-Trust PLG
+
+- **Domain:** Architecture
+- **Strategic Value:** Completely eliminates SSE financial exhaustion and backend SSRF/DoS risks from unauthenticated traffic. Creates a highly defensible, zero-latency user experience that aligns with 2026 local-first SaaS architectural standards, drastically reducing infrastructure costs while ensuring lossless PQL conversion.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/proposal.md`
+
+To eliminate SSE financial exhaustion and unauthenticated backend DoS risks, we evolve the ZeroFrictionEntry using a local-first web architecture. Data streams and unauthenticated sessions are processed and stored client-side via Wasm and IndexedDB in an encrypted 'ephemeral wallet.' Upon authentication, this wallet synchronizes securely with the backend using zero-knowledge proofs.
+
+### Dynamic Market Matrix Simulator for Predictive Pivoting
+
+- **Domain:** Product
+- **Strategic Value:** Transforms NicheAI from a static evaluation tool into a continuous strategic co-founder. Increases user retention by turning market analysis into a high-engagement, interactive 'sim game' for founders, establishing a massive proprietary data moat on founder intent and pivot behaviors.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/proposal.md`
+
+Evolves the 'Iterative Flywheel' into a real-time, playable simulation. Founders can inject 2026 macro-trend variables (e.g., AI agent adoption rates, regulatory shifts) into their dashboard. The AI dynamically recalculates tarpit probabilities and visually morphs the product strategy to discover orthogonal pivots in real-time based on these predictive variables.
+
+### Spatial 'White Space' Mapping Canvas
+
+- **Domain:** Design
+- **Strategic Value:** Aligns with the 2026 shift toward spatial and infinite-canvas computing in productivity tools. Reduces cognitive load by leveraging human spatial memory to understand complex market positioning, increasing the conversion rate from PQL to paid by delivering an immediate, visceral 'Aha!' moment.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/proposal.md`
+
+Replaces static Radar Charts with an infinite, spatial canvas interface optimized for modern WebGL and spatial computing environments. Competitors, tarpit risks, and pivot opportunities are mapped as interconnected nodes in a 2.5D topography, allowing users to visually navigate and literally zoom into the 'white spaces' of the market landscape.
+
+### Synthetic Competitor Generation Engine
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Creates a totally unique AI data moat: NicheAI doesn't just analyze the current market, it actively simulates the future competitive landscape. Provides extreme value for zero-to-one founders in stealth markets, cementing NicheAI as an indispensable predictive intelligence asset rather than a simple web scraper.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/proposal.md`
+
+Upgrades the basic 'Heuristic Fallbacks' by deploying a latent diffusion model that dreams up highly plausible, synthetic future competitors when live data scraping is blocked or markets are entirely nascent. It hallucinates realistic threat profiles, feature sets, and go-to-market strategies based on deep industry archetypes.
+
+### Multi-Agent Incumbent Response Simulation
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Creates a highly defensible AI data moat and capitalizes on 2026 agentic simulation trends. Moves the product from static analysis to predictive market wargaming, making the PQL gate irresistible for serious founders.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/specs/plg-journey-fixes/spec.md`
+
+Evolve the Micro-Competitor Radar by utilizing multi-agent LLM architectures. Instead of generating static competitor weak spots, dynamically spin up AI personas representing key incumbents. Simulate their strategic counter-moves, pricing changes, and feature cloning speed in response to the user's hyper-niche idea over a projected 12-month timeline.
+
+### Spatial Gravity Well Idea Topography
+
+- **Domain:** Design
+- **Strategic Value:** Reduces cognitive load by translating abstract vector math into intuitive, spatial mechanics. Aligns seamlessly with 2026 spatial computing interaction paradigms, dramatically increasing time-on-site and user emotional investment.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/specs/plg-journey-fixes/spec.md`
+
+Transform the 2D Defensibility Radar into an interactive, WebGL-powered 3D market topography. Highly saturated markets (Tarpits > 80) visually appear as deep gravity wells, while hyper-niche, high-orthogonal vector spaces manifest as elevated, defensible peaks. Users can dynamically drag and drop their idea nodes to visually climb out of tarpits using the suggested pivots.
+
+### Algorithmic Live Pivot Marketplace
+
+- **Domain:** Product
+- **Strategic Value:** Transforms a one-time validation tool into a recurring revenue engine. Captures the Continuous Discovery founder trend by serving as an always-on idea generator, maximizing LTV beyond the initial PQL gate.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/specs/plg-journey-fixes/spec.md`
+
+Expand the Guided Pivot scenario. Currently, the best pivot is a static gate. This evolution creates a live marketplace where the system continuously scans developer ecosystems, app store velocity, and social sentiment to generate completely novel, real-time micro-SaaS pivots. These premium pivots act as continuous high-tier subscription drivers.
+
+### Continuous Competitor Telemetry Mesh
+
+- **Domain:** Architecture
+- **Strategic Value:** Eliminates stale market data, a primary friction point in startup research. Establishes a highly defensible backend architecture that ensures the Founder Workspace becomes a sticky daily-active-user (DAU) habit rather than a one-off validation exercise.
+- **Status:** Unverified
+- **Source:** `openspec/changes/plg-journey-fixes/specs/plg-journey-fixes/spec.md`
+
+Upgrade the single-shot URL extraction API to a distributed, event-driven telemetry mesh. When a user imports a competitor URL, the system initializes persistent serverless monitoring to track changes in the competitor's landing page copy, pricing tiers, and public documentation, streaming actionable delta alerts directly into the Founder Workspace.
