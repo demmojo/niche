@@ -2813,3 +2813,111 @@ Expand the Guided Pivot scenario. Currently, the best pivot is a static gate. Th
 - **Source:** `openspec/changes/plg-journey-fixes/specs/plg-journey-fixes/spec.md`
 
 Upgrade the single-shot URL extraction API to a distributed, event-driven telemetry mesh. When a user imports a competitor URL, the system initializes persistent serverless monitoring to track changes in the competitor's landing page copy, pricing tiers, and public documentation, streaming actionable delta alerts directly into the Founder Workspace.
+
+### Real-Time Edge Distillation for Semantic Quarantine
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Creates a self-healing, defensible AI data moat. By filtering garbage data at the edge, we reduce backend compute costs by up to 40% and ensure the core intelligence database remains highly curated, which is critical in a 2026 market flooded with automated agentic spam.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/design.md`
+
+Evolve the offline-only BigQuery data cleaning strategy by training a distilled, sub-1B parameter LLM deployed directly at the CDN edge. This model acts as an ultra-low-latency semantic gatekeeper, evaluating JIT user queries and generative inputs to silently quarantine synthetic noise, hallucinated niches, or adversarial prompt injections before they even trigger the Cloud Task payload infrastructure.
+
+### Steerable AI Thought-Stream & Micro-Pivot UX
+
+- **Domain:** Design
+- **Strategic Value:** Reduces cognitive load and wait times by allowing hyper-active 2026 users to collaboratively co-pilot the AI. Enhances perceived performance and turns latency into an engaging, gamified exploration phase, keeping funnel friction near zero.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/design.md`
+
+Transform the technical AbortController mitigation into a core UX feature. Instead of passively watching a buffering SSE text stream, users are presented with a real-time, interactive graph of the AI's reasoning pathways. If the AI begins exploring a known dead-end sub-niche, the user can click a visual node to immediately abort that specific SSE chunk, rerouting the AI's context dynamically without restarting the entire expensive query.
+
+### Enterprise Tarpit Radar & Trend API
+
+- **Domain:** Product
+- **Strategic Value:** Captures a highly lucrative B2B market segment. Transforms a defensive architectural caching mechanism into a new, high-margin revenue stream, leveraging the proprietary data moat to become the definitive market standard for startup viability scoring.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/design.md`
+
+Commercialize the Cache-Hit First tarpit database into a standalone predictive intelligence product. By aggregating real-time user pivot data and known tarpit centroids, we can offer a high-value API for venture capitalists, corporate accelerators, and enterprise strategy teams to instantly score the viability and saturation of emerging markets before allocating capital.
+
+### Ephemeral Edge-State Grid for Viral Scaling
+
+- **Domain:** Architecture
+- **Strategic Value:** Future-proofs the application against massive traffic spikes caused by viral social media trends or autonomous AI agent swarms. Eliminates database deadlocks and simplifies backend complexity, ensuring zero-latency scaling for real-time demand aggregation.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/design.md`
+
+Outgrow Firestore's 1 write/sec limitation and complex Distributed Counter workarounds by migrating real-time demand scoring to a globally distributed, WebAssembly-backed Edge KV architecture. This ephemeral grid processes viral niche query collisions entirely in-memory at the edge, asynchronously flushing eventually consistent data back to the central database.
+
+### Predictive 'Blue Ocean' Generative Pivots
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Transforms the platform from a reactive 'Risk Identification' tool into a proactive 'Value Creation' engine. This captures the 2026 market expectation for prescriptive, generative AI that doesn't just point out flaws, but autonomously engineers viable solutions, cementing a massive proprietary data moat.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/proposal.md`
+
+Moving beyond simply caching 'tarpit' warnings, the ML pipeline will leverage the newly generated bipartite graph (User Idea <-> Competitor) to power a contrastive learning model. When a user hits a known tarpit, the system instantly synthesizes 3 highly viable 'Blue Ocean' pivot trajectories by mathematically vectoring away from the densest competitor clusters. It utilizes the captured manual corrections from historical users to predict which pivot pathways have the highest survival probability.
+
+### Immersive Market Physics Sandbox
+
+- **Domain:** Design
+- **Strategic Value:** Reduces cognitive load by 10x by translating abstract market collision data into intuitive visual 'physics'. It turns data labeling into a highly engaging, frictionless, spatial computing experience, perfectly aligning with 2026 user interaction trends for complex AI agents.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/proposal.md`
+
+To seamlessly capture complex 'Frontend Telemetry' without funnel friction, we will evolve the UI into an interactive, node-based market simulation canvas. Instead of filling out forms, users drag their 'Idea Node' away from 'Competitor Gravity Wells' in real-time. The system implicitly captures these visual spatial adjustments as high-fidelity telemetry regarding user intent, perceived threat vectors, and pivot decisions.
+
+### WASM Edge-Optimized Multi-Hop Knowledge Graph
+
+- **Domain:** Architecture
+- **Strategic Value:** Creates an infinitely scalable, hyper-responsive architecture that drastically reduces cloud compute costs for complex graph traversals. It delivers a 'magic' zero-latency UX that competitors relying on traditional cloud-bound LLM processing simply cannot match.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/proposal.md`
+
+While Firestore counters and claim-check patterns solve immediate scale, the 2026 evolution requires shifting the collision engine to the edge. We will deploy WebAssembly (WASM) micro-graphs to the client browser. During the 'SSE stream' phase, a targeted sub-graph of the market is pushed to the client, allowing instantaneous, zero-latency multi-hop collision detection (e.g., discovering indirect competitors 3 degrees removed) without subsequent server round-trips.
+
+### Synthetic Demand Validation Bounties
+
+- **Domain:** Product
+- **Strategic Value:** Pioneers the 2026 'Data Dignity' trend by integrating Human-in-the-Loop (HITL) mechanics directly into the PLG motion. It builds an impenetrable, organically self-healing proprietary dataset that cannot be scraped or reverse-engineered by competitors, while deeply engaging the power-user community.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/proposal.md`
+
+Capitalizing on the 'Offline Baseline' and 'Asynchronous Collision Engine', this feature introduces a micro-bounty system for ambiguous market spaces. When the JIT Flywheel encounters a 'grey zone' idea with low confidence data, it automatically routes a micro-validation request to domain-expert power users. These users are incentivized with platform credits to provide the binary feedback or manual corrections the ML engine needs to resolve the market node.
+
+### Predictive Market Whitespace Graph & Demand Forecaster
+
+- **Domain:** Machine Learning
+- **Strategic Value:** Transforms the platform from a reactive validation tool into a proactive market-making oracle, creating a highly defensible AI data moat based on proprietary founder intent data.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/specs/jit-flywheel-data-moat/spec.md`
+
+Evolve the Collision Engine from a simple counter into a Graph Neural Network (GNN) that maps organic founder_demand_queries against established competitor domains. By analyzing semantic distance and velocity of queries in 2026, the system autonomously identifies and alerts founders to 'Blue Ocean' market gaps before they become saturated.
+
+### Real-Time Spatial Competitive Matrix Canvas
+
+- **Domain:** Design
+- **Strategic Value:** Captures the 2026 spatial computing and visual-first AI interaction trends, turning static data validation into a highly tactile, low-cognitive-load strategic playground.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/specs/jit-flywheel-data-moat/spec.md`
+
+Upgrade the ZeroFrictionEntry into an infinite spatial canvas. As the JIT endpoint streams Exa and Gemini results, competitors and market data are dynamically plotted on a 2D axis using WebGL. Founders can visually drag their idea node to pivot, instantly triggering delta-updates via SSE.
+
+### Edge-Native OLAP Telemetry & Stream Processing
+
+- **Domain:** Architecture
+- **Strategic Value:** Eliminates future transactional database bottlenecks, such as hot spotting on popular competitor rows, and drastically reduces infrastructure costs while enabling real-time global market trend analytics.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/specs/jit-flywheel-data-moat/spec.md`
+
+Transition the WriteBatch Collision Engine to an edge-native stream processing pipeline feeding a real-time OLAP database. This decouples the JIT flywheel from transactional database limits, enabling sub-millisecond aggregations on demand_score and AI pivot telemetry at massive global scale.
+
+### Autonomous Adversarial-to-Pivot Innovation Engine
+
+- **Domain:** Product
+- **Strategic Value:** Re-engages drop-offs by turning UX friction into serendipitous discovery moments, leveraging 2026 conversational AI paradigms to retain highly eccentric founders while capturing extreme edge-case market signals.
+- **Status:** Unverified
+- **Source:** `openspec/changes/jit-flywheel-data-moat/specs/jit-flywheel-data-moat/spec.md`
+
+Instead of merely rejecting adversarial or incoherent inputs at the Semantic Gatekeeper, use a secondary LLM pipeline to reverse-engineer chaotic input into tangential, highly creative product pivots, logging this in a specialized wildcard demand matrix.
