@@ -91,4 +91,22 @@ describe("ZeroFrictionEntry (JIT Flywheel)", () => {
       }),
     );
   });
+
+  it("shows error alert on API failure", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(fetchUtils, "fetchWithAppCheck").mockRejectedValue(
+      new Error("Network Error"),
+    );
+
+    render(<ZeroFrictionEntry onComplete={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText(/e\.g\. AI for contract review/);
+    await user.type(input, "Failing idea");
+
+    await user.click(
+      screen.getByRole("button", { name: /Analyze Market Gravity/i }),
+    );
+
+    expect(await screen.findByText("Network Error")).toBeInTheDocument();
+  });
 });
