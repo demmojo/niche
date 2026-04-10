@@ -34,27 +34,28 @@ export class TerminalPresenter {
     console.error(message);
   }
 
-  public success<T>(data: T, humanMessage?: string): void {
+  public async success<T>(data: T, humanMessage?: string): Promise<void> {
     if (this.isJson) {
       const response: CliSuccessResponse<T> = {
         status: "success",
         data,
       };
-      process.stdout.write(JSON.stringify(response) + "\n");
+      await this.safeExit(0, JSON.stringify(response) + "\n");
     } else {
       if (humanMessage) {
         console.log(`✅ ${humanMessage}`);
       } else {
         console.log(data);
       }
+      await this.safeExit(0);
     }
   }
 
-  public fail(
+  public async fail(
     error: Error | string,
     code: string = "general_error",
     suggestedCommand?: string,
-  ): void {
+  ): Promise<void> {
     const message = error instanceof Error ? error.message : error;
     if (this.isJson) {
       const response: CliErrorResponse = {
@@ -63,13 +64,34 @@ export class TerminalPresenter {
         message,
         ...(suggestedCommand ? { suggestedCommand } : {}),
       };
-      process.stdout.write(JSON.stringify(response) + "\n");
+      await this.safeExit(1, JSON.stringify(response) + "\n");
     } else {
       console.error(`❌ Error: ${message}`);
       if (suggestedCommand) {
         console.error(`\nRun: ${suggestedCommand}`);
       }
+      await this.safeExit(1);
     }
+  }
+
+  public async safeExit(code: number, jsonStdout?: string): Promise<void> {
+    return new Promise((resolve) => {
+      let pending = 2;
+      const maybeExit = () => {
+        pending--;
+        if (pending === 0) {
+          process.exit(code);
+        }
+      };
+
+      if (jsonStdout && this.isJson) {
+        process.stdout.write(jsonStdout, maybeExit);
+      } else {
+        process.stdout.write("", maybeExit);
+      }
+
+      process.stderr.write("", maybeExit);
+    });
   }
 }
 

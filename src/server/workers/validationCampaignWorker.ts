@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 import { GoogleGenAI } from "@google/genai";
 import { mlConfigCache } from "../mlConfigCache";
@@ -34,7 +35,7 @@ export async function runDeepValidationCampaign(
   if (!key) throw new Error("GEMINI_API_KEY is missing");
   const ai = new GoogleGenAI({ apiKey: key });
   if (!ai.models)
-    console.error(
+    logger.error(
       "ai.models IS UNDEFINED! ai:",
       ai,
       "GoogleGenAI:",
@@ -101,12 +102,12 @@ Ensure importance and satisfaction are between 0 and 10, and wedge_metric is bet
         try {
           extractedData = JSON.parse(llmRes.text || "{}");
         } catch (e) {
-          console.error("Failed to parse LLM Extraction JSON:", e);
+          logger.error("Failed to parse LLM Extraction JSON:", e);
           throw new Error("Invalid JSON from LLM");
         }
 
         // Zod validation boundary
-        console.log("LLMExtractionSchema:", LLMExtractionSchema);
+        logger.info("LLMExtractionSchema:", LLMExtractionSchema);
         const parsedExtraction = LLMExtractionSchema.safeParse(extractedData);
         if (!parsedExtraction.success) {
           throw new Error("LLM Extraction failed Zod validation");
@@ -139,7 +140,7 @@ Ensure importance and satisfaction are between 0 and 10, and wedge_metric is bet
           },
         };
       } catch (error: any) {
-        console.log("TC_ERROR:", error.message);
+        logger.info("TC_ERROR:", error.message);
         return { status: "error" as const, domain: comp.domain, error };
       }
     },

@@ -23,11 +23,14 @@ export const setCustomApiKey = async (service: ApiService, key: string) => {
 
     // Call the backend to set the HttpOnly cookie
     try {
-      await fetch("/api/settings/byok", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: service, apiKey: key }),
-      });
+      await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/settings/byok",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: service, apiKey: key }),
+        },
+      );
     } catch (e) {
       console.error(`Failed to set BYOK cookie for ${service}`, e);
     }

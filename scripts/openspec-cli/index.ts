@@ -19,6 +19,8 @@ import { CliOptionsSchema } from "./schema.js";
 
 import { proposePlan } from "./propose.js";
 import { startFeature } from "./start.js";
+import { applyStaged, statusStaged } from "./stage.js";
+import { archiveFeature } from "./archive.js";
 
 const program = new Command();
 
@@ -34,10 +36,19 @@ program
     false,
   )
   .option("--json", "Emit pure JSON output on stdout", false)
-  .option("--force", "Overwrite existing resources safely", false)
+  .option(
+    "--force",
+    "Overwrite existing resources safely (bypasses staging)",
+    false,
+  )
   .option(
     "--dry-run",
     "Preview scaffolding or file writes without modifying filesystem",
+    false,
+  )
+  .option(
+    "--stage",
+    "Compute intent and generate a token without modifying the actual filesystem",
     false,
   )
   .showHelpAfterError("(Run with --help for examples)");
@@ -123,9 +134,10 @@ Examples:
     const specs = getAllSpecs();
     const isValid = checkCycles(specs, presenter);
     if (!isValid) {
-      process.exit(1);
+      await presenter.safeExit(1);
+      return;
     }
-    presenter.success(
+    await presenter.success(
       { message: `Validated ${specs.length} specs successfully.` },
       `Validated ${specs.length} specs successfully.`,
     );
@@ -176,7 +188,7 @@ Examples:
       opts.nonInteractive || isHeadless(),
       opts.json,
     );
-    presenter.success({ context }, context);
+    await presenter.success({ context }, context);
   });
 
 program
@@ -227,9 +239,13 @@ Examples:
       presenter,
     );
     if (!isReady) {
-      process.exit(1);
+      await presenter.safeExit(1);
+      return;
     }
-    presenter.success({ ready: true }, `Feature ${featureName} is ready.`);
+    await presenter.success(
+      { ready: true },
+      `Feature ${featureName} is ready.`,
+    );
   });
 
 program
@@ -278,8 +294,42 @@ Examples:
       opts,
     );
     if (!passed) {
-      process.exit(1);
+      const { TerminalPresenter, isHeadless } = await import("./presenter.js");
+      const presenter = new TerminalPresenter(
+        opts.nonInteractive || isHeadless(),
+        opts.json,
+      );
+      await presenter.safeExit(1);
     }
+  });
+
+program
+  .command("apply")
+  .requiredOption("--token <token>", "The commit token to apply")
+  .description("Apply a staged OpenSpec intent")
+  .action(async (options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await applyStaged(opts);
+  });
+
+program
+  .command("status")
+  .description("List pending staged OpenSpec intents")
+  .action(async (options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await statusStaged(opts);
+  });
+
+program
+  .command("archive")
+  .argument("<feature-name>", "The exact folder name of the feature to archive")
+  .description("Archive a completed OpenSpec feature")
+  .action(async (featureName, options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await archiveFeature(featureName, opts);
   });
 
 program.parse();

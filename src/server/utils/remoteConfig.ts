@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 
 let cachedModel: string | null = null;
@@ -27,7 +28,7 @@ export async function getResolvedModel(
     lastFetch = now;
     return cachedModel;
   } catch (error) {
-    console.error("Failed to fetch Remote Config template:", error);
+    logger.error("Failed to fetch Remote Config template:", error);
     if (!cachedModel) {
       cachedModel = fallback;
     }

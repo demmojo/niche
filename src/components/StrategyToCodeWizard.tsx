@@ -99,15 +99,19 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
     setIsValidating(true);
     setValidationResult(null);
     try {
-      const response = await fetch("/api/reviewArtifact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: codeToReview,
-          constraints: generatedPrompt,
-          brandTone: brandIdentity?.selected_identity?.positioning?.tone || "",
-        }),
-      });
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/reviewArtifact",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: codeToReview,
+            constraints: generatedPrompt,
+            brandTone:
+              brandIdentity?.selected_identity?.positioning?.tone || "",
+          }),
+        },
+      );
       const result = await response.json();
       setValidationResult(result);
 

@@ -64,15 +64,18 @@ export function URLTeaserScreen({
   const streamTeaser = useCallback(
     async (abortController: AbortController) => {
       try {
-        const response = await fetchWithAppCheck("/api/scoring/url-teaser", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "text/event-stream",
+        const response = await fetchWithAppCheck(
+          (import.meta.env.VITE_API_BASE_URL || "") + "/api/scoring/url-teaser",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify({ url }),
+            signal: abortController.signal,
           },
-          body: JSON.stringify({ url }),
-          signal: abortController.signal,
-        });
+        );
 
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));

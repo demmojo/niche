@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { logger } from "../../server/logger";
 import admin from "firebase-admin";
 
 vi.mock("firebase-admin", () => {
@@ -46,7 +47,7 @@ describe("sse", () => {
 
     it("should handle errors gracefully", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
       const collectionMock = admin.firestore().collection("sse_events");
       (collectionMock.add as any).mockRejectedValueOnce(

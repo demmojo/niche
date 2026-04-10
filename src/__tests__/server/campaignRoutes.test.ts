@@ -214,6 +214,7 @@ import {
 import { runDeepValidationCampaign } from "../../server/workers/validationCampaignWorker";
 import admin from "firebase-admin";
 import * as credits from "../../server/credits";
+import { logger } from "../../server/logger";
 
 // Set up an ephemeral Express app for testing
 const app = express();
@@ -409,7 +410,7 @@ describe("campaignRoutes", () => {
       vi.mocked(enqueueTask).mockRejectedValueOnce(new Error("Queue Error"));
 
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
 
       const response = await request(app)
@@ -1794,7 +1795,7 @@ describe("campaignRoutes", () => {
       ).FieldValue;
 
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
 
       await expect(
@@ -1881,7 +1882,7 @@ describe("campaignRoutes", () => {
       delete process.env.GEMINI_API_KEY;
 
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
 
       const response1 = await request(app)
@@ -1914,7 +1915,7 @@ describe("campaignRoutes", () => {
       }));
 
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
 
       await expect(

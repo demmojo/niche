@@ -52,20 +52,24 @@ export function ValidationArena({
   ) => {
     setState({ type: "forking", parentId });
     try {
-      const response = await fetch("/api/campaign/fork-product", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await user?.getIdToken()}`,
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") +
+          "/api/campaign/fork-product",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${await user?.getIdToken()}`,
+          },
+          body: JSON.stringify({
+            parentId,
+            name,
+            forkReason: reason,
+            targetAudience,
+            jobToBeDone,
+          } as ForkProductInput),
         },
-        body: JSON.stringify({
-          parentId,
-          name,
-          forkReason: reason,
-          targetAudience,
-          jobToBeDone,
-        } as ForkProductInput),
-      });
+      );
 
       if (!response.ok) {
         const err = await response.json();
@@ -84,14 +88,17 @@ export function ValidationArena({
   const handleDoubleDown = async (productId: string) => {
     setState({ type: "doubling_down", productId });
     try {
-      const response = await fetch("/api/campaign/double-down", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await user?.getIdToken()}`,
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/campaign/double-down",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${await user?.getIdToken()}`,
+          },
+          body: JSON.stringify({ productId }),
         },
-        body: JSON.stringify({ productId }),
-      });
+      );
 
       if (!response.ok) {
         const err = await response.json();

@@ -143,14 +143,17 @@ export const MyProduct: React.FC<MyProductProps> = ({
   const analyzeTarpit = async (name: string, description: string) => {
     setIsAnalyzingTarpit(true);
     try {
-      const response = await fetch("/api/tarpit-analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName: name,
-          productDescription: description,
-        }),
-      });
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/tarpit-analyze",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productName: name,
+            productDescription: description,
+          }),
+        },
+      );
       const result = await response.json();
       if (result.isTarpit) {
         setTarpitWarning(result);

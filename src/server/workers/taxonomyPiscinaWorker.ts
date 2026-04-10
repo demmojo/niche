@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 
 if (!admin.apps?.length) {
@@ -31,7 +32,7 @@ export async function processTaxonomyOutboxJobs() {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (e: any) {
-      console.error("Taxonomy pool error:", e);
+      logger.error("Taxonomy pool error:", e);
       await doc.ref.update({ status: "failed", error: e.message });
     }
   }

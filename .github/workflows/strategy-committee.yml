@@ -1,0 +1,43 @@
+name: Strategy Committee Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'openspec/archive/**/*.md'
+
+concurrency:
+  group: strategy-committee-queue
+  cancel-in-progress: false
+
+jobs:
+  run-committee:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Strategy Committee Pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: npx tsx scripts/strategy-committee.ts --non-interactive --json

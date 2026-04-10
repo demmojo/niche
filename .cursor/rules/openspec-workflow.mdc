@@ -19,12 +19,21 @@ This project relies on `openspec/changes/` directories containing `proposal.md`,
 7. **Extract:** Continual learning (`@extract-lessons`).
 8. **Archive / Supersede:** State resolution (Agent skill `@archive-openspec` using `git mv`).
 
+## Dual-Mode Execution Architecture
+The OpenSpec CLI uses a token-gated Dual-Mode architecture to ensure human oversight. 
+- **Agent Mode (Staging):** Agents **MUST** use the `--stage` flag for mutative commands (`start`, `propose`, `archive`). 
+  1. The agent runs `npm run openspec <cmd> --stage --non-interactive --json`.
+  2. The agent parses the `commit_token` and the `vscode://vscode.diff/...` URIs from `stdout` and pauses, presenting the clickable IDE Diff URIs to the user and saying: *"Please review the changes via the links above. Reply 'approve' to execute."*
+  3. Only when the human says "approve" does the agent run `npm run openspec apply --token=<token>`.
+  4. If the agent loses context or forgets the token, it MUST run `npm run openspec status --json` to recover pending tokens.
+- **CI/CD Mode:** Headless automated pipelines retain the ability to bypass staging via the `--force` flag. Agents must NOT use `--force` (or perform implicit auto-fixes) without prior chat approval from the developer.
+
 ## AI Agent CLI Constraints
 When invoking the OpenSpec CLI:
 - **MUST** use `--non-interactive` to prevent terminal hangs.
 - **MUST** use `--json` to parse output programmatically (do not rely on plain text logs).
-- **MUST** use `--dry-run` to preview destructive scaffolding or archival commands before executing.
-- **MUST** use `--force` to bypass interactive prompts during the `start --auto-fix` Halt & Update loop.
+- **MUST** use `--stage` to preview scaffolding, fixes, or archival commands securely.
+- **FORBIDDEN** from using `--force` or implicit auto-fixes unless explicitly authorized by the developer, or if running inside a headless CI/CD pipeline context.
 
 ## CI/CD Boundary Constraints
 - **Dense Specs:** While AI conversational tone should be concise, generated files (`design.md`, `spec.md`, `proposal.md`) **MUST** remain architecturally dense with explicit trade-offs. `ai-eval` will fail terse or overly simplified spec files.
@@ -41,5 +50,5 @@ When invoking the OpenSpec CLI:
 - **Superseding Specs:** If a spec completely replaces or deprecates an older one:
    - Update the old spec's `.openspec.yaml` to include `status: superseded` and `superseded_by: [new-spec]`.
    - Add `> **NOTICE:** This spec has been **superseded** by [new-spec].` to the top of its `proposal.md` or plan file.
-- **Apply (Halt and Update Protocol):** If you encounter a technical constraint or architectural shift requiring a deviation from `design.md` or `spec.md`, you **MUST HALT** coding. Update `design.md` or `spec.md` directly to reflect the new reality, present the diff, and run `npm run openspec start <feature> --auto-fix --force --non-interactive` to re-validate the DAG hash. **NEVER use generic planning tools (like `ce-plan`) to create new iteration files in `.cursor/plans/`.** This causes a "split-brain" state invisible to the OpenSpec CLI.
+- **Apply (Halt and Update Protocol):** If you encounter a technical constraint or architectural shift requiring a deviation from `design.md` or `spec.md`, you **MUST HALT** coding. Update `design.md` or `spec.md` directly to reflect the new reality, present the diff, and run `npm run openspec start <feature> --auto-fix --stage --non-interactive` to re-validate the DAG hash. Then wait for human approval before running `apply --token`. **NEVER use generic planning tools (like `ce-plan`) to create new iteration files in `.cursor/plans/`.** This causes a "split-brain" state invisible to the OpenSpec CLI.
 - **Extract & Archive:** Archiving is blocked unless `learnings_extracted` is `true` in `.openspec.yaml`. Use the `@extract-lessons` skill to update `AGENTS.md` before attempting archival.

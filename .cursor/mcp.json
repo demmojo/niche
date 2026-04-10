@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "openspec-mcp": {
+      "command": "npx",
+      "args": ["tsx", "scripts/openspec-mcp.ts"]
+    }
+  }
+}

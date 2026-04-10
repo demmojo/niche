@@ -42,11 +42,14 @@ export function SuperadminAnalytics({
     const fetchUsers = async () => {
       try {
         const idToken = await auth.currentUser?.getIdToken();
-        const res = await fetch("/api/superadmin/users", {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
+        const res = await fetch(
+          (import.meta.env.VITE_API_BASE_URL || "") + "/api/superadmin/users",
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
           },
-        });
+        );
         if (!res.ok) throw new Error("Failed to fetch superadmin users");
         const data = await res.json();
         setUsers(data.users || []);
@@ -72,16 +75,19 @@ export function SuperadminAnalytics({
 
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const response = await fetch("/api/v1/summary", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/v1/summary",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            context: "Looking for feature-bloat indicators.",
+          }),
         },
-        body: JSON.stringify({
-          context: "Looking for feature-bloat indicators.",
-        }),
-      });
+      );
 
       if (!response.ok) throw new Error("Failed to fetch summary");
 
@@ -103,14 +109,18 @@ export function SuperadminAnalytics({
   const handleImpersonate = async (targetUid: string) => {
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const res = await fetch("/api/superadmin/impersonate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") +
+          "/api/superadmin/impersonate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ targetUid }),
         },
-        body: JSON.stringify({ targetUid }),
-      });
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to impersonate");

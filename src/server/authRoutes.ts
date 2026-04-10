@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Router, Request, Response } from "express";
 import { requireAppCheck } from "./authMiddleware";
 import admin from "firebase-admin";
@@ -135,18 +136,18 @@ authRouter.post(
           try {
             await admin.auth().deleteUser(oldUid);
           } catch (delErr) {
-            console.error(
+            logger.error(
               `Failed to delete anon user ${oldUid} after successful merge:`,
               delErr,
             );
             // We do not fail the request because the data is already merged safely.
           }
         } catch (backgroundError) {
-          console.error("Background Merge Error:", backgroundError);
+          logger.error("Background Merge Error:", backgroundError);
         }
       });
     } catch (error: any) {
-      console.error("Data Merge Error:", error);
+      logger.error("Data Merge Error:", error);
       if (!res.headersSent) {
         return res.status(500).json({ error: error.message });
       }

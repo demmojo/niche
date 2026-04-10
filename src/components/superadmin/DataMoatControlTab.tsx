@@ -87,14 +87,18 @@ export function DataMoatControlTab() {
     setError(null);
     try {
       const token = await user.getIdToken();
-      const response = await fetch("/api/superadmin/pipeline/toggle-pause", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") +
+          "/api/superadmin/pipeline/toggle-pause",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ is_paused: !isPaused }),
         },
-        body: JSON.stringify({ is_paused: !isPaused }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to toggle pipeline state");

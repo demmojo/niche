@@ -1,7 +1,12 @@
+import { logger } from "./logger";
 import admin from "firebase-admin";
 import { Request, Response, NextFunction } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import { OAuth2Client } from "google-auth-library";
+
+// Reuse a single client instance to cache Google's public keys efficiently
+const oAuth2Client = new OAuth2Client();
 
 // Initialize Firebase Admin
 if (!admin.apps?.length) {
@@ -34,7 +39,7 @@ if (!admin.apps?.length) {
       admin.initializeApp(projectId ? { projectId } : undefined);
     }
   } catch (e) {
-    console.warn("Firebase Admin Initialization Warning:", e);
+    logger.warn("Firebase Admin Initialization Warning:", e);
   }
 }
 
@@ -79,7 +84,7 @@ export const requireAuth = async (
     req.user = decodedToken;
     next();
   } catch (error: any) {
-    console.error("Firebase Auth Error:", error.code || error.message);
+    logger.error("Firebase Auth Error:", error.code || error.message);
 
     // Robust Error Handling based on specific Admin SDK error codes
     if (error.code === "auth/id-token-revoked") {
@@ -132,10 +137,81 @@ export const requireAppCheck = async (
     await admin.appCheck().verifyToken(appCheckToken);
     return next();
   } catch (err: any) {
-    console.error("App Check failed:", err);
+    logger.error("App Check failed:", err);
     return res.status(401).json({
       error: "Unauthorized",
       message: "Invalid App Check token.",
+    });
+  }
+};
+
+export const requireCloudTaskOIDC = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENFORCE_OIDC !== "true"
+  ) {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Missing or invalid Authorization header.",
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    // Verify token signature, expiry, issuer, and audience
+    const ticket = await oAuth2Client.verifyIdToken({
+      idToken: token,
+      audience: process.env.CLOUD_RUN_WORKER_AUDIENCE,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Invalid token payload.",
+      });
+    }
+
+    // Verify the Exact Service Account
+    const expectedEmail = process.env.CLOUD_TASKS_INVOKER_SA_EMAIL;
+    if (expectedEmail && payload.email !== expectedEmail) {
+      logger.warn(
+        `[Security] Unauthorized Cloud Tasks attempt. Expected ${expectedEmail}, got ${payload.email}`,
+      );
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Unauthorized service account.",
+      });
+    }
+
+    // Verify the email identity is asserted by Google
+    if (!payload.email_verified) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Service account email not verified.",
+      });
+    }
+
+    // Attach the verified payload
+    (req as any).cloudTasksPayload = payload;
+
+    next();
+  } catch (error) {
+    logger.error("[Security] OIDC token verification failed:", error);
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid or expired OIDC token.",
     });
   }
 };

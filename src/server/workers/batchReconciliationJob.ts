@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { GoogleGenAI } from "@google/genai";
 import { Storage } from "@google-cloud/storage";
 import { ZodError } from "zod";
@@ -82,7 +83,7 @@ ${currentRawOutput}
           });
           currentRawOutput = geminiRes.text || "{}";
         } catch (llmError) {
-          console.error("Self-correction LLM call failed", llmError);
+          logger.error("Self-correction LLM call failed", llmError);
           break; // Stop retrying if LLM call itself fails
         }
       }
@@ -106,7 +107,7 @@ ${currentRawOutput}
           contentType: "application/jsonl",
         },
       );
-      console.log(`Merged successes to ${successesKey}`);
+      logger.info(`Merged successes to ${successesKey}`);
     }
 
     if (dlq.length > 0) {
@@ -115,7 +116,7 @@ ${currentRawOutput}
       await file.save(dlq.map((e) => JSON.stringify(e)).join("\n"), {
         contentType: "application/jsonl",
       });
-      console.log(`Routed failures to DLQ at ${dlqKey}`);
+      logger.info(`Routed failures to DLQ at ${dlqKey}`);
     }
   }
 

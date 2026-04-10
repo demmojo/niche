@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { GoogleGenAI } from "@google/genai";
 import { BigQuery } from "@google-cloud/bigquery";
 
@@ -6,7 +7,7 @@ export async function processAuditWorker(batchExtractions: any[]) {
 
   const bq = new BigQuery();
 
-  console.log("Running BigQuery statistical anomaly detection...");
+  logger.info("Running BigQuery statistical anomaly detection...");
   // Identify anomalies using z-score on recent extractions
   const anomalyQuery = `
     WITH stats AS (
@@ -25,7 +26,7 @@ export async function processAuditWorker(batchExtractions: any[]) {
 
   try {
     const [anomalies] = await bq.query({ query: anomalyQuery });
-    console.log(
+    logger.info(
       `Detected ${anomalies.length} statistical anomalies in BigQuery.`,
     );
 
@@ -37,7 +38,7 @@ export async function processAuditWorker(batchExtractions: any[]) {
       }
     }
   } catch (error) {
-    console.error("BigQuery anomaly detection failed:", error);
+    logger.error("BigQuery anomaly detection failed:", error);
   }
 
   // Stratified Sampling
@@ -119,7 +120,7 @@ Provide a boolean 'passedAudit' and a 'penaltyScore' (0 to 100).
 
       if (!passed || penalty > 50) {
         // Quarantine logic
-        console.warn(
+        logger.warn(
           `Audit failed for record ${record.name || record.domain}. Penalty: ${auditResult.penaltyScore}`,
         );
         record.quarantined = true;
@@ -127,13 +128,13 @@ Provide a boolean 'passedAudit' and a 'penaltyScore' (0 to 100).
         try {
           const query = `UPDATE \`${PROJECT_ID}.saas_oracle.global_market_facts\` SET is_active = FALSE WHERE domain = @domain`;
           await bq.query({ query, params: { domain: record.domain } });
-          console.log(`Quarantined ${record.domain} in BigQuery.`);
+          logger.info(`Quarantined ${record.domain} in BigQuery.`);
         } catch (dbErr) {
-          console.error(`Failed to quarantine ${record.domain} in BQ:`, dbErr);
+          logger.error(`Failed to quarantine ${record.domain} in BQ:`, dbErr);
         }
       }
     } catch (e) {
-      console.error("Audit LLM evaluation failed", e);
+      logger.error("Audit LLM evaluation failed", e);
     }
   }
 

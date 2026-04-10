@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { BigQuery } from "@google-cloud/bigquery";
 import admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -29,7 +30,7 @@ export async function processVectorSync() {
   const [activeRecords] = await bq.query({ query });
 
   // Upsert to Firestore Vector Search
-  console.log(`Syncing ${activeRecords.length} active records to Vector DB...`);
+  logger.info(`Syncing ${activeRecords.length} active records to Vector DB...`);
 
   const db = admin.firestore();
 
@@ -81,7 +82,7 @@ export async function processVectorSync() {
   const [deletedRecords] = await bq.query({ query: deletedQuery });
 
   if (deletedRecords.length > 0) {
-    console.log(`Tombstoning ${deletedRecords.length} ghost companies...`);
+    logger.info(`Tombstoning ${deletedRecords.length} ghost companies...`);
 
     for (let i = 0; i < deletedRecords.length; i += chunkSize) {
       const chunk = deletedRecords.slice(i, i + chunkSize);

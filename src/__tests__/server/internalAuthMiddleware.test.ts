@@ -85,7 +85,10 @@ describe("internalAuthMiddleware", () => {
     req.headers = { authorization: "Bearer VALID_OIDC_TOKEN" };
 
     mockVerifyIdToken.mockResolvedValue({
-      getPayload: () => ({ email: "valid-sa@project.iam.gserviceaccount.com" }),
+      getPayload: () => ({
+        email: "valid-sa@project.iam.gserviceaccount.com",
+        email_verified: true,
+      }),
     });
 
     await requireInternalOidc(req as Request, res as Response, next);
@@ -96,6 +99,29 @@ describe("internalAuthMiddleware", () => {
     });
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("should reject request if email is not verified", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.CLOUD_RUN_URL = "https://my-service.run.app";
+    process.env.CLOUD_RUN_SA_EMAIL = "valid-sa@project.iam.gserviceaccount.com";
+
+    req.headers = { authorization: "Bearer VALID_OIDC_TOKEN" };
+
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: "valid-sa@project.iam.gserviceaccount.com",
+        email_verified: false,
+      }),
+    });
+
+    await requireInternalOidc(req as Request, res as Response, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Forbidden",
+      message: "Service account email not verified",
+    });
   });
 
   it("should verify token with fallback audience if CLOUD_RUN_URL is not set", async () => {

@@ -100,17 +100,20 @@ export const StrategyToCodeWizard: React.FC<StrategyToCodeWizardProps> = ({
         reader.readAsDataURL(compressedBlob);
       });
 
-      const res = await fetch("/api/brand-review/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          code: compressedBase64,
-          isCompressed: true,
-          baseVersionId: brandIdentity.id,
-          brandTone: brandIdentity.tone,
-        }),
-      });
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/brand-review/start",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            code: compressedBase64,
+            isCompressed: true,
+            baseVersionId: brandIdentity.id,
+            brandTone: brandIdentity.tone,
+          }),
+        },
+      );
 
       if (!res.ok) throw new Error("Failed to start review job");
       const data = await res.json();

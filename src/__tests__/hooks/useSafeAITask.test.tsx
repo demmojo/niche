@@ -17,10 +17,13 @@ function DummyAIComponent({ options }: { options?: any }) {
    */
   const handleAnalyze = () => {
     executeTask(async (signal) => {
-      const res = await fetch("/api/campaign/start", {
-        method: "POST",
-        signal, // AbortSignal passed to fetch
-      });
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/campaign/start",
+        {
+          method: "POST",
+          signal, // AbortSignal passed to fetch
+        },
+      );
       if (!res.ok) {
         if (res.status === 429) {
           throw new Error("Quota Exceeded");

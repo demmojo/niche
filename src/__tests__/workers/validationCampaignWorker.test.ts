@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { runDeepValidationCampaign } from "../../server/workers/validationCampaignWorker";
+import { logger } from "../../server/logger";
 import { mlConfigCache } from "../../server/mlConfigCache";
 import {
   calculateTarpitScore,
@@ -247,7 +248,9 @@ describe("runDeepValidationCampaign", () => {
 
   it("handles invalid JSON from LLM", async () => {
     mockGenerateContent.mockResolvedValueOnce({ text: "not json {" });
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const loggerErrorSpy = vi
+      .spyOn(logger, "error")
+      .mockImplementation(() => {});
 
     await runDeepValidationCampaign(
       "job-1",
@@ -256,11 +259,11 @@ describe("runDeepValidationCampaign", () => {
       "base-idea",
     );
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
       "Failed to parse LLM Extraction JSON:",
       expect.any(Error),
     );
-    consoleSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
   });
 
   it("handles Zod validation failure", async () => {

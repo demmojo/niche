@@ -13,7 +13,7 @@ import { clearEvalState } from "./db.js";
 import { CliOptions } from "./schema.js";
 import { TerminalPresenter, isHeadless } from "./presenter.js";
 import { FsIntent, FsExecutor } from "./fs-intents.js";
-import { FsExecutor as BaseFsExecutor } from "./fs-intents.js";
+import { stageIntents, cleanupOldStaged } from "./stage.js";
 
 dotenv.config({ quiet: true });
 
@@ -58,23 +58,23 @@ export async function proposePlan(planPath: string, options: CliOptions) {
   if (planPath === "-" || options.stdin) {
     try {
       if (process.stdin.isTTY) {
-        presenter.fail(
+        await presenter.fail(
           "Cannot read from stdin in interactive mode. Pipe a file.",
           "missing_stdin",
         );
-        process.exit(1);
+        return;
       }
       planContent = fs.readFileSync(0, "utf-8");
     } catch (e) {
-      presenter.fail(
+      await presenter.fail(
         "Failed to read from stdin. Ensure data is being piped correctly.",
         "stdin_error",
       );
-      process.exit(1);
+      return;
     }
     if (!planContent) {
-      presenter.fail("No data received on stdin.", "empty_stdin");
-      process.exit(1);
+      await presenter.fail("No data received on stdin.", "empty_stdin");
+      return;
     }
   } else {
     if (planPath.includes("docs/plans/")) {
@@ -85,19 +85,19 @@ export async function proposePlan(planPath: string, options: CliOptions) {
     }
 
     if (!fs.existsSync(planPath)) {
-      presenter.fail(
+      await presenter.fail(
         `Plan file not found at ${planPath}`,
         "missing_file",
         `openspec propose openspec/plans/<valid-plan>.md`,
       );
-      process.exit(1);
+      return;
     }
     planContent = fs.readFileSync(planPath, "utf-8");
   }
 
   if (!process.env.GEMINI_API_KEY) {
-    presenter.fail("GEMINI_API_KEY is not set.", "missing_env");
-    process.exit(1);
+    await presenter.fail("GEMINI_API_KEY is not set.", "missing_env");
+    return;
   }
 
   const ai = new GoogleGenAI({});
@@ -129,11 +129,11 @@ Output requirements:
   // Security: strict regex validation to prevent path traversal
   featureName = featureName.replace(/[^a-z0-9-]/g, "");
   if (!/^[a-z0-9-]+$/.test(featureName)) {
-    presenter.fail(
+    await presenter.fail(
       "Invalid featureName generated. Must be kebab-case.",
       "invalid_feature_name",
     );
-    process.exit(1);
+    return;
   }
 
   if (options.clearState) {
@@ -150,19 +150,19 @@ Output requirements:
   if (fs.existsSync(finalTargetDir)) {
     if (!options.force) {
       if (options.nonInteractive || isHeadless()) {
-        presenter.fail(
+        await presenter.fail(
           `Feature directory already exists at ${finalTargetDir}. Use --force to overwrite.`,
           "directory_exists",
           `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
         );
-        process.exit(1);
+        return;
       } else {
         const proceed = await promptUserConfirm(
           `⚠️ WARNING: The feature directory '${finalTargetDir}' already exists.\nAre you sure you want to completely overwrite it?`,
         );
         if (!proceed) {
-          presenter.fail("Aborted by user.", "aborted");
-          process.exit(1);
+          await presenter.fail("Aborted by user.", "aborted");
+          return;
         }
       }
     } else {
@@ -178,19 +178,19 @@ Output requirements:
   if (fs.existsSync(tmpDir)) {
     if (!options.force) {
       if (options.nonInteractive || isHeadless()) {
-        presenter.fail(
+        await presenter.fail(
           `Temporary staging directory ${tmpDir} already exists and may contain unsaved work. Use --force to wipe it.`,
           "tmp_dir_exists",
           `openspec propose ${planPath === "-" || options.stdin ? "-" : planPath} --force`,
         );
-        process.exit(1);
+        return;
       } else {
         const proceed = await promptUserConfirm(
           `⚠️ WARNING: The temporary staging directory '${tmpDir}' already exists.\nIt may contain unsaved work from a previous failed run or manual atomic staging.\nAre you sure you want to wipe it out and continue?`,
         );
         if (!proceed) {
-          presenter.fail("Aborted by user.", "aborted");
-          process.exit(1);
+          await presenter.fail("Aborted by user.", "aborted");
+          return;
         }
       }
     }
@@ -209,6 +209,9 @@ Output requirements:
   }
 
   // Accumulate intents for scaffold creation
+  // Cleanup old staged files
+  cleanupOldStaged(options);
+
   const intents: FsIntent[] = [
     { kind: "mkdir", absolutePath: tmpDir },
     { kind: "mkdir", absolutePath: specsTmpDir },
@@ -239,7 +242,7 @@ Output requirements:
     },
   ];
 
-  const executor = new BaseFsExecutor(options.dryRun, presenter);
+  const executor = new FsExecutor(options.dryRun, presenter);
   executor.execute(intents);
 
   if (options.dryRun) {
@@ -268,8 +271,8 @@ Output requirements:
     presenter.warn(
       `DAG validation failed (circular dependency detected). Temporary files left at ${tmpDir} for inspection.`,
     );
-    presenter.fail("DAG validation failed.", "dag_cycle");
-    process.exit(1);
+    await presenter.fail("DAG validation failed.", "dag_cycle");
+    return;
   }
 
   // Collision detection
@@ -282,7 +285,8 @@ Output requirements:
   );
   if (hasCollision === "abort") {
     presenter.warn(`Temporary files left at ${tmpDir} for inspection.`);
-    process.exit(1);
+    await presenter.safeExit(1);
+    return;
   }
 
   // ai-eval loop
@@ -290,11 +294,11 @@ Output requirements:
   const evalPassed = await runEvalForFeature(tmpDir, featureName, options);
 
   if (!evalPassed) {
-    presenter.fail(
+    await presenter.fail(
       `ai-eval failed or aborted. Temporary files left at ${tmpDir} for inspection.`,
       "eval_failed",
     );
-    process.exit(1);
+    return;
   }
 
   // All checks passed! Move atomic
@@ -321,17 +325,25 @@ Output requirements:
       finalizeIntents.push(
         { kind: "mkdir", absolutePath: archiveDir },
         {
-          kind: "createFile",
-          absolutePath: path.join(archiveDir, path.basename(planPath)),
-          content: planContent,
+          kind: "gitMove",
+          oldPath: path.resolve(planPath),
+          newPath: path.join(archiveDir, path.basename(planPath)),
         },
-        { kind: "deleteFile", absolutePath: planPath },
       );
     } else {
       presenter.warn(
         `Skipping archival of ${planPath} because it is not located in the openspec/plans directory.`,
       );
     }
+  }
+
+  if (options.stage && !options.force) {
+    const staged = stageIntents(finalizeIntents, options, presenter);
+    await presenter.success(
+      { staged: true, token: staged.token, diffUris: staged.diffUris },
+      `Changes staged.\nReview Diff URIs:\n${staged.diffUris.join("\n")}\nRun 'npm run openspec apply --token=${staged.token}' to commit.`,
+    );
+    return;
   }
 
   executor.execute(finalizeIntents);

@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
@@ -39,7 +40,7 @@ export const runTriModalPairwiseArena = async (
 
     const evalsQuery = await db.collection("gold_standard_evals").get();
     if (evalsQuery.empty) {
-      console.warn("[ArenaWorker] No gold standards available to test.");
+      logger.warn("[ArenaWorker] No gold standards available to test.");
       return;
     }
 
@@ -50,7 +51,7 @@ export const runTriModalPairwiseArena = async (
       .get();
 
     if (!champDoc.exists || !chalDoc.exists) {
-      console.warn("[ArenaWorker] Champion or Challenger configs not found.");
+      logger.warn("[ArenaWorker] Champion or Challenger configs not found.");
       return;
     }
 
@@ -81,7 +82,7 @@ export const runTriModalPairwiseArena = async (
         });
         champOutput = champRes.text || "{}";
       } catch (e) {
-        console.warn(`Champion failed generating on eval case ${i}`);
+        logger.warn(`Champion failed generating on eval case ${i}`);
       }
 
       // Generate Challenger Output
@@ -93,7 +94,7 @@ export const runTriModalPairwiseArena = async (
         });
         chalOutput = chalRes.text || "{}";
       } catch (e) {
-        console.warn(`Challenger failed generating on eval case ${i}`);
+        logger.warn(`Challenger failed generating on eval case ${i}`);
       }
 
       // Step 1: Simulate Deterministic Zod Execution
@@ -203,7 +204,7 @@ Which output is better? Reply with "A" or "B". Only answer with the letter.
         });
         judgeWinner = judgeRes.text?.trim() || "A";
       } catch (e) {
-        console.warn(`LLM Judge failed on eval case ${i}`);
+        logger.warn(`LLM Judge failed on eval case ${i}`);
       }
 
       chalWonJudge =
@@ -236,13 +237,13 @@ Which output is better? Reply with "A" or "B". Only answer with the letter.
     const champMean = championScores.reduce((a, b) => a + b, 0) / n;
     const pValue = isNaN(ttestResult.pValue) ? 1.0 : ttestResult.pValue;
 
-    console.log(
+    logger.info(
       `[ArenaWorker] Challenger Mean: ${chalMean.toFixed(2)}, Champion Mean: ${champMean.toFixed(2)}, p-value: ${pValue.toFixed(4)}`,
     );
 
     // Promotion Rules: Challenger mean must be better with 95% confidence
     if (chalMean > champMean && pValue < 0.05) {
-      console.log(
+      logger.info(
         `[ArenaWorker] Challenger mathematically proven! Initiating promotion.`,
       );
 
@@ -271,13 +272,13 @@ Which output is better? Reply with "A" or "B". Only answer with the letter.
         });
       });
 
-      console.log(`[ArenaWorker] Promotion transaction complete.`);
+      logger.info(`[ArenaWorker] Promotion transaction complete.`);
     } else {
-      console.log(
+      logger.info(
         `[ArenaWorker] Challenger rejected. Not statistically significant.`,
       );
     }
   } catch (error) {
-    console.error("[ArenaWorker] Error executing arena:", error);
+    logger.error("[ArenaWorker] Error executing arena:", error);
   }
 };

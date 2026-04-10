@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Response } from "express";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
@@ -385,13 +386,13 @@ Respond in JSON according to the schema. If the code ignores the brand tone or s
       // Validate with zod
       parsedResult = ArtifactSemanticSchema.parse(parsedResult);
     } catch (e) {
-      console.error("Failed to parse or validate reviewer output", text);
+      logger.error("Failed to parse or validate reviewer output", text);
       return res.status(500).json({ error: "Failed to validate artifact." });
     }
 
     return res.json(parsedResult);
   } catch (error: any) {
-    console.error("Review Artifact Error:", error);
+    logger.error("Review Artifact Error:", error);
     return res.status(error.status || 500).json({ error: error.message });
   }
 }

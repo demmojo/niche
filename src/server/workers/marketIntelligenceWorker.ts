@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import Exa from "exa-js";
 import { GoogleGenAI } from "@google/genai";
 import admin from "firebase-admin";
@@ -131,7 +132,7 @@ export const processMarketIntelligenceJob = async (jobData: any) => {
 
     return { success: true, resultId: inboxRef.id };
   } catch (error: any) {
-    console.error(`Job ${jobId} failed:`, error);
+    logger.error(`Job ${jobId} failed:`, error);
     await jobRef.update({
       status: "failed",
       error: error.message,

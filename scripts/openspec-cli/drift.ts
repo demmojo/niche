@@ -157,6 +157,7 @@ if (
 ) {
   runDriftHealing().catch((e) => {
     console.error("Fatal error in drift healer:", e);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   });
 }

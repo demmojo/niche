@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
 import crypto from "crypto";
@@ -111,7 +112,7 @@ export const saveByokKey = async (req: Request, res: Response) => {
         );
     }
   } catch (e) {
-    console.error("Failed to log telemetry for BYOK:", e);
+    logger.error("Failed to log telemetry for BYOK:", e);
   }
 
   res

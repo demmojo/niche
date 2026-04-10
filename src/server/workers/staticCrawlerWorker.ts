@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import * as crypto from "crypto";
 import { Storage } from "@google-cloud/storage";
 import { CloudTasksClient } from "@google-cloud/tasks";
@@ -89,22 +90,22 @@ export async function processStaticCrawl(data: {
                 },
               },
             });
-            console.log(
+            logger.info(
               `Dispatched ${url} to Firecrawl fallback queue due to ${e.message || e.name}.`,
             );
           } catch (taskErr) {
-            console.error(
+            logger.error(
               `Failed to dispatch Firecrawl task for ${url}`,
               taskErr,
             );
           }
         } else {
-          console.warn(
+          logger.warn(
             "Firecrawl fallback skipped: Missing GCP_PROJECT_ID, GCP_LOCATION, or FIRECRAWL_WORKER_URL.",
           );
         }
       } else {
-        console.error(`Failed to fetch ${url}`, e);
+        logger.error(`Failed to fetch ${url}`, e);
       }
     }
   }

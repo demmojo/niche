@@ -77,14 +77,17 @@ export const BrandWizardForm: React.FC<{
       ).firebaseAuth?.currentUser?.getIdToken();
       if (!token) throw new Error("User not authenticated.");
 
-      const response = await fetch("/api/brand-wizard/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/brand-wizard/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ projectId, urls: validUrls }),
         },
-        body: JSON.stringify({ projectId, urls: validUrls }),
-      });
+      );
 
       const data = await response.json();
 

@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 export type Provider = "openai" | "anthropic" | "gemini";
 export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
@@ -60,7 +62,7 @@ export class LLMPenaltyBox {
       if (state.failures >= this.threshold) {
         state.status = "OPEN";
         state.nextAttempt = Date.now() + this.penaltyMs;
-        console.warn(`🚨 [Circuit Breaker] ${provider} sent to Penalty Box!`);
+        logger.warn(`🚨 [Circuit Breaker] ${provider} sent to Penalty Box!`);
       }
       this.registry.set(provider, state);
     }

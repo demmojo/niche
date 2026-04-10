@@ -54,20 +54,22 @@ describe("normalizationAdapterJob", () => {
   it("should warn and return early if GEMINI_API_KEY missing", async () => {
     vi.stubEnv("LAKE_BUCKET_NAME", "test-bucket");
     vi.stubEnv("GEMINI_API_KEY", "");
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { logger } = await import("../../../src/server/logger");
+    const loggerSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
     const { processNormalizationAdapterJob } =
       await import("../../../src/server/workers/normalizationAdapterJob");
 
     const result = await processNormalizationAdapterJob(1, 100);
     expect(result).toBeUndefined();
-    expect(consoleSpy).toHaveBeenCalledWith("GEMINI_API_KEY missing");
-    consoleSpy.mockRestore();
+    expect(loggerSpy).toHaveBeenCalledWith("GEMINI_API_KEY missing");
+    loggerSpy.mockRestore();
   });
 
   it("should submit batch job", async () => {
     vi.stubEnv("LAKE_BUCKET_NAME", "test-bucket");
     vi.stubEnv("GEMINI_API_KEY", "test-key");
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { logger } = await import("../../../src/server/logger");
+    const loggerSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
     const { processNormalizationAdapterJob } =
       await import("../../../src/server/workers/normalizationAdapterJob");
 
@@ -92,6 +94,6 @@ describe("normalizationAdapterJob", () => {
       ],
     });
 
-    consoleLogSpy.mockRestore();
+    loggerSpy.mockRestore();
   });
 });

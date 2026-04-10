@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { Router, Request, Response, NextFunction } from "express";
 import { requireInternalOidc } from "../internalAuthMiddleware";
 import admin from "firebase-admin";
@@ -21,7 +22,7 @@ workerRouter.use(async (req: Request, res: Response, next: NextFunction) => {
     }
     next();
   } catch (error) {
-    console.error("Error checking pipeline state:", error);
+    logger.error("Error checking pipeline state:", error);
     next();
   }
 });
@@ -65,7 +66,7 @@ workerRouter.post(
 
       return res.status(200).json({ success: true });
     } catch (error: any) {
-      console.error("Validation Campaign worker failed:", error);
+      logger.error("Validation Campaign worker failed:", error);
       return res.status(500).json({ error: error.message });
     }
   },
@@ -144,7 +145,7 @@ workerRouter.post("/network-io", async (req: Request, res: Response) => {
 
     return res.status(200).json({ success: true, text: resultText });
   } catch (error: any) {
-    console.error("NetworkIO worker failed:", error);
+    logger.error("NetworkIO worker failed:", error);
     publishSseEvent(jobId, "failed", { error: error.message });
     return res.status(500).json({ error: error.message });
   }
@@ -227,7 +228,7 @@ workerRouter.post("/vision-ml", async (req: Request, res: Response) => {
       .status(200)
       .json({ success: true, features: realResponse.features || [] });
   } catch (error: any) {
-    console.error("Vision ML worker failed:", error);
+    logger.error("Vision ML worker failed:", error);
     publishSseEvent(jobId, "failed", { error: error.message });
     return res.status(500).json({ error: error.message });
   }
@@ -248,7 +249,7 @@ workerRouter.post("/static-crawl", async (req: Request, res: Response) => {
         .json({ error: "Bot wall detected, triggering backpressure", result });
     }
 
-    console.error("Static Crawler worker failed:", error);
+    logger.error("Static Crawler worker failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -264,7 +265,7 @@ workerRouter.post(
       await processMarketIntelligenceJob(req.body);
       return res.status(200).json({ success: true });
     } catch (error: any) {
-      console.error("Market Intelligence worker failed:", error);
+      logger.error("Market Intelligence worker failed:", error);
       return res.status(500).json({ error: error.message });
     }
   },
@@ -275,7 +276,7 @@ workerRouter.post("/brand-wizard", async (req: Request, res: Response) => {
     await processBrandWizardJob(req.body);
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    console.error("Brand Wizard worker failed:", error);
+    logger.error("Brand Wizard worker failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -287,7 +288,7 @@ workerRouter.post("/brand-review", async (req: Request, res: Response) => {
     await processBrandTokenReviewJob(req.body);
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    console.error("Brand Token Review worker failed:", error);
+    logger.error("Brand Token Review worker failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -362,7 +363,7 @@ workerRouter.post("/distillation", async (req: Request, res: Response) => {
       });
     }
   } catch (error: any) {
-    console.error("Distillation worker failed:", error);
+    logger.error("Distillation worker failed:", error);
     publishSseEvent(jobId, "failed", { error: error.message });
     return res.status(500).json({ error: error.message });
   }
@@ -377,7 +378,7 @@ workerRouter.post(
       const result = await processFlywheelCacheJitJob(req.body);
       return res.status(200).json(result);
     } catch (error: any) {
-      console.error("Flywheel Cache JIT worker failed:", error);
+      logger.error("Flywheel Cache JIT worker failed:", error);
       // Return 200 even on error for idempotent claim check, unless it's a transient failure?
       // According to Cloud Tasks rules, if we throw 500 it retries. So we return 500 for true failures.
       return res.status(500).json({ error: error.message });

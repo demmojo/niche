@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { BigQuery } from "@google-cloud/bigquery";
 import admin from "firebase-admin";
 
@@ -93,7 +94,7 @@ export async function processDataQualitySync() {
     .doc("data_quality")
     .set(payload, { merge: true });
 
-  console.log("Data quality metrics synced to Firestore successfully.", {
+  logger.info("Data quality metrics synced to Firestore successfully.", {
     activeCount,
     quarantineCount,
     dailyProcessed,

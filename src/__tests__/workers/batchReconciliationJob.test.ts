@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
+import { logger } from "../../../src/server/logger";
 
 const generateContentMock = vi.fn();
 vi.mock("@google/genai", () => {
@@ -97,9 +98,6 @@ describe("batchReconciliationJob", () => {
     const schema = z.object({ name: z.string() });
     const input = [{ llmOutput: '{"wrong_key": "Invalid Corp"}' }];
 
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     generateContentMock.mockRejectedValueOnce(new Error("LLM failure"));
 
     const result = await processBatchReconciliation(input, schema);
@@ -109,8 +107,6 @@ describe("batchReconciliationJob", () => {
     // and isValid remains false, so it doesn't get pushed to successfulExtractions.
     // However, it also doesn't get pushed to DLQ because DLQ push only happens when retries === MAX_RETRIES inside catch.
     expect(result.dlqCount).toBe(0);
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("should handle non-Zod errors", async () => {

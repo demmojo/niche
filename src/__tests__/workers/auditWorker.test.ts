@@ -88,9 +88,8 @@ describe("auditWorker", () => {
         text: '{"passedAudit": true, "penaltyScore": 0}',
       });
 
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const { logger } = await import("../../../src/server/logger");
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
     const { processAuditWorker } =
       await import("../../../src/server/workers/auditWorker");
 
@@ -104,11 +103,11 @@ describe("auditWorker", () => {
         (r) => r.domain === "good.com" && r.quarantined === undefined,
       ),
     ).toBe(true);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
       "Audit failed for record Bad Record. Penalty: 80",
     );
 
-    consoleWarnSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   it("should handle LLM throwing gracefully", async () => {
@@ -125,8 +124,9 @@ describe("auditWorker", () => {
     ];
 
     generateContentMock.mockRejectedValueOnce(new Error("Network Error"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
+    const { logger } = await import("../../../src/server/logger");
+    const loggerErrorSpy = vi
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
     const { processAuditWorker } =
       await import("../../../src/server/workers/auditWorker");
@@ -134,8 +134,8 @@ describe("auditWorker", () => {
     const result = await processAuditWorker(extractions);
 
     expect(result.length).toBeGreaterThan(0);
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    loggerErrorSpy.mockRestore();
   });
 
   it("should correctly handle markdown fences and empty JSON gracefully", async () => {
@@ -160,9 +160,8 @@ describe("auditWorker", () => {
         text: "{}", // Missing passedAudit should fail strict check
       });
 
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const { logger } = await import("../../../src/server/logger");
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
     const { processAuditWorker } =
       await import("../../../src/server/workers/auditWorker");
 
@@ -174,6 +173,6 @@ describe("auditWorker", () => {
     expect(
       result.some((r) => r.domain === "empty.com" && r.quarantined === true),
     ).toBe(true); // {} fails closed
-    consoleWarnSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 });

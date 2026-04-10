@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -24,7 +25,7 @@ export async function fetchCustomSearchMetrics(
   const geminiApiKey = process.env.GEMINI_API_KEY;
 
   if (!geminiApiKey) {
-    console.warn(
+    logger.warn(
       "Missing GEMINI_API_KEY. Skipping organic metrics via Gemini Search Grounding.",
     );
     return {
@@ -54,7 +55,7 @@ export async function fetchCustomSearchMetrics(
       };
     }
   } catch (error) {
-    console.error(
+    logger.error(
       `Gemini Search Grounding execution failed for domain ${domain}:`,
       error,
     );

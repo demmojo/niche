@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Router, Request } from "express";
 import {
   requireAuth,
@@ -163,9 +164,9 @@ Then, suggest 2 orthogonal pivot directions that are hyper-niche and highly defe
       // 3. (Count already incremented in limit check)
     } catch (error: any) {
       if (error.name === "AbortError" || error.message === "AbortError") {
-        console.log("Client aborted stream");
+        logger.info("Client aborted stream");
       } else {
-        console.error("URL Teaser Error:", error);
+        logger.error("URL Teaser Error:", error);
         sendData("error", error.message);
       }
     } finally {
@@ -210,7 +211,7 @@ scoringRouter.post(
 
       return res.json({ count: exaResponse.results?.length || 0 });
     } catch (error: any) {
-      console.error("Count Error:", error);
+      logger.error("Count Error:", error);
       return res.status(500).json({ error: error.message });
     }
   },
@@ -291,7 +292,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
       const geminiRes = await ai.models.generateContent(callOptions);
 
       const llmOutputRaw = geminiRes.text;
-      console.log("Raw LLM output:", llmOutputRaw);
+      logger.info("Raw LLM output:", llmOutputRaw);
       if (!llmOutputRaw) throw new Error("Empty response from LLM");
 
       // Zod validation
@@ -333,7 +334,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
             userId,
             productDescription,
             Array.from(vector),
-          ).catch(console.error);
+          ).catch(logger.error);
         },
       );
       // Await it to ensure Cloud Run doesn't kill the container early
@@ -392,7 +393,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
               nearestDoc.data().is_hyper_velocity_tarpit === true;
           }
         } catch (dbErr) {
-          console.error(
+          logger.error(
             "Vector search failed, falling back to heuristic safe distance",
             dbErr,
           );
@@ -431,7 +432,7 @@ Extract the reasoning, a verbatim exact quote from the competitor context that p
         vector: Array.from(vector), // return vector to be saved in DB if needed
       });
     } catch (error: any) {
-      console.error("Scoring Error:", error);
+      logger.error("Scoring Error:", error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -546,7 +547,7 @@ scoringRouter.post(
       if (!isResumed) {
         const isTripped = await isExaTripped();
         if (isTripped) {
-          console.warn("Exa Circuit Breaker is tripped. Bypassing Exa search.");
+          logger.warn("Exa Circuit Breaker is tripped. Bypassing Exa search.");
         } else {
           try {
             if (isAnonymous) {
@@ -563,7 +564,7 @@ scoringRouter.post(
               });
             }
           } catch (exaErr) {
-            console.error("Exa search failed:", exaErr);
+            logger.error("Exa search failed:", exaErr);
             await recordExaFailure();
           }
         }
@@ -721,7 +722,7 @@ Provide a Market Radar Summary including market velocity, dominant players, emer
             const stateRef = db.collection("pqlState").doc(req.user.uid);
             await stateRef.delete();
           } catch (e) {
-            console.error("Failed to delete cached pql state:", e);
+            logger.error("Failed to delete cached pql state:", e);
           }
         }
 
@@ -768,7 +769,7 @@ Provide a Market Radar Summary including market velocity, dominant players, emer
             userId,
             productDescription,
             Array.from(vector),
-          ).catch(console.error);
+          ).catch(logger.error);
         },
       );
       floatingPromises.push(flywheelPromise);
@@ -810,7 +811,7 @@ Provide a Market Radar Summary including market velocity, dominant players, emer
               nearestDoc.data().is_hyper_velocity_tarpit === true;
           }
         } catch (dbErr) {
-          console.error("Vector search stream failed", dbErr);
+          logger.error("Vector search stream failed", dbErr);
         }
 
         const localDensity = 0.1;
@@ -844,7 +845,7 @@ Provide a Market Radar Summary including market velocity, dominant players, emer
           const stateRef = db.collection("pqlState").doc(req.user.uid);
           await stateRef.delete();
         } catch (e) {
-          console.error("Failed to delete cached pql state:", e);
+          logger.error("Failed to delete cached pql state:", e);
         }
       }
 
@@ -863,9 +864,9 @@ Provide a Market Radar Summary including market velocity, dominant players, emer
       });
     } catch (error: any) {
       if (error.message === "AbortError") {
-        console.log("Client aborted stream");
+        logger.info("Client aborted stream");
       } else {
-        console.error("Streaming Scoring Error:", error);
+        logger.error("Streaming Scoring Error:", error);
         sendData("error", error.message);
       }
     } finally {

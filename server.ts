@@ -15,6 +15,10 @@ import {
   reviewArtifactHandler,
 } from "./src/server/llmRoutes";
 import {
+  superadminRouter,
+  surfaceRoastHandler,
+} from "./src/server/superadminRoutes";
+import {
   calculateExactHash,
   calculateSimHash,
   simHashDistance,
@@ -38,8 +42,8 @@ import {
 
 import { campaignRouter } from "./src/server/campaignRoutes";
 import { telemetryRouter } from "./src/server/routes/telemetryRoutes";
-import { superadminRouter } from "./src/server/superadminRoutes";
 import { authRouter } from "./src/server/authRoutes";
+import { httpLogger } from "./src/server/logger";
 
 dotenv.config();
 
@@ -56,6 +60,7 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || "3000", 10);
 
   app.use(express.json());
+  app.use(httpLogger);
 
   // Apply Global API rate limiter
   app.use("/api/", apiLimiter);
@@ -74,6 +79,7 @@ async function startServer() {
     generateContentStreamHandler,
   );
   app.post("/api/reviewArtifact", requireAuth, reviewArtifactHandler);
+  app.post("/api/llm/surface-roast", surfaceRoastHandler);
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -85,6 +91,7 @@ async function startServer() {
 
   // New Tarpit Validation Campaign Routes
   app.use("/api/campaign", campaignRouter);
+  app.use("/api/campaign", superadminRouter);
   app.use("/api/auth", authRouter);
 
   // Telemetry Routes
@@ -898,11 +905,8 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else if (process.env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    // In production, React static assets are served directly by Firebase Hosting via CDN.
+    // Cloud Run only serves /api/* endpoints.
   }
 
   if (process.env.NODE_ENV !== "test") {

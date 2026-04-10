@@ -250,11 +250,14 @@ Return the result as a JSON object with two arrays: "newSources" and "newInsight
             console.log(`Computed dHash for ${img.name}: ${hash}`);
 
             // 2. Check deduplication API
-            const hashRes = await fetch("/api/images/check", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ hash }),
-            });
+            const hashRes = await fetch(
+              (import.meta.env.VITE_API_BASE_URL || "") + "/api/images/check",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hash }),
+              },
+            );
             const hashData = await hashRes.json();
 
             // NOTE: Even if duplicate, for this analysis we still need to process it

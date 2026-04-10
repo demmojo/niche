@@ -1563,21 +1563,24 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
     setIsSyncing(true);
 
     startCampaignTask(async (signal) => {
-      const res = await fetch("/api/campaign/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await user?.getIdToken()}`,
-        },
-        body: JSON.stringify({
-          competitors: effectiveCompetitors,
-          baseIdea: {
-            name: myProductData.name,
-            description: myProductData.description,
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/campaign/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${await user?.getIdToken()}`,
           },
-        }),
-        signal,
-      });
+          body: JSON.stringify({
+            competitors: effectiveCompetitors,
+            baseIdea: {
+              name: myProductData.name,
+              description: myProductData.description,
+            },
+          }),
+          signal,
+        },
+      );
 
       if (!res.ok) {
         const data = await res.json();

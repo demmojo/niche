@@ -88,6 +88,7 @@ describe("proposePlan", () => {
 
     await expect(
       proposePlan("openspec/plans/test-plan.md", {
+        stage: false,
         nonInteractive: false,
         json: false,
         force: false,
@@ -112,6 +113,7 @@ describe("proposePlan", () => {
 
     await expect(
       proposePlan("openspec/plans/test-plan.md", {
+        stage: false,
         nonInteractive: true,
         force: false,
         json: false,
@@ -132,6 +134,7 @@ describe("proposePlan", () => {
     });
 
     await proposePlan("openspec/plans/test-plan.md", {
+      stage: false,
       nonInteractive: true,
       force: true,
       json: false,
@@ -154,6 +157,7 @@ describe("proposePlan", () => {
 
     await expect(
       proposePlan("openspec/plans/test-plan.md", {
+        stage: false,
         nonInteractive: false,
         json: false,
         force: false,
@@ -181,6 +185,7 @@ describe("proposePlan", () => {
 
     await expect(
       proposePlan("openspec/plans/test-plan.md", {
+        stage: false,
         nonInteractive: true,
         json: false,
         force: false,
@@ -199,6 +204,7 @@ describe("proposePlan", () => {
     (fs.existsSync as any).mockReturnValue(true);
 
     await proposePlan("openspec/changes/test-feature/proposal.md", {
+      stage: false,
       nonInteractive: true,
       force: true,
       json: false,

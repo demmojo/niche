@@ -209,5 +209,6 @@ Your goal is not just to extract deferred tasks, but to strategically analyze th
 const args = process.argv.slice(2);
 extractFeaturesFromDiff(args).catch((e) => {
   console.error("Fatal error in roadmap-extractor:", e);
-  process.exit(1);
+  process.exitCode = 1;
+  return;
 });

@@ -78,15 +78,18 @@ export function ZeroFrictionEntry({
     abortControllerRef.current = abortController;
 
     try {
-      const response = await fetchWithAppCheck("/api/niche/validate-jit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
+      const response = await fetchWithAppCheck(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/niche/validate-jit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify({ idea: idea.trim() }),
+          signal: abortController.signal,
         },
-        body: JSON.stringify({ idea: idea.trim() }),
-        signal: abortController.signal,
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);

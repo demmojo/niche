@@ -95,10 +95,7 @@ vi.mock("@google/genai", () => {
   };
 });
 
-// Avoid test hangs by replacing rate limit
-vi.mock("express-rate-limit", () => ({
-  default: () => (req: any, res: any, next: any) => next(),
-}));
+// GCP Cloud Armor handles edge rate limiting
 
 const app = express();
 app.use(express.json());

@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 import pLimit from "p-limit";
 
@@ -124,7 +125,7 @@ export const processBrandWizardJob = async (jobData: any) => {
 
           markdown = firecrawlResult.markdown || "";
         } catch (err: any) {
-          console.warn(
+          logger.warn(
             `Scraping failed for ${url}, fallback to Exa API needed:`,
             err,
           );
@@ -178,7 +179,7 @@ export const processBrandWizardJob = async (jobData: any) => {
 
             parsedData = validation.data;
           } catch (llmError: any) {
-            console.error(
+            logger.error(
               `Gemini extraction failed for ${url} (Attempt ${attempts}):`,
               llmError,
             );

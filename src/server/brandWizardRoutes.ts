@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Router } from "express";
 import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
 import admin from "firebase-admin";
@@ -94,7 +95,7 @@ brandWizardRouter.post(
         message: "Brand Identity extraction job started.",
       });
     } catch (error: any) {
-      console.error("Brand Wizard start error:", error);
+      logger.error("Brand Wizard start error:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
   },

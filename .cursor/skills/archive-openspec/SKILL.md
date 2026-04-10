@@ -40,40 +40,34 @@ If the spec is being **archived** (implemented successfully):
 
 - Edit `.openspec.yaml` to include `status: archived` (or update existing status if applicable).
 
-### 4. Prepare the Destination
+### 4. Execute the Archive via CLI
 
-Use the `Shell` tool to ensure the base archive directory exists:
+You MUST use the Dual-Mode OpenSpec CLI to handle the `GitMoveIntent` safely. Do NOT use raw `git mv` or standard `mv` bash commands.
 
-```bash
-mkdir -p openspec/archive/changes
-mkdir -p openspec/archive/plans
-```
+1. **Stage the Archive:**
+   Use the `Shell` tool to run:
+   ```bash
+   npm run openspec archive <feature-name> --stage --non-interactive --json
+   ```
+2. **Parse the Token and Wait:**
+   Parse the `commit_token` and `vscode://vscode.diff/...` URIs from the CLI output. Pause and present the clickable links to the user:
+   _"I have staged the archive. Please review the changes via the links above. Reply 'approve' to execute."_
+3. **Apply the Archive:**
+   Upon receiving natural language approval from the user, execute:
+   ```bash
+   npm run openspec apply --token=<commit_token>
+   ```
+   _(If you lose the context or forget the token during chat, run `npm run openspec status --json` to recover it)._
 
-### 3. Archive using `git mv`
+### 5. Post-Archival Summary
 
-Use `git mv` to safely move the folder to the archive while preserving git history. Do NOT use standard `mv` or `fs.rename` as this breaks history tracking.
+If the apply was successful, inform the user:
 
-Use the `Shell` tool to execute:
-
-```bash
-git mv openspec/changes/<feature-name> openspec/archive/changes/<feature-name>
-```
-
-If there is a corresponding raw markdown plan in `openspec/plans/`, archive it as well:
-
-```bash
-git mv openspec/plans/<plan-name>.md openspec/archive/plans/<plan-name>.md
-```
-
-### 4. Post-Archival Summary
-
-If the move was successful, inform the user:
-
-> Archived the OpenSpec change from `openspec/changes/<feature-name>` to `openspec/archive/changes/<feature-name>`.
+> Archived the OpenSpec change `<feature-name>` successfully.
 >
 > The change is ready to be committed!
 
 ## Important Notes
 
-- Always use `git mv` and not standard `mv` to avoid git history loss.
-- If the git command fails (for example, if the feature folder contains untracked files), inform the user about the failure and ask if they would prefer you `git add` the files first or just use a regular `mv`.
+- Always use the OpenSpec CLI to ensure DAG consistency and safe `GitMoveIntent` handling.
+- If the CLI command fails (for example, if the feature folder contains untracked files), inform the user about the failure and ask if they would prefer you `git add` the files first.

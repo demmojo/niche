@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 
 export async function checkAndIncrementGlobalAnonymousLimit(
@@ -52,7 +53,7 @@ export async function checkAndIncrementGlobalAnonymousLimit(
 
     return result;
   } catch (error) {
-    console.error(
+    logger.error(
       "Error in checkAndIncrementGlobalAnonymousLimit transaction:",
       error,
     );
@@ -102,7 +103,7 @@ export async function checkAndIncrementAnonymousLimit(
 
     return result;
   } catch (error) {
-    console.error(
+    logger.error(
       "Error in checkAndIncrementAnonymousLimit transaction:",
       error,
     );

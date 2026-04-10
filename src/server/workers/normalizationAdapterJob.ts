@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { Storage } from "@google-cloud/storage";
 import { GoogleGenAI } from "@google/genai";
 
@@ -65,7 +66,7 @@ export async function processNormalizationAdapterJob(
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) {
-    console.error("GEMINI_API_KEY missing");
+    logger.error("GEMINI_API_KEY missing");
     return;
   }
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -80,7 +81,7 @@ export async function processNormalizationAdapterJob(
           (b: any) => b.state === "IN_PROGRESS" || b.state === "ENQUEUED",
         ).length || 0;
     } catch (e) {
-      console.warn("Failed to check active batches, assuming 0.", e);
+      logger.warn("Failed to check active batches, assuming 0.", e);
     }
   }
 
@@ -115,10 +116,10 @@ export async function processNormalizationAdapterJob(
         });
       }
 
-      console.log(`Submitted batch job for ${batchFileKey}`);
+      logger.info(`Submitted batch job for ${batchFileKey}`);
       batchJobKeys.push(batchFileKey);
     } catch (error) {
-      console.error(`Failed to submit batch job for ${batchFileKey}`, error);
+      logger.error(`Failed to submit batch job for ${batchFileKey}`, error);
       throw error; // Rethrow to let Cloud Tasks apply exponential backoff
     }
   }

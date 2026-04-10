@@ -135,6 +135,19 @@ service cloud.firestore {
     // Domain Validators
     // ===============================================================
 
+    function isValidLead() {
+      return hasRequiredFields(['email']) &&
+             isValidString('email', 5, 254) &&
+             isValidOptionalString('idea', 0, 5000);
+    }
+
+    function isValidPendingReport() {
+      return hasRequiredFields(['draft_markdown', 'status', 'userEmail']) &&
+             request.resource.data.status in ['pending', 'approved', 'rejected'] &&
+             isValidString('draft_markdown', 0, 1048576) &&
+             isValidString('userEmail', 5, 254);
+    }
+
     function isValidUserSettings() {
       return isValidOptionalString('geminiApiKey', 0, 1000) &&
              isValidOptionalString('apolloApiKey', 0, 1000) &&
@@ -330,6 +343,20 @@ service cloud.firestore {
         allow update: if isOwner(userId);
         allow delete: if isOwner(userId) && !isImpersonated();
       }
+    }
+
+    match /leads/{leadId} {
+      allow create: if isValidLead();
+      allow read, update, delete: if isAdmin() || isImpersonated();
+    }
+
+    match /pending_reports/{reportId} {
+      // Data Integrity: We match against creatorUid instead of userEmail to prevent email alias mismatches (e.g. first.last@gmail.com vs firstlast@gmail.com)
+      // and to prevent cross-account injection attacks where a malicious user could submit a report for a victim's email.
+      allow read: if (isAuthenticated() && resource.data.creatorUid == request.auth.uid && resource.data.status == 'approved') || isAdmin() || isImpersonated();
+      allow update: if isAdmin() || isImpersonated();
+      // create/delete is backend-only via service account, or admin
+      allow create, delete: if isAdmin() || isImpersonated();
     }
   }
 }

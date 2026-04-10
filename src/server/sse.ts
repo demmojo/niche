@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Request, Response } from "express";
 import admin from "firebase-admin";
 
@@ -19,7 +20,7 @@ export const publishSseEvent = async (
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (error) {
-    console.error("Failed to publish SSE event to Firestore", error);
+    logger.error("Failed to publish SSE event to Firestore", error);
   }
 };
 

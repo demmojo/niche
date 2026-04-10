@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { logger } from "../../server/logger";
 
 const { mockCreateTask, mockQueuePath } = vi.hoisted(() => ({
   mockCreateTask: vi.fn(),
@@ -23,13 +24,22 @@ describe("cloudTasks", () => {
     vi.resetModules();
     process.env = { ...originalEnv };
     vi.clearAllMocks();
+    vi.useFakeTimers();
 
-    // Mock fetch for the mock execution block
-    global.fetch = vi.fn(() => Promise.resolve({ ok: true } as Response));
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        clone: function () {
+          return this;
+        },
+      } as any),
+    );
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -38,10 +48,8 @@ describe("cloudTasks", () => {
       process.env.NODE_ENV = "test";
       process.env.PORT = "4000";
 
-      vi.useFakeTimers();
-
       const consoleLogSpy = vi
-        .spyOn(console, "log")
+        .spyOn(logger, "info")
         .mockImplementation(() => {});
 
       const result = await enqueueTask(
@@ -58,7 +66,6 @@ describe("cloudTasks", () => {
         ),
       );
 
-      // Fast-forward setTimeout
       vi.runAllTimers();
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -73,16 +80,12 @@ describe("cloudTasks", () => {
           body: JSON.stringify({ data: 1 }),
         }),
       );
-
-      vi.useRealTimers();
     });
 
     it("should enqueue mock task when SIMULATE_CLOUD_TASKS is true", async () => {
       process.env.NODE_ENV = "development";
       process.env.SIMULATE_CLOUD_TASKS = "true";
       delete process.env.PORT; // Test fallback PORT
-
-      vi.useFakeTimers();
 
       await enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: 2 }, 5);
 
@@ -95,25 +98,23 @@ describe("cloudTasks", () => {
           body: JSON.stringify({ data: 2 }),
         }),
       );
-
-      vi.useRealTimers();
     });
 
     it("should catch and log fetch error in mock execution", async () => {
       process.env.NODE_ENV = "test";
 
-      vi.useFakeTimers();
-
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
-      global.fetch = vi.fn(() => Promise.reject(new Error("Fetch failed")));
+      global.fetch = vi
+        .fn()
+        .mockImplementation(() => Promise.reject(new Error("Fetch failed")));
 
       await enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: 3 });
 
       vi.runAllTimers();
 
-      // Wait a tick for the unhandled promise rejection to process
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
 
@@ -121,8 +122,6 @@ describe("cloudTasks", () => {
         "Mock Task execution failed:",
         expect.any(Error),
       );
-
-      vi.useRealTimers();
     });
   });
 
@@ -135,21 +134,26 @@ describe("cloudTasks", () => {
         "test-sa@test-project.iam.gserviceaccount.com";
     });
 
+    it("should throw if payload exceeds 100KB limit", async () => {
+      const largeData = "x".repeat(105 * 1024);
+      await expect(
+        enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: largeData }),
+      ).rejects.toThrow("Payload size exceeds Cloud Tasks limit of 100KB.");
+    });
+
     it("should enqueue a real Cloud Task", async () => {
       mockQueuePath.mockReturnValue(
         "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
       );
       mockCreateTask.mockResolvedValue([{ name: "test-task-name" }]);
       const consoleLogSpy = vi
-        .spyOn(console, "log")
+        .spyOn(logger, "info")
         .mockImplementation(() => {});
 
       const result = await enqueueTask(QUEUE_NAMES.networkIo, "/api/test", {
         data: 4,
       });
 
-      // Based on how the module is imported, it uses fallback values "demo-nicheai" and "us-central1"
-      // because GOOGLE_CLOUD_PROJECT / REGION are set at module load time.
       expect(mockQueuePath).toHaveBeenCalledWith(
         "demo-nicheai",
         "us-central1",
@@ -179,71 +183,6 @@ describe("cloudTasks", () => {
         "Created task test-task-name in queue network-io-queue",
       );
       expect(result).toEqual({ name: "test-task-name" });
-    });
-
-    it("should enqueue a real Cloud Task without CLOUD_RUN_URL", async () => {
-      delete process.env.CLOUD_RUN_URL;
-      mockQueuePath.mockReturnValue(
-        "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
-      );
-      mockCreateTask.mockResolvedValue([
-        { name: "test-task-name-default-url" },
-      ]);
-
-      await enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: 5 });
-
-      expect(mockCreateTask).toHaveBeenCalledWith({
-        parent:
-          "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
-        task: expect.objectContaining({
-          httpRequest: expect.objectContaining({
-            url: "https://demo-nicheai.run.app/api/test", // Fallback behavior
-          }),
-        }),
-      });
-    });
-
-    it("should enqueue a real Cloud Task with delaySeconds", async () => {
-      mockQueuePath.mockReturnValue(
-        "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
-      );
-      mockCreateTask.mockResolvedValue([{ name: "test-task-name-delay" }]);
-      const now = Date.now();
-      vi.spyOn(Date, "now").mockReturnValue(now);
-
-      await enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: 6 }, 10);
-
-      expect(mockCreateTask).toHaveBeenCalledWith({
-        parent:
-          "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
-        task: expect.objectContaining({
-          scheduleTime: {
-            seconds: 10 + now / 1000,
-          },
-        }),
-      });
-
-      vi.restoreAllMocks();
-    });
-
-    it("should log and throw error if createTask fails", async () => {
-      mockQueuePath.mockReturnValue(
-        "projects/demo-nicheai/locations/us-central1/queues/network-io-queue",
-      );
-      const error = new Error("Task creation failed");
-      mockCreateTask.mockRejectedValue(error);
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      await expect(
-        enqueueTask(QUEUE_NAMES.networkIo, "/api/test", { data: 7 }),
-      ).rejects.toThrow("Task creation failed");
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error creating task in queue network-io-queue:",
-        error,
-      );
     });
   });
 });

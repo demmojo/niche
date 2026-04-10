@@ -145,7 +145,8 @@ export function getAllSpecs(
           } catch (error) {
             console.error(`Validation failed for ${yamlPath}:`);
             console.error(error);
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
         }
       }

@@ -5,6 +5,8 @@ export const CliOptionsSchema = z.object({
   json: z.boolean().default(false),
   force: z.boolean().default(false),
   dryRun: z.boolean().default(false),
+  stage: z.boolean().default(false),
+  token: z.string().optional(),
   stdin: z.boolean().default(false),
   // Additional flags that specific commands might use:
   autoFix: z.boolean().optional(),

@@ -1,5 +1,5 @@
+import { logger } from "../logger";
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import express from "express";
 import { TelemetryEventSchema } from "../../types/telemetry";
 import admin from "firebase-admin";
@@ -10,17 +10,11 @@ import { z } from "zod";
 
 export const telemetryRouter = Router();
 
-const telemetryLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 30, // Limit each IP to 30 requests per `window`
-  message: "Too many telemetry requests from this IP, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// GCP Cloud Armor handles edge rate limiting
 
 telemetryRouter.use(express.json({ limit: "5kb" }));
 
-telemetryRouter.post("/v1/ui-sync", telemetryLimiter, async (req, res) => {
+telemetryRouter.post("/v1/ui-sync", async (req, res) => {
   try {
     const { events } = req.body;
 
@@ -37,7 +31,7 @@ telemetryRouter.post("/v1/ui-sync", telemetryLimiter, async (req, res) => {
     for (const rawEvent of events) {
       const parsedEvent = TelemetryEventSchema.safeParse(rawEvent);
       if (!parsedEvent.success) {
-        console.warn("Invalid telemetry event dropped:", parsedEvent.error);
+        logger.warn("Invalid telemetry event dropped:", parsedEvent.error);
         continue;
       }
 
@@ -55,7 +49,7 @@ telemetryRouter.post("/v1/ui-sync", telemetryLimiter, async (req, res) => {
 
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Telemetry ui-sync error:", error);
+    logger.error("Telemetry ui-sync error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -141,7 +135,7 @@ ${telemetryDataXml}`;
 
       res.status(200).json(validatedSummary);
     } catch (error) {
-      console.error("Telemetry summary generation error:", error);
+      logger.error("Telemetry summary generation error:", error);
       res.status(500).json({ error: "Failed to generate summary" });
     }
   },

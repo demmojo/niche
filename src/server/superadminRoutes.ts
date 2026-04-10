@@ -1,164 +1,116 @@
-import { Router, Request, Response } from "express";
-import express from "express";
-import { requireAuth, AuthenticatedRequest } from "./authMiddleware";
-import admin from "firebase-admin";
+import { logger } from "./logger";
+import { Router } from "express";
+import { normalizeEmail } from "../utils/email";
+import { GoogleGenAI } from "@google/genai";
+import { requireAuth } from "./authMiddleware";
+import * as admin from "firebase-admin";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { DataGatherer } from "./agents/DataGatherer";
+import { ReportSynthesizer } from "./agents/ReportSynthesizer";
+
+export const requireSuperadmin = async (req: any, res: any, next: any) => {
+  if (req.user?.isSuperadmin === true) {
+    return next();
+  }
+  return res.status(403).json({ error: "Forbidden: Superadmin only" });
+};
 
 export const superadminRouter = Router();
 
-// Middleware to ensure user is superadmin
-export const requireSuperadmin = async (
-  req: Request,
-  res: Response,
-  next: express.NextFunction,
-) => {
-  try {
-    const userReq = req as AuthenticatedRequest;
-    const userId = userReq.user?.uid;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const userRecord = await admin.auth().getUser(userId);
-    if (!userRecord.customClaims?.superadmin) {
-      // Check if maybe we define superadmin some other way? E.g., a whitelist
-      const superadminEmails = process.env.SUPERADMIN_EMAILS
-        ? process.env.SUPERADMIN_EMAILS.split(",")
-        : [];
-      if (!userRecord.email || !superadminEmails.includes(userRecord.email)) {
-        return res
-          .status(403)
-          .json({ error: "Forbidden: Superadmin access required" });
-      }
-    }
-
-    next();
-  } catch (error) {
-    console.error("Superadmin auth check failed:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-// Get Recent Active Users
 superadminRouter.post(
-  "/pipeline/toggle-pause",
+  "/submit-lead",
   requireAuth,
-  requireSuperadmin,
-  async (req: Request, res: Response) => {
+  async (req: any, res: any) => {
     try {
-      const { is_paused } = req.body;
-      if (typeof is_paused !== "boolean") {
-        return res.status(400).json({ error: "is_paused must be a boolean" });
+      const { idea, email } = req.body;
+      if (!idea || !email) {
+        return res.status(400).json({ error: "Idea and email are required" });
       }
 
       const db = admin.firestore();
-      await db.collection("config").doc("pipeline_state").set(
-        {
-          is_paused,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
+      const normalizedInputEmail = normalizeEmail(email);
+      const authNormalizedEmail = req.user?.email
+        ? normalizeEmail(req.user.email)
+        : null;
+      const isEmailVerified = !!(
+        req.user &&
+        !req.user.isAnonymous &&
+        authNormalizedEmail === normalizedInputEmail &&
+        req.user.email_verified
       );
+      const creatorUid = req.user?.uid || null;
 
-      return res.status(200).json({ success: true, is_paused });
-    } catch (error) {
-      console.error("Failed to toggle pipeline pause state:", error);
-      return res
-        .status(500)
-        .json({ error: "Failed to toggle pipeline pause state" });
-    }
-  },
-);
-
-// Get Recent Active Users
-superadminRouter.get(
-  "/users",
-  requireAuth,
-  requireSuperadmin,
-  async (req: Request, res: Response) => {
-    try {
-      const db = admin.firestore();
-      const snapshot = await db
-        .collection("projects")
-        .orderBy("createdAt", "desc")
-        .limit(20)
-        .get();
-
-      const users: any[] = [];
-      const seenUids = new Set<string>();
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.userId && !seenUids.has(data.userId)) {
-          seenUids.add(data.userId);
-          users.push({
-            uid: data.userId,
-            projectId: doc.id,
-            name: data.name || "Untitled Project",
-          });
-        }
-      });
-
-      return res.status(200).json({ users: users.slice(0, 10) });
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-      return res.status(500).json({ error: "Failed to fetch users" });
-    }
-  },
-);
-
-// Impersonate User
-superadminRouter.post(
-  "/impersonate",
-  requireAuth,
-  requireSuperadmin,
-  async (req: Request, res: Response) => {
-    try {
-      const { targetUid } = req.body;
-      const userReq = req as AuthenticatedRequest;
-      const adminUid = userReq.user?.uid;
-
-      if (!adminUid || !targetUid) {
-        return res.status(400).json({ error: "Missing targetUid or adminUid" });
-      }
-
-      // 1. Verify target exists and is eligible for impersonation
-      let targetUser;
-      try {
-        targetUser = await admin.auth().getUser(targetUid);
-      } catch (e) {
-        return res.status(404).json({ error: "Target user not found" });
-      }
-
-      if (targetUser.customClaims?.superadmin) {
-        return res
-          .status(403)
-          .json({ error: "Cannot impersonate another admin." });
-      }
-
-      // 2. Mandatory Audit Logging
-      await admin.firestore().collection("audit_logs").add({
-        event: "IMPERSONATION_STARTED",
-        adminUid,
-        targetUid,
-        ipAddress: req.ip,
+      await db.collection("leads").add({
+        email,
+        normalizedEmail: normalizedInputEmail,
+        idea,
+        creatorUid,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // 3. Create Custom Token with embedded Audit Claims
-      const developerClaims = {
-        isImpersonated: true,
-        impersonatorUid: adminUid,
-      };
+      (async () => {
+        try {
+          const gatherer = new DataGatherer();
+          const synthesizer = new ReportSynthesizer();
+          const context = await gatherer.gather(idea);
+          const report = await synthesizer.synthesize(idea, context);
 
-      // Custom tokens automatically expire in 1 hour
-      const customToken = await admin
-        .auth()
-        .createCustomToken(targetUid, developerClaims);
+          await db.collection("pending_reports").add({
+            draft_markdown: report.draftMarkdown,
+            lineage_data: {
+              exaResults: context.exaResults,
+              apolloKeywords: context.apolloKeywords,
+              tarpitScore: report.tarpitScore,
+              wasOverridden: report.wasOverridden,
+            },
+            userEmail: email,
+            normalizedEmail: normalizedInputEmail,
+            creatorUid,
+            isEmailVerified,
+            status: "pending",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (pipelineErr) {
+          logger.error("Superadmin 2-Agent Pipeline Error:", pipelineErr);
+        }
+      })();
 
-      return res.status(200).json({ token: customToken });
-    } catch (error) {
-      console.error("Failed to generate impersonation token:", error);
-      return res.status(500).json({ error: "Failed to generate token" });
+      return res.status(202).json({ success: true, message: "Lead submitted" });
+    } catch (e: any) {
+      logger.error("Submit Lead error:", e);
+      return res.status(500).json({ error: "Internal server error" });
     }
   },
 );
+
+export async function surfaceRoastHandler(req: any, res: any) {
+  try {
+    const { idea } = req.body;
+    if (!idea) return res.status(400).json({ error: "Idea is required" });
+
+    const key = req.llmApiKey || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("No Gemini API key available.");
+    const ai = new GoogleGenAI({ apiKey: key });
+
+    const SurfaceRoastSchema = z.object({
+      bullets: z.array(z.string()).min(3).max(3),
+    });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash",
+      contents: `Provide a brutal 3-bullet point "Surface Roast" of this product idea indicating why it might fail or be a tarpit: ${idea.replace(/[<>]/g, "")}`,
+      config: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        responseSchema: zodToJsonSchema(SurfaceRoastSchema as any) as any,
+      },
+    });
+
+    const parsed = JSON.parse(response.text || "{}");
+    return res.json(parsed);
+  } catch (error: any) {
+    logger.error("Surface Roast Error:", error);
+    return res.status(500).json({ error: "Failed to generate roast." });
+  }
+}

@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import admin from "firebase-admin";
 import PQueue from "p-queue";
 
@@ -101,11 +102,11 @@ class MLConfigCache {
       this.mabWeightsCache = newWeights;
       this.cacheExpiry = Date.now() + this.CACHE_TTL_MS;
 
-      console.log(
+      logger.info(
         `[MLConfigCache] Refreshed: ${snapshot.docs.length} active champions cached.`,
       );
     } catch (error) {
-      console.error("[MLConfigCache] Cache refresh error:", error);
+      logger.error("[MLConfigCache] Cache refresh error:", error);
     }
   }
 
@@ -121,7 +122,7 @@ class MLConfigCache {
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (err) {
-      console.error("[MLConfigCache] Failed to emit telemetry", err);
+      logger.error("[MLConfigCache] Failed to emit telemetry", err);
     }
   }
 

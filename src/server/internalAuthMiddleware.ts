@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Request, Response, NextFunction } from "express";
 import { OAuth2Client } from "google-auth-library";
 
@@ -41,16 +42,23 @@ export const requireInternalOidc = async (
 
     // Verify it's signed by Google and from your specific Service Account
     const allowedServiceAccount = process.env.CLOUD_RUN_SA_EMAIL;
-    if (payload?.email !== allowedServiceAccount) {
+    if (allowedServiceAccount && payload?.email !== allowedServiceAccount) {
       return res
         .status(403)
         .json({ error: "Forbidden", message: "Invalid service account" });
     }
 
+    if (!payload?.email_verified) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Service account email not verified",
+      });
+    }
+
     // Pass
     next();
   } catch (error) {
-    console.error("OIDC Verification failed:", error);
+    logger.error("OIDC Verification failed:", error);
     return res
       .status(401)
       .json({ error: "Unauthorized", message: "Invalid OIDC token" });

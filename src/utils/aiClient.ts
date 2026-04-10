@@ -119,12 +119,15 @@ class AIClient {
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch("/api/llm/generate", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model, params, sensitive: params.sensitive }),
-      signal,
-    });
+    const res = await fetch(
+      (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generate",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ model, params, sensitive: params.sensitive }),
+        signal,
+      },
+    );
 
     if (!res.ok) {
       const errorText = await res.text();

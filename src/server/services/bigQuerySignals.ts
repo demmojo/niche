@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { BigQuery } from "@google-cloud/bigquery";
 
 export interface VelocitySignals {
@@ -58,7 +59,7 @@ export async function fetchPublicDatasetSignals(
       };
     }
   } catch (error) {
-    console.error(`BigQuery execution failed for domain ${domain}:`, error);
+    logger.error(`BigQuery execution failed for domain ${domain}:`, error);
   }
 
   // Fallback

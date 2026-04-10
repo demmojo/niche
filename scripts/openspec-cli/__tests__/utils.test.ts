@@ -195,7 +195,9 @@ status: draft
         `;
       });
 
-      expect(() => getAllSpecs(["openspec/changes"])).toThrow();
+      process.exitCode = 0;
+      getAllSpecs(["openspec/changes"]);
+      expect(process.exitCode).toBe(1);
     });
   });
 });

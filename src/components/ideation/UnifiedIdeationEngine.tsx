@@ -43,11 +43,14 @@ export const UnifiedIdeationEngine: React.FC = () => {
     setPhase("thinking");
 
     try {
-      const res = await fetch("/api/ideation/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ competitors: urls }),
-      });
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/ideation/start",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ competitors: urls }),
+        },
+      );
 
       const data = await res.json();
       if (res.ok) {

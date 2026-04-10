@@ -121,8 +121,9 @@ describe("byokMiddleware", () => {
         json: vi.fn(),
       } as unknown as Response;
 
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
+      const { logger } = await import("../../../src/server/logger");
+      const loggerErrorSpy = vi
+        .spyOn(logger, "error")
         .mockImplementation(() => {});
       const db = admin.firestore();
       ((db as any).doc().set as any).mockRejectedValueOnce(
@@ -131,11 +132,12 @@ describe("byokMiddleware", () => {
 
       await saveByokKey(req, res);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
         "Failed to log telemetry for BYOK:",
         expect.any(Error),
       );
       expect(res.status).toHaveBeenCalledWith(200);
+      loggerErrorSpy.mockRestore();
     });
   });
 

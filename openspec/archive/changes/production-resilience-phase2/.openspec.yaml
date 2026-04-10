@@ -1,0 +1,6 @@
+schema: spec-driven
+status: draft
+learnings_extracted: false
+created: '2026-04-10'
+depends_on:
+  - production-readiness-pipeline

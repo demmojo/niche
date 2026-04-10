@@ -111,15 +111,19 @@ export function useTaxonomySync(): {
 
         // Next, an async server/Cloud Function should pick this up!
         // We can trigger an API endpoint since we don't have real cloud functions configured
-        fetch("/api/campaign/evaluate-taxonomy", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            featuresToMerge,
-            customName,
-            workspaceId: WORKSPACE_ID,
-          }),
-        }).catch((e) => {
+        fetch(
+          (import.meta.env.VITE_API_BASE_URL || "") +
+            "/api/campaign/evaluate-taxonomy",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              featuresToMerge,
+              customName,
+              workspaceId: WORKSPACE_ID,
+            }),
+          },
+        ).catch((e) => {
           // We intentionally do not throw here to allow the transaction to succeed
           // The backend should ideally trigger this via a Firestore onWrite function
           // but we are mocking it via fetch for now.

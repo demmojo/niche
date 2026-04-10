@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 
 import { z } from "zod";
@@ -115,7 +116,7 @@ ${prunedCode}
 
     return { success: true };
   } catch (error: any) {
-    console.error("Brand Token Extraction failed", error);
+    logger.error("Brand Token Extraction failed", error);
     await jobRef.update({
       status: "failed",
       error: error.message,

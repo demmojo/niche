@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import admin from "firebase-admin";
 
 // Ensure app is initialized before calling firestore
@@ -13,7 +14,7 @@ if (!admin.apps?.length) {
  */
 export const runMABAggregation = async () => {
   const db = admin.firestore();
-  console.log("[MABAggregationWorker] Starting MAB Aggregation pass.");
+  logger.info("[MABAggregationWorker] Starting MAB Aggregation pass.");
 
   try {
     const bufferSnapshot = await db
@@ -22,7 +23,7 @@ export const runMABAggregation = async () => {
       .get();
 
     if (bufferSnapshot.empty) {
-      console.log("[MABAggregationWorker] No new telemetry data.");
+      logger.info("[MABAggregationWorker] No new telemetry data.");
       return;
     }
 
@@ -87,10 +88,10 @@ export const runMABAggregation = async () => {
       }
     });
 
-    console.log(
+    logger.info(
       `[MABAggregationWorker] Aggregated ${docsToDelete.length} telemetry events.`,
     );
   } catch (error) {
-    console.error("[MABAggregationWorker] Aggregation failed:", error);
+    logger.error("[MABAggregationWorker] Aggregation failed:", error);
   }
 };

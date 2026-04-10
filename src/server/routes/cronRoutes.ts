@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { Router, Request, Response } from "express";
 import { requireInternalOidc } from "../internalAuthMiddleware";
 import admin from "firebase-admin";
@@ -14,7 +15,7 @@ cronRouter.post("/tarpit-clustering", async (req: Request, res: Response) => {
     await runTarpitClustering();
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    console.error("Tarpit clustering failed:", error);
+    logger.error("Tarpit clustering failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -29,7 +30,7 @@ cronRouter.post("/taxonomy-merge", async (req: Request, res: Response) => {
     await processTaxonomyOutboxJobs();
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    console.error("Taxonomy merge cron failed:", error);
+    logger.error("Taxonomy merge cron failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -41,7 +42,7 @@ cronRouter.post("/data-quality-sync", async (req: Request, res: Response) => {
     const payload = await processDataQualitySync();
     return res.status(200).json({ success: true, data: payload });
   } catch (error: any) {
-    console.error("Data quality sync failed:", error);
+    logger.error("Data quality sync failed:", error);
     return res.status(500).json({ error: error.message });
   }
 });

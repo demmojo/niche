@@ -200,12 +200,47 @@ Do not change the intent or core feature, just improve the specification quality
         fixSystemInstruction,
       );
 
-      fs.writeFileSync(path.join(dirPath, "proposal.md"), fixResult.proposal);
-      fs.writeFileSync(path.join(dirPath, "design.md"), fixResult.design);
-      fs.writeFileSync(path.join(dirPath, "tasks.md"), fixResult.tasks);
+      const { stageIntents } = await import("./stage.js");
+      const { FsExecutor } = await import("./fs-intents.js");
+      type FsIntent = import("./fs-intents.js").FsIntent;
+
+      const intents: FsIntent[] = [
+        {
+          kind: "createFile",
+          absolutePath: path.join(dirPath, "proposal.md"),
+          content: fixResult.proposal,
+        },
+        {
+          kind: "createFile",
+          absolutePath: path.join(dirPath, "design.md"),
+          content: fixResult.design,
+        },
+        {
+          kind: "createFile",
+          absolutePath: path.join(dirPath, "tasks.md"),
+          content: fixResult.tasks,
+        },
+      ];
+
       const specsDir = path.join(dirPath, "specs", featureName);
-      if (!fs.existsSync(specsDir)) fs.mkdirSync(specsDir, { recursive: true });
-      fs.writeFileSync(path.join(specsDir, "spec.md"), fixResult.spec);
+      intents.push({ kind: "mkdir", absolutePath: specsDir });
+      intents.push({
+        kind: "createFile",
+        absolutePath: path.join(specsDir, "spec.md"),
+        content: fixResult.spec,
+      });
+
+      if (options.stage && !options.force) {
+        const staged = stageIntents(intents, options, presenter);
+        await presenter.success(
+          { staged: true, token: staged.token, diffUris: staged.diffUris },
+          `Auto-fix changes staged.\nReview Diff URIs:\n${staged.diffUris.join("\n")}\nRun 'npm run openspec apply --token=${staged.token}' to commit.`,
+        );
+        return false; // Stop eval loop until applied
+      }
+
+      const finalExecutor = new FsExecutor(options.dryRun, presenter);
+      finalExecutor.execute(intents);
 
       presenter.log("Files rewritten. Re-running evaluation...");
     } else {
@@ -348,12 +383,12 @@ To pass, all dimensions must score at least 3 out of 5.`,
   }
 
   if (failedSpecs > 0) {
-    presenter.fail(
+    await presenter.fail(
       `${failedSpecs} specs failed evaluation. Fix them before merging.`,
       "eval_failed",
       `openspec ai-eval`,
     );
-    process.exit(1);
+    return;
   } else {
     presenter.success(
       { passed: passedSpecs, skipped: skippedSpecs },

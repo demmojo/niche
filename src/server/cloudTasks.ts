@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { CloudTasksClient } from "@google-cloud/tasks";
 import * as dotenv from "dotenv";
 
@@ -35,7 +36,7 @@ export const enqueueTask = async (
     process.env.NODE_ENV === "test" ||
     process.env.SIMULATE_CLOUD_TASKS === "true"
   ) {
-    console.log(
+    logger.info(
       `[Cloud Tasks Mock] Enqueuing ${queueName} -> ${targetUrlPath}`,
     );
     // Simulate async execution
@@ -48,7 +49,7 @@ export const enqueueTask = async (
             Authorization: `Bearer MOCK_INTERNAL_TOKEN`,
           },
           body: JSON.stringify(payload),
-        }).catch((err) => console.error("Mock Task execution failed:", err));
+        }).catch((err) => logger.error("Mock Task execution failed:", err));
       },
       delaySeconds * 1000 + 100,
     );
@@ -83,10 +84,10 @@ export const enqueueTask = async (
 
   try {
     const [response] = await client.createTask({ parent, task });
-    console.log(`Created task ${response.name} in queue ${queueName}`);
+    logger.info(`Created task ${response.name} in queue ${queueName}`);
     return response;
   } catch (error) {
-    console.error(`Error creating task in queue ${queueName}:`, error);
+    logger.error(`Error creating task in queue ${queueName}:`, error);
     throw error;
   }
 };

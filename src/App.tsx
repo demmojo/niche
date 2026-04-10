@@ -1177,6 +1177,9 @@ export function useFirestoreDoc<T>(
   return [data, setValue, isInitialized];
 }
 
+import { RoastMyNiche } from "./components/superadmin/RoastMyNiche";
+import { SuperadminPendingRoasts } from "./components/superadmin/SuperadminPendingRoasts";
+import { MyReports } from "./components/superadmin/MyReports";
 import { AuthDialogProvider } from "./components/AuthDialogProvider";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 
@@ -1243,6 +1246,32 @@ export default function App() {
             sharedCampaignId={sharedCampaignId}
           />
         </WorkspaceProvider>
+      </AuthDialogProvider>
+    );
+  }
+
+  if (pathname === "/roast-my-niche") {
+    return (
+      <AuthDialogProvider>
+        <RoastMyNiche />
+      </AuthDialogProvider>
+    );
+  }
+
+  if (pathname === "/admin/pending-roasts") {
+    return (
+      <AuthDialogProvider>
+        <WorkspaceProvider>
+          <SuperadminPendingRoasts user={user} />
+        </WorkspaceProvider>
+      </AuthDialogProvider>
+    );
+  }
+
+  if (pathname === "/my-reports") {
+    return (
+      <AuthDialogProvider>
+        <MyReports />
       </AuthDialogProvider>
     );
   }

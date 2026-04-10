@@ -33,6 +33,7 @@ describe("runEval", () => {
       .mockImplementation(() => {});
 
     await runEval([], {
+      stage: false,
       nonInteractive: true,
       json: false,
       force: false,
@@ -59,6 +60,7 @@ describe("runEval", () => {
         },
       ] as any,
       {
+        stage: false,
         nonInteractive: true,
         json: false,
         force: false,
@@ -99,6 +101,7 @@ describe("runEval", () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await runEval(specs, {
+      stage: false,
       nonInteractive: true,
       json: false,
       force: false,
@@ -148,6 +151,7 @@ describe("runEval", () => {
 
     await expect(
       runEval(specs, {
+        stage: false,
         nonInteractive: true,
         json: false,
         force: false,

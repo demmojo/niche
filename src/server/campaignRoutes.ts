@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import {
@@ -95,7 +96,7 @@ campaignRouter.post(
       const key = process.env.GEMINI_API_KEY;
       if (!key) throw new Error("GEMINI_API_KEY is missing");
       const ai = new GoogleGenAI({ apiKey: key });
-      console.log("POST /pivot ai:", ai, "models:", ai.models);
+      logger.info("POST /pivot ai:", ai, "models:", ai.models);
 
       const prompt = `Based on the following base idea and its competitors, generate a data-inverted sub-niche pivot.
 Base Idea: ${JSON.stringify(baseIdea)}
@@ -129,7 +130,7 @@ Each subNiche should have:
 
       res.json(realResponse);
     } catch (error: any) {
-      console.error("Pivot generation error:", error);
+      logger.error("Pivot generation error:", error);
       res
         .status(500)
         .json({ error: error.message || "Failed to generate sub-niches" });
@@ -171,7 +172,7 @@ async function fetchExaCompetitors(baseIdea: any) {
     });
     return exaResponse.results;
   } catch (error) {
-    console.error("Exa discovery error:", error);
+    logger.error("Exa discovery error:", error);
     return [];
   }
 }
@@ -256,7 +257,7 @@ Return the result strictly adhering to the JSON schema.`;
           parsed = { competitors: parsed };
         }
       } catch (e) {
-        console.error("Failed to parse LLM discovery response:", e);
+        logger.error("Failed to parse LLM discovery response:", e);
         // Graceful degradation: return raw Exa results
         return res.json({
           competitors: exaResults.slice(0, 5).map((r: any) => ({
@@ -272,7 +273,7 @@ Return the result strictly adhering to the JSON schema.`;
 
       res.json(parsed);
     } catch (error: any) {
-      console.error("Competitor discovery error:", error);
+      logger.error("Competitor discovery error:", error);
       res.status(500).json({ error: "Internal server error during discovery" });
     }
   },
@@ -292,7 +293,7 @@ campaignRouter.post(
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       // 0. Strict Schema Validation (Zod)
-      console.log("BODY", req.body);
+      logger.info("BODY", req.body);
       const validationResult = CampaignRequestSchema.safeParse(req.body || {});
       if (!validationResult.success) {
         // #region agent log
@@ -325,7 +326,7 @@ campaignRouter.post(
       } catch (deductErr: any) {
         // #region agent log
         // #endregion
-        console.error(
+        logger.error(
           `Failed to reserve credits for user ${userId}:`,
           deductErr,
         );
@@ -388,7 +389,7 @@ campaignRouter.post(
         // #region agent log
         // #endregion
         // 5. Commit/Rollback: The enqueue failed, so we MUST refund the user locally.
-        console.error(
+        logger.error(
           `Failed to queue campaign ${jobId}. Rolling back credits:`,
           queueErr,
         );
@@ -402,7 +403,7 @@ campaignRouter.post(
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         } catch (refundErr) {
-          console.error(
+          logger.error(
             "CRITICAL: Failed to refund user after queue failure. Manual intervention required.",
             { userId, jobId, costPerCampaign },
           );
@@ -415,7 +416,7 @@ campaignRouter.post(
     } catch (error: any) {
       // #region agent log
       // #endregion
-      console.error("Campaign start error:", error);
+      logger.error("Campaign start error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -520,7 +521,7 @@ export async function runTaxonomyEvaluation(
       { merge: true },
     );
   } catch (e) {
-    console.error("Taxonomy evaluation failed", e);
+    logger.error("Taxonomy evaluation failed", e);
     // Mark as failed
     const taxRef = admin
       .firestore()
@@ -625,7 +626,7 @@ campaignRouter.post(
       if (e instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid payload format" });
       }
-      console.error("Signal ingestion failed:", e);
+      logger.error("Signal ingestion failed:", e);
       return res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -678,7 +679,7 @@ campaignRouter.post(
           .status(400)
           .json({ error: "Invalid input", details: e.issues });
       }
-      console.error("Create product failed:", e);
+      logger.error("Create product failed:", e);
       return res.status(500).json({ error: "Internal server error" });
     }
   },
@@ -768,7 +769,7 @@ campaignRouter.post(
           .status(400)
           .json({ error: "Invalid input", details: e.issues });
       }
-      console.error("Fork product failed:", e);
+      logger.error("Fork product failed:", e);
       return res
         .status(e.message.includes("Maximum") ? 403 : 500)
         .json({ error: e.message || "Internal server error" });
@@ -849,7 +850,7 @@ campaignRouter.post(
 
       return res.status(202).json({ success: true, jobId });
     } catch (e: any) {
-      console.error("Double down failed:", e);
+      logger.error("Double down failed:", e);
       return res
         .status(e.message === "Unauthorized." ? 403 : 500)
         .json({ error: e.message || "Internal server error" });
@@ -886,7 +887,7 @@ campaignRouter.post(
 
       return res.status(200).json({ status: "success" });
     } catch (e: any) {
-      console.error("Evaluate taxonomy failed:", e);
+      logger.error("Evaluate taxonomy failed:", e);
       // Even on failure, set it to success/idle locally to not break user's flow
       try {
         const { workspaceId } = req.body || {};

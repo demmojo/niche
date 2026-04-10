@@ -5,11 +5,16 @@ globs: *
 
 # Leeroopedia MCP
 
-Leeroopedia is an ML/AI knowledge wiki. This skill teaches you when and how to call the Leeroopedia MCP tools so answers are grounded in documented best practices (not guesswork).
+Leeroopedia is an ML/AI engineering and Data Engineering knowledge wiki. This skill teaches you when and how to call the Leeroopedia MCP tools so answers are grounded in documented best practices (not guesswork).
+
+## STRICT DOMAIN RESTRICTIONS
+**CRITICAL: ONLY use Leeroopedia for technical Machine Learning, AI Engineering, and Data Engineering tasks.**
+✅ **DO USE FOR:** Framework implementation (vLLM, DeepSpeed, LangChain, Triton), GPU optimization, distributed training, RAG pipelines, fine-tuning, debugging ML errors, and math verification.
+❌ **DO NOT USE FOR:** Product Strategy, Go-To-Market (GTM), Product-Led Growth (PLG), TAM/Market sizing, UI/UX design, general startup advice, or general software engineering (e.g., standard React/Node.js). If the user asks about "tarpit ideas" or "willingness to pay," DO NOT query Leeroopedia.
 
 ## Default behavior
 
-Use the Leeroopedia MCP server for **all AI or ML requests that are not basic**. 
+Use the Leeroopedia MCP server for **all AI or ML engineering requests that are not basic**. 
 
 Do NOT use Leeroopedia for basic AI/ML questions, general concepts, or standard implementations that can be reliably answered from baseline knowledge. For any non-basic AI/ML question (e.g., framework specifics, best practices, fine-tuning, debugging, inference serving, etc.), you must consult Leeroopedia to ensure grounded and accurate answers.
 

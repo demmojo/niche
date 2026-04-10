@@ -81,18 +81,22 @@ export function usePQLUpgrade() {
           permToken = await result.user.getIdToken();
 
           // Step 3: Trigger backend merge because UID changed
-          const response = await fetch("/api/auth/merge-anonymous-data", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${permToken}`,
+          const response = await fetch(
+            (import.meta.env.VITE_API_BASE_URL || "") +
+              "/api/auth/merge-anonymous-data",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${permToken}`,
+              },
+              body: JSON.stringify({
+                anonToken,
+                oldUid,
+              }),
+              signal,
             },
-            body: JSON.stringify({
-              anonToken,
-              oldUid,
-            }),
-            signal,
-          });
+          );
 
           if (!response.ok) {
             throw new Error("Failed to merge account data.");

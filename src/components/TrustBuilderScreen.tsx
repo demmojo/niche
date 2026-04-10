@@ -130,15 +130,18 @@ export function TrustBuilderScreen({
     ) => {
       abortControllerRef.current = abortController;
       try {
-        const response = await fetchWithAppCheck("/api/scoring/stream", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "text/event-stream",
+        const response = await fetchWithAppCheck(
+          (import.meta.env.VITE_API_BASE_URL || "") + "/api/scoring/stream",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify(ideaPayload),
+            signal: abortController.signal,
           },
-          body: JSON.stringify(ideaPayload),
-          signal: abortController.signal,
-        });
+        );
 
         if (!response.ok) {
           let errorMsg = `Server returned ${response.status}`;

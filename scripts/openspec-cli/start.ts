@@ -20,23 +20,23 @@ export async function startFeature(featureName: string, options: CliOptions) {
   const targetSpec = specs.find((s) => s.id === featureName);
 
   if (!targetSpec) {
-    presenter.fail(
+    await presenter.fail(
       `Feature '${featureName}' not found.`,
       "feature_not_found",
       `openspec start <valid-feature-name>`,
     );
-    process.exit(1);
+    return;
   }
 
   // 1. Check DAG readiness
   const isReady = checkReadiness(specs, featureName, options.nonInteractive);
   if (!isReady) {
-    presenter.fail(
+    await presenter.fail(
       `Feature '${featureName}' is not ready. Complete dependencies first.`,
       "not_ready",
       `openspec check-ready ${featureName}`,
     );
-    process.exit(1);
+    return;
   }
 
   // 2. Check ai-eval record and Hash-Based State Validation
@@ -64,18 +64,19 @@ export async function startFeature(featureName: string, options: CliOptions) {
         // Just run eval
         presenter.log("Running ai-eval...");
       } else {
-        presenter.fail(
+        await presenter.fail(
           "Spec requires evaluation, but autoFix is disabled in headless mode.",
           "eval_missing_or_stale",
           `openspec start ${featureName} --auto-fix`,
         );
-        process.exit(1);
+        return;
       }
     } else {
       const doEval = await promptUserConfirm(
         "Would you like to run ai-eval now?",
       );
-      if (!doEval) process.exit(1);
+      if (!doEval) await presenter.safeExit(1);
+      return;
     }
 
     const evalPassed = await runEvalForFeature(
@@ -84,12 +85,12 @@ export async function startFeature(featureName: string, options: CliOptions) {
       options,
     );
     if (!evalPassed) {
-      presenter.fail(
+      await presenter.fail(
         "ai-eval failed. Fix the spec before starting.",
         "eval_failed",
         `openspec start ${featureName} --auto-fix`,
       );
-      process.exit(1);
+      return;
     }
   }
 

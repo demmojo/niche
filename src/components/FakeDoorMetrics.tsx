@@ -40,11 +40,14 @@ export const FakeDoorMetrics: React.FC<FakeDoorMetricsProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/cloudflare/graphql", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteToken }),
-      });
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/cloudflare/graphql",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ siteToken }),
+        },
+      );
       const data = await res.json();
       setMetrics(data);
     } catch (err) {

@@ -13,6 +13,7 @@ test-results/
 test-results.json
 out.json
 tmp/
+.tmp/
 debug-page.html
 debug-reload.png
 test-screenshot.png

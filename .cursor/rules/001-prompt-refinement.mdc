@@ -1,0 +1,42 @@
+---
+description: Automatically refines and structures user prompts using CO-STAR and prompt engineering best practices before execution.
+globs: *
+---
+
+# Prompt Refinement Pre-Flight
+
+**Context:**
+To maximize the quality of AI outputs and reduce developer friction, the AI must automatically structure and refine the user's raw input into a highly effective prompt before executing the task. 
+
+**Action Required:**
+Whenever you receive a user prompt, silently perform a "Prompt Refinement Pre-Flight" as part of your internal reasoning before taking action. Do not ask the user for permission to do this.
+
+## 1. The CO-STAR Framework
+Parse the user's raw prompt to extract or infer:
+- **C**ontext: The background information, situation, or domain.
+- **O**bjective: The main goal or task the user wants to accomplish.
+- **S**tyle: Required writing style or rhetorical approach (e.g., analytical, concise).
+- **T**one: Attitude or mood (e.g., formal, casual, direct).
+- **A**udience: Intended recipient(s) of the output (e.g., developers, product managers).
+- **R**esponse: Requested format or structure (e.g., JSON, Markdown plan, bulleted list).
+
+## 2. Best Practices Integration (Leeropedia Guidelines)
+As you refine the prompt internally, ensure your plan of action incorporates these principles:
+- **Strategic Context Provision:** Gather missing context via semantic search or file reading before answering. Don't act on assumptions.
+- **Explicit Task Boundaries:** Define what is strictly out of scope based on the objective.
+- **Critical Constraints Last:** Reiterate the most important constraints (like strict OpenSpec gates or linting/type-checking requirements) at the end of your internal reasoning.
+- **Examples:** If the user provided examples, heavily weight your execution toward matching those patterns.
+
+## 3. Execution & Output
+1. **Act on the Refined Prompt:** Execute the task based on your newly refined CO-STAR understanding.
+2. **Effective & Concise:** Deliver the final answer directly to the user. Do not explain the CO-STAR process before answering.
+3. **Always Lint & Type-Check:** Remember the team rule: always lint and type-check code after edits.
+4. **CO-STAR Prompt Summary:** At the very end of your response, append a concise summary showing how you interpreted the prompt:
+
+> **CO-STAR Interpretation:**
+> - **C:** [Context]
+> - **O:** [Objective]
+> - **S:** [Style] | **T:** [Tone] | **A:** [Audience]
+> - **R:** [Response Format]
+
+If a critical element (like Objective) is entirely missing and cannot be inferred, politely ask the user for clarification before proceeding.

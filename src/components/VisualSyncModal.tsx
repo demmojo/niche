@@ -58,14 +58,17 @@ export const VisualSyncModal: React.FC<VisualSyncModalProps> = ({
   const processImage = async (base64: string) => {
     setStep("processing");
     try {
-      const res = await fetch("/api/visual/reality-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageBase64: base64,
-          currentFeatures: myProductData.features,
-        }),
-      });
+      const res = await fetch(
+        (import.meta.env.VITE_API_BASE_URL || "") + "/api/visual/reality-check",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: base64,
+            currentFeatures: myProductData.features,
+          }),
+        },
+      );
       const data = await res.json();
       setProposedUpdates(data.proposedUpdates || []);
       setStep("reality-check");

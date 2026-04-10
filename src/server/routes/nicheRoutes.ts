@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { Router, Response } from "express";
 import {
   AuthenticatedRequest,
@@ -160,9 +161,9 @@ nicheRouter.post(
         );
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.log("Client aborted connection during /validate-jit");
+          logger.info("Client aborted connection during /validate-jit");
         } else {
-          console.error("Error in /validate-jit stream:", err);
+          logger.error("Error in /validate-jit stream:", err);
           writeEvent("error", {
             message: "Internal Server Error",
             details: err.message,
@@ -172,7 +173,7 @@ nicheRouter.post(
         res.end();
       }
     } catch (error) {
-      console.error("Unhandled error in /validate-jit route:", error);
+      logger.error("Unhandled error in /validate-jit route:", error);
       res.status(500).json({ error: "Internal Server Error" });
     }
   },
