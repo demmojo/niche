@@ -10,11 +10,11 @@ This refactor overhauls the frontend PLG flow and hardens the backend architectu
 
 ## Capabilities
 
-- **Roast My Niche Entry:** Implements Tenant-scoped Firestore Distributed Counters with Edge-level DoW protection. Introduces a Two-Phase Fetch where Phase 1 does fast deterministic validation (returning `202 Accepted`) and Phase 2 leverages an authenticated worker/SSE stream protected by IDOR and crash-resilient `AbortController` boundaries.
-- **Secure Report Delivery:** Rips out the cross-device Magic Link trap, migrating to standard OAuth via `linkWithPopup` and resolving credential-in-use conflicts. Retains simple Same-Device Magic Links only as a fallback.
-- **My Reports Dashboard:** Introduces a master-detail/accordion layout with a dark mode theme, explicit "Explainable States", and strict removal of generic "AI slop" loading aesthetics.
+- **Roast My Niche Entry:** Implements time-bucketed Firestore Transactions for rate limits, isolated per hashed IP or Anonymous UID. Introduces a True Decoupled Execution (Claim-Check) Fetch where Phase 1 does fast deterministic validation, _synchronously writes the initial job to Firestore_, dispatches a Google Cloud Task, and returns `202 Accepted`. Phase 2 is purely an SSE observation layer listening to a fast-ephemeral Redis/PubSub channel for sub-second chunks, while Firestore acts as the persistent ledger. The claim-check state machine is standardized entirely on the `jobs` collection.
+- **Secure Report Delivery:** Rips out the cross-device Magic Link trap, migrating to standard OAuth via `linkWithPopup` and resolving credential-in-use conflicts. A backend hook cleanly reassigns `owner_uid` on all `jobs` during anonymous-to-existing-account upgrades to prevent orphaned reports.
+- **My Reports Dashboard:** Introduces a master-detail/accordion layout with a dark mode theme, explicit "Explainable States", and strict removal of generic "AI slop" loading aesthetics. It leverages the 24-hour anonymous TTL as an urgency driver via a persistent countdown banner.
 - **Superadmin Queue:** Fixes offline UI freezes via strictly ordered state updates and optimized React 19 concurrent rendering.
-- **Stateful Resume Backend:** Drops over-engineered lock-stealing logic in favor of a Hybrid Streaming Pattern using SSE for sub-second UI updates and periodic Firestore flushing. Disconnects cleanly abort the LLM to save costs, saving partial state for "resume" functionality.
+- **Stateful Worker Backend:** Drops over-engineered lock-stealing logic in favor of a dedicated Cloud Run worker executing the LLM, streaming to Redis for instant UX, and flushing to Firestore every 3-5s for persistence. Disconnects NO LONGER abort the LLM, guaranteeing delivery of the "Reverse Demo Hook" even if the user navigates away. The SSE observer cleanly unsubscribes on disconnect.
 
 ## Impact
 
