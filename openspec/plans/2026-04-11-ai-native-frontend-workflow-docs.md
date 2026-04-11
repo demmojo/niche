@@ -49,49 +49,65 @@ We will introduce a new section: **NicheAI’s Opinionated UI Pipeline (The Anti
 To prevent "AI Slop" in user experience, we reject opaque loading states and overly complex server-side rendering paradigms.
 
 - **Two-Phase Fetch Strategy:** Never use generic spinners for long-running AI tasks. Implement a two-phase architecture: Phase 1 fetches fast, deterministic data (e.g., Exa search results, <2s) to immediately satisfy user intent. Phase 2 kicks off background LLM promises to fill in complex analysis, replacing UI shimmers asynchronously via React 19 `<Suspense>`.
-- **Generative UI without RSC:** We explicitly reject React Server Components (RSC) migrations for building Generative UI. Instead, the backend must return strictly typed JSON chunks (via SSE). The frontend parses these streams and uses React 19's `useOptimistic` to instantly render predictable, interactive AI UI components.
-- **SSE Stream Handling (React 19 Concurrent Primitives):** Server-Sent Events (SSE) must be processed natively on the client. We strictly **reject** bypassing the Virtual DOM (e.g., mutating refs directly) for high-frequency token streaming, as it guarantees DOM/VDOM desynchronization bugs. Furthermore, do **not** wrap post-`await` state setters in a secondary `startTransition` if the stream is already initiated via `useActionState`, because React 19 natively tracks the async boundary. Instead, rely entirely on React's concurrent primitives (`useDeferredValue` and Async Transitions) to smoothly absorb and batch high-frequency state updates without freezing the UI.
+- **Generative UI without RSC:** We explicitly reject React Server Components (RSC) migrations for building Generative UI. Instead, the backend must return strictly typed JSON chunks (via SSE). The frontend parses these streams and relies on `useState` combined with `useEffect` to instantly render predictable, interactive AI UI components. We explicitly reject the `useOptimistic` anti-pattern for SSE streaming, as it is designed for optimistic mutations, not continuous event streams.
+- **The Deferred Render Pattern (SSE Architecture):** High-frequency SSE token ingestion must **never** use `useSyncExternalStore`, as it forces synchronous renders and defeats React 19's concurrent scheduler. Furthermore, `use()` is designed for unwrapping Promises, not continuous event emitters. Instead, connection lifecycles must be managed via `useEffect` (with `AbortController` cleanup). Token accumulation must be stored in standard `useState`, and the rendered markdown output must strictly be wrapped in `useDeferredValue(text, '')`. Crucially, you MUST pass the `initialValue` argument (`''`) to `useDeferredValue` to prevent server-side rendering (SSR) hydration mismatches. This allows React to drop intermediate heavy renders when tokens arrive faster than the main thread can paint, preventing UI lock-ups.
 
-## Execution Plan
-
-1. **Create `.cursor/prompts/ui-scaffold.md` (The Scaffolding Core):**
-   - Implement a robust, XML-based structure optimized for LLM instruction parsing (Claude 4.6).
-   - Require a `<thought>` block to evaluate if the component is Dynamic vs. Static.
-   - **Dynamic Context Injection:** Agents must dynamically read a generated `design-tokens.json` manifest before generating code. Parsing raw Tailwind v4 CSS wastes LLM context window. Hardcoded token hallucination or searching for deprecated `tailwind.config.ts` files is strictly prohibited.
-   - **Enforce Visual Thesis Primitives:** Require a `<design_system_mapping>` block to translate the abstract Visual Thesis into explicit positive layout primitives (e.g., "Cardless Interaction", "Focus-Driven Workspace", "Single Visual Anchor") and specific Tailwind v4 token constraints. Ensure Tailwind v4 CSS variables are used to natively target Radix UI `data-[state=...]` attributes for interactive component styling.
-   - Enforce the **Colocated Components** pattern (UI + Logic in a single file) to minimize cognitive load and maximize LLM generation reliability (avoiding the "Split-Brain" problem).
-   - **Boundary Definition (Colocation vs. Extraction):** Zod schemas and pure data transformations go in sibling files (e.g., `*.logic.ts`), but ALL React hooks (including `useActionState`, `useOptimistic`) and local state remain in the `.tsx` file. Keep the `.tsx` AST flat and under 300 lines to ensure local IDE agents can navigate updates without choking on AST rewrites.
-   - **Enforce Progressive State Handling:** Replace the naive "generate all 5 states upfront" rule. Instead, prompt the IDE agent to build _only_ the **Success (Happy Path)** and the **Loading Skeleton** first. Require dynamic components to use Discriminated State Unions (never boolean soup) to handle these states, utilizing React 19 `useTransition` and `useOptimistic` for graceful degradation. Subsequent states (Error, Empty, Partial) should only be enriched via a targeted secondary prompt after the Happy Path is verified against real data contracts.
-   - Enforce **React 19 AbortControllers**: Require that all data fetching hooks and side-effects within the colocated component use `AbortSignal`s to prevent race conditions ("Snapshot Beats the Fetch").
-   - **Anti-Pattern Ban (No Code Watermarking):** Explicitly forbid "AI watermarking" (e.g., `// AI generated`, `// Prompted by Claude`, artificial block headers). Code generated by AI must be stylistically indistinguishable from human-written code.
-2. **Prompts are Code (Git-backed versioning & Human Review):**
-   - Treat `.cursor/prompts` as mission-critical application infrastructure. They must be version-controlled alongside application code.
-   - Rely on rigorous human PR review for prompt changes. Avoid overly complex or flaky "Stochastic CI" pipelines for prompt evaluations.
-3. **Functional UI Testing (React 19 & MSW Parity):**
-   - Update testing documentation to enforce Functional UI Testing using React Testing Library (RTL) combined with MSW for network mocks.
-   - Enforce React 19 test paradigms: when testing components consuming SSE streams or Promises via React 19's `<Suspense>` and `use()`, you MUST wrap the initial RTL `render()` call AND every subsequent stream injection (e.g., `controller.enqueue()`) in `await act(async () => { ... })`. Failing to do so will cause "suspended inside an act scope" errors.
-   - **Testing Timers & Async UI:** When testing polling intervals or simulated delays alongside `userEvent`, avoid synchronous timer increments. Strictly use `await vi.advanceTimersByTimeAsync()` or `await vi.runAllTimersAsync()` to trigger callbacks synchronously while preserving `userEvent` and internal `waitFor` loop stability.
-   - **Pragmatic Testing & Async Interactions:** When writing Vitest tests for async buttons or pointer-blocked elements, JSDOM `pointer-events` blockages will often fail `userEvent.click()`. Pragmatically bypass this by using synchronous `fireEvent.click()` to simulate interactions (like rapid double-clicks) and verify internal deduplication logic.
-   - Mandate that all LLM outputs or schema validation behaviors in tests leverage Zod Discriminated Unions rather than exact string assertions.
-   - **Strict Mocking Boundaries:** Fully mock `@radix-ui/*` primitives with `children` passthroughs or simple `div`s rather than advancing fake timers, as their internal CSS animations and async loops conflict with Vitest `vi.useFakeTimers()`. Additionally, when mocking Firebase Firestore (`firebase/firestore`), ensure `getFirestore` and `initializeFirestore` return an object (`vi.fn(() => ({}))`) to prevent Proxy target errors, and include `memoryLocalCache` and `setLogLevel` in exports.
-4. **Intent Validation (E2E):**
-   - Enforce 100% intent coverage using E2E filesystem integration tests without mocks.
-   - Mandate Playwright and Firebase Emulators for true Intent Validation.
-   - For local UI testing without signing in, use Playwright E2E Test Mode by appending `?mock_auth=true` (superadmin: `mo.hassaniv@gmail.com`) or `?mock_auth=true&role=user` to bypass Firebase Auth listeners.
-5. **Update `README.md`:** Integrate the new "NicheAI’s Opinionated UI Pipeline (The Anti-Slop MLP Stack)" section.
-6. **Update `AGENTS.md`:** Document the "Colocated One-Way Trip", the XML prompt usage, Pure Logic Extraction, Progressive State Handling, and Functional UI / Intent Validation constraints to ensure autonomous agents adhere to these strict boundaries.
-
-### Strategic Architectural Constraints: AI-Native Reliability & React 19 Parity
+## Strategic Architectural Constraints: AI-Native Reliability & React 19 Parity
 
 To ensure the NicheAI frontend remains resilient, easy for AI agents to reason about, and aligned with modern React 19 paradigms, all frontend execution must adhere to the following architectural constraints:
 
 **1. Strategic Abstraction (DRY for Primitives, WET for Layouts)**
 
-- **DRY Primitives:** Core UI building blocks must be strictly abstracted. Ban raw HTML `<button>` elements via ESLint `no-restricted-syntax`. Enforce a unified `<Button>` abstraction with internal promise resolution, default `type="button"`, and Radix UI compatibility. In React 19, pass `ref` directly as a prop (deprecating `forwardRef`). This provides a predictable, standardized foundation for AI code generation and reduces context exhaustion.
-- **WET Layouts:** Feature-specific layouts and complex page compositions should embrace duplication (Write Everything Twice). Avoid creating hyper-generic, highly-parameterized "shared layout" wrapper components. Isolated, WET layouts allow AI agents to iterate rapidly on a specific feature's UI without the risk of unintended blast-radius regressions across other pages.
+- **DRY Primitives:** Core UI building blocks must be strictly abstracted. Ban raw HTML `<button>` elements. Enforce a unified `<Button>` abstraction with internal promise resolution for `onClick`, default `type="button"`, and Radix UI compatibility. In React 19, pass `ref` directly as a prop (deprecating `forwardRef`). Additionally, the `<Button>` component MUST internally consume `useFormStatus().pending` to handle its own disabled and loading states automatically. This ensures AI agents do not have to manually bind loading state props during scaffolding, providing a bulletproof, predictable foundation for code generation.
+- **WET Layouts:** Feature-specific layouts and complex page compositions should embrace duplication (Write Everything Twice). Isolated, WET layouts allow AI agents to iterate rapidly without the risk of unintended blast-radius regressions across other pages.
 
-**2. Bimodal State Management**
-State must be handled predictably using two distinct paradigms to prevent AI state hallucinations and React race conditions:
+**2. Bimodal State Management & The Colocated Reality**
 
-- **Declarative Data Fetching:** Leverage React 19's `use()` and `<Suspense>` boundaries for server-state and asynchronous data fetching. Offload the loading orchestration to the framework rather than manually juggling `isLoading` boolean toggles.
-- **Discriminated Unions for Local State:** For complex local interactions (e.g., multi-step forms, AI generation phases), strictly type the state using TypeScript Discriminated Unions (e.g., `{ status: 'idle' } | { status: 'generating' } | { status: 'success', result: T } | { status: 'error', error: Error }`). This guarantees mutually exclusive states, making it impossible for the AI to introduce invalid UI conditions.
+- **Declarative Data Fetching:** Leverage React 19's `use()` and `<Suspense>` boundaries strictly for one-off asynchronous Promises (server-state).
+- **Discriminated Unions for Local State:** Strictly type complex local states using TypeScript Discriminated Unions. This guarantees mutually exclusive states, making it impossible for the AI to introduce invalid UI conditions (e.g. boolean soup).
+- **The Pure Logic Extraction Boundary:** Zod schemas, data transformations, and pure utility functions MUST live in sibling files (e.g., `*.logic.ts`). However, ALL React hooks (including `useActionState`, `useDeferredValue`) and local state remain in the `.tsx` file. This keeps the component flat (< 300 lines) to ensure AI agents can navigate AST updates without context exhaustion.
+
+**3. React 19 & Radix UI Paradigms**
+
+- **Idiomatic React 19 Contexts:** Inter-Component logic must use React Context. Strictly split React Contexts (separating state and dispatch). Utilize React 19's ability to use `<Context>` directly as a provider instead of `<Context.Provider>`.
+- **Native Metadata Hoisting:** Never use third-party libraries (e.g., `react-helmet`). Leverage React 19's native metadata hoisting (rendering `<title>`, `<meta>` directly inside any colocated component).
+- **Tailwind v4 Native Radix Targeting:** Use Tailwind v4 natively to target Radix UI state attributes (e.g., `data-[state=open]:opacity-100`) avoiding complex third-party variants.
+- **React 19 Action Awareness:** Favor top-level `useActionState` or `useTransition` within the single colocated component to maintain a flat file structure. Only use `useFormStatus` inside localized child components if component splitting is absolutely necessary.
+
+**4. State Machine Gating (Pre-Release Polish & A11y)**
+
+- **A11y Fallback & Progression:** Use the correct primitives from the first token generated. Use a **Bifurcated Disabled Rule**: Native `disabled` for standard controls (Buttons, Inputs) to leverage React 19's auto-disabling, and `aria-disabled="true"` with Radix's `data-disabled` styling hooks for composite Radix widgets (Selects, Tabs).
+- **The "Self-Sufficient Primitive" Rule:** All interactive form primitives must inherently manage their own localized loading/error visual states. Require React 19 `useId()` to inherently link the `<label>`, `<input>`, and `<span role="alert">`. As part of this self-sufficiency, core inputs and buttons MUST automatically tap into contextual loading states (e.g., via `useFormStatus().pending`) to eliminate manual prop-drilling by AI agents.
+- **Focus Management Post-Stream:** When an SSE stream finishes generating, dynamic UI must include deterministic focus management (e.g., auto-focusing the generated result) using React 19 standard `ref` props.
+- **Performance Troubleshooting:** CPU profiling (`browser_profile_start/stop`) is a reactive playbook reserved exclusively for investigating reported performance bottlenecks, not a proactive scaffolding blocker. Filter out React internal scheduling frames (`performConcurrentWorkOnRoot`).
+- **OKLCH Contrast Guards:** Text and background lightness must mathematically guarantee WCAG AA contrast minimums (`ΔL >= 0.50`) defined in the CSS `@theme` block. This is a pre-release gate.
+
+**5. Testing & CI Resilience**
+
+- **Strict Mocking Boundaries:** Fully mock `@radix-ui/*` primitives with `children` passthroughs or simple visible `div`s. Their internal CSS animations and async loops inherently conflict with Vitest `vi.useFakeTimers()`.
+- **Firebase Mocking:** When mocking Firebase Firestore, ensure `getFirestore` and `initializeFirestore` return an object (`vi.fn(() => ({}))`).
+- **Local Auth Bypass:** For E2E UI testing, NEVER execute full Firebase UI login flows. Append `?mock_auth=true` to the URL to natively bypass Firebase Auth listeners using our built-in E2E Test Mode, ensuring "Time-to-Green" testing speed.
+- **React 19 Test Paradigms:** When testing components consuming SSE streams or Promises via `<Suspense>`, you MUST wrap the initial RTL `render()` call AND every subsequent stream injection in `await act(async () => { ... })`.
+
+## Execution Plan
+
+1. **State Milestone 1: Component Scaffolding & Visual Thesis**
+   - Create `.cursor/prompts/ui-scaffold.md` defining the XML-based structure for LLM parsing.
+   - Enforce dynamic context injection (reading `design-tokens.json` manifest).
+   - Require a `<design_system_mapping>` block to translate the abstract Visual Thesis into explicit positive layout primitives (Tailwind v4 tokens).
+   - Scaffold the UI focusing ONLY on the **Success (Happy Path)** and **Loading Skeleton** states initially.
+
+2. **State Milestone 2: Logic Wiring & Connection Management**
+   - Inject business logic using the defined **Pure Logic Extraction Boundary**.
+   - Wire `useActionState` for forms and React 19 AbortControllers for fetch requests (hooked to tenant/workspace dependencies like `workspaceId` to prevent "Snapshot Beats the Fetch" race conditions).
+   - For components needing AI text streaming, implement the connection lifecycles via `useEffect` with `AbortController` cleanup.
+
+3. **State Milestone 3: Concurrent Rendering Optimization**
+   - Ensure high-frequency SSE token accumulation is passed through `useDeferredValue()` to prevent main-thread UI lock-ups.
+   - Apply progressive state enhancements (Error, Empty, Partial states) using Discriminated Unions.
+   - Enforce pre-release gating (OKLCH contrast validation, ARIA focus management, and Bifurcated Disabled attributes).
+
+4. **State Milestone 4: Intent Validation & Coverage Reporting**
+   - Execute Functional UI tests using RTL + MSW, ensuring strict mocking boundaries (Radix passthroughs). To verify async deduplication and bypass JSDOM `pointer-events` blockages, tests MUST simulate rapid double-clicks using synchronous `fireEvent.click()` instead of `userEvent.click()`.
+   - Execute E2E intent validation via Playwright and Firebase Emulators (using `?mock_auth=true` bypass).
+   - Update `README.md` to integrate this new pipeline and update `AGENTS.md` with the documented boundaries.

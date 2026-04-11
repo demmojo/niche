@@ -27,23 +27,38 @@ roastRoutes.post("/", async (req: Request, res: Response): Promise<void> => {
 
     const { idea, owner_uid } = req.body || {};
     const uid = owner_uid || "anonymous";
+    const ipAddress =
+      (req.headers["x-forwarded-for"] as string) || req.ip || "127.0.0.1";
 
-    const isAllowed = await atomicRateLimitCheck(uid, 5); // Example limit 5
+    const isAllowed = await atomicRateLimitCheck(uid, 5, ipAddress); // Example limit 5
     if (!isAllowed) {
-      res.status(429).json({ error: "Rate limit exceeded" });
+      if (uid === "anonymous") {
+        // Return 402 for logical quota exhaustion on unauthenticated users to trigger auth/upgrade modal
+        res.status(402).json({ error: "QUOTA_EXCEEDED" });
+      } else {
+        // 429 for WAF or physical throttling
+        res.status(429).json({ error: "Rate limit exceeded" });
+      }
       return;
     }
 
     const db = admin.firestore();
     const jobRef = db.collection("jobs").doc();
 
-    // Set initial state in Firestore to pending
-    const setPromise = jobRef.set({
-      idea,
-      owner_uid: uid,
-      status: "pending",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // Await initial creation synchronously before returning 202 to prevent Phantom 202 Responses
+    try {
+      await jobRef.set({
+        idea,
+        owner_uid: uid,
+        status: "pending",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: admin.firestore.FieldValue.serverTimestamp(), // TODO: Replace with proper +24h or +30d Timestamp logic based on uid
+      });
+    } catch (setErr) {
+      console.error("Failed to create initial job ledger:", setErr);
+      res.status(500).json({ error: "Failed to initialize job" });
+      return;
+    }
 
     // Create a Cloud Task payload (Claim Check pattern)
     // Send minimal payload as required (100kb max per Cloud Task)
@@ -69,17 +84,12 @@ roastRoutes.post("/", async (req: Request, res: Response): Promise<void> => {
     };
 
     // Detach the Cloud Task dispatch as a floating promise.
-    // It waits for the Firestore write to complete first to prevent worker race conditions.
-    setPromise
-      .then(() => {
-        return tasksClient.createTask({ parent, task });
-      })
-      .catch((error) => {
-        console.error("Background task dispatch failed:", error);
-        jobRef
-          .update({ status: "failed", error: "Failed to dispatch task" })
-          .catch(console.error);
-      });
+    tasksClient.createTask({ parent, task }).catch((error) => {
+      console.error("Background task dispatch failed:", error);
+      jobRef
+        .update({ status: "failed", error: "Failed to dispatch task" })
+        .catch(console.error);
+    });
 
     // Return 202 Accepted immediately
     res.status(202).json({

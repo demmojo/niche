@@ -2,7 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import express from "express";
 
-// Mock internal auth
+// Mock redis
+vi.mock("redis", () => ({
+  createClient: vi.fn().mockReturnValue({
+    connect: vi.fn().mockResolvedValue(true),
+    quit: vi.fn().mockResolvedValue(true),
+    publish: vi.fn().mockResolvedValue(true),
+    on: vi.fn(),
+    isOpen: true,
+  }),
+}));
 vi.mock("../../../server/internalAuthMiddleware", () => ({
   requireInternalOidc: (req: any, res: any, next: any) => next(),
 }));

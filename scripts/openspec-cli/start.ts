@@ -60,7 +60,7 @@ export async function startFeature(featureName: string, options: CliOptions) {
     const isHeadlessEnv = options.nonInteractive || isHeadless();
 
     if (isHeadlessEnv || options.autoFix !== undefined) {
-      if (options.autoFix) {
+      if (options.autoFix || options.force) {
         // Just run eval
         presenter.log("Running ai-eval...");
       } else {
