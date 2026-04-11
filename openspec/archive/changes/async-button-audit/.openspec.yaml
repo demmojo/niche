@@ -1,6 +1,3 @@
-version: 1.0.0
-name: async-button-audit
+schema: spec-driven
 status: archived
-dependencies: []
-extends: []
 learnings_extracted: true

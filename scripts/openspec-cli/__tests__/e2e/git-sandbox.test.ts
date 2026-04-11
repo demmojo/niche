@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -10,16 +10,6 @@ const TEST_BASE_DIR = path.resolve(process.cwd(), ".tmp", `test-sandbox-${crypto
 const OLD_CWD = process.cwd();
 
 describe("E2E: Git-Native Sandboxing", () => {
-  let fdRegistry: number[] = [];
-
-  // Override fs.openSync to track file descriptors
-  const originalOpenSync = fs.openSync;
-  fs.openSync = function(...args) {
-    const fd = originalOpenSync.apply(this, args);
-    fdRegistry.push(fd);
-    return fd;
-  };
-
   beforeEach(() => {
     // 1. Isolated sandbox (git init)
     if (fs.existsSync(TEST_BASE_DIR)) {
@@ -45,16 +35,7 @@ describe("E2E: Git-Native Sandboxing", () => {
         // Windows might hold locks, ignore cleanup errors
       }
     }
-
-    // FD Cleanup to prevent EMFILE
-    for (const fd of fdRegistry) {
-      try {
-        fs.closeSync(fd);
-      } catch (e) {
-        // ignore already closed
-      }
-    }
-    fdRegistry = [];
+    vi.restoreAllMocks();
   });
 
   it("should create an isolated worktree, apply changes, and squash merge correctly", () => {

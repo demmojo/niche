@@ -1,8 +1,3 @@
-name: vitest-environment-optimization
+schema: spec-driven
 status: archived
-depends_on: []
-extends: []
-refactors: []
-supersedes: []
-reverts: []
 learnings_extracted: true
