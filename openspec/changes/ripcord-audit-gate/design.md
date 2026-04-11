@@ -7,12 +7,12 @@ The OpenSpec CLI currently suffers from CI/CD deadlocks, terminal hangs, and fil
 ## 1. The Ripcord Action (ML Decoupling)
 
 - **Segregation & Dynamic Imports:** `propose`, `apply`, `start`, `verify`, and `archive` will strictly decouple ML. Heavy ML libraries (e.g., `@google/genai`) are dynamically imported exclusively in dedicated commands (`detect-collisions`, `audit-drift`).
-- **Stream/Promise Yielding:** Massive ML pipelines must pipe via `stream/promises` and yield to the event loop (`setImmediate`) every 50ms to prevent V8 Heap Exhaustion.
+- **Stream/Promise Yielding:** Massive ML pipelines must pipe via `stream/promises` and yield to the event loop (`setImmediate`) every 50ms to prevent V8 Heap Exhaustion. Include a `MarkdownExtractorTransform` to strip LLM markdown wrappers before writing to disk.
 - **Circuit Breaker:** All ML fetches MUST be bound to `AbortSignal.timeout(30000)`.
 
 ## 2. OS-Native Locking
 
-- **Global Workspace Lock:** Cross-process POSIX-compliant atomicity is achieved by utilizing the industry-standard `proper-lockfile` on a static `.tmp/openspec.lock` file.
+- **Global Workspace Lock:** Cross-process POSIX-compliant atomicity is achieved by utilizing the industry-standard `proper-lockfile` on a static `.tmp/openspec.lock` file. Include a bootstrap step (`fs.mkdirSync('.tmp', { recursive: true })` and `fs.writeFileSync('.tmp/openspec.lock', '', { flag: 'a' })`) since `proper-lockfile` requires the target file to exist.
 - **Stale Lock Resolution:** The CLI relies entirely on `proper-lockfile`'s native `stale` configuration for stale lock resolution, eliminating custom backoff loops and async EBUSY heartbeat mechanisms.
 
 ## 3. Git-Native Atomicity (Isolated Worktrees)

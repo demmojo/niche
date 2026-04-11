@@ -23,14 +23,14 @@ Strip non-deterministic ML execution from the core pipeline to protect the event
 - **Dynamic Imports:** `propose`, `apply`, `start`, `verify`, and `archive` will use dynamic imports for heavy ML libraries (e.g., `@google/genai`), ensuring they are never loaded into V8 memory during standard operations.
 - **Dedicated Commands:** Move heavy ML checks to standalone commands: `openspec detect-collisions` and `openspec audit-drift`.
 - **`AbortSignal` Enforcement:** All ML fetches must be tightly bound to an `AbortController` (e.g., `AbortSignal.timeout(30000)`). The timeout must wrap both the dynamic import and the execution.
-- **Streaming ML Pipelines:** To prevent V8 Heap Exhaustion (OOM) and Event Loop starvation on massive payloads, ML outputs MUST be piped through `stream/promises` (`pipeline(mlStream, hashTransform, fs.createWriteStream)`). If the stream fails, the partial file must be explicitly unlinked.
+- **Streaming ML Pipelines:** To prevent V8 Heap Exhaustion (OOM) and Event Loop starvation on massive payloads, ML outputs MUST be piped through `stream/promises` (`pipeline(mlStream, markdownExtractorTransform, hashTransform, fs.createWriteStream)`). Include a `MarkdownExtractorTransform` to strip LLM markdown wrappers before writing to disk. If the stream fails, the partial file must be explicitly unlinked.
 - **Time-Based Event Loop Yielding:** To prevent massive cryptographic streams from starving the Mutex Heartbeat, inject an async generator into the pipeline that yields to `setImmediate` every 50ms.
 
 ### 2. OS-Native Locking
 
 Gut the custom `mkdirSync` heartbeat locks and lock-stealing logic. Replace it with the industry-standard `proper-lockfile`.
 
-- **Global Workspace Lock:** The CLI will utilize `proper-lockfile` on a static `.tmp/openspec.lock` file to guarantee cross-platform POSIX-compliant atomicity.
+- **Global Workspace Lock:** The CLI will utilize `proper-lockfile` on a static `.tmp/openspec.lock` file to guarantee cross-platform POSIX-compliant atomicity. Because `proper-lockfile` requires the target file to exist, it MUST include a bootstrap step: `fs.mkdirSync('.tmp', { recursive: true })` and `fs.writeFileSync('.tmp/openspec.lock', '', { flag: 'a' })`.
 - **Stale Lock Resolution:** `proper-lockfile` natively handles stale locks via its robust `stale` configuration, completely eliminating the need for our custom lock-stealing and asynchronous EBUSY backoff loops.
 
 ### 3. Git-Native Atomicity (Isolated Worktrees)

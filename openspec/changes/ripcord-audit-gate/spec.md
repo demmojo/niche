@@ -7,13 +7,13 @@ Technical implementation for decoupling ML evaluations from fast-paths, overhaul
 ## 1. The Ripcord Action & Event Loop Yielding
 
 - **Dynamic Imports:** Refactor `index.ts` and command fast-paths to remove static `@google/genai` imports.
-- **Streaming & Backpressure:** Implement `pipeline(mlStream, hashTransform, fs.createWriteStream)` for large payloads.
+- **Streaming & Backpressure:** Implement `pipeline(mlStream, markdownExtractorTransform, hashTransform, fs.createWriteStream)` for large payloads. Add a `MarkdownExtractorTransform` to strip LLM markdown wrappers before writing to disk.
 - **Yield Generator:** Inject an async generator that calls `await new Promise(r => setImmediate(r))` every 50ms into cryptographic streams.
 - **Timeout Bound:** Wrap ML calls in `AbortSignal.timeout(30000)`.
 
 ## 2. OS-Native Locking (`proper-lockfile`)
 
-- **Mutex Implementation:** Use the `proper-lockfile` package targeting `<baseDir>/.tmp/openspec.lock`.
+- **Mutex Implementation:** Use the `proper-lockfile` package targeting `<baseDir>/.tmp/openspec.lock`. Add a bootstrap step (`fs.mkdirSync('.tmp', { recursive: true })` and `fs.writeFileSync('.tmp/openspec.lock', '', { flag: 'a' })`) before locking, as `proper-lockfile` requires the target file to exist.
 - **Lock Acquisition:** Wrap mutative CLI commands inside `lock()` and `release()`.
 - **Stale Lock Resolution:** Configure `proper-lockfile` with `stale: 15000` (15 seconds) to natively manage lock hijacking without custom polling or EBUSY retry loops.
 
