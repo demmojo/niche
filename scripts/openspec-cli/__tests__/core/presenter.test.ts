@@ -32,10 +32,7 @@ describe("TerminalPresenter (Safe Exits)", () => {
   it("should safely drain stdout and stderr before exiting (JSON mode)", async () => {
     const presenter = new TerminalPresenter(true, true); // json mode
 
-    // We expect it to throw our mock error to confirm exit was called
-    await expect(async () => {
-      await presenter.fail("Test failure");
-    }).rejects.toThrow("process.exit called with 1");
+    await presenter.fail("Test failure");
 
     expect(stdoutWriteSpy).toHaveBeenCalled();
     expect(stderrWriteSpy).toHaveBeenCalled();
@@ -53,9 +50,7 @@ describe("TerminalPresenter (Safe Exits)", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    await expect(async () => {
-      await presenter.fail("Interactive failure");
-    }).rejects.toThrow("process.exit called with 1");
+    await presenter.fail("Interactive failure");
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Interactive failure"),

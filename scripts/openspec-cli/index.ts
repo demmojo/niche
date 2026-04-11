@@ -22,6 +22,7 @@ import { proposePlan } from "./propose.js";
 import { startFeature } from "./start.js";
 import { applyStaged, statusStaged } from "./stage.js";
 import { archiveFeature } from "./archive.js";
+import { migrateLegacySpecs } from "./migrate.js";
 
 const program = new Command();
 
@@ -365,6 +366,15 @@ program
     const rawOpts = { ...command.optsWithGlobals(), ...options };
     const opts = CliOptionsSchema.parse(rawOpts);
     await archiveFeature(featureName, opts);
+  });
+
+program
+  .command("migrate-legacy-specs")
+  .description("Migrate legacy V1 specs to V2 spec-driven CST")
+  .action(async (options, command) => {
+    const rawOpts = { ...command.optsWithGlobals(), ...options };
+    const opts = CliOptionsSchema.parse(rawOpts);
+    await migrateLegacySpecs(opts);
   });
 
 program.parse();

@@ -3,7 +3,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { execSync } from "child_process";
 import { FsIntent, FsExecutor } from "./fs-intents.js";
-import { CliOptions } from "./schema.js";
+import { CliOptions, StagedIntentSchema, StagedIntent } from "./schema.js";
 import { TerminalPresenter } from "./presenter.js";
 
 // Hashing only the specific files affected
@@ -17,14 +17,6 @@ function hashFiles(files: string[]): string {
     }
   }
   return hash.digest("hex");
-}
-
-export interface StagedIntent {
-  token: string;
-  intents: FsIntent[];
-  fileHash: string;
-  createdAt: number;
-  branchName: string;
 }
 
 export function stageIntents(
@@ -147,6 +139,12 @@ export async function applyStaged(opts: CliOptions) {
     return;
   }
 
+  // Strict pipe safety
+  if (!process.stdout.isTTY && !opts.force) {
+    await presenter.fail("Cannot apply in non-TTY pipe without --force");
+    return;
+  }
+
   const intentsMetaPath = path.join(
     process.cwd(),
     ".openspec",
@@ -159,7 +157,8 @@ export async function applyStaged(opts: CliOptions) {
   }
 
   const stagedData = fs.readFileSync(intentsMetaPath, "utf8");
-  const staged: StagedIntent = JSON.parse(stagedData);
+  const parsedData = JSON.parse(stagedData);
+  const staged = StagedIntentSchema.parse(parsedData);
 
   const affectedFiles = new Set<string>();
   for (const intent of staged.intents) {

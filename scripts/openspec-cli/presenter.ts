@@ -11,7 +11,20 @@ export interface CliErrorResponse {
   suggestedCommand?: string;
 }
 
-export class TerminalPresenter {
+export interface Presenter {
+  log(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+  success<T>(data: T, humanMessage?: string): Promise<void>;
+  fail(
+    error: Error | string,
+    code?: string,
+    suggestedCommand?: string,
+  ): Promise<void>;
+  safeExit(code: number, jsonStdout?: string): Promise<void>;
+}
+
+export class TerminalPresenter implements Presenter {
   constructor(
     private readonly isNonInteractive: boolean,
     private readonly isJson: boolean,
@@ -85,7 +98,7 @@ export class TerminalPresenter {
             resolve(); // if process.exit is mocked to not throw, resolve the promise so tests don't hang
           } catch (e) {
             resolve();
-            throw e;
+            // Do not re-throw here because we are in a stream callback, which will cause an Unhandled Exception.
           }
         }
       };
@@ -98,6 +111,57 @@ export class TerminalPresenter {
 
       process.stderr.write("", maybeExit);
     });
+  }
+}
+
+export class CloudLogPresenter implements Presenter {
+  constructor(private readonly isJson: boolean = true) {}
+
+  public log(message: string): void {
+    console.log(JSON.stringify({ severity: "INFO", message }));
+  }
+
+  public warn(message: string): void {
+    console.error(JSON.stringify({ severity: "WARNING", message }));
+  }
+
+  public error(message: string): void {
+    console.error(JSON.stringify({ severity: "ERROR", message }));
+  }
+
+  public async success<T>(data: T, humanMessage?: string): Promise<void> {
+    const payload = {
+      severity: "INFO",
+      status: "success",
+      message: humanMessage,
+      data,
+    };
+    console.log(JSON.stringify(payload));
+    await this.safeExit(0);
+  }
+
+  public async fail(
+    error: Error | string,
+    code: string = "general_error",
+    suggestedCommand?: string,
+  ): Promise<void> {
+    const message = error instanceof Error ? error.message : error;
+    const payload = {
+      severity: "ERROR",
+      status: "error",
+      code,
+      message,
+      suggestedCommand,
+    };
+    console.error(JSON.stringify(payload));
+    await this.safeExit(1);
+  }
+
+  public async safeExit(code: number, jsonStdout?: string): Promise<void> {
+    if (jsonStdout) {
+      console.log(jsonStdout.trim());
+    }
+    process.exit(code);
   }
 }
 

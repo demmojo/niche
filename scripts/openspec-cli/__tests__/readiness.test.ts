@@ -91,19 +91,22 @@ describe("checkReadiness", () => {
       },
     ];
 
-    const consoleWarnSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const warnSpy = vi.fn();
+    const failSpy = vi.fn();
+    const mockPresenter = {
+      warn: warnSpy,
+      fail: failSpy,
+      log: vi.fn(),
+      error: vi.fn(),
+      success: vi.fn(),
+      safeExit: vi.fn(),
+    } as any;
 
-    const result = checkReadiness(specs, "feature-a");
+    const result = checkReadiness(specs, "feature-a", false, mockPresenter);
 
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    expect(failSpy).toHaveBeenCalled();
     expect(result).toBe(false);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("should handle reverse dependencies (blocks)", () => {

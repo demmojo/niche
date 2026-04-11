@@ -25,11 +25,11 @@
 
 ## Phase 4: Migration & Presentation Layer
 
-- [ ] Build `migrate-legacy-specs` script with strict `git status --porcelain` validation guard.
-- [ ] Add Zod Transform schemas for parsing and upgrading V1 to V2 tokens in memory.
-- [ ] Build logic to ignore active/in-flight specs during migration.
-- [ ] Extract UI elements via Dependency Injection (`TerminalPresenter`, `CloudLogPresenter`).
-- [ ] Implement strict `--json` stdout enforcement (bifurcated pipe safety via `isTTY`).
+- [x] Build `migrate-legacy-specs` script with strict `git status --porcelain` validation guard.
+- [x] Add Zod Transform schemas for parsing and upgrading V1 to V2 tokens in memory.
+- [x] Build logic to ignore active/in-flight specs during migration.
+- [x] Extract UI elements via Dependency Injection (`TerminalPresenter`, `CloudLogPresenter`).
+- [x] Implement strict `--json` stdout enforcement (bifurcated pipe safety via `isTTY`).
 
 ## Phase 5: Testing
 

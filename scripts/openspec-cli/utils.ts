@@ -156,6 +156,21 @@ export function getAllSpecs(
           const content = fs.readFileSync(yamlPath, "utf-8");
           try {
             const rawData = yaml.load(content);
+            // Check for legacy specs before parsing
+            if (
+              rawData &&
+              typeof rawData === "object" &&
+              !("schema" in rawData)
+            ) {
+              console.error(
+                JSON.stringify({
+                  error: "LEGACY_SPEC_DETECTED",
+                  actionRequired:
+                    "HALT. Ask the human to commit changes and run npm run openspec migrate-legacy-specs manually.",
+                }),
+              );
+              process.exit(1);
+            }
             const data = OpenSpecSchema.parse(rawData);
             specs.push({
               id: item,

@@ -47,3 +47,35 @@ export const OpenSpecSchema = z.object({
 });
 
 export type OpenSpec = z.infer<typeof OpenSpecSchema>;
+
+export const FsIntentSchema = z
+  .object({
+    kind: z.string(),
+  })
+  .passthrough();
+
+export const StagedIntentSchema = z
+  .object({
+    token: z.string(),
+    intents: z.array(FsIntentSchema),
+    fileHash: z.string(),
+    createdAt: z.number(),
+    branchName: z.string().optional(),
+  })
+  .transform((val) => {
+    if (!val.branchName) {
+      return {
+        ...val,
+        branchName: `.openspec-staging-${val.token}`,
+      };
+    }
+    return val as {
+      token: string;
+      intents: any[];
+      fileHash: string;
+      createdAt: number;
+      branchName: string;
+    };
+  });
+
+export type StagedIntent = z.infer<typeof StagedIntentSchema>;
