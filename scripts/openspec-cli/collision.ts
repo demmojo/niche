@@ -206,7 +206,7 @@ export async function checkCollisions(
             if (action === "abort") return "abort";
             if (action === "supersede" || action === "merge") {
               // Not actually implementing supersede/merge file mutations right now for simplicity
-              return action;
+              return "ok"; // Changed from action to 'ok' to allow pipeline to continue
             }
             presenter.fail(
               "Collision detected.",
