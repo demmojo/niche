@@ -18,14 +18,14 @@ The OpenSpec CLI currently suffers from CI/CD deadlocks, terminal hangs, and fil
 ## 3. Git-Native Atomicity (Isolated Worktrees)
 
 - **Isolated Git Worktrees:** All file generation, modification, and AI validation logic is completely isolated into a dedicated Git Worktree (`git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`), eliminating the need to block workflows when the user has dirty files.
-- **Automated Dependency Symlinking:** Natively symlink `node_modules/` and `.env` from the root workspace into the worktree so tests and linters execute seamlessly without costly duplication.
+- **Automated Dependency Symlinking:** Natively symlink `node_modules/` and `.env` from the root workspace into the worktree so tests and linters execute seamlessly without costly duplication. To **Mitigate NPM Symlink Destruction**, the CLI/Agent must NEVER run `npm install` inside the worktree if `node_modules` is symlinked. If an OpenSpec validation requires installing a new dependency, the CLI must run it in the main tree so the symlink propagates it.
 - **Dynamic Port Isolation (Socratic Resolution):** CLI validation steps inside the worktree are injected with a dynamically computed `PORT` and `FIRESTORE_EMULATOR_HOST` (e.g., base port + 1000 based on UUID hash) to ensure AI tests never collide with the human's active local development server.
 - **Pivot/Apply:** The staging area is applied via a seamless Git swap from the main directory: `git merge --squash .openspec-staging-<uuid>`. Git's native intelligence handles uncommitted file protection without a rigid pre-flight block.
 - **Crash Cleanly Paradigm:** Mid-flight auto-recovery ledgers are forbidden. A `SIGINT` mid-generation causes a clean crash. The worktree and branch are orphaned as a forensic artifact, and rollbacks are accomplished natively by running `git worktree remove --force` and deleting the branch.
 
 ## 4. Forensic Artifact Management & Anti-Hijack
 
-- **Git State Hygiene:** Anti-bloat measures involve cleaning up orphaned `.openspec-staging-*` branches and running `git worktree prune` on CLI boot to clean up deleted worktrees, rather than complex symlink and directory regex checks.
+- **Git State Hygiene:** Anti-bloat measures involve cleaning up orphaned `.openspec-staging-*` branches and running `git worktree prune` on CLI boot to clean up deleted worktrees, rather than complex symlink and directory regex checks. Specifically, implement an **Orphaned Branch Cleanup Routine**: after running `git worktree prune`, run a sweep to delete any `.openspec-staging-*` branches that no longer have an active worktree.
 - **Anti-Hijack Defense:** Strict reliance on Git internals entirely mitigates the directory traversal and symlink hijack vulnerabilities present in filesystem-based staging.
 
 ## 5. Polymorphic Cryptographic Pinning (Claim Check)

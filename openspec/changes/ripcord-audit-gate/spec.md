@@ -21,11 +21,13 @@ Technical implementation for decoupling ML evaluations from fast-paths, overhaul
 
 - **Isolated Worktree Initialization:** Replace the `FsExecutor` backup/staging directories with Git Worktrees:
   1. `git worktree prune` (Clean up old deleted worktrees)
-  2. `git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`
-  3. Generate and write all spec files/artifacts directly into the `.openspec-worktrees/<uuid>` tree.
+  2. **Orphaned Branch Cleanup Routine:** Sweep and delete any `.openspec-staging-*` branches that no longer have an active worktree.
+  3. `git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`
+  4. Generate and write all spec files/artifacts directly into the `.openspec-worktrees/<uuid>` tree.
 - **Dependency Symlinking:** During worktree initialization, execute:
   1. `ln -s ../../node_modules .openspec-worktrees/<uuid>/node_modules` (or equivalent cross-platform junction on Windows)
   2. `ln -s ../../.env .openspec-worktrees/<uuid>/.env`
+  - **Mitigate NPM Symlink Destruction:** The CLI/Agent must NEVER run `npm install` inside the worktree if `node_modules` is symlinked. If an OpenSpec validation requires installing a new dependency, the CLI must run it in the main tree so the symlink propagates it.
 - **Dynamic Port Isolation:** When invoking commands like `ai-eval`, `eslint`, or `vitest` inside the worktree, the CLI MUST parse the UUID into an integer offset (e.g., modulo 1000 + 10000) and inject it into `process.env.PORT` and `process.env.FIRESTORE_EMULATOR_HOST` to prevent port collisions with the human's local server.
 - **Pivot/Apply Phase:**
   1. Return to `<baseDir>`

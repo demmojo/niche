@@ -39,12 +39,13 @@ Gut the massive "Blue-Green Filesystem Paradigm" and the blocking "Fatal Git Gua
 
 - **Isolated Git Worktrees:** Instead of blocking `git checkout -b` when the user has dirty files, the `FsExecutor` will execute `git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`. All file generations, modifications, and AI evaluations happen in this 100% isolated directory.
 - **Automated Dependency Symlinking:** To ensure validators (`ai-eval`, `eslint`, `vitest`) run seamlessly inside the worktree without duplicating massive folders, the CLI will natively symlink `node_modules/` and `.env` from the root workspace into `.openspec-worktrees/<uuid>`.
+  - **Mitigate NPM Symlink Destruction:** The CLI/Agent must NEVER run `npm install` inside the worktree if `node_modules` is symlinked. If an OpenSpec validation requires installing a new dependency, the CLI must run it in the main tree so the symlink propagates it.
 - **Dynamic Port Isolation (Socratic Resolution):** To prevent port and database collisions when the AI runs tests in the worktree while the human is actively coding in the main tree, the OpenSpec CLI MUST execute all worktree validations with a dynamically injected `PORT` and `FIRESTORE_EMULATOR_HOST` (e.g., offsetting ports by `+1000` based on the UUID hash) to guarantee network isolation.
 - **Native Dirty Merge Protection (Pivot/Apply):** To apply the staging area, the CLI executes a seamless Git swap from the main directory: `git merge --squash .openspec-staging-<uuid>`. This relies on Git's native intelligence to protect the user's uncommitted files, failing safely if there are true conflicts, without needing a rigid "Fatal Git Guard" pre-flight block.
 - **Fail-Fast Crash Cleanly Paradigm:** We explicitly reject mid-flight auto-recovery ledgers. If the CLI fails or receives a `SIGINT` mid-generation, it crashes cleanly.
   - The worktree and branch are intentionally orphaned as forensic artifacts.
   - Rollbacks are trivial: `git worktree remove .openspec-worktrees/<uuid> --force` and delete the branch.
-  - On every CLI boot, the system MUST run `git worktree prune` to clean up orphaned folders if the user manually deleted the branch.
+  - On every CLI boot, the system MUST run `git worktree prune` to clean up orphaned folders if the user manually deleted the branch. **After running `git worktree prune`, it MUST run an Orphaned Branch Cleanup Routine to sweep and delete any `.openspec-staging-*` branches that no longer have an active worktree.**
 - **Polymorphic Cryptographic Pinning:** Use the Claim Check pattern for JSON payloads >100KB to bypass command-line length limits.
   - The CLI must implement a polymorphic interface: for local execution, it retains `.tmp/payloads.json` so local AI agents can natively read them. For distributed Cloud Run workflows, it offloads to Firestore (`{ "claimCheckId": "doc-123" }`).
   - Pin payloads using SHA-256 (`{ "claimCheckPath": "...", "sha256": "<hash>" }`).
