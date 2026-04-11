@@ -16,6 +16,7 @@ import { checkReadiness } from "./readiness.js";
 import { generateDocs } from "./generate-docs.js";
 import { checkCoverage } from "./coverage.js";
 import { CliOptionsSchema } from "./schema.js";
+import { acquireGlobalLock } from "./lock.js";
 
 import { proposePlan } from "./propose.js";
 import { startFeature } from "./start.js";
@@ -84,7 +85,13 @@ Examples:
   .action(async (planPath, options, command) => {
     const rawOpts = { ...command.optsWithGlobals(), ...options };
     const opts = CliOptionsSchema.parse(rawOpts);
-    await proposePlan(planPath, opts);
+    let releaseLock;
+    try {
+      releaseLock = await acquireGlobalLock();
+      await proposePlan(planPath, opts);
+    } finally {
+      if (releaseLock) await releaseLock();
+    }
   });
 
 program
@@ -108,7 +115,13 @@ Examples:
   .action(async (featureName, options, command) => {
     const rawOpts = { ...command.optsWithGlobals(), ...options };
     const opts = CliOptionsSchema.parse(rawOpts);
-    await startFeature(featureName, opts);
+    let releaseLock;
+    try {
+      releaseLock = await acquireGlobalLock();
+      await startFeature(featureName, opts);
+    } finally {
+      if (releaseLock) await releaseLock();
+    }
   });
 
 program
@@ -126,21 +139,37 @@ Examples:
   .action(async (_, command) => {
     const rawOpts = { ...command.optsWithGlobals() };
     const opts = CliOptionsSchema.parse(rawOpts);
-    const { TerminalPresenter, isHeadless } = await import("./presenter.js");
-    const presenter = new TerminalPresenter(
-      opts.nonInteractive || isHeadless(),
-      opts.json,
-    );
-    const specs = getAllSpecs();
-    const isValid = checkCycles(specs, presenter);
-    if (!isValid) {
-      await presenter.safeExit(1);
-      return;
+    let releaseLock;
+    try {
+      releaseLock = await acquireGlobalLock();
+      const { TerminalPresenter, isHeadless } = await import("./presenter.js");
+      const presenter = new TerminalPresenter(
+        opts.nonInteractive || isHeadless(),
+        opts.json,
+      );
+      const specs = getAllSpecs();
+      const isValid = checkCycles(specs, presenter);
+      if (!isValid) {
+        await presenter.safeExit(1);
+        return;
+      }
+      await presenter.success(
+        { message: `Validated ${specs.length} specs successfully.` },
+        `Validated ${specs.length} specs successfully.`,
+      );
+    } finally {
+      if (releaseLock) await releaseLock();
     }
-    await presenter.success(
-      { message: `Validated ${specs.length} specs successfully.` },
-      `Validated ${specs.length} specs successfully.`,
-    );
+  });
+
+program
+  .command("audit-drift")
+  .description(
+    "Analyze staged AST changes to automatically heal documentation drift",
+  )
+  .action(async () => {
+    const { runDriftHealing } = await import("./drift.js");
+    await runDriftHealing();
   });
 
 program
@@ -310,7 +339,13 @@ program
   .action(async (options, command) => {
     const rawOpts = { ...command.optsWithGlobals(), ...options };
     const opts = CliOptionsSchema.parse(rawOpts);
-    await applyStaged(opts);
+    let releaseLock;
+    try {
+      releaseLock = await acquireGlobalLock();
+      await applyStaged(opts);
+    } finally {
+      if (releaseLock) await releaseLock();
+    }
   });
 
 program

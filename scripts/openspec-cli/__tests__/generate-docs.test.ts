@@ -18,6 +18,7 @@ vi.mock("../utils.js", async (importOriginal) => {
 describe("generateDocs", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.spyOn(process, "exit").mockImplementation((() => {}) as any);
   });
 
   it("should throw an error if the template file does not exist", async () => {
@@ -73,7 +74,7 @@ describe("generateDocs", () => {
 
     expect(writeContent).toContain("<!-- OPENSPEC_TABLE_START -->");
     expect(writeContent).toContain(
-      "| feature-a | Derived from proposal | draft | [feature-a](openspec/changes/feature-a) |",
+      "| feature-a | This is a cool feature.... | draft | [Link](openspec/changes/feature-a) |",
     );
     expect(writeContent).toContain("<!-- GIT_HISTORY_START -->");
     expect(writeContent).toContain("* initial commit (1234567) - 2026-03-27");

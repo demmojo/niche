@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import { GoogleGenAI } from "@google/genai";
 import { ParsedSpec } from "./utils.js";
 import { CliOptions } from "./schema.js";
 import { TerminalPresenter, isHeadless } from "./presenter.js";
@@ -153,6 +152,7 @@ export async function buildContext(
     let targetVector: number[] | null = null;
 
     if (process.env.GEMINI_API_KEY) {
+      const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({});
       const targetHash = hashText(targetContent);
 
@@ -161,10 +161,27 @@ export async function buildContext(
         targetVector = cache[targetSpec.id].vector;
       } else {
         try {
-          const response = await ai.models.embedContent({
-            model: "gemini-embedding-2-preview",
-            contents: targetContent,
+          const signal = AbortSignal.timeout(10000); // 10s timeout
+          let timeoutId: any;
+          const timeoutPromise = new Promise<any>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error("LLM Timeout Exceeded")),
+              10000,
+            );
           });
+
+          const responsePromise = ai.models.embedContent(
+            {
+              model: "gemini-embedding-2-preview",
+              contents: targetContent,
+            },
+            { signal },
+          );
+
+          const response = await Promise.race([
+            responsePromise,
+            timeoutPromise,
+          ]).finally(() => clearTimeout(timeoutId));
           const vector = response.embeddings?.[0]?.values;
           if (vector) {
             targetVector = vector;
@@ -192,10 +209,27 @@ export async function buildContext(
           otherVector = cache[other.id].vector;
         } else {
           try {
-            const response = await ai.models.embedContent({
-              model: "gemini-embedding-2-preview", // the recommended text embedding model for Gemini
-              contents: otherContent,
+            const signal = AbortSignal.timeout(10000); // 10s timeout
+            let timeoutId: any;
+            const timeoutPromise = new Promise<any>((_, reject) => {
+              timeoutId = setTimeout(
+                () => reject(new Error("LLM Timeout Exceeded")),
+                10000,
+              );
             });
+
+            const responsePromise = ai.models.embedContent(
+              {
+                model: "gemini-embedding-2-preview", // the recommended text embedding model for Gemini
+                contents: otherContent,
+              },
+              { signal },
+            );
+
+            const response = await Promise.race([
+              responsePromise,
+              timeoutPromise,
+            ]).finally(() => clearTimeout(timeoutId));
             const vector = response.embeddings?.[0]?.values;
             if (vector) {
               otherVector = vector;

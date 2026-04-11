@@ -1,5 +1,3 @@
-import { Type } from "@google/genai";
-
 /**
  *
  */
@@ -16,14 +14,14 @@ export function zodToGeminiSchema(schema: any): any {
   const type = schema._def.type;
 
   if (type === "string") {
-    return { type: Type.STRING, description: schema.description || undefined };
+    return { type: "STRING", description: schema.description || undefined };
   } else if (type === "number") {
-    return { type: Type.NUMBER, description: schema.description || undefined };
+    return { type: "NUMBER", description: schema.description || undefined };
   } else if (type === "boolean") {
-    return { type: Type.BOOLEAN, description: schema.description || undefined };
+    return { type: "BOOLEAN", description: schema.description || undefined };
   } else if (type === "array") {
     return {
-      type: Type.ARRAY,
+      type: "ARRAY",
       description: schema.description || undefined,
       items: zodToGeminiSchema(
         schema._def.type === "array" ? schema._def.element : schema.element,
@@ -45,14 +43,14 @@ export function zodToGeminiSchema(schema: any): any {
     }
 
     return {
-      type: Type.OBJECT,
+      type: "OBJECT",
       description: schema.description || undefined,
       properties,
       required: required.length > 0 ? required : undefined,
     };
   } else if (type === "enum") {
     return {
-      type: Type.STRING,
+      type: "STRING",
       description: schema.description || undefined,
       enum: schema._def.values,
     };

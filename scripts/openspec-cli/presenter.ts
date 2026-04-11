@@ -80,7 +80,13 @@ export class TerminalPresenter {
       const maybeExit = () => {
         pending--;
         if (pending === 0) {
-          process.exit(code);
+          try {
+            process.exit(code);
+            resolve(); // if process.exit is mocked to not throw, resolve the promise so tests don't hang
+          } catch (e) {
+            resolve();
+            throw e;
+          }
         }
       };
 

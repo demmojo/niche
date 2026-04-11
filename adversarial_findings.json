@@ -1,0 +1,53 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Cascade: Unconsumed stream buffer overflow severs background WebSocket",
+      "severity": "critical",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "description": "If a user runs a sidecar with wait=False and then blocks the main thread with wait=True, the sidecar's unconsumed output will cause a WebSocket keepalive timeout and silently drop the connection. The chance of this pattern successfully functioning as a live stream is 0%.",
+      "evidence": [
+        "User calls `sandbox.run(sidecar, wait=False)` which returns a `CommandHandle`.",
+        "The `CommandHandle` constructor eagerly reads the 'started' message via `_consume_started()` but then yields control.",
+        "The underlying `websockets.sync` client spawns a `recv_events_thread` that reads frames into a queue with a default `max_queue` of 16.",
+        "The sidecar rapidly produces >16 chunks of output.",
+        "The `recv_events_thread` fills the queue and permanently blocks on `self.recv_flow_control.acquire()`, ceasing all TCP socket reads.",
+        "Because reads have stopped, the client fails to process server `Pong` frames in response to its `keepalive_thread` Pings.",
+        "After 60 seconds (`ping_timeout`), the client forcibly closes the WebSocket connection due to timeout."
+      ]
+    },
+    {
+      "title": "Composition failure: Synchronous thread-blocking prevents live telemetry consumption",
+      "severity": "high",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "description": "The proposed pattern combines a lazy iterator (wait=False) with a blocking call (wait=True) on the same thread, making live streaming architecturally impossible without explicit multi-threading.",
+      "evidence": [
+        "User initiates the sidecar stream but does not spawn a dedicated background thread to iterate it.",
+        "User immediately invokes `sandbox.run(user_cmd, wait=True)`.",
+        "The `wait=True` call strictly blocks the main thread until the user's command completes (e.g., minutes for a test suite).",
+        "The `CommandHandle` iterator (`for chunk in handle:`) cannot be executed while the main thread is blocked.",
+        "Outcome: Telemetry is effectively frozen and inaccessible until the primary workload has already finished, completely defeating the purpose of a 'live' sidecar."
+      ]
+    },
+    {
+      "title": "State corruption propagation: Silent telemetry data loss via ring-buffer eviction",
+      "severity": "high",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "description": "When the unconsumed WebSocket drops and the user eventually reconnects, older telemetry data will be silently dropped by the server's ring buffer.",
+      "evidence": [
+        "Following the unconsumed buffer deadlock, the WebSocket connection drops but the sidecar continues running (`kill_on_disconnect=False`).",
+        "The sidecar emits heavy telemetry, which fills the server's ring buffer.",
+        "The server's ring buffer wraps around, evicting the oldest unread telemetry data.",
+        "The main thread unblocks, and the user finally iterates the `CommandHandle`.",
+        "The `CommandHandle` catches the `SandboxConnectionError` and auto-reconnects with `stdout_offset=0`.",
+        "`_ws_execute.py` explicitly notes: 'If the requested offset is older than the buffer's earliest data, the server sends from the earliest available offset.'",
+        "Outcome: Unrecoverable, silent data loss of all evicted telemetry chunks."
+      ]
+    }
+  ],
+  "residual_risks": [],
+  "testing_gaps": []
+}

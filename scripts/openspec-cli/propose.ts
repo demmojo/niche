@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
-import { GoogleGenAI } from "@google/genai";
 import * as yaml from "js-yaml";
 import * as dotenv from "dotenv";
 import { z } from "zod";
@@ -100,6 +99,7 @@ export async function proposePlan(planPath: string, options: CliOptions) {
     return;
   }
 
+  const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({});
 
   presenter.log(

@@ -33,7 +33,6 @@ export async function promptUserConfirm(question: string): Promise<boolean> {
   return answer.toLowerCase() === "y";
 }
 import * as path from "path";
-import { GoogleGenAI } from "@google/genai";
 import { ParsedSpec } from "./utils.js";
 import * as dotenv from "dotenv";
 import * as crypto from "crypto";
@@ -109,6 +108,7 @@ export async function checkCollisions(
     return "ok";
   }
 
+  const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({});
   const cache = getCache();
   let cacheUpdated = false;
@@ -133,9 +133,28 @@ export async function checkCollisions(
       embeddings.set(spec.id, cache[spec.id].vector);
     } else {
       try {
-        const response = await ai.models.embedContent({
-          model: "gemini-embedding-2-preview",
-          contents: textToEmbed,
+        const signal = AbortSignal.timeout(30000); // 30s timeout
+        let timeoutId: any;
+        const timeoutPromise = new Promise<any>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error("LLM Timeout Exceeded")),
+            30000,
+          );
+        });
+
+        const responsePromise = ai.models.embedContent(
+          {
+            model: "gemini-embedding-2-preview",
+            contents: textToEmbed,
+          },
+          { signal },
+        );
+
+        const response = await Promise.race([
+          responsePromise,
+          timeoutPromise,
+        ]).finally(() => {
+          clearTimeout(timeoutId);
         });
         const vector = response.embeddings?.[0]?.values;
         if (!vector) throw new Error("No embedding values returned");

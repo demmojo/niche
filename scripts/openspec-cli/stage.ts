@@ -4,6 +4,7 @@ import * as crypto from "crypto";
 import { execSync } from "child_process";
 import { FsIntent, FsExecutor } from "./fs-intents.js";
 import { CliOptions } from "./schema.js";
+import { TerminalPresenter } from "./presenter.js";
 
 // Hashing only the specific files affected
 function hashFiles(files: string[]): string {
@@ -23,26 +24,50 @@ export interface StagedIntent {
   intents: FsIntent[];
   fileHash: string;
   createdAt: number;
+  branchName: string;
 }
 
 export function stageIntents(
   intents: FsIntent[],
   opts: CliOptions,
-  presenter: any,
+  presenter: TerminalPresenter,
 ) {
-  const tmpBase = path.resolve(process.cwd(), ".tmp");
+  const tmpBase = path.resolve(process.cwd(), ".openspec-worktrees");
   if (!fs.existsSync(tmpBase)) {
     fs.mkdirSync(tmpBase, { recursive: true });
   }
 
-  const token = crypto.randomBytes(8).toString("hex");
-  const stageDir = path.join(tmpBase, `openspec_${token}`);
-  const sandboxRoot = path.join(stageDir, "root");
-  fs.mkdirSync(sandboxRoot, { recursive: true });
+  const token = crypto.randomUUID();
+  const branchName = `.openspec-staging-${token}`;
+  const worktreePath = path.join(tmpBase, token);
 
-  const executor = new FsExecutor(false, presenter, sandboxRoot);
+  // Create branch and worktree
+  try {
+    execSync(`git branch ${branchName}`);
+    execSync(`git worktree add ${worktreePath} ${branchName}`);
+  } catch (err: any) {
+    presenter.error(`Failed to create git worktree: ${err.message}`);
+    throw err;
+  }
 
-  // Filter out gitMove as it's not supported in staging
+  // Automated symlinking for node_modules and .env
+  const nodeModulesSrc = path.join(process.cwd(), "node_modules");
+  if (fs.existsSync(nodeModulesSrc)) {
+    fs.symlinkSync(
+      nodeModulesSrc,
+      path.join(worktreePath, "node_modules"),
+      "dir",
+    );
+  }
+
+  const envSrc = path.join(process.cwd(), ".env");
+  if (fs.existsSync(envSrc)) {
+    fs.symlinkSync(envSrc, path.join(worktreePath, ".env"), "file");
+  }
+
+  const executor = new FsExecutor(false, presenter, worktreePath);
+
+  // Filter out gitMove as it's not supported natively via FsExecutor inside worktree
   const stagingIntents = intents.filter((i) => i.kind !== "gitMove");
   executor.execute(stagingIntents);
 
@@ -67,11 +92,21 @@ export function stageIntents(
     ) {
       const livePath = filePath;
       const tmpPath = path.join(
-        sandboxRoot,
+        worktreePath,
         path.relative(process.cwd(), filePath),
       );
       diffUris.push(`vscode://vscode.diff/${livePath}/${tmpPath}`);
     }
+  }
+
+  // Inside the worktree, we commit the changes so they are stored on the branch
+  try {
+    execSync(`git add .`, { cwd: worktreePath });
+    execSync(`git commit -m "chore(openspec): stage intent ${token}"`, {
+      cwd: worktreePath,
+    });
+  } catch (err: any) {
+    // If there's nothing to commit, that's fine
   }
 
   const fileHash = hashFiles(Array.from(affectedFiles));
@@ -81,31 +116,22 @@ export function stageIntents(
     intents,
     fileHash,
     createdAt: Date.now(),
+    branchName,
   };
 
-  fs.writeFileSync(
-    path.join(stageDir, "intents.json"),
-    JSON.stringify(staged, null, 2),
+  const intentsMetaPath = path.join(
+    process.cwd(),
+    ".openspec",
+    ".tmp",
+    `intent_${token}.json`,
   );
-
-  // Generate real diff
-  const diffFile = path.join(stageDir, "preview.diff");
-  const fd = fs.openSync(diffFile, "w");
-  try {
-    // We ignore the exit code because git diff returns 1 if differences are found
-    const spawnSync = execSync; // Hack to use sync process
-    try {
-      execSync(
-        `git diff --no-index "${process.cwd()}" "${sandboxRoot}" > "${diffFile}" 2>&1`,
-      );
-    } catch (e) {
-      // git diff exits 1 if differences found
-    }
-  } finally {
-    fs.closeSync(fd);
+  if (!fs.existsSync(path.dirname(intentsMetaPath))) {
+    fs.mkdirSync(path.dirname(intentsMetaPath), { recursive: true });
   }
 
-  return { token, diffUris };
+  fs.writeFileSync(intentsMetaPath, JSON.stringify(staged, null, 2));
+
+  return { token, diffUris, branchName };
 }
 
 export async function applyStaged(opts: CliOptions) {
@@ -121,17 +147,18 @@ export async function applyStaged(opts: CliOptions) {
     return;
   }
 
-  const tmpBase = path.resolve(process.cwd(), ".tmp");
-  const stageDir = path.join(tmpBase, `openspec_${token}`);
-  if (!fs.existsSync(stageDir)) {
+  const intentsMetaPath = path.join(
+    process.cwd(),
+    ".openspec",
+    ".tmp",
+    `intent_${token}.json`,
+  );
+  if (!fs.existsSync(intentsMetaPath)) {
     await presenter.fail(`Token ${token} not found or expired`);
     return;
   }
 
-  const stagedData = fs.readFileSync(
-    path.join(stageDir, "intents.json"),
-    "utf8",
-  );
+  const stagedData = fs.readFileSync(intentsMetaPath, "utf8");
   const staged: StagedIntent = JSON.parse(stagedData);
 
   const affectedFiles = new Set<string>();
@@ -151,67 +178,29 @@ export async function applyStaged(opts: CliOptions) {
     return;
   }
 
-  // Application Ledger: Backup before applying
-  const backupDir = path.join(stageDir, "backup");
-  fs.mkdirSync(backupDir, { recursive: true });
-  const ledger: { livePath: string; backupPath: string | null }[] = [];
-
-  for (const intent of staged.intents) {
-    const target =
-      "absolutePath" in intent ? intent.absolutePath : intent.oldPath;
-    if (!target) continue;
-
-    if (fs.existsSync(target)) {
-      const bPath = path.join(backupDir, path.relative(process.cwd(), target));
-      fs.mkdirSync(path.dirname(bPath), { recursive: true });
-      fs.cpSync(target, bPath, {
-        recursive: true,
-        preserveTimestamps: true,
-        dereference: false,
-      });
-      ledger.push({ livePath: target, backupPath: bPath });
-    } else {
-      ledger.push({ livePath: target, backupPath: null }); // Didn't exist
-    }
-  }
-
   try {
-    const sandboxRoot = path.join(stageDir, "root");
-    const executor = new FsExecutor(
-      false,
-      presenter,
-      opts.force ? undefined : undefined,
-    ); // Wait, force means direct write?
-    // Actually, apply always writes directly to the live file system.
-    const liveExecutor = new FsExecutor(false, presenter);
-    liveExecutor.execute(staged.intents);
-  } catch (err) {
-    // Rollback Ledger
-    for (let i = ledger.length - 1; i >= 0; i--) {
-      const entry = ledger[i];
-      try {
-        if (entry.backupPath) {
-          fs.cpSync(entry.backupPath, entry.livePath, {
-            recursive: true,
-            preserveTimestamps: true,
-            dereference: false,
-          });
-        } else {
-          fs.rmSync(entry.livePath, { recursive: true, force: true });
-        }
-      } catch (rollbackErr) {
-        presenter.error(`Failed to rollback ${entry.livePath}: ${rollbackErr}`);
-      }
-    }
+    // Apply via Git Squash Merge
+    execSync(`git merge --squash ${staged.branchName}`);
+
+    // We don't automatically commit. The user or orchestrator must commit.
+    // Or we commit if it's automated? The design says: "The staging area is applied via a seamless Git swap from the main directory: git merge --squash .openspec-staging-<uuid>."
+    // It's usually left staged in the index for the user to review, but let's commit it automatically.
+    // Actually, `git merge --squash` leaves it staged. Let's just leave it staged like `git merge --squash` normally does, or commit it if we want atomicity.
+    // Let's commit it directly.
+    execSync(`git commit -m "feat(openspec): apply intent ${token}"`);
+  } catch (err: any) {
     await presenter.fail(
-      `Application failed, rollback executed. Error: ${err}`,
+      `Application failed during git merge. Error: ${err.message}`,
     );
     return;
   }
 
-  // Clean up
+  // Clean up Worktree and Branch
   try {
-    fs.rmSync(stageDir, { recursive: true, force: true });
+    const worktreePath = path.join(process.cwd(), ".openspec-worktrees", token);
+    execSync(`git worktree remove --force ${worktreePath}`);
+    execSync(`git branch -D ${staged.branchName}`);
+    fs.rmSync(intentsMetaPath, { force: true });
   } catch (e) {
     // Ignore cleanup errors
   }
@@ -229,17 +218,17 @@ export async function statusStaged(opts: CliOptions) {
     opts.json,
   );
 
-  const tmpBase = path.resolve(process.cwd(), ".tmp");
+  const tmpBase = path.join(process.cwd(), ".openspec", ".tmp");
   if (!fs.existsSync(tmpBase)) {
     presenter.success({ pending: [] }, "No pending staged intents");
     return;
   }
 
   const pending: string[] = [];
-  const dirs = fs.readdirSync(tmpBase);
-  for (const dir of dirs) {
-    if (dir.startsWith("openspec_")) {
-      const token = dir.replace("openspec_", "");
+  const files = fs.readdirSync(tmpBase) || [];
+  for (const file of files) {
+    if (file.startsWith("intent_") && file.endsWith(".json")) {
+      const token = file.replace("intent_", "").replace(".json", "");
       pending.push(token);
     }
   }
@@ -248,20 +237,52 @@ export async function statusStaged(opts: CliOptions) {
 }
 
 export function cleanupOldStaged(opts: CliOptions) {
-  const tmpBase = path.resolve(process.cwd(), ".tmp");
+  try {
+    // Git-native cleanup
+    execSync(`git worktree prune`);
+
+    // Sweep orphaned .openspec-staging-* branches
+    const branchesOutput = execSync(`git branch --list ".openspec-staging-*"`, {
+      encoding: "utf-8",
+    });
+    const branches = branchesOutput
+      .split("\n")
+      .map((b) => b.trim().replace(/^\*\s+/, ""))
+      .filter(Boolean);
+
+    // Which ones don't have active worktrees?
+    const worktreesOutput = execSync(`git worktree list --porcelain`, {
+      encoding: "utf-8",
+    });
+    const activeBranches = new Set<string>();
+
+    for (const line of worktreesOutput.split("\n")) {
+      if (line.startsWith("branch refs/heads/")) {
+        activeBranches.add(line.replace("branch refs/heads/", "").trim());
+      }
+    }
+
+    for (const branch of branches) {
+      if (!activeBranches.has(branch)) {
+        execSync(`git branch -D ${branch}`);
+      }
+    }
+  } catch (e) {
+    // Ignore if git commands fail
+  }
+
+  const tmpBase = path.resolve(process.cwd(), ".openspec", ".tmp");
   if (!fs.existsSync(tmpBase)) return;
 
-  const dirs = fs.readdirSync(tmpBase);
+  const files = fs.readdirSync(tmpBase) || [];
   const now = Date.now();
   const ONE_DAY = 24 * 60 * 60 * 1000;
 
-  for (const fileOrDir of dirs) {
-    const fullPath = path.join(tmpBase, fileOrDir);
-    const stat = fs.statSync(fullPath);
-    if (now - stat.mtimeMs > ONE_DAY) {
-      if (stat.isDirectory()) {
-        fs.rmSync(fullPath, { recursive: true, force: true });
-      } else {
+  for (const file of files) {
+    if (file.startsWith("intent_") && file.endsWith(".json")) {
+      const fullPath = path.join(tmpBase, file);
+      const stat = fs.statSync(fullPath);
+      if (now - stat.mtimeMs > ONE_DAY) {
         fs.rmSync(fullPath, { force: true });
       }
     }

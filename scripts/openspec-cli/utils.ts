@@ -3,7 +3,7 @@ import * as path from "path";
 import * as yaml from "js-yaml";
 import { OpenSpec, OpenSpecSchema } from "./schema.js";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 // import { zodToJsonSchema } from "zod-to-json-schema";
 
 export interface ParsedSpec {
@@ -17,12 +17,13 @@ export interface ParsedSpec {
  *
  */
 export async function generateWithSelfHealing<T>(
-  ai: GoogleGenAI,
+  ai: any,
   modelName: string,
   prompt: string,
   schema: z.ZodSchema<T>,
   systemInstruction?: string,
   maxRetries = 3,
+  timeoutMs = 60000,
 ): Promise<T> {
   let currentPrompt = prompt;
 
@@ -43,10 +44,30 @@ export async function generateWithSelfHealing<T>(
         config.systemInstruction = systemInstruction;
       }
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: currentPrompt,
-        config: config,
+      const signal = AbortSignal.timeout(timeoutMs);
+
+      const responsePromise = ai.models.generateContent(
+        {
+          model: modelName,
+          contents: currentPrompt,
+          config: config,
+        },
+        { signal },
+      );
+
+      let timeoutId: any;
+      const timeoutPromise = new Promise<any>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("LLM Timeout Exceeded")),
+          timeoutMs,
+        );
+      });
+
+      const response = await Promise.race([
+        responsePromise,
+        timeoutPromise,
+      ]).finally(() => {
+        clearTimeout(timeoutId);
       });
 
       const responseText = response.text;

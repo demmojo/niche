@@ -95,7 +95,7 @@ describe("proposePlan", () => {
         dryRun: false,
         stdin: false,
       }),
-    ).rejects.toThrow("Process exited with code 1");
+    ).resolves.toBeUndefined();
 
     expect(collision.promptUserConfirm).toHaveBeenCalledWith(
       expect.stringContaining("temporary staging directory"),
@@ -120,7 +120,7 @@ describe("proposePlan", () => {
         dryRun: false,
         stdin: false,
       }),
-    ).rejects.toThrow("Process exited with code 1");
+    ).resolves.toBeUndefined();
 
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(collision.promptUserConfirm).not.toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe("proposePlan", () => {
         dryRun: false,
         stdin: false,
       }),
-    ).rejects.toThrow("Process exited with code 1");
+    ).resolves.toBeUndefined();
 
     expect(collision.promptUserConfirm).toHaveBeenCalledWith(
       expect.stringContaining("feature directory"),
@@ -192,7 +192,7 @@ describe("proposePlan", () => {
         dryRun: false,
         stdin: false,
       }),
-    ).rejects.toThrow("Process exited with code 1");
+    ).resolves.toBeUndefined();
 
     // Should not call rmSync when eval fails
     expect(fs.rmSync).not.toHaveBeenCalled();

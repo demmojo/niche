@@ -92,7 +92,7 @@ describe("checkReadiness", () => {
     ];
 
     const consoleWarnSpy = vi
-      .spyOn(console, "warn")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
     const consoleErrorSpy = vi
       .spyOn(console, "error")

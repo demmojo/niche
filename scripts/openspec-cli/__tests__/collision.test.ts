@@ -79,7 +79,7 @@ describe("collision", () => {
     it("should skip if GEMINI_API_KEY is not set", async () => {
       vi.stubEnv("GEMINI_API_KEY", "");
       const consoleWarnSpy = vi
-        .spyOn(console, "warn")
+        .spyOn(console, "error")
         .mockImplementation(() => {});
 
       await checkCollisions([]);
@@ -106,7 +106,7 @@ describe("collision", () => {
         .spyOn(console, "log")
         .mockImplementation(() => {});
       const consoleWarnSpy = vi
-        .spyOn(console, "warn")
+        .spyOn(console, "error")
         .mockImplementation(() => {});
 
       await checkCollisions(specs as any);
@@ -140,7 +140,7 @@ describe("collision", () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const consoleWarnSpy = vi
-        .spyOn(console, "warn")
+        .spyOn(console, "error")
         .mockImplementation(() => {});
 
       await checkCollisions(specs as any);

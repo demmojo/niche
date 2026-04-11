@@ -99,13 +99,21 @@ Keep it extremely concise.`;
       return JSON.parse(response.text || "{}");
     };
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("LLM Timeout")), TIMEOUT_MS),
-    );
+    let timeoutId: any;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error("LLM Timeout")),
+        TIMEOUT_MS,
+      );
+    });
 
     let result: any;
     try {
-      result = await Promise.race([resultPromise(), timeoutPromise]);
+      result = await Promise.race([resultPromise(), timeoutPromise]).finally(
+        () => {
+          clearTimeout(timeoutId);
+        },
+      );
     } catch (timeoutErr) {
       console.warn(
         "⚠️ Structural drift detected, but LLM timed out. Proceeding with commit.",

@@ -29,7 +29,7 @@ describe("runEval", () => {
   it("should skip eval if no GEMINI_API_KEY is present", async () => {
     vi.stubEnv("GEMINI_API_KEY", "");
     const consoleWarnSpy = vi
-      .spyOn(console, "warn")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
 
     await runEval([], {
@@ -145,20 +145,20 @@ describe("runEval", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const processExitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit(1)");
-    }) as any);
+    const processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation((() => {}) as any);
 
-    await expect(
-      runEval(specs, {
-        stage: false,
-        nonInteractive: true,
-        json: false,
-        force: false,
-        dryRun: false,
-        stdin: false,
-      }),
-    ).rejects.toThrow("process.exit(1)");
+    await runEval(specs, {
+      stage: false,
+      nonInteractive: true,
+      json: false,
+      force: false,
+      dryRun: false,
+      stdin: false,
+    });
+
+    expect(processExitSpy).toHaveBeenCalledWith(1);
 
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
