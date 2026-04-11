@@ -33,16 +33,18 @@ Gut the custom `mkdirSync` heartbeat locks and lock-stealing logic. Replace it w
 - **Global Workspace Lock:** The CLI will utilize `proper-lockfile` on a static `.tmp/openspec.lock` file to guarantee cross-platform POSIX-compliant atomicity.
 - **Stale Lock Resolution:** `proper-lockfile` natively handles stale locks via its robust `stale` configuration, completely eliminating the need for our custom lock-stealing and asynchronous EBUSY backoff loops.
 
-### 3. Git-Native Atomicity (Fail-Fast Staging)
+### 3. Git-Native Atomicity (Isolated Worktrees)
 
-Gut the massive "Blue-Green Filesystem Paradigm" (sibling staging directories, `EXDEV` fallbacks, and O(1) directory swaps). Delegate atomicity and rollbacks entirely to Git.
+Gut the massive "Blue-Green Filesystem Paradigm" and the blocking "Fatal Git Guard" which prevented AI workflows during dirty human experimentation. Delegate atomicity and rollbacks entirely to Git Worktrees.
 
-- **Atomic Branch Swaps:** Instead of staging changes in a `src-staging-<uuid>` directory, the `FsExecutor` will execute `git checkout -b .openspec-staging-<uuid>`. All file generations and modifications happen on this isolated branch.
-- **Pivot/Apply:** To apply the staging area, the CLI executes a seamless Git swap: `git checkout <base-branch>` followed by `git merge --squash .openspec-staging-<uuid>`.
-- **Strict Git Guard (Dirty Tree Protection):** Before running `git checkout -b`, the CLI MUST run `git status --porcelain`. If there are any uncommitted changes in the workspace, the CLI MUST fatally exit (Exit Code 1). We explicitly reject auto-stash/pop mechanisms to prevent silent merging of AI code with uncommitted human experiments.
+- **Isolated Git Worktrees:** Instead of blocking `git checkout -b` when the user has dirty files, the `FsExecutor` will execute `git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`. All file generations, modifications, and AI evaluations happen in this 100% isolated directory.
+- **Automated Dependency Symlinking:** To ensure validators (`ai-eval`, `eslint`, `vitest`) run seamlessly inside the worktree without duplicating massive folders, the CLI will natively symlink `node_modules/` and `.env` from the root workspace into `.openspec-worktrees/<uuid>`.
+- **Dynamic Port Isolation (Socratic Resolution):** To prevent port and database collisions when the AI runs tests in the worktree while the human is actively coding in the main tree, the OpenSpec CLI MUST execute all worktree validations with a dynamically injected `PORT` and `FIRESTORE_EMULATOR_HOST` (e.g., offsetting ports by `+1000` based on the UUID hash) to guarantee network isolation.
+- **Native Dirty Merge Protection (Pivot/Apply):** To apply the staging area, the CLI executes a seamless Git swap from the main directory: `git merge --squash .openspec-staging-<uuid>`. This relies on Git's native intelligence to protect the user's uncommitted files, failing safely if there are true conflicts, without needing a rigid "Fatal Git Guard" pre-flight block.
 - **Fail-Fast Crash Cleanly Paradigm:** We explicitly reject mid-flight auto-recovery ledgers. If the CLI fails or receives a `SIGINT` mid-generation, it crashes cleanly.
-  - The `.openspec-staging-<uuid>` branch is intentionally orphaned as a forensic artifact.
-  - Rollbacks are trivial: delete the branch. No complex regex protections or symlink hygiene checks are required, as Git natively handles the tree state.
+  - The worktree and branch are intentionally orphaned as forensic artifacts.
+  - Rollbacks are trivial: `git worktree remove .openspec-worktrees/<uuid> --force` and delete the branch.
+  - On every CLI boot, the system MUST run `git worktree prune` to clean up orphaned folders if the user manually deleted the branch.
 - **Polymorphic Cryptographic Pinning:** Use the Claim Check pattern for JSON payloads >100KB to bypass command-line length limits.
   - The CLI must implement a polymorphic interface: for local execution, it retains `.tmp/payloads.json` so local AI agents can natively read them. For distributed Cloud Run workflows, it offloads to Firestore (`{ "claimCheckId": "doc-123" }`).
   - Pin payloads using SHA-256 (`{ "claimCheckPath": "...", "sha256": "<hash>" }`).

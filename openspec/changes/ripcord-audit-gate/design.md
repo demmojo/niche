@@ -15,16 +15,17 @@ The OpenSpec CLI currently suffers from CI/CD deadlocks, terminal hangs, and fil
 - **Global Workspace Lock:** Cross-process POSIX-compliant atomicity is achieved by utilizing the industry-standard `proper-lockfile` on a static `.tmp/openspec.lock` file.
 - **Stale Lock Resolution:** The CLI relies entirely on `proper-lockfile`'s native `stale` configuration for stale lock resolution, eliminating custom backoff loops and async EBUSY heartbeat mechanisms.
 
-## 3. Git-Native Atomicity & Fail-Fast Staging
+## 3. Git-Native Atomicity (Isolated Worktrees)
 
-- **Atomic Branch Swaps:** All file generation and modification logic is isolated onto a Git branch (`git checkout -b .openspec-staging-<uuid>`).
-- **Pivot/Apply:** The staging area is applied via a seamless Git swap: `git checkout <base-branch> && git merge --squash .openspec-staging-<uuid>`.
-- **Fatal Git Guard (Dirty Tree Protection):** Before initiating the staging branch swap, the CLI MUST run `git status --porcelain`. If there are any uncommitted changes in the workspace, the CLI MUST fatally exit (Exit Code 1). Auto-stash/pop is explicitly forbidden to prevent silent corruption.
-- **Crash Cleanly Paradigm:** Mid-flight auto-recovery ledgers are forbidden. A `SIGINT` mid-generation causes a clean crash. The `.openspec-staging-<uuid>` branch is orphaned as a forensic artifact, and rollbacks are accomplished natively by deleting the branch.
+- **Isolated Git Worktrees:** All file generation, modification, and AI validation logic is completely isolated into a dedicated Git Worktree (`git worktree add .openspec-worktrees/<uuid> -b .openspec-staging-<uuid>`), eliminating the need to block workflows when the user has dirty files.
+- **Automated Dependency Symlinking:** Natively symlink `node_modules/` and `.env` from the root workspace into the worktree so tests and linters execute seamlessly without costly duplication.
+- **Dynamic Port Isolation (Socratic Resolution):** CLI validation steps inside the worktree are injected with a dynamically computed `PORT` and `FIRESTORE_EMULATOR_HOST` (e.g., base port + 1000 based on UUID hash) to ensure AI tests never collide with the human's active local development server.
+- **Pivot/Apply:** The staging area is applied via a seamless Git swap from the main directory: `git merge --squash .openspec-staging-<uuid>`. Git's native intelligence handles uncommitted file protection without a rigid pre-flight block.
+- **Crash Cleanly Paradigm:** Mid-flight auto-recovery ledgers are forbidden. A `SIGINT` mid-generation causes a clean crash. The worktree and branch are orphaned as a forensic artifact, and rollbacks are accomplished natively by running `git worktree remove --force` and deleting the branch.
 
 ## 4. Forensic Artifact Management & Anti-Hijack
 
-- **Git State Hygiene:** Anti-bloat measures involve cleaning up orphaned `.openspec-staging-*` branches rather than complex symlink and directory regex checks.
+- **Git State Hygiene:** Anti-bloat measures involve cleaning up orphaned `.openspec-staging-*` branches and running `git worktree prune` on CLI boot to clean up deleted worktrees, rather than complex symlink and directory regex checks.
 - **Anti-Hijack Defense:** Strict reliance on Git internals entirely mitigates the directory traversal and symlink hijack vulnerabilities present in filesystem-based staging.
 
 ## 5. Polymorphic Cryptographic Pinning (Claim Check)
@@ -33,7 +34,7 @@ The OpenSpec CLI currently suffers from CI/CD deadlocks, terminal hangs, and fil
 
 ## 6. V1 to V2 Migration Strategy
 
-- V1 to V2 cutover uses a dedicated `npm run openspec migrate-legacy-specs` command. It strictly guards against dirty git trees using the Fatal Git Guard and throws an Agent Halting Payload (`LEGACY_SPEC_DETECTED`) if it encounters V1 specs.
+- V1 to V2 cutover uses a dedicated `npm run openspec migrate-legacy-specs` command. It strictly guards against uncommitted `openspec/` changes to prevent migration corruption, and throws an Agent Halting Payload (`LEGACY_SPEC_DETECTED`) if it encounters V1 specs during normal operation.
 
 ## 7. Bifurcated Testing Architecture
 
