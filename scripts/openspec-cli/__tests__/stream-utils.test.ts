@@ -53,4 +53,44 @@ describe("Stream Utilities", () => {
     }
     expect(results).toEqual(arr);
   });
+
+  it("MarkdownExtractorTransform should flush buffer if > 5000 chars without seeing code block", async () => {
+    const chunk = "a".repeat(6000);
+    const readable = Readable.from([chunk]);
+    const transform = new MarkdownExtractorTransform();
+    let result = "";
+    for await (const chunk of readable.pipe(transform)) {
+      result += chunk.toString();
+    }
+    expect(result).toBe("a".repeat(6000));
+  });
+
+  it("yieldEventLoop should fallback to setTimeout if setImmediate is undefined", async () => {
+    const originalSetImmediate = global.setImmediate;
+    // @ts-ignore
+    global.setImmediate = undefined;
+    await yieldEventLoop();
+    expect(true).toBe(true);
+    global.setImmediate = originalSetImmediate;
+  });
+
+  it("createYieldingStream should call yieldEventLoop if yieldIntervalMs has passed", async () => {
+    const { createYieldingStream } = await import("../stream-utils.js");
+    const arr = [1, 2, 3];
+    // Force yielding by mocking Date.now to advance
+    const originalNow = Date.now;
+    let now = 1000;
+    Date.now = vi.fn().mockImplementation(() => {
+      now += 60; // Advance time by 60ms each call
+      return now;
+    });
+
+    const stream = createYieldingStream(arr, 10);
+    const results = [];
+    for await (const item of stream) {
+      results.push(item);
+    }
+    expect(results).toEqual(arr);
+    Date.now = originalNow;
+  });
 });

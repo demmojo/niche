@@ -31,7 +31,7 @@ describe("RoastMyNiche UI", () => {
   beforeEach(() => {
     originalFetch = global.fetch;
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/surface-roast") {
+      if (url === "/api/roast") {
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({
@@ -133,7 +133,7 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for surface roast gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/surface-roast")
+      if (url === "/api/roast")
         return Promise.resolve({ ok: false });
       return Promise.resolve({
         ok: true,
@@ -181,7 +181,7 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for deep dive email capture gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/surface-roast") {
+      if (url === "/api/roast") {
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({
@@ -278,5 +278,50 @@ describe("RoastMyNiche UI", () => {
     expect(
       screen.queryByText(/We're preparing your deep dive report/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("Phase 1: uses React 19 startTransition and handles 202 Accepted with precise status indicators", async () => {
+    // Override fetch to return 202 Accepted with a phase 1 fast data message
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/roast") {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              status: 202,
+              json: () =>
+                Promise.resolve({
+                  jobId: "job-123",
+                  status: "accepted",
+                  message: "searching_exa"
+                }),
+            });
+          }, 50);
+        });
+      }
+      return Promise.reject(new Error("Unknown url " + url));
+    });
+
+    const { getCountFromServer } = await import("firebase/firestore");
+    vi.mocked(getCountFromServer).mockResolvedValue({
+      data: () => ({ count: 10 }),
+    } as any);
+
+    render(<RoastMyNiche />);
+
+    const input = await screen.findByPlaceholderText(/Describe your product idea/i);
+    fireEvent.change(input, { target: { value: "A new startup idea" } });
+
+    // Important: we need to ensure the UI updates with an explainable state, NOT a generic spinner
+    const submitBtn = screen.getByRole("button", { name: /Roast My Idea/i });
+    
+    // In React 19, the startTransition should be used. The precise status should appear.
+    fireEvent.submit(submitBtn.closest("form") as any);
+
+    // Assert that the exact precise status string is displayed
+    expect(await screen.findByText(/searching_exa/i)).toBeInTheDocument();
+    
+    // The test asserts that the generic spinner does NOT exist
+    expect(screen.queryByTestId("generic-spinner")).not.toBeInTheDocument();
   });
 });

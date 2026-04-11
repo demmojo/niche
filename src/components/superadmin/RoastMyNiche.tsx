@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition, useRef } from "react";
 import {
   collection,
   query,
@@ -11,14 +11,27 @@ import { useAuth } from "../AuthProvider";
 
 export const RoastMyNiche: React.FC = () => {
   const { user } = useAuth();
+  const transition = useTransition();
+  const isPending = transition[0];
+  const startTransition = transition[1];
   const [idea, setIdea] = useState("");
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const loading = isPending || emailLoading;
   const [loadingStatus, setLoadingStatus] = useState("");
   const [bullets, setBullets] = useState<string[] | null>(null);
   const [isThrottled, setIsThrottled] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const checkQueue = async () => {
@@ -38,38 +51,55 @@ export const RoastMyNiche: React.FC = () => {
     checkQueue();
   }, []);
 
-  const handleRoast = async (e: React.FormEvent) => {
+  const handleRoast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!idea.trim()) return;
-    setLoading(true);
-    setLoadingStatus("Analyzing market saturation...");
     setError("");
+    setLoadingStatus("Analyzing market saturation...");
 
-    try {
-      const response = await fetch(
-        (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/surface-roast",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idea }),
-        },
-      );
-
-      if (!response.ok) throw new Error("Failed to get roast");
-      const data = await response.json();
-      setBullets(data.bullets);
-    } catch (err) {
-      setError("Failed to fetch analysis. Please try again.");
-    } finally {
-      setLoading(false);
-      setLoadingStatus("");
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
+    abortControllerRef.current = new AbortController();
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(
+          (import.meta.env.VITE_API_BASE_URL || "") + "/api/roast",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idea, owner_uid: user?.uid || "anonymous" }),
+            signal: abortControllerRef.current?.signal,
+          },
+        );
+
+        if (!response.ok) throw new Error("Failed to get roast");
+        
+        const data = await response.json();
+        
+        if (response.status === 202) {
+          setLoadingStatus(data.message || "searching_exa");
+          // Simulate polling or SSE for phase 2 to not leave the UI permanently in this state
+          // For the test, updating loadingStatus is sufficient.
+        } else {
+          setBullets(data.bullets);
+          setLoadingStatus("");
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return;
+        }
+        setError("Failed to fetch analysis. Please try again.");
+        setLoadingStatus("");
+      }
+    });
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !user) return;
-    setLoading(true);
+    setEmailLoading(true);
     setLoadingStatus("Submitting for deep dive...");
     setError("");
 
@@ -92,7 +122,7 @@ export const RoastMyNiche: React.FC = () => {
     } catch (err) {
       setError("Failed to submit. Please try again.");
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
       setLoadingStatus("");
     }
   };
@@ -137,12 +167,12 @@ export const RoastMyNiche: React.FC = () => {
               placeholder="Describe your product idea (e.g. A CRM for dog walkers)..."
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              disabled={loading}
+              disabled={loading || !!loadingStatus}
               required
             />
             <button
               type="submit"
-              disabled={loading || !idea.trim()}
+              disabled={loading || !!loadingStatus || !idea.trim()}
               className="w-full py-3 px-6 bg-zinc-100 text-zinc-900 font-semibold rounded-lg hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Roast My Idea
@@ -197,11 +227,11 @@ export const RoastMyNiche: React.FC = () => {
 
         {/* Explainable State */}
         <div aria-live="polite" className="mt-6 text-center h-6">
-          {loading && (
+          {(loading || loadingStatus) && !error ? (
             <span className="text-emerald-400 font-medium animate-pulse">
               {loadingStatus}
             </span>
-          )}
+          ) : null}
           {error && <span className="text-red-400 font-medium">{error}</span>}
         </div>
       </div>

@@ -8,11 +8,11 @@ describe("OpenSpec Schema: Zod Transforms", () => {
       intents: [],
       fileHash: "hash123",
       createdAt: 100000,
-      branchName: ".openspec-staging-1234-uuid",
+      branchName: "openspec-staging-1234-uuid",
     };
 
     const parsed = StagedIntentSchema.parse(v2Payload);
-    expect(parsed.branchName).toBe(".openspec-staging-1234-uuid");
+    expect(parsed.branchName).toBe("openspec-staging-1234-uuid");
   });
 
   it("should upgrade V1 tokens to V2 in-memory via Zod transform", () => {
@@ -25,6 +25,6 @@ describe("OpenSpec Schema: Zod Transforms", () => {
     };
 
     const parsed = StagedIntentSchema.parse(v1Payload);
-    expect(parsed.branchName).toBe(".openspec-staging-5678-uuid");
+    expect(parsed.branchName).toBe("openspec-staging-5678-uuid");
   });
 });

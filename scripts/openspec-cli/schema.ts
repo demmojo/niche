@@ -8,6 +8,7 @@ export const CliOptionsSchema = z.object({
   stage: z.boolean().default(false),
   token: z.string().optional(),
   stdin: z.boolean().default(false),
+  baseDir: z.string().optional(),
   // Additional flags that specific commands might use:
   autoFix: z.boolean().optional(),
   clearState: z.boolean().optional(),
@@ -66,7 +67,7 @@ export const StagedIntentSchema = z
     if (!val.branchName) {
       return {
         ...val,
-        branchName: `.openspec-staging-${val.token}`,
+        branchName: `openspec-staging-${val.token}`,
       };
     }
     return val as {

@@ -1,0 +1,6 @@
+schema: spec-driven
+status: draft
+learnings_extracted: false
+created: '2026-04-11'
+depends_on:
+  - superadmin-pipeline-gtm

@@ -5,11 +5,15 @@ import * as path from "path";
 
 describe("Global Workspace Locking", () => {
   it("should create lock directory and acquire lock successfully", async () => {
+    const tmpDir = path.resolve(process.cwd(), ".openspec", ".tmp");
+    const lockFile = path.join(tmpDir, "openspec.lock");
+    if (fs.existsSync(lockFile)) fs.rmSync(lockFile, { force: true });
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true, force: true });
+
     const release = await acquireGlobalLock();
     expect(typeof release).toBe("function");
 
-    const tmpDir = path.resolve(process.cwd(), ".openspec", ".tmp");
-    expect(fs.existsSync(path.join(tmpDir, "openspec.lock"))).toBe(true);
+    expect(fs.existsSync(lockFile)).toBe(true);
 
     await release();
   });

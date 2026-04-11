@@ -33,7 +33,7 @@
 
 ## Phase 5: Testing
 
-- [ ] Write 95% coverage functional tests (`*.test.ts`) for utility changes.
-- [ ] Write mock-free E2E tests executing isolated sandboxes (`git init`) via Dependency Injected `baseDir`.
-- [ ] Implement `afterEach` test fixture file descriptor cleanup to prevent `EMFILE` errors.
-- [ ] Build deterministic mid-generation `SIGKILL` simulation script to test Git branch rollback stability.
+- [x] Write 95% coverage functional tests (`*.test.ts`) for utility changes.
+- [x] Write mock-free E2E tests executing isolated sandboxes (`git init`) via Dependency Injected `baseDir`.
+- [x] Implement `afterEach` test fixture file descriptor cleanup to prevent `EMFILE` errors.
+- [x] Build deterministic mid-generation `SIGKILL` simulation script to test Git branch rollback stability.

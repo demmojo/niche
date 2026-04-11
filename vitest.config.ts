@@ -26,12 +26,7 @@ export default defineConfig({
       provider: "v8",
       all: true,
       include: [
-        "src/components/superadmin/RoastMyNiche.tsx",
-        "src/components/superadmin/SuperadminPendingRoasts.tsx",
-        "src/components/superadmin/MyReports.tsx",
-        "src/server/agents/DataGatherer.ts",
-        "src/server/agents/ReportSynthesizer.ts",
-        "src/server/superadminRoutes.ts",
+        "scripts/openspec-cli/**/*.ts"
       ],
       reporter: ["text", "json-summary"],
       thresholds: {

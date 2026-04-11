@@ -6,12 +6,16 @@ import { FsIntent, FsExecutor } from "./fs-intents.js";
 import { CliOptions, StagedIntentSchema, StagedIntent } from "./schema.js";
 import { TerminalPresenter } from "./presenter.js";
 
-// Hashing only the specific files affected
+// Hashing only the specific files affected (skip directories)
 function hashFiles(files: string[]): string {
   const hash = crypto.createHash("sha256");
   for (const file of files) {
     if (fs.existsSync(file)) {
-      hash.update(fs.readFileSync(file));
+      if (!fs.statSync(file).isDirectory()) {
+        hash.update(fs.readFileSync(file));
+      } else {
+        hash.update(`__dir__${file}`);
+      }
     } else {
       hash.update(`__missing__${file}`);
     }
@@ -24,26 +28,27 @@ export function stageIntents(
   opts: CliOptions,
   presenter: TerminalPresenter,
 ) {
-  const tmpBase = path.resolve(process.cwd(), ".openspec-worktrees");
+  const baseDir = opts.baseDir || process.cwd();
+  const tmpBase = path.resolve(baseDir, ".openspec-worktrees");
   if (!fs.existsSync(tmpBase)) {
     fs.mkdirSync(tmpBase, { recursive: true });
   }
 
   const token = crypto.randomUUID();
-  const branchName = `.openspec-staging-${token}`;
+  const branchName = `openspec-staging-${token}`;
   const worktreePath = path.join(tmpBase, token);
 
   // Create branch and worktree
   try {
-    execSync(`git branch ${branchName}`);
-    execSync(`git worktree add ${worktreePath} ${branchName}`);
+    execSync(`git branch ${branchName}`, { cwd: baseDir });
+    execSync(`git worktree add ${worktreePath} ${branchName}`, { cwd: baseDir });
   } catch (err: any) {
     presenter.error(`Failed to create git worktree: ${err.message}`);
     throw err;
   }
 
   // Automated symlinking for node_modules and .env
-  const nodeModulesSrc = path.join(process.cwd(), "node_modules");
+  const nodeModulesSrc = path.join(baseDir, "node_modules");
   if (fs.existsSync(nodeModulesSrc)) {
     fs.symlinkSync(
       nodeModulesSrc,
@@ -52,7 +57,7 @@ export function stageIntents(
     );
   }
 
-  const envSrc = path.join(process.cwd(), ".env");
+  const envSrc = path.join(baseDir, ".env");
   if (fs.existsSync(envSrc)) {
     fs.symlinkSync(envSrc, path.join(worktreePath, ".env"), "file");
   }
@@ -85,7 +90,7 @@ export function stageIntents(
       const livePath = filePath;
       const tmpPath = path.join(
         worktreePath,
-        path.relative(process.cwd(), filePath),
+        path.relative(baseDir, filePath),
       );
       diffUris.push(`vscode://vscode.diff/${livePath}/${tmpPath}`);
     }
@@ -112,7 +117,7 @@ export function stageIntents(
   };
 
   const intentsMetaPath = path.join(
-    process.cwd(),
+    baseDir,
     ".openspec",
     ".tmp",
     `intent_${token}.json`,
@@ -127,6 +132,7 @@ export function stageIntents(
 }
 
 export async function applyStaged(opts: CliOptions) {
+  const baseDir = opts.baseDir || process.cwd();
   const { TerminalPresenter, isHeadless } = await import("./presenter.js");
   const presenter = new TerminalPresenter(
     opts.nonInteractive || isHeadless(),
@@ -146,7 +152,7 @@ export async function applyStaged(opts: CliOptions) {
   }
 
   const intentsMetaPath = path.join(
-    process.cwd(),
+    baseDir,
     ".openspec",
     ".tmp",
     `intent_${token}.json`,
@@ -179,14 +185,14 @@ export async function applyStaged(opts: CliOptions) {
 
   try {
     // Apply via Git Squash Merge
-    execSync(`git merge --squash ${staged.branchName}`);
+    execSync(`git merge --squash ${staged.branchName}`, { cwd: baseDir });
 
     // We don't automatically commit. The user or orchestrator must commit.
     // Or we commit if it's automated? The design says: "The staging area is applied via a seamless Git swap from the main directory: git merge --squash .openspec-staging-<uuid>."
     // It's usually left staged in the index for the user to review, but let's commit it automatically.
     // Actually, `git merge --squash` leaves it staged. Let's just leave it staged like `git merge --squash` normally does, or commit it if we want atomicity.
     // Let's commit it directly.
-    execSync(`git commit -m "feat(openspec): apply intent ${token}"`);
+    execSync(`git commit -m "feat(openspec): apply intent ${token}"`, { cwd: baseDir });
   } catch (err: any) {
     await presenter.fail(
       `Application failed during git merge. Error: ${err.message}`,
@@ -196,9 +202,9 @@ export async function applyStaged(opts: CliOptions) {
 
   // Clean up Worktree and Branch
   try {
-    const worktreePath = path.join(process.cwd(), ".openspec-worktrees", token);
-    execSync(`git worktree remove --force ${worktreePath}`);
-    execSync(`git branch -D ${staged.branchName}`);
+    const worktreePath = path.join(baseDir, ".openspec-worktrees", token);
+    execSync(`git worktree remove --force ${worktreePath}`, { cwd: baseDir });
+    execSync(`git branch -D ${staged.branchName}`, { cwd: baseDir });
     fs.rmSync(intentsMetaPath, { force: true });
   } catch (e) {
     // Ignore cleanup errors
@@ -211,13 +217,14 @@ export async function applyStaged(opts: CliOptions) {
 }
 
 export async function statusStaged(opts: CliOptions) {
+  const baseDir = opts.baseDir || process.cwd();
   const { TerminalPresenter, isHeadless } = await import("./presenter.js");
   const presenter = new TerminalPresenter(
     opts.nonInteractive || isHeadless(),
     opts.json,
   );
 
-  const tmpBase = path.join(process.cwd(), ".openspec", ".tmp");
+  const tmpBase = path.join(baseDir, ".openspec", ".tmp");
   if (!fs.existsSync(tmpBase)) {
     presenter.success({ pending: [] }, "No pending staged intents");
     return;
@@ -236,12 +243,14 @@ export async function statusStaged(opts: CliOptions) {
 }
 
 export function cleanupOldStaged(opts: CliOptions) {
+  const baseDir = opts.baseDir || process.cwd();
   try {
     // Git-native cleanup
-    execSync(`git worktree prune`);
+    execSync(`git worktree prune`, { cwd: baseDir });
 
-    // Sweep orphaned .openspec-staging-* branches
-    const branchesOutput = execSync(`git branch --list ".openspec-staging-*"`, {
+    // Sweep orphaned openspec-staging-* branches
+    const branchesOutput = execSync(`git branch --list "openspec-staging-*"`, {
+      cwd: baseDir,
       encoding: "utf-8",
     });
     const branches = branchesOutput
@@ -251,6 +260,7 @@ export function cleanupOldStaged(opts: CliOptions) {
 
     // Which ones don't have active worktrees?
     const worktreesOutput = execSync(`git worktree list --porcelain`, {
+      cwd: baseDir,
       encoding: "utf-8",
     });
     const activeBranches = new Set<string>();
@@ -263,14 +273,14 @@ export function cleanupOldStaged(opts: CliOptions) {
 
     for (const branch of branches) {
       if (!activeBranches.has(branch)) {
-        execSync(`git branch -D ${branch}`);
+        execSync(`git branch -D ${branch}`, { cwd: baseDir });
       }
     }
   } catch (e) {
     // Ignore if git commands fail
   }
 
-  const tmpBase = path.resolve(process.cwd(), ".openspec", ".tmp");
+  const tmpBase = path.resolve(baseDir, ".openspec", ".tmp");
   if (!fs.existsSync(tmpBase)) return;
 
   const files = fs.readdirSync(tmpBase) || [];

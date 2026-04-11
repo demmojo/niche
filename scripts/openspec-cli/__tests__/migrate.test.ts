@@ -85,4 +85,38 @@ describe("Migrate Legacy Specs", () => {
       expect.stringContaining("Successfully migrated 3"),
     );
   });
+
+  it("should migrate legacy specs with created and relationships fields", async () => {
+    vi.mocked(child_process.execSync).mockReturnValue(""); // Clean git tree
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readdirSync).mockReturnValue(["legacy-feature-2"] as any);
+    vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as any);
+
+    // Mock file content
+    vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
+      if (filePath.includes("legacy-feature-2")) {
+        return `status: draft\ncreated: '2026-04-10'\nrelationships:\n  - type: depends_on\n    target: feature-c\n`;
+      }
+      return "";
+    });
+
+    const presenterSpy = {
+      fail: vi.fn(),
+      success: vi.fn(),
+    };
+    vi.doMock("../presenter.js", () => ({
+      TerminalPresenter: vi.fn().mockImplementation(() => presenterSpy),
+      isHeadless: () => true,
+    }));
+
+    const { migrateLegacySpecs: migratedAgain } = await import("../migrate.js");
+    await migratedAgain({ nonInteractive: true, json: false, force: false } as any);
+
+    expect(fs.writeFileSync).toHaveBeenCalled();
+    const writeCalls = vi.mocked(fs.writeFileSync).mock.calls;
+    
+    expect(writeCalls[0][1]).toContain("schema: spec-driven");
+    expect(writeCalls[0][1]).toContain("depends_on:\n  - feature-c");
+    expect(writeCalls[0][1]).toContain("created: '2026-04-10'");
+  });
 });
