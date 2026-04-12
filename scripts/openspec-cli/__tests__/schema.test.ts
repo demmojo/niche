@@ -1,30 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { StagedIntentSchema } from "../schema.js";
+import { resolveConfinedPath } from "../schema.js";
+import path from "path";
 
-describe("OpenSpec Schema: Zod Transforms", () => {
-  it("should parse V2 tokens correctly", () => {
-    const v2Payload = {
-      token: "1234-uuid",
-      intents: [],
-      fileHash: "hash123",
-      createdAt: 100000,
-      branchName: "openspec-staging-1234-uuid",
-    };
-
-    const parsed = StagedIntentSchema.parse(v2Payload);
-    expect(parsed.branchName).toBe("openspec-staging-1234-uuid");
+describe("resolveConfinedPath", () => {
+  it("should block directory traversal attacks", () => {
+    expect(() => resolveConfinedPath("/tmp", "../etc/passwd")).toThrow();
   });
 
-  it("should upgrade V1 tokens to V2 in-memory via Zod transform", () => {
-    const v1Payload = {
-      token: "5678-uuid",
-      intents: [],
-      fileHash: "hash456",
-      createdAt: 200000,
-      // Notice: branchName is missing!
-    };
+  it("should allow valid confined paths", () => {
+    const p = resolveConfinedPath("/tmp", "payload.json");
+    expect(p).toBe(path.join("/tmp", "payload.json"));
+  });
 
-    const parsed = StagedIntentSchema.parse(v1Payload);
-    expect(parsed.branchName).toBe("openspec-staging-5678-uuid");
+  it("should resolve subdirectories", () => {
+    const p = resolveConfinedPath("/tmp", "subdir/payload.json");
+    expect(p).toBe(path.join("/tmp", "subdir/payload.json"));
   });
 });

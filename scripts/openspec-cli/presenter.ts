@@ -172,3 +172,23 @@ export function isHeadless(): boolean {
   if (process.env.NO_COLOR) return true;
   return false;
 }
+
+export const setupEpipeHandler = () => {
+  process.stdout.on("error", (err: any) => {
+    if (err.code === "EPIPE") {
+      process.exit(0);
+    }
+  });
+};
+
+export const emitPayload = (payload: any, options?: { dumpDir?: string }) => {
+  const payloadStr = JSON.stringify(payload);
+
+  if (payloadStr.length > 100 * 1024 && options?.dumpDir) {
+    const dumpPath = path.join(options.dumpDir, `payload-${Date.now()}.json`);
+    fs.writeFileSync(dumpPath, payloadStr, { flag: "wx", mode: 0o600 });
+    process.stdout.write(JSON.stringify({ payloadDumpPath: dumpPath }) + "\n");
+  } else {
+    process.stdout.write(payloadStr + "\n");
+  }
+};

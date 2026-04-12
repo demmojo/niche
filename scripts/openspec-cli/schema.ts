@@ -80,3 +80,37 @@ export const StagedIntentSchema = z
   });
 
 export type StagedIntent = z.infer<typeof StagedIntentSchema>;
+
+import path from "path";
+
+export const resolveConfinedPath = (
+  baseDir: string,
+  targetPath: string,
+): string => {
+  const resolved = path.resolve(baseDir, targetPath);
+  if (!resolved.startsWith(path.resolve(baseDir))) {
+    throw new Error("Path traversal attack detected");
+  }
+  return resolved;
+};
+
+const flagsSchema = z
+  .object({
+    format: z.string().optional(),
+    ci: z.preprocess(
+      (val) => val === "true" || val === true,
+      z.boolean().optional(),
+    ),
+  })
+  .strict();
+
+export const parseFlags = (args: string[]) => {
+  const obj: any = {};
+  for (const arg of args) {
+    if (arg.startsWith("--")) {
+      const [key, val] = arg.slice(2).split("=");
+      obj[key] = val !== undefined ? val : true;
+    }
+  }
+  return flagsSchema.parse(obj);
+};

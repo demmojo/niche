@@ -191,3 +191,46 @@ export function getAllSpecs(
 
   return specs;
 }
+
+export const flushStreamsAndExit = async (code: number) => {
+  process.exitCode = code;
+
+  const promises: Promise<void>[] = [];
+
+  if (process.stdout.writableNeedDrain) {
+    promises.push(
+      new Promise((resolve) => {
+        process.stdout.once("drain", () => resolve());
+      }),
+    );
+  }
+
+  if (process.stderr.writableNeedDrain) {
+    promises.push(
+      new Promise((resolve) => {
+        process.stderr.once("drain", () => resolve());
+      }),
+    );
+  }
+
+  await Promise.all(promises);
+};
+
+export const handleFailure = (error: any, uuid: string) => {
+  if (process.env.CI) {
+    const dir = `.openspec-failed-artifacts/${uuid}`;
+    fs.mkdirSync(dir, { recursive: true });
+
+    const safeError = {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    };
+
+    fs.writeFileSync(
+      `${dir}/stacktrace.txt`,
+      JSON.stringify(safeError, null, 2),
+    );
+  }
+};

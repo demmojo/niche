@@ -41,7 +41,9 @@ export function stageIntents(
   // Create branch and worktree
   try {
     execSync(`git branch ${branchName}`, { cwd: baseDir });
-    execSync(`git worktree add ${worktreePath} ${branchName}`, { cwd: baseDir });
+    execSync(`git worktree add ${worktreePath} ${branchName}`, {
+      cwd: baseDir,
+    });
   } catch (err: any) {
     presenter.error(`Failed to create git worktree: ${err.message}`);
     throw err;
@@ -88,10 +90,7 @@ export function stageIntents(
       !fs.statSync(filePath, { throwIfNoEntry: false })?.isDirectory()
     ) {
       const livePath = filePath;
-      const tmpPath = path.join(
-        worktreePath,
-        path.relative(baseDir, filePath),
-      );
+      const tmpPath = path.join(worktreePath, path.relative(baseDir, filePath));
       diffUris.push(`vscode://vscode.diff/${livePath}/${tmpPath}`);
     }
   }
@@ -192,7 +191,9 @@ export async function applyStaged(opts: CliOptions) {
     // It's usually left staged in the index for the user to review, but let's commit it automatically.
     // Actually, `git merge --squash` leaves it staged. Let's just leave it staged like `git merge --squash` normally does, or commit it if we want atomicity.
     // Let's commit it directly.
-    execSync(`git commit -m "feat(openspec): apply intent ${token}"`, { cwd: baseDir });
+    execSync(`git commit -m "feat(openspec): apply intent ${token}"`, {
+      cwd: baseDir,
+    });
   } catch (err: any) {
     await presenter.fail(
       `Application failed during git merge. Error: ${err.message}`,
@@ -297,3 +298,75 @@ export function cleanupOldStaged(opts: CliOptions) {
     }
   }
 }
+
+import fsPromises from "fs/promises";
+import child_process from "child_process";
+
+export const swapStagingToLive = async (
+  swaps: Array<{ stagingPath: string; livePath: string }>,
+) => {
+  for (const swap of swaps) {
+    const oldDir = `${swap.livePath}_old_${swap.stagingPath.split("/").pop()}`;
+    let isExdev = false;
+
+    // Step 1: Rename live to _old
+    try {
+      fs.renameSync(swap.livePath, oldDir);
+    } catch (error: any) {
+      if (error.code === "EXDEV") {
+        isExdev = true;
+        await fsPromises.cp(swap.livePath, oldDir, { recursive: true });
+        await fsPromises
+          .rm(swap.livePath, { recursive: true, force: true })
+          .catch(() => {});
+      } else if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    // Step 2: Rename staging to live
+    try {
+      if (isExdev) {
+        await fsPromises.cp(swap.stagingPath, swap.livePath, {
+          recursive: true,
+        });
+        await fsPromises
+          .rm(swap.stagingPath, { recursive: true, force: true })
+          .catch(() => {});
+      } else {
+        fs.renameSync(swap.stagingPath, swap.livePath);
+      }
+    } catch (error: any) {
+      if (error.code === "EXDEV") {
+        await fsPromises.cp(swap.stagingPath, swap.livePath, {
+          recursive: true,
+        });
+        await fsPromises
+          .rm(swap.stagingPath, { recursive: true, force: true })
+          .catch(() => {});
+      } else {
+        throw error;
+      }
+    }
+
+    // Step 3: Async delete _old
+    await fsPromises
+      .rm(oldDir, { recursive: true, force: true })
+      .catch(() => {});
+  }
+};
+
+export const stageChanges = async () => {
+  const diffResult = child_process.spawnSync(
+    "git",
+    ["diff", "--cached", "--quiet"],
+    { shell: false },
+  );
+  if (diffResult.status !== 0) {
+    child_process.spawnSync(
+      "git",
+      ["commit", "--no-verify", "-m", "OpenSpec staging auto-commit"],
+      { shell: false },
+    );
+  }
+};

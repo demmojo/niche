@@ -1,0 +1,6 @@
+schema: spec-driven
+status: archived
+learnings_extracted: true
+created: '2026-04-12'
+depends_on:
+  - ripcord-audit-gate-cli-hardening
