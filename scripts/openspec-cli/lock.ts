@@ -21,8 +21,8 @@ export async function acquireGlobalLock(): Promise<() => Promise<void>> {
         minTimeout: 200,
         maxTimeout: 1000,
       },
-      stale: 30000,
-      update: 5000,
+      stale: 300000,
+      update: 150000,
     });
     return release;
   } catch (error: any) {

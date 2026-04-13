@@ -59,6 +59,11 @@ This OpenSpec explicitly mandates a core **Frontend Infrastructure Refactor** to
   - Frame full End-to-End simulations using Playwright E2E Test Mode, relying exclusively on Firebase Auth Emulators or mock auth via Playwright's network interception.
   - **Streaming Test Mocks:** For Vitest, ensure the initial `render()` and every `controller.enqueue()` are wrapped in `await act(async () => { ... })`. For Playwright, mock SSE in `page.route` by fulfilling the request with a single concatenated string of chunks.
 
-- [ ] **Task 7: Documentation Updates**
+- [ ] **Task 7: Legacy Support Strategy & Backward Compatibility**
+  - **Data Migration:** Ensure existing user chats/documents (saved in Firestore under the legacy format) are safely up-migrated on read or gracefully handled by the new Vercel AI SDK Markdown parser.
+  - **Graceful Degradation:** Legacy interactive widgets or custom shortcodes previously generated must map safely to the new immutable Layout Shells, or fall back to an un-styled `<div className="legacy-shell">` to prevent app crashes when viewing historical records.
+  - **Versioned API Routes:** Since the frontend payload structures for streaming are changing, create a `/v2/generation` API endpoint for the new architecture while leaving the `/v1/generation` endpoint active to prevent breaking active client sessions during deployment.
+
+- [ ] **Task 8: Documentation Updates**
   - Update `README.md` to integrate this new pipeline.
   - Update `AGENTS.md` with the documented boundaries.
