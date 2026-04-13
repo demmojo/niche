@@ -303,16 +303,11 @@ export async function generateContentStreamHandler(
       const key = req.llmApiKey || process.env.GEMINI_API_KEY;
       if (!key) throw new Error("No Gemini API key available.");
       const ai = new GoogleGenAI({ apiKey: key });
-      const stream = await ai.models.generateContentStream(
-        {
-          model,
-          contents: params.contents,
-          config: params.config,
-        },
-        {
-          signal: abortController.signal,
-        } as any,
-      ); // Type assertion because GoogleGenAI might not fully document `signal` in all definitions but supports it or fetch equivalent.
+      const stream = await ai.models.generateContentStream({
+        model,
+        contents: params.contents,
+        config: params.config,
+      });
 
       for await (const chunk of stream) {
         if (clientDisconnected) break;

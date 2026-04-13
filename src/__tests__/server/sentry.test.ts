@@ -51,7 +51,7 @@ describe("Sentry beforeSend hook", () => {
     };
 
     const processedEvent = sentryBeforeSend(mockEvent);
-    const parsedData = JSON.parse(processedEvent.request?.data);
+    const parsedData = JSON.parse(processedEvent.request?.data as string);
 
     expect(parsedData.prompt).toContain("[SCRUBBED]");
     expect(parsedData.imageBase64).toContain("[SCRUBBED]");
@@ -73,7 +73,7 @@ describe("Sentry beforeSend hook", () => {
     };
 
     const processedEvent = sentryBeforeSend(mockEvent);
-    const data = processedEvent.request?.data;
+    const data = processedEvent.request?.data as any;
 
     expect(data.user.password).toContain("[SCRUBBED]");
     expect(data.user.safeField).toBe("hello world");
@@ -88,7 +88,7 @@ describe("Sentry beforeSend hook", () => {
     };
 
     const processedEvent = sentryBeforeSend(mockEvent);
-    const data = processedEvent.request?.data;
+    const data = processedEvent.request?.data as any;
 
     expect(Array.isArray(data)).toBe(true);
     expect(data[0].password).toContain("[SCRUBBED]");
