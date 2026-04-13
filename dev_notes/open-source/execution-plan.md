@@ -2,7 +2,7 @@
 
 ## Objective
 
-To execute the integration of the Sovereign Blob Reference Protocol (SBRP) into OpenTelemetry (OTel) and LangSmith SDKs, maximizing acceptance likelihood through staged rollouts while safely handling transient rollout states.
+To execute the integration of the Sovereign Blob Reference Protocol (SBRP) into OpenTelemetry (OTel) and Observability SDKs, maximizing acceptance likelihood through staged rollouts while safely handling transient rollout states.
 
 ## Milestones & Tasks
 
@@ -10,7 +10,7 @@ To execute the integration of the Sovereign Blob Reference Protocol (SBRP) into 
 
 **Status:** Not Started
 
-- [ ] **LangSmith Discussion:** Open a GitHub Discussion/Issue titled _"RFC: Enterprise Data Sovereignty & 100MB+ Context Tracing (Claim-Check Pattern)"_.
+- [ ] **Observability Discussion:** Open a GitHub Discussion/Issue titled _"RFC: Enterprise Data Sovereignty & 100MB+ Context Tracing (Claim-Check Pattern)"_.
 - [ ] **OTel Socialization:** Join the OTel Semantic Conventions Slack/SIG (GenAI/Messaging) to propose SBRP.
 
 ### 1. Pre-requisite Architecture, Edge Protection, & Security Hardening
@@ -30,7 +30,7 @@ To execute the integration of the Sovereign Blob Reference Protocol (SBRP) into 
 - [ ] **Create the OTEP Fork:** Fork the `open-telemetry/oteps` repository.
 - [ ] **Draft `text/0XXX-sbrp-telemetry.md`:** Introduce `storage_route.alias`, `blob_id`, and `checksum` fields. Deprecate legacy URIs. Propose as an _Experimental_ (Opt-In) attribute group.
 
-### 3. Staged PR 1: LangSmith Backend (Non-Breaking Infrastructure)
+### 3. Staged PR 1: Observability Backend (Non-Breaking Infrastructure)
 
 **Status:** Not Started
 
@@ -42,13 +42,13 @@ To execute the integration of the Sovereign Blob Reference Protocol (SBRP) into 
   - Enforce cloud provider signature algorithms, 250MB uncompressed limits, and 15-30s timeouts. If exceeded, update the database record to a terminal FAILED state, log the failure, and emit a metric.
   - Implement Strict Concurrency Limits to prevent GC thrashing.
 
-### 4. Staged PR 2: LangSmith Backend (UI Security)
+### 4. Staged PR 2: Observability Backend (UI Security)
 
 **Status:** Not Started
 
 - [ ] **Pre-Signed UI Fetching & XSS Mitigation:** Generate Pre-Signed GET URLs checking for an explicit `VALIDATED` blob state to prevent TOCTOU races during async ingestion. Serve from an origin-isolated sandbox domain using strict CORS and `Content-Type` mappings to prevent Stored XSS.
 
-### 5. Staged PR 3: LangSmith SDKs & Emitters (Compute Plane)
+### 5. Staged PR 3: Observability SDKs & Emitters (Compute Plane)
 
 **Status:** Not Started
 

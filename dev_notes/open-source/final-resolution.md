@@ -3,20 +3,22 @@
 All vulnerabilities and contract drifts identified in the comprehensive audits have been resolved:
 
 1.  **Correctness Fixes:**
-    - Added row-level locking (`FOR UPDATE SKIP LOCKED`) and `LIMIT` to the state machine task acquisition query to prevent worker lock contention and OOM.
-    - Corrected POSIX permissions for local Outbox directories to `0700` or `0750` to permit traversal.
-    - Added a `retry_count` and `max_retries` cap to the `UPSERT` background sweeper logic to prevent infinite retry loops on transient poison pills.
-    - Clarified that `HTTP 404` errors must be treated as transient up to a reasonable TTL to account for object storage eventual consistency.
-    - Restricted the `CRLF` rejection rule to the `legacy_uri` string value rather than the raw HTTP body to avoid breaking legitimate JSON payloads.
+    - Corrected the `HTTP 413 Payload Too Large` vs `Legacy Full Payload` contradiction. Standard proxy ingress limits apply to ALL synchronous payloads; only valid legacy payloads within limits go to the background queue.
+    - Repaired the `max_retries` race condition. The client ingestion `UPSERT` no longer increments `retry_count`. Only the paginated background sweeper increments it during recovery.
+    - Updated the Pre-Signed POST authorization definition from "strictly prefixes" to "strictly conforms to the namespace format" to account for the preceding SHA-256 shard in the blob path.
+    - Legacy payloads lacking a `blob_id` will now have a deterministic surrogate `blob_id` generated server-side to remain compatible with the `INSERT ON CONFLICT` state machine.
 
 2.  **API Contract Fixes:**
-    - Removed `validation`, `pattern`, and `max_length` directives from the OTel YAML specification in `PR.md` as they violate OTel Semantic Conventions. Added textual descriptions to `conditionally_required` fields.
-    - Aligned the Pre-Signed POST `content-length-range` in `execution-plan.md` to `250MB` to match the RFC's ingestion capabilities limit.
-    - Replaced premature runtime abstractions (e.g., Node.js `AbortSignal.timeout`, ES6 `Map`) with generic, language-agnostic requirements ("socket timeout", "type-safe dictionaries").
+    - Added synchronous schema validation for all incoming payloads. Even under `202 Async Ingestion`, invalid payloads (including legacy) are synchronously rejected with `HTTP 400 Bad Request`.
+    - Clarified that `blob_id` MUST be a standard 36-character string with hyphens, overriding generic OTel trace ID hex requirements.
+    - Defined missing error schemas for `DEPRECATED_FEATURE` and generic `FORBIDDEN` edge cases.
+    - Clarified that attributes like `sbrp.blob_reference.storage_route.alias` MUST be serialized as flat strings, not nested JSON objects.
+    - Stripped remaining vendor-specific terms (e.g., "LangSmith SDK", "simdjson", "Go", "Rust") from all files.
 
 3.  **Security Fixes:**
-    - Added a strict tenant boundary check (`table_name.tenant_id = EXCLUDED.tenant_id`) to the `INSERT ... ON CONFLICT DO UPDATE` state machine query to prevent Cross-Tenant IDOR and payload poisoning.
-    - Mandated robust URL parsing and normalization _before_ path-prefix allowlist validation for legacy URIs to close SSRF Path Traversal (`../../`) loopholes.
-    - Added a strict `max_download_size` constraint on the incoming HTTP fetch socket to prevent Bandwidth Exhaustion from highly compressed payloads.
-    - Explicitly banned execution-capable MIME types (`image/svg+xml`, `text/html`) from the Pre-Signed POST whitelist and mandated `Content-Disposition: attachment` for GET endpoints to prevent Stored XSS.
-    - Added a requirement for local file checksum verification in the Transactional Outbox to detect data corruption at rest.
+    - Enforced tenant authorization checks against matched legacy URIs in the allowlist to prevent Cross-Tenant IDOR via global allowlists.
+    - Updated Penalty Box logic to restrict tenants who trigger *any* deterministic failure (including JSON parsing errors on non-JSON garbage payloads), preventing attackers from bypassing backpressure by omitting the optional checksum.
+    - Mandated a `LIMIT` clause on the background sweeper to prevent Database Lock Starvation / DoS.
+    - Mandated that Observability UIs implement client-side rendering truncations (e.g., 5MB DOM cap) and streaming to prevent Client-Side Browser DoS via OOM on 250MB payloads.
+    - Resolved the Alias Enumeration vulnerability by returning a generic `HTTP 403` regardless of whether the alias exists or fails authorization.
+    - Resolved the Log Forging vulnerability by requiring downstream systems to serialize using JSON or explicitly escape CRLF characters before writing to plaintext sinks.

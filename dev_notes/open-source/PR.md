@@ -1,4 +1,4 @@
-# PR Description: LangSmith SDK / OpenTelemetry Integration
+# PR Description: Observability SDK / OpenTelemetry Integration
 
 **Title:** feat(core): implement Sovereign Blob Reference Protocol (SBRP) for large trace ingestion
 **Type:** Feature / OTel Semantic Convention Implementation
@@ -35,7 +35,7 @@ groups:
         type: string
         requirement_level:
           conditionally_required: "Required if sbrp.blob_reference.legacy_uri is absent"
-        brief: "UUIDv7 identifier for the blob. Must be lowercase hex per OTel specs."
+        brief: "UUIDv7 identifier for the blob. Formatted as a standard 36-character string with hyphens, overriding generic OTel trace ID hex constraints."
       - id: sbrp.blob_reference.checksum
         type: string
         requirement_level: opt_in
@@ -49,7 +49,7 @@ groups:
 
 ## Security & Reliability Posture
 
-- **Structural SSRF Elimination:** Legacy URIs restricted to strict exact-match path-prefix allowlists or silently blackholed.
+- **Structural SSRF Elimination:** Legacy URIs restricted to strict exact-match path-prefix allowlists that are explicitly mapped to the `authenticated_caller_tenant_id` or silently blackholed.
 - **Log Forging / Response Splitting Prevention:** CRLF characters in legacy payloads trigger an immediate HTTP 400 rejection.
 - **XSS Mitigation:** Pre-signed URLs mapped with safe Object Storage content types and strict UI context-aware encoding.
 - **IDOR Protection:** `tenant_id` namespaces the storage path, and `storage_route.alias` authorizes access using prototype-pollution-free `Map` dictionaries. Validates the `authenticated_caller_tenant_id` exclusively. Pre-Signed POST checks `blob_id` uniqueness and prefix authorization before issuance.
