@@ -4,7 +4,7 @@
 
 - [x] Scaffold `.cursorrules` and `.cursor/prompts` to centralize constraints.
 - [x] Implement static foundational Layout Shells (e.g., `<AsymmetricalShell>`).
-- [ ] Configure Vercel AI SDK `toolUI` mapping to pre-registered React components.
+- [x] Configure Vercel AI SDK `toolUI` mapping to pre-registered React components.
 - [x] Strip local `AbortSignal` and manual cancellation wiring from the generation scope.
 - [x] Setup Two-Phase Fetch Strategy and Explainable States.
 
