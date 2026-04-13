@@ -11,9 +11,9 @@
 ## Phase 2: State Management & Stream Resiliency
 
 - [x] Wire `useActionState` and React 19 AbortControllers for standard fetch requests.
-- [ ] Implement "Die on Disconnect" workflow with Firestore ledger syncing.
+- [x] Implement "Die on Disconnect" workflow with Firestore ledger syncing.
 - [x] Add `visibilitychange` listener to cleanup zombie TCP connections and reset the SDK fetch controller.
-- [ ] Establish "Dead Letter Timeout" utilizing a deterministic backend fetch upon foregrounding.
+- [x] Establish "Dead Letter Timeout" utilizing a deterministic backend fetch upon foregrounding.
 - [x] Split global React Contexts (separate state and dispatch); ban Context for generative streams.
 
 ## Phase 3: Optimizations & Encapsulation
@@ -30,4 +30,4 @@
 - [x] Write `urlTransform` to strictly enforce `http:`, `https:`, and `mailto:` allowlists.
 - [x] Restrict `@tanstack/react-virtual` to strictly historical chat messages.
 - [x] Setup React Testing Library E2E mocks (Vitest `await act()` for SSE chunks).
-- [ ] Update `README.md` and `AGENTS.md` to document the new pipeline and component boundary paradigms.
+- [x] Update `README.md` and `AGENTS.md` to document the new pipeline and component boundary paradigms.
