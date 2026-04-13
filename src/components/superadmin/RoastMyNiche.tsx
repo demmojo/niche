@@ -33,14 +33,32 @@ export const RoastMyNiche: React.FC = () => {
   const [idea, setIdea] = useState("");
   const [email, setEmail] = useState("");
   const {
-    data: streamData,
+    messages,
     isLoading: isStreamLoading,
     error: streamError,
     generate,
   } = useNicheGenerativeStream({
-    endpoint:
-      (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generateStream", // Changed to generic LLM stream endpoint
+    api: (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generateStream",
   });
+
+  // Reconstruct streamData as a string from messages for ReactMarkdown
+  const streamData = messages
+    .map((m) => {
+      if (m.parts) {
+        return m.parts
+          .map((p: any) => {
+            if (p.type === "text") return p.text;
+            if (p.type.startsWith("data-") || typeof p.data === "string")
+              return String(p.data);
+            return JSON.stringify(p);
+          })
+          .join("");
+      }
+      return typeof m.content === "string"
+        ? m.content
+        : JSON.stringify(m.content);
+    })
+    .join("\n");
 
   const [emailLoading, setEmailLoading] = useState(false);
   const loading = isPending || emailLoading || isStreamLoading;
@@ -52,7 +70,11 @@ export const RoastMyNiche: React.FC = () => {
   // Sync stream error to local error for UI
   useEffect(() => {
     if (streamError) {
-      setError(streamError);
+      setError(
+        streamError instanceof Error
+          ? streamError.message
+          : String(streamError),
+      );
     }
   }, [streamError]);
 

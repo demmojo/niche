@@ -1,199 +1,136 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { useChat } from "@ai-sdk/react";
 import { z } from "zod";
 
-// Ensure safe chunks (drop malformed instead of crashing)
-const streamChunkSchema = z.object({
-  text: z.string().optional(),
-  error: z.string().optional(),
-  message: z.string().optional(),
+// Zod schema for mid-stream custom protocol payloads
+const StreamDataSchema = z.object({
+  type: z.string(),
+  payload: z.any(),
 });
 
 interface UseNicheGenerativeStreamProps {
-  endpoint: string;
+  api: string;
   initialData?: string;
-  onError?: (error: string) => void;
-  onFinish?: (finalData: string) => void;
-  // Options for decoupled chunk ingestion
-  throttleMs?: number;
+  jobId?: string; // Required for reconnect logic
+  onStatusChange?: (
+    status: "active" | "interrupted" | "failed" | "completed",
+  ) => void;
+  // Anti-corruption layer mappings
+  onToolCallFailed?: (toolName: string) => void;
 }
 
 export function useNicheGenerativeStream({
-  endpoint,
+  api,
   initialData = "",
-  onError,
-  onFinish,
-  throttleMs = 150, // Throttle UI updates to 150ms intervals by default
+  jobId,
+  onStatusChange,
+  onToolCallFailed,
 }: UseNicheGenerativeStreamProps) {
-  const [data, setData] = useState(initialData);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<
+    "idle" | "active" | "interrupted" | "failed" | "completed"
+  >("idle");
+  const processedDataIndices = useRef<Set<number>>(new Set());
 
-  // High-water mark tracker and buffers
-  const fullTextRef = useRef(initialData);
-  const bufferedTextRef = useRef("");
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    stop,
+    error,
+    data,
+    setMessages,
+    append,
+    sendMessage,
+  } = (useChat as any)({
+    api,
+    initialMessages: initialData
+      ? [{ id: "init", role: "assistant", content: initialData }]
+      : [],
+    onResponse: () => {
+      setStreamStatus("active");
+      onStatusChange?.("active");
+    },
+    onFinish: () => {
+      setStreamStatus("completed");
+      onStatusChange?.("completed");
+    },
+    onError: (err) => {
+      // In the Vercel SDK, network aborts also trigger onError.
+      if (err.name === "AbortError") {
+        setStreamStatus("interrupted");
+        onStatusChange?.("interrupted");
+      } else {
+        setStreamStatus("failed");
+        onStatusChange?.("failed");
+      }
+    },
+  });
 
-  // Used to prevent state updates if unmounted
-  const isMountedRef = useRef(true);
-
+  // Zero-Trust Mid-Stream Validation for `data` stream
   useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
-    };
-  }, []);
+    if (!data) return;
 
-  const flushBuffer = useCallback(() => {
-    if (!isMountedRef.current) return;
-    if (bufferedTextRef.current.length > 0) {
-      fullTextRef.current += bufferedTextRef.current;
-      setData(fullTextRef.current);
-      bufferedTextRef.current = "";
+    data.forEach((packet, index) => {
+      // High-water mark index tracker (only process new chunks)
+      if (processedDataIndices.current.has(index)) return;
+      processedDataIndices.current.add(index);
+
+      const parsed = StreamDataSchema.safeParse(packet);
+      if (!parsed.success) {
+        // Silently swallow error, do not crash the UI, log to telemetry
+        console.warn("Dropped malformed data packet", packet);
+        return;
+      }
+
+      // Handle valid data packet safely
+      // (Implementation would depend on business logic)
+    });
+  }, [data]);
+
+  // Disconnect Handling & Foreground State Reconciliation
+  const fetchFinalState = useCallback(async () => {
+    if (!jobId) return;
+
+    try {
+      const response = await fetch(`/api/generation/${jobId}/status`);
+      if (!response.ok) throw new Error("Failed to fetch final state");
+
+      const result = await response.json();
+
+      // State Rehydration Boundary
+      if (result.status === "completed") {
+        setStreamStatus("completed");
+        onStatusChange?.("completed");
+        if (result.finalText) {
+          setMessages([
+            { id: "final", role: "assistant", content: result.finalText },
+          ]);
+        }
+      } else if (
+        result.status === "interrupted" ||
+        result.status === "failed"
+      ) {
+        setStreamStatus(result.status);
+        onStatusChange?.(result.status);
+      }
+    } catch (e) {
+      console.error("State reconciliation failed:", e);
+      setStreamStatus("failed");
+      onStatusChange?.("failed");
     }
-  }, []);
+  }, [jobId, setMessages, onStatusChange]);
 
-  const appendToBuffer = useCallback(
-    (text: string) => {
-      bufferedTextRef.current += text;
-      if (!throttleTimeoutRef.current) {
-        throttleTimeoutRef.current = setTimeout(() => {
-          flushBuffer();
-          throttleTimeoutRef.current = null;
-        }, throttleMs);
-      }
-    },
-    [throttleMs, flushBuffer],
-  );
-
-  const generate = useCallback(
-    async (payload: any, token?: string) => {
-      setIsLoading(true);
-      setError(null);
-      setData(initialData);
-      fullTextRef.current = initialData;
-      bufferedTextRef.current = "";
-
-      // Clean up previous stream if exists
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-
-      try {
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-
-        if (!response.body) {
-          throw new Error("No response body");
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            flushBuffer(); // Final flush
-            setIsLoading(false);
-            if (onFinish && isMountedRef.current) {
-              onFinish(fullTextRef.current);
-            }
-            break;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-
-          // Process lines (SSE format: data: {...}\n\n)
-          let newlineToIndex;
-          while ((newlineToIndex = buffer.indexOf("\n\n")) >= 0) {
-            const line = buffer.slice(0, newlineToIndex).trim();
-            buffer = buffer.slice(newlineToIndex + 2);
-
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === "[DONE]") {
-                continue; // Handled by reader.read() done
-              }
-              try {
-                let rawData;
-                try {
-                  rawData = JSON.parse(dataStr);
-                } catch (e) {
-                  console.warn("Failed to parse SSE data string", dataStr);
-                  continue; // Skip malformed JSON
-                }
-                // Zero-trust parsing
-                const parsed = streamChunkSchema.safeParse(rawData);
-
-                if (parsed.success) {
-                  // Ignore the chunk if it has no text and no error, but don't throw error
-                  if (parsed.data.error) {
-                    throw new Error(parsed.data.message || parsed.data.error);
-                  } else if (parsed.data.text) {
-                    appendToBuffer(parsed.data.text);
-                  }
-                } else {
-                  console.warn("Dropped malformed chunk", rawData);
-                }
-              } catch (e: any) {
-                // Bubble up thrown errors from inside the try block (like our manual throw above)
-                throw e;
-              }
-            }
-          }
-        }
-      } catch (e: any) {
-        if (e.name === "AbortError") {
-          console.log("Stream aborted locally");
-        } else {
-          console.error("Stream generation error:", e);
-          if (isMountedRef.current) {
-            setError(
-              e.message || "An unknown error occurred during generation.",
-            );
-            if (onError) onError(e.message);
-          }
-        }
-      } finally {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [endpoint, initialData, appendToBuffer, flushBuffer, onError, onFinish],
-  );
-
-  // Handle visibility change to cleanup zombie connections
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "hidden" &&
-        isLoading &&
-        abortControllerRef.current
-      ) {
-        console.log("Tab backgrounded. Aborting zombie TCP connection.");
-        abortControllerRef.current.abort();
-        // The backend should handle "Die on Disconnect" and save state to Firestore.
-        // We will need to re-fetch definitive state when coming back, handled by consumer.
+      if (document.visibilityState === "visible" && streamStatus === "active") {
+        // App foregrounded: tear down zombie TCP connection
+        stop();
+        setStreamStatus("interrupted");
+
+        // Lightweight deterministic fetch to verify state
+        fetchFinalState();
       }
     };
 
@@ -201,14 +138,57 @@ export function useNicheGenerativeStream({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isLoading]);
+  }, [streamStatus, stop, fetchFinalState]);
+
+  const generate = useCallback(
+    async (payload: any, token?: string) => {
+      setStreamStatus("active");
+      onStatusChange?.("active");
+
+      let textContent = "";
+      if (typeof payload === "string") {
+        textContent = payload;
+      } else if (payload?.params?.contents?.[0]?.parts?.[0]?.text) {
+        textContent = payload.params.contents[0].parts[0].text;
+      } else {
+        textContent = JSON.stringify(payload);
+      }
+
+      const msg = {
+        id: Date.now().toString(),
+        role: "user",
+        content: textContent,
+      };
+
+      const opts = {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: payload,
+      };
+
+      if (typeof append === "function") {
+        await append(msg as any, opts as any);
+      } else if (typeof sendMessage === "function") {
+        await sendMessage(msg, opts);
+      } else {
+        throw new Error(
+          "Neither append nor sendMessage is available on useChat",
+        );
+      }
+    },
+    [append, sendMessage, onStatusChange],
+  );
 
   return {
-    data,
+    // ACL mapped properties
+    messages,
     isLoading,
+    isInterrupted: streamStatus === "interrupted",
+    isFailed: streamStatus === "failed",
     error,
+    input,
+    handleInputChange,
+    handleSubmit,
     generate,
-    // Provide manual abort just in case, but rely on visibility listener
-    abort: () => abortControllerRef.current?.abort(),
+    stopStream: stop,
   };
 }

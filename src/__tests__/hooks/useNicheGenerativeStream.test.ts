@@ -1,193 +1,144 @@
-// @vitest-environment jsdom
-import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { useNicheGenerativeStream } from "../../hooks/useNicheGenerativeStream";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useNicheGenerativeStream } from "../../../src/hooks/useNicheGenerativeStream";
+
+// Mock the AI SDK so we don't actually do SSE calls
+vi.mock("@ai-sdk/react", () => ({
+  useChat: vi.fn(() => ({
+    messages: [],
+    input: "",
+    handleInputChange: vi.fn(),
+    handleSubmit: vi.fn(),
+    isLoading: false,
+    stop: vi.fn(),
+    error: null,
+    data: [],
+    setMessages: vi.fn(),
+    append: vi.fn(),
+  })),
+}));
+
+import { useChat } from "@ai-sdk/react";
 
 describe("useNicheGenerativeStream", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    // Stub fetch globally
-    global.fetch = vi.fn();
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
+  it("should initialize with empty or initial messages", () => {
+    const { result } = renderHook(() =>
+      useNicheGenerativeStream({ api: "/api/chat", initialData: "Hello" }),
+    );
+
+    // Should configure useChat with initialMessages mapping
+    expect(useChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialMessages: [{ id: "init", role: "assistant", content: "Hello" }],
+      }),
+    );
+
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.isInterrupted).toBe(false);
   });
 
-  it("handles decoupled chunk ingestion correctly (throttling)", async () => {
-    // Mock fetch to return a stream
-    let controller: ReadableStreamDefaultController<Uint8Array>;
-    const stream = new ReadableStream({
-      start(c) {
-        controller = c;
-      },
+  it("should stop the stream and fetch final state on visibility change", async () => {
+    const mockStop = vi.fn();
+    const mockSetMessages = vi.fn();
+
+    (useChat as any).mockReturnValue({
+      messages: [],
+      input: "",
+      handleInputChange: vi.fn(),
+      handleSubmit: vi.fn(),
+      isLoading: true,
+      stop: mockStop,
+      error: null,
+      data: [],
+      setMessages: mockSetMessages,
+      append: vi.fn(),
     });
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      body: stream,
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({ status: "completed", finalText: "Final answer" }),
+      } as any),
+    );
+
+    let onResponseCallback: any;
+    // Capture the onResponse callback to manually trigger "active" state
+    (useChat as any).mockImplementation((opts: any) => {
+      onResponseCallback = opts.onResponse;
+      return {
+        messages: [],
+        input: "",
+        handleInputChange: vi.fn(),
+        handleSubmit: vi.fn(),
+        isLoading: true,
+        stop: mockStop,
+        error: null,
+        data: [],
+        setMessages: mockSetMessages,
+        append: vi.fn(),
+      };
     });
 
     const { result } = renderHook(() =>
-      useNicheGenerativeStream({ endpoint: "/api/test", throttleMs: 100 }),
+      useNicheGenerativeStream({ api: "/api/chat", jobId: "job1" }),
     );
 
-    // Start generation
-    let generatePromise: Promise<void>;
-    await act(async () => {
-      generatePromise = result.current.generate({});
+    // Transition state to active
+    act(() => {
+      onResponseCallback();
     });
 
-    expect(result.current.isLoading).toBe(true);
-    expect(result.current.data).toBe("");
-
-    const encoder = new TextEncoder();
-
-    // Enqueue first chunk
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {"text":"Hello"}\n\n`));
+    // Simulate tab coming back to foreground
+    act(() => {
+      Object.defineProperty(document, "visibilityState", {
+        value: "visible",
+        writable: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    // Data should NOT be updated yet due to throttling
-    expect(result.current.data).toBe("");
+    // Should stop the zombie stream immediately
+    expect(mockStop).toHaveBeenCalled();
 
-    // Fast forward halfway through throttle
-    await act(async () => {
-      vi.advanceTimersByTime(50);
+    // Should make the REST fetch
+    expect(global.fetch).toHaveBeenCalledWith("/api/generation/job1/status");
+
+    // Wait for the state reconciliation and ensure it overwrote local messages
+    await waitFor(() => {
+      expect(mockSetMessages).toHaveBeenCalledWith([
+        { id: "final", role: "assistant", content: "Final answer" },
+      ]);
     });
-
-    // Enqueue second chunk before flush
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {"text":" World"}\n\n`));
-    });
-
-    // Still shouldn't update
-    expect(result.current.data).toBe("");
-
-    // Fast forward to trigger flush
-    await act(async () => {
-      vi.advanceTimersByTime(50);
-    });
-
-    // Now both chunks should appear
-    expect(result.current.data).toBe("Hello World");
-
-    // Close stream
-    await act(async () => {
-      controller.close();
-    });
-    await act(async () => {
-      await generatePromise;
-    });
-
-    expect(result.current.isLoading).toBe(false);
   });
 
-  it("gracefully drops malformed chunks without crashing", async () => {
-    let controller: ReadableStreamDefaultController<Uint8Array>;
-    const stream = new ReadableStream({
-      start(c) {
-        controller = c;
-      },
+  it("should parse valid stream data safely without throwing on malformed packets", () => {
+    const validData = [{ type: "test", payload: "value" }];
+    const invalidData = [{ malformed: true }];
+
+    // Test the safe Parse swallowing error behavior
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    (useChat as any).mockReturnValue({
+      messages: [],
+      data: [...validData, ...invalidData],
+      stop: vi.fn(),
+      setMessages: vi.fn(),
+      append: vi.fn(),
     });
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      body: stream,
-    });
-
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
-
-    const { result } = renderHook(() =>
-      useNicheGenerativeStream({ endpoint: "/api/test", throttleMs: 0 }),
+    renderHook(() =>
+      useNicheGenerativeStream({ api: "/api/chat", jobId: "job2" }),
     );
 
-    let generatePromise: Promise<void>;
-    await act(async () => {
-      generatePromise = result.current.generate({});
+    expect(consoleSpy).toHaveBeenCalledWith("Dropped malformed data packet", {
+      malformed: true,
     });
 
-    const encoder = new TextEncoder();
-
-    // Valid chunk
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {"text":"Valid."}\n\n`));
-      vi.runAllTimers();
-    });
-
-    // Malformed JSON chunk
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {malformed}\n\n`));
-      vi.runAllTimers();
-    });
-
-    // Invalid schema chunk
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {"wrong_key":"data"}\n\n`));
-      vi.runAllTimers();
-    });
-
-    // Another valid chunk
-    await act(async () => {
-      controller.enqueue(encoder.encode(`data: {"text":" Done."}\n\n`));
-      vi.runAllTimers();
-    });
-
-    // Close stream FIRST to trigger flushBuffer
-    await act(async () => {
-      controller.close();
-      await generatePromise;
-    });
-
-    expect(result.current.data).toBe("Valid. Done.");
-    expect(consoleWarnSpy).toHaveBeenCalled();
-  });
-
-  it("handles server sent errors", async () => {
-    let controller: ReadableStreamDefaultController<Uint8Array>;
-    const stream = new ReadableStream({
-      start(c) {
-        controller = c;
-      },
-    });
-
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      body: stream,
-    });
-
-    const { result } = renderHook(() =>
-      useNicheGenerativeStream({ endpoint: "/api/test", throttleMs: 0 }),
-    );
-
-    let generatePromise: Promise<void>;
-    await act(async () => {
-      generatePromise = result.current.generate({});
-    });
-
-    const encoder = new TextEncoder();
-
-    await act(async () => {
-      controller.enqueue(
-        encoder.encode(
-          `data: {"error":"STREAM_FAILED","message":"Custom Error"}\n\n`,
-        ),
-      );
-      vi.runAllTimers();
-    });
-
-    await act(async () => {
-      controller.close();
-    });
-
-    await act(async () => {
-      await generatePromise;
-    });
-
-    expect(result.current.error).toBe("Custom Error");
-    expect(result.current.isLoading).toBe(false);
+    consoleSpy.mockRestore();
   });
 });

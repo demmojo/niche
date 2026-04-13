@@ -31,26 +31,32 @@ describe("RoastMyNiche UI", () => {
   beforeEach(() => {
     originalFetch = global.fetch;
     global.fetch = vi.fn().mockImplementation((url: string, options: any) => {
-      if (url === "/api/llm/generateStream") {
+      if (url === "/api/llm/generateStream" || url === "/api/chat") {
         const stream = new ReadableStream({
           start(controller) {
             const encoder = new TextEncoder();
             controller.enqueue(
-              encoder.encode(`data: {"text":"First bullet point. "}\n\n`),
-            );
-            controller.enqueue(
-              encoder.encode(`data: {"text":"Second bullet point. "}\n\n`),
-            );
-            controller.enqueue(
-              encoder.encode(`data: {"text":"Third bullet point."}\n\n`),
+              encoder.encode(
+                `data: {"type":"start","messageId":"msg-1"}\n\n` +
+                  `data: {"type":"text-start","id":"text-1"}\n\n` +
+                  `data: {"type":"text-delta","id":"text-1","delta":"First bullet point. "}\n\n` +
+                  `data: {"type":"text-delta","id":"text-1","delta":"Second bullet point. "}\n\n` +
+                  `data: {"type":"text-delta","id":"text-1","delta":"Third bullet point."}\n\n` +
+                  `data: {"type":"text-end","id":"text-1"}\n\n` +
+                  `data: {"type":"finish"}\n\n`,
+              ),
             );
             controller.close();
           },
         });
-        return Promise.resolve({
-          ok: true,
-          body: stream,
-        });
+        return Promise.resolve(
+          new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-vercel-ai-data-stream": "v1",
+            },
+          }),
+        );
       }
       if (url === "/api/roast") {
         return new Promise((resolve) => {
@@ -154,22 +160,26 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for surface roast gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/generateStream") {
+      if (url === "/api/llm/generateStream" || url === "/api/chat") {
         const stream = new ReadableStream({
           start(controller) {
             const encoder = new TextEncoder();
             controller.enqueue(
               encoder.encode(
-                `data: {"error":"STREAM_FAILED","message":"Failed to fetch analysis"}\n\n`,
+                `data: {"type":"error","errorText":"Failed to fetch analysis"}\n\n`,
               ),
             );
             controller.close();
           },
         });
-        return Promise.resolve({
-          ok: true,
-          body: stream,
-        });
+        return Promise.resolve(
+          new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-vercel-ai-data-stream": "v1",
+            },
+          }),
+        );
       }
       return Promise.resolve({
         ok: true,
@@ -217,20 +227,30 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for deep dive email capture gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/generateStream") {
+      if (url === "/api/llm/generateStream" || url === "/api/chat") {
         const stream = new ReadableStream({
           start(controller) {
             const encoder = new TextEncoder();
             controller.enqueue(
-              encoder.encode(`data: {"text":"First bullet point. "}\n\n`),
+              encoder.encode(
+                `data: {"type":"start","messageId":"msg-1"}\n\n` +
+                  `data: {"type":"text-start","id":"text-1"}\n\n` +
+                  `data: {"type":"text-delta","id":"text-1","delta":"First bullet point. "}\n\n` +
+                  `data: {"type":"text-end","id":"text-1"}\n\n` +
+                  `data: {"type":"finish"}\n\n`,
+              ),
             );
             controller.close();
           },
         });
-        return Promise.resolve({
-          ok: true,
-          body: stream,
-        });
+        return Promise.resolve(
+          new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-vercel-ai-data-stream": "v1",
+            },
+          }),
+        );
       }
       if (url === "/api/campaign/submit-lead") {
         return new Promise((resolve) => {
@@ -309,6 +329,9 @@ describe("RoastMyNiche UI", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/First bullet point/i)).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(/Enter your email for the deep dive/i),
+      ).toBeInTheDocument();
     });
 
     // Try submitting with empty email (initial state is empty)
@@ -324,21 +347,27 @@ describe("RoastMyNiche UI", () => {
   it("Phase 1: uses React 19 startTransition and handles 202 Accepted with precise status indicators", async () => {
     // Override fetch to return 202 Accepted with a phase 1 fast data message
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/llm/generateStream") {
+      if (url === "/api/llm/generateStream" || url === "/api/chat") {
         const stream = new ReadableStream({
           start(controller) {
             const encoder = new TextEncoder();
             controller.enqueue(
-              encoder.encode(`data: {"text":"searching_exa"}\n\n`),
+              encoder.encode(
+                `data: {"type":"data-status","data":"searching_exa"}\n\n`,
+              ),
             );
             controller.close();
           },
         });
-        return Promise.resolve({
-          ok: true,
-          status: 202,
-          body: stream,
-        });
+        return Promise.resolve(
+          new Response(stream, {
+            status: 202,
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-vercel-ai-data-stream": "v1",
+            },
+          }),
+        );
       }
       return Promise.reject(new Error("Unknown url " + url));
     });

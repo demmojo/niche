@@ -68,6 +68,15 @@ The application favors Feature-Sliced Design principles. Heavy logic and volatil
 
 Our design philosophy focuses on "First Principles Education" and "Guided Journeys". We steer users away from saturated markets and toward validated, hyper-niche defensible opportunities. We prioritize specific, actionable intelligence over blank canvases. NicheAI empowers founders to understand the "why" before writing code.
 
+### The Anti-Slop MLP Stack (Modern Frontend Streaming Architecture)
+
+To support rich Generative UI without the fragility and "AI Slop" homogenization common in AI-native development, NicheAI uses the **Anti-Slop MLP Stack**:
+
+- **Disposable JSX & Immutable Layout Shells**: Business logic is decoupled into custom hooks. Human-owned Layout Shells (e.g., `<AsymmetricalShell>`) provide the static boundaries, while AI safely iterates inside disposable child components.
+- **Robust Concurrent Streaming**: We leverage Vercel AI SDK `useChat`/`useCompletion` and strictly separate generative state from global contexts (Zustand/Context). We protect the UI thread from AST parsing lock-ups through React 19 `useDeferredValue` optimizations.
+- **Mobile-First Resilience**: Generative streams feature "Die on Disconnect" and background sync state architecture, ensuring seamless tab re-entry without zombie TCP connections.
+- **Strict AST Security**: The AST markdown pipeline uses `rehype-sanitize` and a strict `urlTransform` allowlist to fully protect against XSS and injected HTML.
+
 <!-- STRATEGY_COMMITTEE_START -->
 <!-- STRATEGY_COMMITTEE_END -->
 
