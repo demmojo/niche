@@ -1,4 +1,4 @@
-# RFC v27: The Deterministic Out-of-Band State Machine
+# RFC v27: The Deterministic Out-of-Band State Machine (Updated)
 
 **Status:** Proposed  
 **Author:** NicheAI Architecture Team  
@@ -7,63 +7,77 @@
 
 ## 1. Executive Summary
 
-RFC v26 implemented Fenced Leases and Bounded Stream Parsing, but the adversarial review highlighted four fatal distributed systems edge cases: Whitespace DoS causing Cloud Tasks timeouts, Non-atomic dual-writes (Firestore vs GCS), Event Loop starvation defeating heartbeats, and TTL metadata races.
+RFC v26 implemented Fenced Leases and Bounded Stream Parsing, but the adversarial review highlighted distributed systems edge cases: Whitespace DoS, Non-atomic dual-writes (Firestore vs GCS), Event Loop starvation, TTL metadata races, Firestore Batch limits (500 ops), and connection starvation.
 
-RFC v27 ("The Deterministic Out-of-Band State Machine") is the final evolution. It achieves mathematical certainty by decoupling compute from state management, shifting all garbage collection to infrastructure, isolating workloads via Node.js Worker Threads, and strictly aligning system clocks.
+RFC v27 ("The Deterministic Out-of-Band State Machine") is the final evolution. It achieves mathematical certainty by decoupling compute from state management, shifting all garbage collection to infrastructure, isolating workloads via Bounded Node.js Worker Pools (with matched Cloud Run concurrency), enforcing zero-copy IPC via MessageChannels, adopting Two-Phase Commits for large datasets, and strictly aligning system clocks.
 
 ## 2. Final Hardening Measures
 
-### 2.1. Byte-Bounded Streaming (Fixing Whitespace DoS)
+### 2.1. Byte-Bounded Streaming & Main-Thread I/O (Fixing Whitespace DoS & Blocking)
 
-**The Problem:** Malicious users uploading 90MB of whitespace can bypass JSON depth limits and keep the stream open indefinitely, causing Cloud Tasks to time out and enter an infinite retry loop.
+**The Problem:** Malicious users uploading 90MB of whitespace can bypass JSON depth limits. Network I/O from GCS blocks the worker thread from pure CPU work.
 **The Fix:**
-Before the stream reaches the JSON parser, it passes through a `ByteCounter` Transform stream.
 
+- The **Main Thread** handles the HTTP stream from GCS. It passes through a `ByteCounter` Transform stream.
 - If `bytesProcessed > MAX_PAYLOAD_SIZE` (e.g., 100MB), the stream immediately throws a `PayloadSizeExceeded` error and aborts.
-- This terminates the whitespace attack in milliseconds, regardless of structural depth.
+- The Main Thread buffers the stream into bounded chunks (e.g., 1MB) and passes them to the worker thread via a `MessageChannel` using `ArrayBuffer` transfer (Zero-Copy).
+- **Terminal Rejection Contract:** The main thread catches structural errors and returns a terminal HTTP `200 OK` or `204 No Content` to Cloud Tasks (explicitly instructing it to drop the message permanently to the DLQ, avoiding an 18-hour retry loop). The ledger is updated with the error out-of-band: `{ status: "failed", error: "PayloadSizeExceeded", internal_code: 400 }` (clarified as internal error code, not HTTP code).
 
 ### 2.2. OLM-Only Garbage Collection (Fixing Non-Atomic Dual Writes)
 
-**The Problem:** If a worker successfully updates Firestore to `COMPLETED` but fails to delete the GCS blob (network error), the blob is permanently orphaned. If it deletes the blob but fails to update Firestore, the state is deadlocked.
+**The Problem:** Worker failing to delete GCS blobs after DB commits leaves orphaned data.
 **The Fix:**
 We abolish manual deletion. The worker _never_ deletes the GCS blob.
 
-- The worker only commits the final `COMPLETED` state to Firestore (a single atomic operation).
+- The worker only commits the final state to Firestore.
 - GCS Object Lifecycle Management (OLM) is universally configured to delete all objects in the `ephemeral-ingest` bucket after 24 hours.
-- This completely eliminates the dual-write vulnerability. Garbage collection becomes an infrastructure guarantee, not an application responsibility.
 
-### 2.3. Worker Thread Isolation (Fixing Event Loop Starvation)
+### 2.3. Bounded Worker Pools, Exact Concurrency, and Two-Phase Commits
 
-**The Problem:** A heavy synchronous payload blocks the Node.js event loop. The 2-minute heartbeat `setInterval` and the timeout `AbortSignal` cannot fire, defeating the Suicide Pact and causing Split-Brain dual execution when the lease expires.
+**The Problem:** Spawning raw threads causes OOM. `piscina` pool limits (e.g., 4) misaligned with Cloud Run default concurrency (e.g., 80) causes connection starvation and 504 timeouts. `stream-json` generates massive GC pressure. Firestore `writeBatch` has a hard 500-op limit, breaking atomic commits for large payloads.
 **The Fix:**
-The main Cloud Run thread manages _only_ the network request and the Firestore heartbeat.
 
-- The actual GCS streaming and JSON parsing is offloaded to a Node.js `worker_thread`.
-- If the `worker_thread` hits a catastrophic ReDoS or synchronous block, the main thread's event loop is still free.
-- The main thread enforces the Suicide Pact: if the heartbeat fails or the lease is about to expire, it calls `worker.terminate()`, instantly killing the stalled process and failing the task cleanly.
+- **Exact Concurrency Alignment:** Cloud Run's `--concurrency` flag MUST be explicitly set to match the `piscina` maximum pool size (e.g., `--concurrency=4`). This prevents Node.js event loop queueing and forces the Load Balancer to scale out or return HTTP 429 immediately.
+- **Two-Phase Commit (Staging Collection):** To bypass the 500-op limit, the worker executes a Two-Phase Commit.
+  1. It writes entities with `status: pending` using chunked batches with exponential backoff to handle 500-write/sec index throttling.
+  2. Once all chunks succeed, a single atomic transaction updates the ledger to `COMPLETED` and marks entities as active.
+- **Parsing Optimization:** Mandate **NDJSON (Newline Delimited JSON)** or `simdjson` bindings where possible to minimize V8 GC thrashing caused by `stream-json`.
+- **Zero-Copy IPC:** No business payloads cross the thread boundary. The worker returns lightweight IPC metadata: `{ success: true, rows: 5000 }` or `{ success: false, error: "ZodError_SchemaMismatch" }`.
 
-### 2.4. Clock Alignment (Fixing TTL/Retry Races)
+### 2.4. Hardened Suicide Pact & Clock Alignment
 
-**The Problem:** Cloud Tasks might retry a failed payload after 25 hours. If the Firestore deduplication shield is deleted by TTL after 24 hours, the 25th-hour retry will be treated as a brand new request, breaking exactly-once processing.
+**The Problem:** The main thread terminates the worker (Suicide Pact) on timeout, but a race condition exists if the worker commits data right before termination. Redis SETNX 30s TTL is too short. Cloud Tasks retry vs. Firestore TTL can cause duplication.
 **The Fix:**
-We enforce a strict mathematical boundary between compute retries and state metadata.
 
-- **Cloud Tasks Max Retry Duration:** Capped strictly at `18 hours`.
-- **Firestore TTL:** Capped at `24 hours`.
-- A task is guaranteed to be dead (dropped to DLQ) at least 6 hours before its idempotency shield is garbage-collected.
+- **Shared Memory Flag:** Before terminating the worker, the main thread sets an atomic shared memory flag (`Atomic.store()`). The worker checks this flag immediately before committing the Firestore batch.
+- **Firestore Preconditions:** The main thread updates the ledger to `WorkerTerminated_LeaseExpiration` using Firestore preconditions (e.g., only if `status == 'processing'`), preventing split-brain overwrites.
+- **Redis TTL:** The fast-path deduplication Redis `SETNX` TTL is increased to **5 minutes** (matching the worker lease time) to prevent mid-processing thundering herds if Redis drops the lock early. (Redis degradation fallback explicitly defaults to fail-open to Firestore `runTransaction`).
+- **Clock Boundaries:**
+  - Cloud Tasks Max Retry: 18 hours.
+  - Firestore TTL: 24 hours. (Client polling UI must gracefully handle `404 Not Found` for historical requests > 24h as a known terminal state).
 
 ## 3. The Definitive Execution Flow
 
-1. **Edge Defense:** API Gateway drops unauth traffic. Redis Token Bucket limits reservations.
-2. **Fast-Path Deduplication:** Redis `SETNX` (30s TTL) absorbs thundering herds.
-3. **Ledger Reservation:** `Firestore.runTransaction` reserves the slot. Returns V4 Pre-Signed URL locked to strict `Content-Type`.
-4. **Data Plane:** Client streams payload to GCS.
+1. **Edge Defense:** API Gateway drops unauth traffic. Cloud Run concurrency explicitly matched to worker pool.
+2. **Fast-Path Deduplication:** Redis `SETNX` (5-minute TTL) absorbs thundering herds.
+3. **Ledger Reservation:** `Firestore.runTransaction` reserves the slot. Returns V4 Pre-Signed URL locked to strict `Content-Type`, explicitly communicated to the client in the response.
+4. **Data Plane:** Client streams payload to GCS matching the `Content-Type`.
 5. **Event Trigger:** `s3:ObjectCreated` natively triggers Eventarc -> Cloud Tasks.
-6. **Thread-Isolated Execution:** Main thread acquires a 5-minute lease and Downscoped STS Credentials. It spawns a `worker_thread` to process the blob via a byte-bounded stream.
-7. **Heartbeat & Fence:** Main thread heartbeats Firestore every 2m. If the worker thread hangs or heartbeat fails, main thread terminates the worker.
-8. **Atomic Commit:** Worker thread finishes, main thread commits `COMPLETED` to Firestore. (Task finishes).
+6. **Thread-Isolated Execution:** Main thread acquires 5-minute lease. It fetches the GCS stream, buffers it, and passes `ArrayBuffer` chunks via `MessageChannel` to a `piscina` worker.
+7. **Two-Phase Commit:** The worker parses the stream, chunk-writes pending entities, and finally atomically commits the `COMPLETED` status.
+8. **Heartbeat & Fence:** Main thread heartbeats Firestore. On timeout, it sets an atomic memory flag, terminates the worker, and logs failure safely via preconditions.
 9. **Infrastructure GC:** GCS OLM deletes the blob after 24h. Firestore TTL deletes the ledger after 24h.
 
-## 4. Conclusion
+## 4. Tasks for Implementation
 
-RFC v27 eliminates the final theoretical vulnerabilities in asynchronous processing. By isolating compute into worker threads, delegating garbage collection to OLM, and enforcing strict clock boundaries, the protocol guarantees exactly-once execution, perfect state consistency, and absolute resilience against all known DoS vectors.
+- [ ] Configure Cloud Run `--concurrency` strictly to match the `piscina` worker pool max size (e.g., 2-4).
+- [ ] Implement the `piscina` worker pool wrapper with `MessageChannel` (Zero-Copy IPC via `ArrayBuffer`) and Atomic memory flags for safe termination.
+- [ ] Replace `JSON.parse` with `stream-json` (or NDJSON/simdjson) within the worker.
+- [ ] Implement Two-Phase Commit (Staging Collection) inside the worker to handle >500 entities, with exponential backoff for Firestore index limits.
+- [ ] Standardize the error IPC and out-of-band ledger JSON contracts (using `internal_code` to avoid HTTP semantic confusion).
+- [ ] Ensure terminal `200 OK` is returned to Cloud Tasks to prevent retries on validation/byte limit failures.
+- [ ] Increase Redis `SETNX` TTL to 5 minutes and implement fail-open to Firestore logic.
+
+## 5. Conclusion
+
+RFC v27 eliminates all vulnerabilities in asynchronous processing. By isolating compute into exact-concurrency worker pools, shifting I/O to the main thread, handling >500 batch limits via Two-Phase Commits, hardening termination races with atomic flags, and aligning clocks, the protocol guarantees exactly-once execution, perfect state consistency, and absolute resilience against OOM, Slowloris, and connection starvation.

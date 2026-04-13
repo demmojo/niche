@@ -915,7 +915,7 @@ export function useLocalStorage<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       return;
     }
@@ -1012,7 +1012,7 @@ export function useLocalStorage<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       setStoredValue(newValue);
       stateRef.current = newValue;
@@ -1094,7 +1094,7 @@ export function useFirestoreDoc<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       setIsInitialized(true);
       return;
@@ -1152,7 +1152,7 @@ export function useFirestoreDoc<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       return;
     }
@@ -1196,8 +1196,7 @@ export default function App() {
   // E2E testing mock logic — skip when e2e_entry=true so ZeroFrictionEntry renders
   if (
     typeof window !== "undefined" &&
-    (window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")) &&
+    (window.name === "playwright-test" || false) &&
     !window.location.search.includes("e2e_entry=true")
   ) {
     const isUserRole = window.location.search.includes("role=user");

@@ -36,7 +36,7 @@ const CompetitorSchema = z
     domain: z.string().max(2000).optional(),
     description: z.string().max(10000).optional(),
   })
-  .passthrough(); // Allow extra fields but validate the core ones
+  .strip(); // Explicitly strip undocumented fields per strict DTO contract
 
 const CampaignRequestSchema = z
   .object({
@@ -53,6 +53,7 @@ const CampaignRequestSchema = z
       ])
       .optional(),
   })
+  .strip()
   .refine(
     (data) => {
       // If no competitors, baseIdea MUST be an object with a non-empty name
@@ -150,7 +151,7 @@ const DiscoveredCompetitorSchema = z.object({
 });
 
 const DiscoverCompetitorsRequestSchema = z.object({
-  baseIdea: z.string().max(10000).optional().or(z.object({}).passthrough()),
+  baseIdea: z.string().max(10000).optional().or(z.object({}).strip()),
 });
 
 // Helper for Exa domain search using heuristics

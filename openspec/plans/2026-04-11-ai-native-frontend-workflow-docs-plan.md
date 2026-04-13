@@ -1,8 +1,8 @@
 ---
 title: Refactor: NicheAI Modern Frontend Streaming Architecture
 status: draft
-dependencies: [2026-04-11-core-security-and-network-hardening-plan]
-refactors: [nicheai-mlp-plg-refactor.md]
+dependencies: [core-api-hardening]
+refactors: []
 ---
 
 # Proposal: Refactor NicheAI Modern Frontend Infrastructure & Workflow Docs

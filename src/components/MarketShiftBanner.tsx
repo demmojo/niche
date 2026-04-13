@@ -11,8 +11,7 @@ export function MarketShiftBanner() {
     if (
       !auth.currentUser ||
       (typeof window !== "undefined" &&
-        (window.name === "playwright-test" ||
-          window.location.search.includes("mock_auth=true")))
+        (window.name === "playwright-test" || false))
     ) {
       return;
     }

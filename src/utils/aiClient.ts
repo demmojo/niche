@@ -110,8 +110,7 @@ class AIClient {
   ): Promise<any> {
     const isMock =
       typeof window !== "undefined" &&
-      (window.name === "playwright-test" ||
-        window.location.search.includes("mock_auth=true"));
+      (window.name === "playwright-test" || false);
 
     const token = isMock ? "MOCK_TOKEN" : await auth.currentUser?.getIdToken();
     const headers: Record<string, string> = {

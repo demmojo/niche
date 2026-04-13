@@ -62,16 +62,16 @@ export const saveByokKey = async (req: Request, res: Response) => {
   // Encrypt the API key before placing it in the cookie
   const encryptedKey = encryptKey(apiKey);
 
-  const cookieName = `niche_${provider}_byok`;
+  const cookieName = `__Host-niche_${provider}_byok`;
 
   res.setHeader(
     "Set-Cookie",
     cookie.serialize(cookieName, encryptedKey, {
       httpOnly: true, // XSS protection (JS cannot read)
-      secure: process.env.NODE_ENV === "production", // HTTPS only
+      secure: true, // HTTPS only enforced by __Host-
       sameSite: "strict", // CSRF protection
       maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: "/api/", // Strict scoping
+      path: "/", // Strict scoping enforced by __Host-
     }),
   );
 
@@ -130,15 +130,15 @@ export const injectByokKey = (
 ) => {
   const cookies = cookie.parse(req.headers.cookie || "");
 
-  if (cookies.niche_llm_byok) {
+  if (cookies["__Host-niche_llm_byok"]) {
     try {
-      req.llmApiKey = decryptKey(cookies.niche_llm_byok);
+      req.llmApiKey = decryptKey(cookies["__Host-niche_llm_byok"]);
     } catch (err) {}
   }
 
-  if (cookies.niche_apollo_byok) {
+  if (cookies["__Host-niche_apollo_byok"]) {
     try {
-      req.apolloApiKey = decryptKey(cookies.niche_apollo_byok);
+      req.apolloApiKey = decryptKey(cookies["__Host-niche_apollo_byok"]);
     } catch (err) {}
   }
 

@@ -33,7 +33,7 @@ export function useTaxonomySync(): {
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       return;
     }

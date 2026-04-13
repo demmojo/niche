@@ -30,7 +30,28 @@ describe("RoastMyNiche UI", () => {
 
   beforeEach(() => {
     originalFetch = global.fetch;
-    global.fetch = vi.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string, options: any) => {
+      if (url === "/api/llm/generateStream") {
+        const stream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(
+              encoder.encode(`data: {"text":"First bullet point. "}\n\n`),
+            );
+            controller.enqueue(
+              encoder.encode(`data: {"text":"Second bullet point. "}\n\n`),
+            );
+            controller.enqueue(
+              encoder.encode(`data: {"text":"Third bullet point."}\n\n`),
+            );
+            controller.close();
+          },
+        });
+        return Promise.resolve({
+          ok: true,
+          body: stream,
+        });
+      }
       if (url === "/api/roast") {
         return new Promise((resolve) => {
           setTimeout(() => {
@@ -133,8 +154,23 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for surface roast gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/roast")
-        return Promise.resolve({ ok: false });
+      if (url === "/api/llm/generateStream") {
+        const stream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(
+              encoder.encode(
+                `data: {"error":"STREAM_FAILED","message":"Failed to fetch analysis"}\n\n`,
+              ),
+            );
+            controller.close();
+          },
+        });
+        return Promise.resolve({
+          ok: true,
+          body: stream,
+        });
+      }
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true }),
@@ -181,14 +217,19 @@ describe("RoastMyNiche UI", () => {
 
   it("handles fetch failure for deep dive email capture gracefully", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/roast") {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              ok: true,
-              json: () => Promise.resolve({ bullets: ["First"] }),
-            });
-          }, 50);
+      if (url === "/api/llm/generateStream") {
+        const stream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(
+              encoder.encode(`data: {"text":"First bullet point. "}\n\n`),
+            );
+            controller.close();
+          },
+        });
+        return Promise.resolve({
+          ok: true,
+          body: stream,
         });
       }
       if (url === "/api/campaign/submit-lead") {
@@ -283,20 +324,20 @@ describe("RoastMyNiche UI", () => {
   it("Phase 1: uses React 19 startTransition and handles 202 Accepted with precise status indicators", async () => {
     // Override fetch to return 202 Accepted with a phase 1 fast data message
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/roast") {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              ok: true,
-              status: 202,
-              json: () =>
-                Promise.resolve({
-                  jobId: "job-123",
-                  status: "accepted",
-                  message: "searching_exa"
-                }),
-            });
-          }, 50);
+      if (url === "/api/llm/generateStream") {
+        const stream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(
+              encoder.encode(`data: {"text":"searching_exa"}\n\n`),
+            );
+            controller.close();
+          },
+        });
+        return Promise.resolve({
+          ok: true,
+          status: 202,
+          body: stream,
         });
       }
       return Promise.reject(new Error("Unknown url " + url));
@@ -309,18 +350,20 @@ describe("RoastMyNiche UI", () => {
 
     render(<RoastMyNiche />);
 
-    const input = await screen.findByPlaceholderText(/Describe your product idea/i);
+    const input = await screen.findByPlaceholderText(
+      /Describe your product idea/i,
+    );
     fireEvent.change(input, { target: { value: "A new startup idea" } });
 
     // Important: we need to ensure the UI updates with an explainable state, NOT a generic spinner
     const submitBtn = screen.getByRole("button", { name: /Roast My Idea/i });
-    
+
     // In React 19, the startTransition should be used. The precise status should appear.
     fireEvent.submit(submitBtn.closest("form") as any);
 
     // Assert that the exact precise status string is displayed
     expect(await screen.findByText(/searching_exa/i)).toBeInTheDocument();
-    
+
     // The test asserts that the generic spinner does NOT exist
     expect(screen.queryByTestId("generic-spinner")).not.toBeInTheDocument();
   });

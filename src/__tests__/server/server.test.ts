@@ -116,4 +116,24 @@ describe("Server core endpoints", () => {
       expect(loggerSpy).toHaveBeenCalledWith("CSP Violation:", payload);
     });
   });
+
+  describe("Context Pollution Prevention", () => {
+    it("should return 400 Bad Request when workspaceId is provided in both query and body", async () => {
+      const res = await request(app)
+        .post("/api/campaign/start")
+        .query({ workspaceId: "query-ws" })
+        .send({ workspaceId: "body-ws" });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe(
+        "Conflicting workspaceId provided in multiple input channels.",
+      );
+    });
+
+    it("should allow request when workspaceId is only in one channel", async () => {
+      const res = await request(app)
+        .post("/api/campaign/start")
+        .send({ workspaceId: "body-ws" });
+      expect(res.status).not.toBe(400);
+    });
+  });
 });

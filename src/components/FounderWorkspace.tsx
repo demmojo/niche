@@ -794,7 +794,7 @@ export function useLocalStorage<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       return;
     }
@@ -891,7 +891,7 @@ export function useLocalStorage<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       setStoredValue(newValue);
       stateRef.current = newValue;
@@ -974,7 +974,7 @@ export function useFirestoreDoc<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true") ||
+      false ||
       process.env.NODE_ENV === "test"
     ) {
       setIsInitialized(true);
@@ -1033,7 +1033,7 @@ export function useFirestoreDoc<T>(
     if (
       window.location.search.includes("demo_data=true") ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       return;
     }
@@ -1216,7 +1216,7 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
     if (
       import.meta.env.MODE === "development" ||
       window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
+      false
     ) {
       (window as any).mockSyncQueue = queueSyncChanges;
     }
@@ -1424,11 +1424,7 @@ export function FounderWorkspace({ user, isSuperadmin }: any) {
   );
 
   useEffect(() => {
-    if (
-      window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true")
-    )
-      return;
+    if (window.name === "playwright-test" || false) return;
     if (activeTab === "mindmap") return; // Handled internally by VisualWhiteboard
 
     const lastSeen = (seenGuides || {})[activeTab] || 0;

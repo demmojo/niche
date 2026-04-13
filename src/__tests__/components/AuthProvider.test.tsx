@@ -1,7 +1,11 @@
 import { render, screen, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AuthProvider, useAuth } from "../../components/AuthProvider";
+import {
+  AuthProvider,
+  useAuth,
+  useAuthDispatch,
+} from "../../components/AuthProvider";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { loginWithGoogle, loginWithEmail, logout } from "../../firebase";
 
@@ -40,7 +44,8 @@ vi.mock("../../firebase", () => ({
  *
  */
 const TestConsumer = () => {
-  const { user, loading, login, loginEmail, logout } = useAuth();
+  const { user, loading } = useAuth();
+  const { login, loginEmail, logout } = useAuthDispatch();
   if (loading) return <div>Loading...</div>;
   return (
     <div>

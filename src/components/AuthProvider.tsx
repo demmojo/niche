@@ -8,21 +8,37 @@ import React, {
 import { User, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth, loginWithGoogle, loginWithEmail, logout } from "../firebase";
 
-interface AuthContextType {
+// The auth context is now split into State and Dispatch contexts to prevent
+// unnecessary re-renders of components that only need to dispatch actions.
+
+interface AuthStateContextType {
   user: User | null;
   loading: boolean;
-  login: () => Promise<void>;
-  loginEmail: (email: string, pass: string) => Promise<void>;
-  logout: () => Promise<void>;
   isMergingRef: React.MutableRefObject<boolean>;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+interface AuthDispatchContextType {
+  login: () => Promise<void>;
+  loginEmail: (email: string, pass: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthStateContext = createContext<AuthStateContextType>(
+  {} as AuthStateContextType,
+);
+const AuthDispatchContext = createContext<AuthDispatchContextType>(
+  {} as AuthDispatchContextType,
+);
 
 /**
- *
+ * Returns the current authentication state (user, loading, etc.)
  */
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthStateContext);
+
+/**
+ * Returns the authentication dispatch actions (login, logout, etc.)
+ */
+export const useAuthDispatch = () => useContext(AuthDispatchContext);
 
 /**
  *
@@ -59,8 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!user) {
         if (
           typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
+          (window.name === "playwright-test" || false)
         ) {
           console.log("mock_auth=true detected, bypassing anonymous sign-in.");
           if (isMounted) {
@@ -145,17 +160,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login: loginWithGoogleFn,
-        loginEmail: loginWithEmailFn,
-        logout: logoutUserFn,
-        isMergingRef,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthStateContext.Provider value={{ user, loading, isMergingRef }}>
+      <AuthDispatchContext.Provider
+        value={{
+          login: loginWithGoogleFn,
+          loginEmail: loginWithEmailFn,
+          logout: logoutUserFn,
+        }}
+      >
+        {children}
+      </AuthDispatchContext.Provider>
+    </AuthStateContext.Provider>
   );
 };

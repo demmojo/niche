@@ -1,102 +1,61 @@
-# Architectural Review: NicheAI MLP PLG Refactor
+# Consolidated Code Quality & Security Audit Report (Iteration 4)
 
-## 1. Architecture Overview
+This report synthesizes the latest findings from the `/architecture-strategist`, `/api-contract-reviewer`, and `/performance-oracle` subagents regarding the `openspec/plans/2026-04-11-ai-native-frontend-workflow-docs.md` document.
 
-The system implements an asynchronous ML orchestration pipeline using Cloud Run, Cloud Tasks, and Firestore. The client initiates a job via `roastRoutes.ts` (Phase 1), which returns a `202 Accepted` response with a claim check. The job is then processed asynchronously by an internal worker route in `workerRoutes.ts` (Phase 2), utilizing the Gemini LLM and streaming results via Redis Pub/Sub back to the client.
+---
 
-The `tasks.md` spec outlines a crucial refactor to fix security vulnerabilities, eliminate blocking I/O, migrate rate limiting from Firestore to Redis to avoid `DEADLINE_EXCEEDED` contention, and enforce strict asynchronous scale-to-zero architectural patterns.
+## 🚨 Critical Architecture & Performance Findings
 
-## 2. Change Assessment & Compliance Check
+### 1. Synchronous Main-Thread Blocking (`DOMPurify` Fallacy)
 
-I have cross-referenced the current source code (`roastRoutes.ts`, `workerRoutes.ts`, `rateLimitCounters.ts`) against the planned Phase 0 and Phase 1-3 tasks, evaluating compliance with `ml-engineering-standards.mdc` and `frontend-growth-plg.mdc`.
+- **Description:** The spec mandates wrapping the markdown renderer in `React.memo` and using `useDeferredValue` to postpone `DOMPurify` HTML sanitization to a low-priority render.
+- **Impact:** `useDeferredValue` only delays the _start_ of the render. Because `DOMPurify` is synchronous, once the render starts, it will block the main thread for its entire duration. The assertion that `useDeferredValue` guarantees execution within a 16ms frame budget across all devices is architecturally flawed and will cause severe UI freezing on large generative streams.
+- **Remediation:** Remove the assertion that `useDeferredValue` prevents main-thread blocking during synchronous execution. Mandate that heavy HTML sanitization should either be executed in a **Web Worker** or the backend should emit pre-sanitized HTML/Markdown tokens. Alternatively, implement an incremental AST-based parser that only sanitizes the _diff_ ($O(1)$) rather than the entire string ($O(N)$).
 
-The code currently **violates** numerous critical architectural mandates outlined in the updated spec. The implementation has not yet been updated to reflect the design decisions in `tasks.md`.
+### 2. Render Queue Saturation (O(N) Render Calls)
 
-## 3. Detailed Risk Analysis & Violations by Severity
+- **Description:** The spec mandates that high-frequency SSE token accumulation stream directly to state using simple functional updaters (e.g., `setTokens(prev => prev + chunk)`), explicitly banning micro-batching.
+- **Impact:** Generative LLMs emit chunks at extremely high frequencies (20-50+ tokens per second). Firing a React state setter 50 times per second floods the React concurrent scheduler, burning CPU and battery. Furthermore, `prev + chunk` forces V8 to allocate a new string in memory 50 times a second, causing high Garbage Collection (GC) pressure ($O(N^2)$ memory allocation pattern).
+- **Remediation:** Revert the ban on micro-batching. Accumulate the raw string in a mutable `useRef(currentString)` to avoid triggering renders. Use `requestAnimationFrame` or a `100ms` throttle to flush the ref's value to React state. This reduces state updates to a manageable rate without perceivable latency.
 
-### CRITICAL SEVERITY (System Instability & Vulnerabilities)
+### 3. Main-Thread Blocking for Massive JSON Payloads
 
-1. **Floating Promise / Scale-to-Zero Violation (roastRoutes.ts)**
-   - **Issue:** `tasksClient.createTask({ parent, task }).catch(...)` is executed as a floating promise. The handler immediately returns `202 Accepted`.
-   - **Architectural Impact:** Cloud Run instantly throttles CPU to 0 when the HTTP request ends. Floating promises risk silent task drops, resulting in dangling pending states and phantom 202 responses.
-   - **Rule Violated:** `ml-engineering-standards.mdc` (Section 1: Async ML Orchestration). "Internal worker routes invoked by Cloud Tasks MUST `await` the entire background process..." and the client-facing API MUST dispatch safely.
-   - **Required Action:** Await the `createTask` call. Wrap it in a `try/catch` saga (compensating transaction) to update the job status to `failed` if dispatch throws.
+- **Description:** The doc mandates: "If the frontend must process massive JSON structures, it MUST parse them directly on the main thread using standard `JSON.parse()`... Do NOT mandate Web Workers."
+- **Impact:** `JSON.parse()` is a synchronous, blocking operation. Parsing a 5MB+ JSON dataset on the main thread will freeze the UI for 50–200ms depending on device capabilities, causing the exact UI jank the document claims to solve.
+- **Remediation:** Establish a payload size threshold. Payloads < 1MB can use main thread `JSON.parse()`. Payloads > 1MB MUST be parsed off-thread via a Web Worker or streamed incrementally using a library like `Oboe.js`.
 
-2. **Firestore Rate Limit Contention (rateLimitCounters.ts / roastRoutes.ts)**
-   - **Issue:** The app uses `atomicRateLimitCheck` which executes a complex multi-document transaction (`runTransaction` with shards).
-   - **Architectural Impact:** High-frequency access causes massive `DEADLINE_EXCEEDED` errors and transaction aborts, breaking the API under load.
-   - **Rule Violated:** `ml-engineering-standards.mdc` dictates avoiding in-app/Firestore atomic constraints for high-throughput global rate limits. The spec explicitly requires Redis `MULTI/EXEC` for mathematically accurate sub-millisecond limiting.
-   - **Required Action:** Delete `rateLimitCounters.ts`. Implement Redis-based rate limiting in `roastRoutes.ts`.
+### 4. Single Point of Failure (SPOF) via Strict Fail-Closed Redis
 
-3. **Insecure Auth / IDOR Vulnerability (roastRoutes.ts)**
-   - **Issue:** The API extracts `owner_uid` from `req.body` (`const { idea, owner_uid } = req.body || {};`).
-   - **Architectural Impact:** Anyone can submit a payload claiming to be another user, allowing malicious overwrites or unauthorized billing consumption.
-   - **Rule Violated:** Standard security practices and the spec requirement: "Remove `owner_uid` from `req.body` extraction. Implement a Firebase Auth verification middleware (e.g., `requireAuth`) and rely exclusively on `req.user.uid`."
-   - **Required Action:** Implement and enforce robust auth middleware. Drop `owner_uid` from the body.
+- **Description:** The spec states: "This check MUST enforce a fail-closed policy (deny access) if the Redis instance is unreachable".
+- **Impact:** While this satisfies strict security, it introduces a catastrophic availability risk. A transient Redis network partition or latency spike causes a total global outage for all AI features.
+- **Remediation:** Introduce a **Graceful Degradation Circuit Breaker**. If Redis is unreachable (timeout > 500ms), the system should fall back to querying the primary datastore (Firestore) for the user's token revocation status, rather than throwing a hard 500/403.
 
-4. **Missing App Check (Bot Protection) (roastRoutes.ts)**
-   - **Issue:** The `/roast` entry point lacks App Check attestation.
-   - **Architectural Impact:** Exposes the API to automated bot scripts that can bypass rate limits via Incognito mode (Denial of Wallet).
-   - **Rule Violated:** `frontend-growth-plg.mdc` (Section 3: Server-Side PQL Gating) demands `requireAppCheck` middleware for AI routes.
+---
 
-5. **Missing OIDC Validation (workerRoutes.ts)**
-   - **Issue:** The `/api/internal/worker/roast` endpoint has no authentication.
-   - **Architectural Impact:** Server-Side Request Forgery (SSRF) and Denial of Wallet. Anyone who discovers the URL can trigger expensive LLM generation without authorization.
-   - **Required Action:** Implement strict OIDC token validation middleware (`requireCloudTaskOIDC`).
+## ⚠️ High/Medium API & Scalability Warnings
 
-### HIGH SEVERITY (Data Integrity & Concurrency Issues)
+### 5. API Contract Breakdown on Legacy Routes (API Contracts)
 
-6. **Worker Lease Deadlocks (workerRoutes.ts)**
-   - **Issue:** The transaction claims a lease (`leased_until`). If it fails, the catch block (`res.status(500)`) triggers a Cloud Tasks retry. However, the `leased_until` timestamp is **not** released in the `catch` block.
-   - **Architectural Impact:** The retried task will hit the active lease check and be skipped (`return false`), resulting in a deadlocked job. Furthermore, the active lease check returns `200 OK` (`res.status(200).json({ status: "skipped or completed" })`), telling Cloud Tasks to _stop_ retrying.
-   - **Required Action:** If a lease is active, return `429` or `503` so Cloud Tasks properly backs off. In the global `catch`, execute a Firestore update to release the `leased_until` timestamp.
+- **Description:** The plan enforces HTTP 406 Not Acceptable if `Accept` headers are missing, and intercepts 413 PayloadTooLargeErrors globally, coercing them into a new `AppError` format.
+- **Impact:** If applied to legacy `/v1/` routes that previously defaulted to JSON or handled 413s differently, these are breaking contract changes.
+- **Remediation:** Explicitly scope strict Content-Type Negotiation (406 Not Acceptable) and the `AppError` interceptor exclusively to new `/v2/` routes. Legacy `/v1/` routes must retain their exact historical error shapes and header handling.
 
-7. **Blocking I/O in LLM Stream (workerRoutes.ts)**
-   - **Issue:** The worker loops through the LLM stream and synchronously awaits a Firestore update (`await jobRef.update({ fullText });`) every 4 seconds.
-   - **Architectural Impact:** `await`ing a remote network call inside the high-frequency stream iteration artificially stutters the real-time Redis Pub/Sub loop, degrading the client experience.
-   - **Required Action:** Push the `jobRef.update` promises to an array (`flushPromises`). Await them collectively via `Promise.allSettled` before returning 200.
+### 6. The Colocation vs. Extraction Paradox (Architecture)
 
-8. **Redis Connection Race Conditions (workerRoutes.ts)**
-   - **Issue:** `workerRouter.use(async ... await redisClient.connect())` connects to Redis on a per-request middleware basis.
-   - **Architectural Impact:** Highly susceptible to concurrent connection exceptions (`Socket already opened`) under load.
-   - **Required Action:** Initialize the Redis connection cleanly at application startup in `server.ts`.
+- **Description:** Section 2 ("The Colocated Components Reality") explicitly rejects over-engineered abstractions like Container/Presenter, arguing LLMs need colocated UI + state. However, Execution Step 2 mandates: "Inject business logic using the defined **Pure Logic Extraction Boundary**."
+- **Impact:** This is a fatal contradiction. You cannot mandate strict colocation (to aid AI code generation) while simultaneously requiring a "Pure Logic Extraction Boundary." This will trap implementation agents in endless refactor loops trying to satisfy both constraints.
+- **Remediation:** Remove the phrase "Pure Logic Extraction Boundary" from Execution Step 2. If the thesis is "Colocated Components", embrace it entirely. The boundary should be between the UI component and the API fetch layer, not within the component itself.
 
-### MEDIUM SEVERITY (Configuration & Graceful Degradation)
+### 7. Opaque Error Interfaces vs. Telemetry (Architecture)
 
-9. **Hardcoded Model and Ignored Input (workerRoutes.ts)**
-   - **Issue:** The worker hardcodes the Gemini model (`model: "gemini-3.1-pro"`) and completely ignores the actual user idea (`parts: [{ text: "Roast this idea" }]`).
-   - **Architectural Impact:** Violates the spec and `ml-engineering-standards.mdc` (Section 1.5), which requires dynamic model resolution via Firebase Remote Config. Hardcoding the input text breaks the core product functionality.
-   - **Required Action:** Fetch the `idea` from the job document. Dynamically resolve the model.
+- **Description:** Mandating that backend errors map to a sanitized `AppError` interface (e.g., `{ status: 'partial_error', details: string, code: string }`) is excellent for security, but strips stack traces.
+- **Impact:** Debugging production SSE stream failures becomes nearly impossible without correlating the opaque UI error with backend logs.
+- **Remediation:** The architecture must mandate appending a unique `traceId` to the `AppError` payload, enabling engineers to correlate the UI error with the exact backend logs.
 
-10. **Missing Input Validation & NoSQL Injection Risk (roastRoutes.ts)**
-    - **Issue:** No Zod validation on `req.body.idea`.
-    - **Architectural Impact:** Unvalidated input passed to Firestore and the LLM.
-    - **Required Action:** Add Zod schema validation (type, length constraints).
+---
 
-11. **Improper Timestamp Expiration (roastRoutes.ts)**
-    - **Issue:** `expiresAt` is set to `serverTimestamp()`, meaning it expires instantly.
-    - **Architectural Impact:** Jobs will be immediately pruned by TTL policies or security rules.
-    - **Required Action:** Compute an explicit future timestamp (e.g., `Date.now() + 24 * 60 * 60 * 1000`).
+**[HITL PAUSE]**
 
-12. **Zombie Leases / Missing SIGTERM Handling (workerRoutes.ts)**
-    - **Issue:** No handling for Cloud Run scale-down events (`SIGTERM`).
-    - **Architectural Impact:** If the container shuts down mid-execution, the lease remains locked for 5 minutes, delaying retries.
-    - **Required Action:** Bind a `process.on('SIGTERM')` listener to gracefully release active leases.
+The subagents have completed their review. They discovered severe performance bottlenecks related to React state updates (O(N²) GC thrashing from 50x/sec updates), false assumptions about `useDeferredValue` preventing synchronous main-thread blocking, and a fatal contradiction regarding "Pure Logic Extraction Boundaries" in a "Colocated Component" architecture.
 
-## 4. Recommendations for Implementation
-
-The codebase is currently in a state that reflects the legacy architecture prior to the `tasks.md` spec formulation. To implement the spec safely:
-
-1. **Phase 0 Execution:** Execute Phase 0 tasks strictly before touching the frontend or secondary features.
-2. **Delete Legacy Files:** Remove `rateLimitCounters.ts` entirely.
-3. **Refactor `roastRoutes.ts`:**
-   - Add AppCheck and Auth middleware.
-   - Swap `atomicRateLimitCheck` for Redis `MULTI/EXEC`.
-   - Validate input with Zod.
-   - Await `tasksClient.createTask` and add a compensating transaction.
-4. **Refactor `workerRoutes.ts`:**
-   - Add OIDC validation middleware.
-   - Fix the transaction logic: return `429/503` on active leases, release lease on error.
-   - Unblock the streaming loop by batching Firestore writes into a promise array.
-   - Read the actual `idea` payload and dynamically resolve the LLM model.
-5. **System Integration:** Ensure `server.ts` manages the Redis singleton lifecycle and handles `SIGTERM` signals for graceful shutdown.
+**Do you explicitly approve for me to stop reviewing and begin applying these architectural, performance, and security fixes to the `openspec/plans/2026-04-11-ai-native-frontend-workflow-docs.md` specification?**

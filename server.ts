@@ -34,11 +34,7 @@ import {
   networkIoQueue,
   visionMlQueue,
 } from "./src/server/queues";
-import {
-  apiLimiter,
-  llmLimiter,
-  enrichmentLimiter,
-} from "./src/server/rateLimit";
+import { llmLimiter, enrichmentLimiter } from "./src/server/rateLimit";
 
 import { campaignRouter } from "./src/server/campaignRoutes";
 import { telemetryRouter } from "./src/server/routes/telemetryRoutes";
@@ -46,6 +42,8 @@ import { authRouter } from "./src/server/authRoutes";
 import { httpLogger } from "./src/server/logger";
 
 dotenv.config();
+
+import sjp from "secure-json-parse";
 
 // Start Background Workers
 if (process.env.NODE_ENV !== "test") {
@@ -59,11 +57,57 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000", 10);
 
-  app.use(express.json());
-  app.use(httpLogger);
+  app.use(express.text({ type: "application/json", limit: "100kb" }));
+  app.use((req, res, next) => {
+    if (req.headers["content-type"]?.includes("application/json")) {
+      try {
+        if (typeof req.body === "string") {
+          req.body = sjp.parse(req.body, {
+            protoAction: "remove",
+            constructorAction: "remove",
+          });
+        }
+      } catch (e) {
+        return res
+          .status(400)
+          .json({ error: "Invalid or malformed JSON payload" });
+      }
+    }
+    next();
+  });
 
-  // Apply Global API rate limiter
-  app.use("/api/", apiLimiter);
+  app.use((req, res, next) => {
+    if (
+      req.headers["content-type"]?.includes("application/x-www-form-urlencoded")
+    ) {
+      return res
+        .status(415)
+        .json({
+          error:
+            "Unsupported Media Type: application/x-www-form-urlencoded is strictly forbidden.",
+        });
+    }
+    next();
+  });
+
+  // Prevent Context Pollution for workspaceId
+  app.use((req, res, next) => {
+    const qWorkspace = req.query?.workspaceId;
+    const bWorkspace = req.body?.workspaceId;
+    const hWorkspace = req.headers?.["x-workspace-id"];
+    const sources = [qWorkspace, bWorkspace, hWorkspace].filter(Boolean);
+    const uniqueVals = new Set(sources);
+    if (uniqueVals.size > 1) {
+      return res
+        .status(400)
+        .json({
+          error: "Conflicting workspaceId provided in multiple input channels.",
+        });
+    }
+    next();
+  });
+
+  app.use(httpLogger);
 
   app.use("/api", injectByokKey);
 
@@ -71,11 +115,16 @@ async function startServer() {
   app.post("/api/settings/byok", saveByokKey);
 
   // LLM Proxy Endpoints
-  app.use("/api/llm/", llmLimiter);
-  app.post("/api/llm/generate", requireAuth, generateContentHandler);
+  app.post(
+    "/api/llm/generate",
+    requireAuth,
+    llmLimiter,
+    generateContentHandler,
+  );
   app.post(
     "/api/llm/generateStream",
     requireAuth,
+    llmLimiter,
     generateContentStreamHandler,
   );
   app.post("/api/reviewArtifact", requireAuth, reviewArtifactHandler);
@@ -608,10 +657,10 @@ async function startServer() {
   });
 
   // Apollo.io Enrichment API (Organization Search)
-  app.use("/api/apollo/", enrichmentLimiter);
   app.post(
     "/api/apollo/enrich",
     requireAuth,
+    enrichmentLimiter,
     async (req: ByokRequest, res: any) => {
       try {
         const { domain } = req.body;
@@ -705,6 +754,7 @@ async function startServer() {
   app.post(
     "/api/apollo/search",
     requireAuth,
+    enrichmentLimiter,
     async (req: ByokRequest, res: any) => {
       try {
         const { keywords } = req.body;
@@ -804,6 +854,7 @@ async function startServer() {
   app.post(
     "/api/apollo/news",
     requireAuth,
+    enrichmentLimiter,
     async (req: ByokRequest, res: any) => {
       try {
         const { organization_ids } = req.body;

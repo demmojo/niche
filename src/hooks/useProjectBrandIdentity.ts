@@ -32,8 +32,7 @@ function getContrastForeground(hexcolor: string): string {
 const fetchBrandIdentity = async (projectId: string) => {
   if (
     typeof window !== "undefined" &&
-    (window.name === "playwright-test" ||
-      window.location.search.includes("mock_auth=true"))
+    (window.name === "playwright-test" || false)
   ) {
     return null;
   }

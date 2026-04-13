@@ -104,18 +104,6 @@ describe("authMiddleware", () => {
     expect(res.body.message).toBe("Token has expired.");
   });
 
-  it("succeeds with Playwright mock token", async () => {
-    const res = await request(app)
-      .get("/test")
-      .set("Authorization", "Bearer MOCK_TOKEN");
-
-    expect(res.status).toBe(200);
-    expect(res.body.user).toMatchObject({
-      uid: "test-user-123",
-      email: "mo.hassaniv@gmail.com",
-    });
-  });
-
   it("succeeds if verifyIdToken resolves", async () => {
     mockVerifyIdToken.mockResolvedValueOnce({
       uid: "real-user",

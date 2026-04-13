@@ -8,6 +8,22 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useAuth } from "../AuthProvider";
+import { useNicheGenerativeStream } from "../../hooks/useNicheGenerativeStream";
+import { GenerativeErrorBoundary } from "../ErrorBoundary/GenerativeErrorBoundary";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+
+// AST Security: Strict URL allowlist to prevent XSS
+const urlTransform = (url: string) => {
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("mailto:")
+  ) {
+    return url;
+  }
+  return ""; // Block data:, blob:, javascript: etc.
+};
 
 export const RoastMyNiche: React.FC = () => {
   const { user } = useAuth();
@@ -16,22 +32,29 @@ export const RoastMyNiche: React.FC = () => {
   const startTransition = transition[1];
   const [idea, setIdea] = useState("");
   const [email, setEmail] = useState("");
+  const {
+    data: streamData,
+    isLoading: isStreamLoading,
+    error: streamError,
+    generate,
+  } = useNicheGenerativeStream({
+    endpoint:
+      (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generateStream", // Changed to generic LLM stream endpoint
+  });
+
   const [emailLoading, setEmailLoading] = useState(false);
-  const loading = isPending || emailLoading;
+  const loading = isPending || emailLoading || isStreamLoading;
   const [loadingStatus, setLoadingStatus] = useState("");
-  const [bullets, setBullets] = useState<string[] | null>(null);
   const [isThrottled, setIsThrottled] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Sync stream error to local error for UI
   useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
+    if (streamError) {
+      setError(streamError);
+    }
+  }, [streamError]);
 
   useEffect(() => {
     const checkQueue = async () => {
@@ -57,40 +80,38 @@ export const RoastMyNiche: React.FC = () => {
     setError("");
     setLoadingStatus("Analyzing market saturation...");
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
     startTransition(async () => {
       try {
-        const response = await fetch(
-          (import.meta.env.VITE_API_BASE_URL || "") + "/api/roast",
+        // Fallback for missing env var during tests
+        const token = user ? await user.getIdToken() : undefined;
+        const endpoint =
+          (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generateStream";
+
+        await generate(
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idea, owner_uid: user?.uid || "anonymous" }),
-            signal: abortControllerRef.current?.signal,
+            model: "gemini-3.1-pro", // Fallback or remote config managed ideally
+            params: {
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      text: `Roast this startup idea brutally but constructively: ${idea}`,
+                    },
+                  ],
+                },
+              ],
+              config: {
+                temperature: 0.7,
+              },
+            },
           },
+          token,
         );
 
-        if (!response.ok) throw new Error("Failed to get roast");
-        
-        const data = await response.json();
-        
-        if (response.status === 202) {
-          setLoadingStatus(data.message || "searching_exa");
-          // Simulate polling or SSE for phase 2 to not leave the UI permanently in this state
-          // For the test, updating loadingStatus is sufficient.
-        } else {
-          setBullets(data.bullets);
-          setLoadingStatus("");
-        }
+        setLoadingStatus("");
       } catch (err: any) {
-        if (err.name === "AbortError") {
-          return;
-        }
-        setError("Failed to fetch analysis. Please try again.");
+        setError(err.message || "Failed to fetch analysis. Please try again.");
         setLoadingStatus("");
       }
     });
@@ -159,69 +180,69 @@ export const RoastMyNiche: React.FC = () => {
           Roast My Niche
         </h1>
 
-        {!bullets ? (
-          <form onSubmit={handleRoast} className="space-y-4">
-            <textarea
-              className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
-              rows={4}
-              placeholder="Describe your product idea (e.g. A CRM for dog walkers)..."
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              disabled={loading || !!loadingStatus}
-              required
-            />
-            <button
-              type="submit"
-              disabled={loading || !!loadingStatus || !idea.trim()}
-              className="w-full py-3 px-6 bg-zinc-100 text-zinc-900 font-semibold rounded-lg hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Roast My Idea
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
-              <h3 className="text-xl font-semibold mb-4 text-emerald-400">
-                Surface Roast Results
-              </h3>
-              <ul className="space-y-3">
-                {bullets.map((bullet, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="text-zinc-500 mr-3">•</span>
-                    <span className="text-zinc-200">{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <form onSubmit={handleRoast} className="space-y-4 mb-8">
+          <textarea
+            className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+            rows={4}
+            placeholder="Describe your product idea (e.g. A CRM for dog walkers)..."
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            disabled={loading || !!loadingStatus}
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading || !!loadingStatus || !idea.trim()}
+            className="w-full py-3 px-6 bg-zinc-100 text-zinc-900 font-semibold rounded-lg hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Roast My Idea
+          </button>
+        </form>
 
-            <form
-              onSubmit={handleEmailSubmit}
-              className="space-y-4 bg-zinc-800/50 p-6 rounded-lg border border-zinc-700/50"
-            >
-              <h4 className="text-lg font-medium text-white">
-                Want the deep dive?
-              </h4>
-              <p className="text-sm text-zinc-400">
-                Our agents will generate a comprehensive market and competitor
-                analysis.
-              </p>
-              <input
-                type="email"
-                className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-2 focus:ring-emerald-500 outline-none"
-                placeholder="Enter your email for the deep dive"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading || !email.trim()}
-                className="w-full py-3 px-6 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        {streamData && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <GenerativeErrorBoundary>
+              <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700 prose prose-invert max-w-none">
+                <ReactMarkdown
+                  rehypePlugins={[[rehypeSanitize, defaultSchema]]}
+                  urlTransform={urlTransform}
+                >
+                  {streamData}
+                </ReactMarkdown>
+              </div>
+            </GenerativeErrorBoundary>
+
+            {/* Email form moved to its own component or kept here but only visible after stream completes or alongside it */}
+            {!loading && (
+              <form
+                onSubmit={handleEmailSubmit}
+                className="space-y-4 bg-zinc-800/50 p-6 rounded-lg border border-zinc-700/50 mt-8"
               >
-                Get Full Report
-              </button>
-            </form>
+                <h4 className="text-lg font-medium text-white">
+                  Want the deep dive?
+                </h4>
+                <p className="text-sm text-zinc-400">
+                  Our agents will generate a comprehensive market and competitor
+                  analysis.
+                </p>
+                <input
+                  type="email"
+                  className="w-full p-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="Enter your email for the deep dive"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !email.trim()}
+                  className="w-full py-3 px-6 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Get Full Report
+                </button>
+              </form>
+            )}
           </div>
         )}
 

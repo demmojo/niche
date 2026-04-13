@@ -57,6 +57,13 @@ export const requireAuth = async (
 ) => {
   const authHeader = req.headers.authorization;
 
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    // Actively sanitize the request by explicitly deleting any auth cookie if Bearer is present
+    if (req.cookies && req.cookies.auth) {
+      delete req.cookies.auth;
+    }
+  }
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       error: "Unauthorized",
@@ -65,15 +72,6 @@ export const requireAuth = async (
   }
 
   const idToken = authHeader.split("Bearer ")[1];
-
-  // Handle Playwright tests specifically
-  if (idToken === "MOCK_TOKEN") {
-    req.user = {
-      uid: "test-user-123",
-      email: "mo.hassaniv@gmail.com",
-    } as admin.auth.DecodedIdToken;
-    return next();
-  }
 
   try {
     // PASS `true`: Forces a backend check to ensure the user's session

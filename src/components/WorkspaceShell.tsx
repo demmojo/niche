@@ -97,7 +97,7 @@ export function WorkspaceShell({ logout }: { logout: () => void }) {
 
   // We only show the full-screen ZeroFrictionEntry for unauthenticated/anonymous users.
   // Authenticated users will skip this and see it embedded inside FounderWorkspace if they need it.
-  const isDemoOrMock = window.location.search.includes("mock_auth=true");
+  const isDemoOrMock = false;
   const forceBypass =
     typeof window !== "undefined" &&
     (window as any).__MOCK_ENTRY_FLOW_ACTIVE__ === false;

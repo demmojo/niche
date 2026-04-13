@@ -43,8 +43,7 @@ export function useFirebaseSync<T>(
     if (
       !user ||
       (typeof window !== "undefined" &&
-        (window.name === "playwright-test" ||
-          window.location.search.includes("mock_auth=true")))
+        (window.name === "playwright-test" || false))
     ) {
       setStoredValue(initialValue);
       return;
@@ -112,8 +111,7 @@ export function useFirebaseSync<T>(
         // FLUSH pending write on unmount to prevent data loss!
         if (
           typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
+          (window.name === "playwright-test" || false)
         ) {
           return;
         }
@@ -148,8 +146,7 @@ export function useFirebaseSync<T>(
 
         if (
           typeof window !== "undefined" &&
-          (window.name === "playwright-test" ||
-            window.location.search.includes("mock_auth=true"))
+          (window.name === "playwright-test" || false)
         ) {
           return;
         }

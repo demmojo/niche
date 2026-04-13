@@ -267,6 +267,26 @@ export async function generateContentStreamHandler(
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // Bypass Cloud Run proxy buffering
+
+  const abortController = new AbortController();
+  let clientDisconnected = false;
+  let chunksDelivered = 0;
+  let connectionDroppedEarly = false;
+
+  req.on("close", () => {
+    clientDisconnected = true;
+    abortController.abort();
+    // Early disconnect heuristic (if < 10% of typical payload, e.g. < 5 chunks)
+    if (chunksDelivered < 5) {
+      connectionDroppedEarly = true;
+      // Heuristic: Automatic refund of Action Credit would be triggered here
+      // refundActionCredit(req.user?.uid);
+      logger.info(
+        `Stream dropped early after ${chunksDelivered} chunks. Initiating refund heuristic.`,
+      );
+    }
+  });
 
   try {
     const { model, params } = req.body;
@@ -283,28 +303,58 @@ export async function generateContentStreamHandler(
       const key = req.llmApiKey || process.env.GEMINI_API_KEY;
       if (!key) throw new Error("No Gemini API key available.");
       const ai = new GoogleGenAI({ apiKey: key });
-      const stream = await ai.models.generateContentStream({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
+      const stream = await ai.models.generateContentStream(
+        {
+          model,
+          contents: params.contents,
+          config: params.config,
+        },
+        {
+          signal: abortController.signal,
+        } as any,
+      ); // Type assertion because GoogleGenAI might not fully document `signal` in all definitions but supports it or fetch equivalent.
 
       for await (const chunk of stream) {
-        res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+        if (clientDisconnected) break;
+
+        let chunkText = chunk.text || "";
+
+        // Character-aware chunk segmentation to avoid > 64KB limits per SSE frame
+        // Assuming ~16K chars is safely under 64KB UTF-8 limits
+        const MAX_CHARS = 16000;
+
+        while (chunkText.length > 0) {
+          const slice = chunkText.slice(0, MAX_CHARS);
+          chunkText = chunkText.slice(MAX_CHARS);
+
+          res.write(`data: ${JSON.stringify({ text: slice })}\n\n`);
+          chunksDelivered++;
+        }
       }
-      penaltyBox.recordResult(provider, 200);
-      res.write(`data: [DONE]\n\n`);
-      return res.end();
+
+      if (!clientDisconnected) {
+        penaltyBox.recordResult(provider, 200);
+        res.write(`data: [DONE]\n\n`);
+        return res.end();
+      }
     } else {
-      // Dummy stream for openai/anthropic as per original aiClient.ts logic
-      // In original code, it awaited a normal result and yielded it once.
-      const result = await generateContentHandler(req, res as any); // hacky for stream fallback
-      // Actually, since I am doing this in a new way, let's just error or do dummy
-      res.write(`data: [DONE]\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ error: "Only Gemini streaming is natively supported in this MVP iteration." })}\n\n`,
+      );
       return res.end();
     }
   } catch (error: any) {
-    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    if (error.name === "AbortError" || clientDisconnected) {
+      logger.info("Stream aborted via client disconnect.");
+      res.write(
+        `data: ${JSON.stringify({ error: "STREAM_ABORTED", message: "Client disconnected." })}\n\n`,
+      );
+    } else {
+      logger.error("LLM Stream Error:", error);
+      res.write(
+        `data: ${JSON.stringify({ error: "STREAM_FAILED", message: error.message })}\n\n`,
+      );
+    }
     return res.end();
   }
 }

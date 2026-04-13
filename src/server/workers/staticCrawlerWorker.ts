@@ -39,7 +39,10 @@ export async function processStaticCrawl(data: {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second strict timeout
 
-      const response = await fetch(url, { signal: controller.signal });
+      const response = await fetch(url, {
+        signal: controller.signal,
+        redirect: "manual", // Prevent SSRF via malicious redirects
+      });
       clearTimeout(timeoutId);
 
       if (response.status === 403 || response.status === 429) {

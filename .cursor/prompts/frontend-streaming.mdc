@@ -1,0 +1,13 @@
+# Frontend Streaming Architecture Constraints
+
+When working on generative streaming components or AI-native UI:
+
+1. **Disposable JSX**: Keep components < 400 lines. Extract logic to custom hooks with flat signatures.
+2. **Layout Shells**: Wrap generative content in static, human-owned layout shells (e.g., `<AsymmetricalShell>`). Do NOT put streaming state logic directly into complex layout components.
+3. **No Local Abort Signals for Generation**: Do not wire manual `AbortController` cancellation buttons directly into the generation scope. Instead, let the backend "Die on Disconnect" and handle resyncing via visibility listeners and Firestore ledgers.
+4. **Two-Phase Fetch**: Phase 1 fetches deterministic data. Phase 2 kicks off the generative stream. Use ARIA live regions for explainable states.
+5. **Decoupled Ingestion**: Use a chunk ingestion buffer (e.g., via `useNicheGenerativeStream` or `useStreamChunkThrottler`) to yield UI updates every 100-200ms. Do NOT push raw, rapid stream chunks directly into state.
+6. **Error Boundaries**: Always wrap streaming renderers in `<GenerativeErrorBoundary>`.
+7. **AST Security**: When rendering markdown from streams, use `react-markdown` with `rehype-sanitize` and a strict `urlTransform` to prevent XSS.
+8. **Context Splitting**: Separate global React Contexts into State and Dispatch. NEVER use React Context for high-frequency generative stream state.
+9. **Zombie Connection Cleanup**: Use `visibilitychange` event listeners to clean up abandoned TCP connections if the tab is backgrounded, forcing a fresh fetch on return.

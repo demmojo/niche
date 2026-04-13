@@ -51,6 +51,19 @@ vi.mock("@anthropic-ai/sdk", () => {
 const app = express();
 app.use(express.json());
 
+// AGENTS.md rule: Test-only middleware to intercept and ignore the `close` event listener
+// attachment specifically for the test environment to prevent supertest SSE aborts.
+app.use((req, res, next) => {
+  const originalOn = req.on.bind(req);
+  req.on = (event: string, listener: any) => {
+    if (event === "close") {
+      return req; // ignore
+    }
+    return originalOn(event, listener);
+  };
+  next();
+});
+
 // Handlers
 app.use((req, res, next) => {
   (req as any).llmApiKey = "mock-api-key";

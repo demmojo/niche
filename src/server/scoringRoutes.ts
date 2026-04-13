@@ -88,7 +88,10 @@ scoringRouter.post(
       sendData("status", "Fetching page...");
       let fetchRes;
       try {
-        fetchRes = await fetch(url, { signal: abortController.signal });
+        fetchRes = await fetch(url, {
+          signal: abortController.signal,
+          redirect: "manual", // Prevent SSRF via malicious redirects
+        });
       } catch (fetchErr: any) {
         sendData("error", `Failed to fetch URL: ${fetchErr.message}`);
         return res.end();
