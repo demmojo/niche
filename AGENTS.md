@@ -13,6 +13,16 @@
 - **Documentation**: Maintain a comprehensive Master Document (e.g., `docs/nicheai-master-context.md`). Prioritize explaining automated AI steps alongside manual CLI scripts.
 - **Knowledge Management**: Consistently document 'Anti-Patterns' paired with 'Resolved Patterns' while aggressively deleting stale facts to prevent "Split-Brain" contradictions.
 
+## Hybrid AI Workflow Rules
+
+- **Strict OpenSpec Gate**: No AI agent (Cursor or Claude Code) is permitted to write implementation code or modify the architecture without an active, human-approved OpenSpec in the DAG (`openspec/changes/`).
+- **Tool Responsibilities**:
+  - **Cursor (Gemini Pro)** is responsible for granular code editing, local debugging, Vitest fixing, and real-time developer feedback. It acts as the tactical execution engine.
+  - **Claude Code (Opus)** is responsible for architectural planning, OpenSpec generation, DAG validation, and complex multi-step orchestration. It acts as the strategic planner.
+- **The "Halt & Update" Protocol**: If an AI agent encounters a technical constraint that requires deviating from the approved `design.md` or `spec.md`, it MUST immediately HALT coding. It must update the specification document directly to reflect the new architectural reality and request human approval. Agents must NEVER silently hallucinate workarounds that deviate from the spec.
+- **Git Checkpoint Pattern**: Agents must protect developer WIP from unpredictable filesystem mutations. Before executing mutative AI actions, the AI must ensure the "Soft-Wrap" checkpoint (`openspec checkpoint` or equivalent `git add -A && git commit -m "CHORE: openspec-pre-ai-wip-snapshot"`) is utilized, allowing for instant `openspec undo` upon failure.
+- **CI/CD Enforcement Boundary**: Semantic validation of code against OpenSpec artifacts is enforced strictly in the remote CI/CD pipeline using stateless `gemini-3.1-pro` Pairwise Evaluation with Blast-Radius Scoping (`git diff HEAD^1 HEAD --name-only`), and never via slow local pre-commit hooks. Local operations should prioritize Developer Experience (DX) and speed.
+
 ## Learned Workspace Facts
 
 - **OpenSpec Workflow**: Manage files under `openspec/`. Follow the 8-Step Lifecycle SSOT defined in `CONTRIBUTING.md`. List files with full extensions to prevent DAG hallucinations. Archival strictly requires `learnings_extracted: true`. For AI-native specs, frame validations as manual end-to-end simulations. Use `npm run openspec <command>`.
@@ -105,6 +115,8 @@
 
 ### Telemetry & Analytics Architecture
 
+- **Anti-Pattern (Over-Engineering Protocols)**: Implementing over-engineered, non-standard protocols (like Sovereign Blob Reference Protocol/SBRP for massive traces) before standard API patterns fail or before physical data limits strictly require such decoupled data-plane compliance.
+- **Resolved Pattern**: Apply the "Minimum Lovable Product (MLP)" and "Binary Triage" mindset to architectural RFCs as well. Strictly reject over-engineered infrastructure and fallback to standard, proven, simple API payloads until physical limits dictate otherwise. Over-engineering for <0.1% edge cases (like 100MB+ traces) introduces unnecessary attack vectors (SSRF, decompression bombs) and maintenance burden.
 - **Anti-Pattern (Event Loop Starvation)**: Implementing high-frequency telemetry ingestion, flagging, or batching directly within the Node.js application layer. This blocks the single-threaded event loop, directly degrading the core user experience and tying observability overhead to application performance.
 - **Resolved Pattern**: Decouple telemetry ingestion at the infrastructure level. Route high-volume event data through GCP Cloud Tasks (PauseQueue) or Pub/Sub. The main application should immediately return a `202 Accepted` and offload all processing, validation, and storage to background worker instances.
 - **Anti-Pattern (Average of Averages)**: Calculating aggregate metrics (e.g., performance times, success rates) in the application or UI layer by averaging pre-calculated segment averages. This produces statistically invalid metrics that can mislead product decisions.
