@@ -160,7 +160,7 @@ ${specContents}
     contents: prompt,
     config: {
       responseMimeType: "application/json",
-      responseSchema: zodToJsonSchema(StrategyUpdateSchema) as Schema,
+      responseSchema: zodToJsonSchema(StrategyUpdateSchema as any) as Schema,
     },
   });
 
@@ -213,7 +213,7 @@ ${activeSpecs}
     contents: mapPrompt,
     config: {
       responseMimeType: "application/json",
-      responseSchema: zodToJsonSchema(ClaimsSchema) as Schema,
+      responseSchema: zodToJsonSchema(ClaimsSchema as any) as Schema,
     },
   });
 
@@ -261,7 +261,7 @@ ${codebaseSnapshot}
       contents: reducePrompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(DriftReportSchema) as Schema,
+        responseSchema: zodToJsonSchema(DriftReportSchema as any) as Schema,
       },
     });
 
