@@ -1,0 +1,6 @@
+schema: spec-driven
+status: draft
+learnings_extracted: false
+created: '2026-04-14'
+depends_on:
+  - nicheai-frontend-streaming

@@ -6,7 +6,9 @@ import admin from "firebase-admin";
 
 vi.mock("firebase-admin", () => {
   const batchMock = {
-    update: vi.fn(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
     commit: vi.fn().mockResolvedValue(true),
   };
 
@@ -18,6 +20,7 @@ vi.mock("firebase-admin", () => {
     doc: vi.fn().mockReturnThis(),
     get: vi.fn().mockResolvedValue({ empty: true, size: 0, docs: [] }),
     set: vi.fn().mockResolvedValue(true),
+    delete: vi.fn().mockResolvedValue(true),
     runTransaction: vi.fn(async (callback) => {
       const mockTransaction = {
         get: vi.fn().mockResolvedValue({ exists: false }),
@@ -30,7 +33,7 @@ vi.mock("firebase-admin", () => {
   const authMock = {
     verifyIdToken: vi.fn(),
     getUser: vi.fn(),
-    deleteUser: vi.fn(),
+    deleteUser: vi.fn().mockResolvedValue(true),
   };
 
   return {
@@ -49,7 +52,7 @@ vi.mock("firebase-admin", () => {
   };
 });
 
-describe("authRoutes merge-anonymous-data", () => {
+describe("authRoutes merge protocol", () => {
   const app = express();
   app.use(express.json());
   app.use(authRouter);
@@ -58,253 +61,156 @@ describe("authRoutes merge-anonymous-data", () => {
     vi.clearAllMocks();
   });
 
-  it("merges data successfully and chunks iteratively when documents exist", async () => {
-    const adminInstance = admin as any;
+  describe("POST /generate-merge-grant", () => {
+    it("generates a claim ticket for an anonymous user", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "anon-123" });
+      adminInstance.auth().getUser.mockResolvedValue({
+        providerData: [], // isAnonymous = true
+      });
 
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "anon-123", iat: 1234 }); // Anonymous
+      const res = await request(app)
+        .post("/generate-merge-grant")
+        .set("Authorization", "Bearer valid-anon-token")
+        .set("x-firebase-appcheck", "valid");
 
-    adminInstance.auth().getUser.mockResolvedValue({
-      providerData: [], // Mocking isAnonymous true
+      expect(res.status).toBe(200);
+      expect(res.body.claimTicket).toBeDefined();
+      expect(adminInstance.firestore().doc).toHaveBeenCalledWith("anon-123"); // because .collection("merge_grants").doc("anon-123")
+      expect(adminInstance.firestore().set).toHaveBeenCalled();
     });
 
-    const mockDoc = {
-      ref: "mock-ref",
-      data: () => ({ members: ["anon-123", "other-user"] }),
-    };
-
-    // Override the mock to return documents on first pass, then empty on second pass (to end the while loops)
-    adminInstance.firestore().get = vi
-      .fn()
-      .mockResolvedValueOnce({ empty: false, size: 1, docs: [mockDoc] }) // campaign_jobs 1st
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }) // campaign_jobs 2nd
-      .mockResolvedValueOnce({ empty: false, size: 1, docs: [mockDoc] }) // workspaces 1st
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }); // workspaces 2nd
-
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
+    it("rejects non-anonymous users", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" });
+      adminInstance.auth().getUser.mockResolvedValue({
+        providerData: [{ providerId: "google.com" }], // isAnonymous = false
       });
 
-    expect(res.status).toBe(202);
-    expect(adminInstance.firestore().batch).toHaveBeenCalled();
-    expect(adminInstance.firestore().collection).toHaveBeenCalledWith(
-      "merged_accounts",
-    );
-    expect(adminInstance.auth().deleteUser).toHaveBeenCalledWith("anon-123");
+      const res = await request(app)
+        .post("/generate-merge-grant")
+        .set("Authorization", "Bearer valid-perm-token")
+        .set("x-firebase-appcheck", "valid");
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe(
+        "Only anonymous accounts can generate merge grants",
+      );
+    });
   });
 
-  it("handles identical accounts or non-anonymous source accounts", async () => {
-    const adminInstance = admin as any;
+  describe("POST /execute-merge", () => {
+    it("executes merge with a valid claim ticket", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" });
 
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "same-123" }) // Permanent
-      .mockResolvedValueOnce({ uid: "same-123", iat: 1234 }); // Anonymous
+      // Mock merge grant doc
+      const mockGrantDoc = {
+        exists: true,
+        data: () => ({
+          token: "valid-claim-ticket",
+          expiresAt: Date.now() + 60000,
+        }),
+      };
 
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "same-123",
-      });
+      adminInstance.firestore().get = vi
+        .fn()
+        .mockResolvedValueOnce(mockGrantDoc) // merge_grant check
+        .mockResolvedValueOnce({
+          empty: false,
+          size: 1,
+          docs: [{ ref: "mock-ref", data: () => ({}) }],
+        }) // jobs
+        .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }) // jobs loop exit
+        .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }) // workspaces
+        .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }); // RoastMyNiche jobs
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("Cannot merge identical accounts");
+      const res = await request(app)
+        .post("/execute-merge")
+        .set("Authorization", "Bearer valid-perm-token")
+        .set("x-firebase-appcheck", "valid")
+        .send({ anonUid: "anon-123", claimTicket: "valid-claim-ticket" });
 
-    // Next case
-    adminInstance.auth().verifyIdToken.mockReset();
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "anon-123", iat: 1234 }); // Anonymous
-
-    adminInstance.auth().getUser.mockResolvedValue({
-      providerData: [{ providerId: "google.com" }], // Mocking isAnonymous false
+      expect(res.status).toBe(200);
+      expect(adminInstance.firestore().batch).toHaveBeenCalled();
     });
 
-    const res2 = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
+    it("rejects missing inputs", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" });
 
-    expect(res2.status).toBe(400);
-    expect(res2.body.error).toBe("Source account is not anonymous");
-  });
+      const res = await request(app)
+        .post("/execute-merge")
+        .set("Authorization", "Bearer valid-perm-token")
+        .set("x-firebase-appcheck", "valid")
+        .send({ anonUid: "anon-123" }); // missing claimTicket
 
-  it("handles identical accounts or non-anonymous source accounts (part 2: spaces)", async () => {
-    const adminInstance = admin as any;
-
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "anon-123", iat: 1234 }); // Anonymous
-
-    adminInstance.auth().getUser.mockResolvedValue({
-      providerData: [{ providerId: "google.com" }], // Mocking isAnonymous false
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("Missing anonUid or claimTicket");
     });
 
-    const mockDoc = {
-      ref: "mock-ref",
-      data: () => ({ members: ["other-user"] }), // missing anon-123 to cover that branch map
-    };
+    it("rejects invalid claim tickets", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" });
 
-    adminInstance.firestore().get = vi
-      .fn()
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] })
-      .mockResolvedValueOnce({ empty: false, size: 1, docs: [mockDoc] }) // workspaces 1st
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }); // workspaces 2nd
+      const mockGrantDoc = {
+        exists: true,
+        data: () => ({
+          token: "valid-claim-ticket",
+          expiresAt: Date.now() + 60000,
+        }),
+      };
 
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
+      adminInstance.firestore().get = vi
+        .fn()
+        .mockResolvedValueOnce(mockGrantDoc);
 
-    expect(res.status).toBe(400); // failed earlier since provider is not anon
-  });
+      const res = await request(app)
+        .post("/execute-merge")
+        .set("Authorization", "Bearer valid-perm-token")
+        .set("x-firebase-appcheck", "valid")
+        .send({ anonUid: "anon-123", claimTicket: "invalid-ticket" });
 
-  it("covers workspace members array fallback", async () => {
-    const adminInstance = admin as any;
-
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "anon-123", iat: 1234 }); // Anonymous
-
-    adminInstance.auth().getUser.mockResolvedValue({
-      providerData: [], // Mocking isAnonymous true
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("Invalid or expired claim ticket");
     });
 
-    const mockDoc = {
-      ref: "mock-ref",
-      data: () => ({}), // missing members array to cover that branch
-    };
+    it("rejects expired claim tickets", async () => {
+      const adminInstance = admin as any;
+      adminInstance
+        .auth()
+        .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" });
 
-    adminInstance.firestore().get = vi
-      .fn()
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }) // no jobs
-      .mockResolvedValueOnce({ empty: false, size: 1, docs: [mockDoc] }) // workspaces 1st
-      .mockResolvedValueOnce({ empty: true, size: 0, docs: [] }); // workspaces 2nd
+      const mockGrantDoc = {
+        exists: true,
+        data: () => ({
+          token: "valid-claim-ticket",
+          expiresAt: Date.now() - 60000, // expired
+        }),
+      };
 
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
+      adminInstance.firestore().get = vi
+        .fn()
+        .mockResolvedValueOnce(mockGrantDoc);
 
-    expect(res.status).toBe(202);
-  });
+      const res = await request(app)
+        .post("/execute-merge")
+        .set("Authorization", "Bearer valid-perm-token")
+        .set("x-firebase-appcheck", "valid")
+        .send({ anonUid: "anon-123", claimTicket: "valid-claim-ticket" });
 
-  it("handles mismatched anonymous token uid", async () => {
-    const adminInstance = admin as any;
-
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "different-uid", iat: 1234 }); // Anonymous
-
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
-
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("Anonymous token does not match oldUid");
-  });
-
-  it("handles server errors gracefully", async () => {
-    const adminInstance = admin as any;
-
-    adminInstance
-      .auth()
-      .verifyIdToken.mockRejectedValueOnce(new Error("Auth service down"));
-
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
-
-    expect(res.status).toBe(500);
-    expect(res.body.error).toBe("Auth service down");
-  });
-
-  it("handles deleteUser errors gracefully without failing the request", async () => {
-    const adminInstance = admin as any;
-
-    adminInstance
-      .auth()
-      .verifyIdToken.mockResolvedValueOnce({ uid: "perm-456" }) // Permanent
-      .mockResolvedValueOnce({ uid: "anon-123", iat: 1234 }); // Anonymous
-
-    adminInstance.auth().getUser.mockResolvedValue({
-      providerData: [], // Mocking isAnonymous true
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("Invalid or expired claim ticket");
     });
-
-    adminInstance
-      .auth()
-      .deleteUser.mockRejectedValueOnce(new Error("Delete failed"));
-
-    adminInstance.firestore().get = vi
-      .fn()
-      .mockResolvedValue({ empty: true, size: 0, docs: [] });
-
-    const res = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .set("Authorization", "Bearer valid-perm-token")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      });
-
-    expect(res.status).toBe(202); // Should still succeed
-  });
-
-  it("handles missing inputs or headers", async () => {
-    const res1 = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .send({ oldUid: "anon-123" }); // missing anonToken
-
-    expect(res1.status).toBe(400);
-    expect(res1.body.error).toBe("Missing anonToken or oldUid");
-
-    const res2 = await request(app)
-      .post("/merge-anonymous-data")
-      .set("x-firebase-appcheck", "valid")
-      .send({
-        anonToken: "valid-anon-token",
-        oldUid: "anon-123",
-      }); // missing authHeader
-
-    expect(res2.status).toBe(401);
-    expect(res2.body.error).toBe("Missing Permanent JWT");
   });
 });

@@ -25,6 +25,16 @@ vi.mock("../../components/AuthProvider", () => ({
   }),
 }));
 
+// Mock useSecureMerge
+vi.mock("../../hooks/useSecureMerge", () => ({
+  useSecureMerge: () => ({
+    triggerSaveWorkspace: vi.fn(),
+    isSubmitting: false,
+    mergeState: "IDLE",
+    retrySync: vi.fn(),
+  }),
+}));
+
 describe("RoastMyNiche UI", () => {
   let originalFetch: any;
 
@@ -122,7 +132,7 @@ describe("RoastMyNiche UI", () => {
     });
 
     // Should show the email capture form now
-    const emailInput = screen.getByPlaceholderText(
+    const emailInput = await screen.findByPlaceholderText(
       /Enter your email for the deep dive/i,
     );
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });

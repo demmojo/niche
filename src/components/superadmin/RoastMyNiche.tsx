@@ -12,6 +12,9 @@ import { useNicheGenerativeStream } from "../../hooks/useNicheGenerativeStream";
 import { GenerativeErrorBoundary } from "../ErrorBoundary/GenerativeErrorBoundary";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { ValuePreservationBanner } from "../ui/ValuePreservationBanner";
+import { ExplainableLoader } from "../ui/ExplainableLoader";
+import { useSecureMerge } from "../../hooks/useSecureMerge";
 
 // AST Security: Strict URL allowlist to prevent XSS
 const urlTransform = (url: string) => {
@@ -40,6 +43,9 @@ export const RoastMyNiche: React.FC = () => {
   } = useNicheGenerativeStream({
     api: (import.meta.env.VITE_API_BASE_URL || "") + "/api/llm/generateStream",
   });
+
+  const { triggerSaveWorkspace, isSubmitting, mergeState, retrySync } =
+    useSecureMerge();
 
   // Reconstruct streamData as a string from messages for ReactMarkdown
   const streamData = messages
@@ -202,6 +208,19 @@ export const RoastMyNiche: React.FC = () => {
           Roast My Niche
         </h1>
 
+        {user?.isAnonymous && streamData && mergeState !== "SUCCESS" && (
+          <div className="mb-6">
+            {mergeState === "IDLE" ? (
+              <ValuePreservationBanner
+                onSave={triggerSaveWorkspace}
+                isStreaming={isStreamLoading || isSubmitting}
+              />
+            ) : (
+              <ExplainableLoader state={mergeState} onRetrySync={retrySync} />
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleRoast} className="space-y-4 mb-8">
           <textarea
             className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
@@ -214,7 +233,9 @@ export const RoastMyNiche: React.FC = () => {
           />
           <button
             type="submit"
-            disabled={loading || !!loadingStatus || !idea.trim()}
+            disabled={
+              loading || !!loadingStatus || !idea.trim() || isSubmitting
+            }
             className="w-full py-3 px-6 bg-zinc-100 text-zinc-900 font-semibold rounded-lg hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             Roast My Idea
@@ -258,7 +279,7 @@ export const RoastMyNiche: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  disabled={loading || !email.trim()}
+                  disabled={loading || !email.trim() || isSubmitting}
                   className="w-full py-3 px-6 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   Get Full Report

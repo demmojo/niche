@@ -29,7 +29,7 @@ export class DataGatherer {
       contents: `Extract search queries and keywords for this idea: ${idea.replace(/[<>]/g, "")}`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(IntentSchema) as any,
+        responseSchema: zodToJsonSchema(IntentSchema as any) as any,
       },
     });
 

@@ -29,7 +29,7 @@ export class ReportSynthesizer {
       contents: `Synthesize a report for: ${idea.replace(/[<>]/g, "")}\n\nContext: ${JSON.stringify(context)}`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(ReportSchema) as any,
+        responseSchema: zodToJsonSchema(ReportSchema as any) as any,
       },
     });
 

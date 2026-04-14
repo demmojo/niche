@@ -75,20 +75,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!user) {
         if (
           typeof window !== "undefined" &&
-          (window.name === "playwright-test" || false)
+          (window.name === "playwright-test" ||
+            window.location.search.includes("mock_auth=true"))
         ) {
           console.log("mock_auth=true detected, bypassing anonymous sign-in.");
           if (isMounted) {
             const isUserRole = window.location.search.includes("role=user");
-            const mockEmail = isUserRole
-              ? "user@example.com"
-              : "mo.hassaniv@gmail.com";
-            setUser({
-              uid: "test-user-123",
-              email: mockEmail,
-              isAnonymous: false,
-              getIdToken: async () => "MOCK_TOKEN",
-            } as any);
+            const isAnonRole = window.location.search.includes("role=anon");
+
+            if (isAnonRole) {
+              setUser({
+                uid: "anon-test-123",
+                isAnonymous: true,
+                getIdToken: async () => "MOCK_ANON_TOKEN",
+              } as any);
+            } else {
+              const mockEmail = isUserRole
+                ? "user@example.com"
+                : "mo.hassaniv@gmail.com";
+              setUser({
+                uid: "test-user-123",
+                email: mockEmail,
+                isAnonymous: false,
+                getIdToken: async () => "MOCK_TOKEN",
+              } as any);
+            }
             setLoading(false);
           }
           return;

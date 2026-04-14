@@ -124,7 +124,7 @@ import { DataPointsTable } from "./components/DataPointsTable";
 import { HeadToHeadComparison } from "./components/HeadToHeadComparison";
 import { UnifiedIdeationEngine } from "./components/ideation/UnifiedIdeationEngine";
 import { MyProduct, MyProductData } from "./components/MyProduct";
-import { useAuth } from "./components/AuthProvider";
+import { useAuth, useAuthDispatch } from "./components/AuthProvider";
 import { InsightBrainstormModal } from "./components/InsightBrainstormModal";
 import { PageGuideModal } from "./components/PageGuideModal";
 import { UploadDataModal } from "./components/UploadDataModal";
@@ -1184,7 +1184,8 @@ import { AuthDialogProvider } from "./components/AuthDialogProvider";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 
 export default function App() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
+  const { logout } = useAuthDispatch();
 
   if (loading)
     return (
